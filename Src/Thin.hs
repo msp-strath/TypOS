@@ -76,6 +76,20 @@ cop th ph
         ((c, ps), False)       -> (c , ps -? False)
         (((th, ph), ps), True) -> ((th -? a, ph -? b), ps -? True)
 
+-- (iz, th) and (jz, ph) are images for some of a scope
+-- compute a merge of iz and jz which are images for
+-- the union of th and ph
+riffle :: (Bwd a, Th) -> (Bwd a, Th) -> Bwd a
+riffle (B0, _) (jz, _) = jz
+riffle (iz :< i, th) (jz, ph) = case thun th of
+  (th, True) -> case (thun ph, jz) of
+    ((ph, True), jz :< _) -> riffle (iz, th) (jz, ph) :< i
+    ((ph, False), jz)     -> riffle (iz, th) (jz, ph) :< i
+  (th, False) -> case (thun ph, jz) of
+    ((ph, True), jz :< j) -> riffle (iz, th) (jz, ph) :< j
+    ((ph, False), jz)     -> riffle (iz, th) (jz, ph)
+
+-- fixme: avoid quadratic
 copz :: Bwd (CdB a) -> CdB (Bwd (CdB a))
 copz B0 = (B0, none)
 copz (az :< (a, ph)) = case copz az of
