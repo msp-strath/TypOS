@@ -132,7 +132,7 @@ CdBS sg //^ th = CdBS (sg *^ th)
 (^//) :: Show m => CdB (Tm m) -> CdBS m -> CdB (Tm m)
 (t, th) ^// sg =
   if   hits ta == none
-  then (t, ps)
+  then (t, ps)  -- miss ta = ones if hits ta = none
   else t // taph
   where
   -- restrict substitution to support of source term
