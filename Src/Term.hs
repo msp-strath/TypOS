@@ -35,6 +35,7 @@ data Sbst m = Sbst -- from scope ga to terms with support de
 -- imgs thinnings and miss
 
 newtype CdBS m = CdBS (CdB (Sbst m))
+  deriving (Show, Eq, Functor, Foldable, Traversable)
 
 -- smart constructor for codeBruijn substitution
 sbst :: Th -> Bwd (CdB (Tm m)) -> Th -> CdBS m
@@ -86,26 +87,26 @@ topSbst t = CdBS (Sbst
   , miss = ones
   }, ones)
 
-instance Monoid (CdBS m) where
+instance Show m =>Monoid (CdBS m) where
   mempty = sbst none B0 ones
   mappend
     (CdBS (Sbst { hits = th0, imgs = iz0, miss = ph0 }, ps0))
     ta
     = CdBS
       (Sbst { hits = th
-            , imgs = riffle (iz0', th0i) (iz1, mui)
-            , miss = ph0' <> ph1 }
+            , imgs = riffle (iz0', th0i) (ph0' ?< iz1, mui)
+            , miss = ph0'' <> ph1 }
       , ps1)
     where
     ta'@(CdBS (Sbst { hits = th1, imgs = iz1, miss = ph1 }, ps1)) =
       ps0 ?// ta
-    (th1', _, _) = pullback ph0 th1
+    (th1', _, ph0') = pullback ph0 th1
     mu = th1' <> comp th0 -- missed by front hit by back
     ((th0i, mui), th) = cop th0 mu
     iz0' = fmap (^// ta') iz0
-    (_, _, ph0') = pullback ph0 (comp th1)
+    (_, _, ph0'') = pullback ph0 (comp th1)
     
-instance Semigroup (CdBS m) where (<>) = mappend
+instance Show m => Semigroup (CdBS m) where (<>) = mappend
 
 -- restrict the source of a substitution
 --  gaa ---th---> ga <---~th--- gap ---ph;ps---> de
@@ -114,7 +115,7 @@ instance Semigroup (CdBS m) where (<>) = mappend
 --  ch'           ch            pi'
 --   |[]           |           []|
 --  gaa' --th'--> ga' <-------- gap'
-(?//) :: Th -> CdBS m -> CdBS m
+(?//) :: Show m => Th -> CdBS m -> CdBS m
 ch ?// (CdBS (Sbst { hits = th, imgs = iz, miss = ph }, ps)) =
   sbst th' iz' ph' //^ ps where
   (th', _, ch') = pullback ch th
@@ -123,12 +124,12 @@ ch ?// (CdBS (Sbst { hits = th, imgs = iz, miss = ph }, ps)) =
   iz' = ch' ?< iz
 
 -- thinning the target of a substitution
-(//^) :: CdBS m -> Th -> CdBS m
+(//^) :: Show m => CdBS m -> Th -> CdBS m
 CdBS sg //^ th = CdBS (sg *^ th)
 
 -- action of codeBruijn substitution ga => de
 -- on codeBruijn term
-(^//) :: CdB (Tm m) -> CdBS m -> CdB (Tm m)
+(^//) :: Show m => CdB (Tm m) -> CdBS m -> CdB (Tm m)
 (t, th) ^// sg =
   if   hits ta == none
   then (t, ps)
@@ -139,13 +140,13 @@ CdBS sg //^ th = CdBS (sg *^ th)
 
 -- the worker: presumes we've already restricted
 -- to support and have things to hit
-(//) :: Tm m -> CdBS m -> CdB (Tm m)
+(//) :: Show m => Tm m -> CdBS m -> CdB (Tm m)
 V // (CdBS (Sbst {imgs = (B0 :< t)}, ps)) = t *^ ps
 (s :% t) // sg = (s ^// sg) % (t ^// sg)
 ((Hide x, False) :. t) // sg = x \\ (t // sg)
 ((Hide x, True) :. t) // sg = x \\ (t // wkSbst sg)
 (m :$ ta) // sg = m $: (CdBS (ta, ones) <> sg)
-
+t // sg = error (show t ++ " // " ++ show sg)
 
 
 -- uglyprinting
@@ -196,3 +197,5 @@ displaySg xz (Sbst th iz ph)
       | otherwise = case thun th of
         (th, True)  -> th -? False
         (th, False) -> nip th -? False
+
+-----------------------------

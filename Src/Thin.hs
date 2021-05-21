@@ -82,12 +82,12 @@ cop th ph
 riffle :: (Bwd a, Th) -> (Bwd a, Th) -> Bwd a
 riffle (B0, _) (jz, _) = jz
 riffle (iz :< i, th) (jz, ph) = case thun th of
-  (th, True) -> case (thun ph, jz) of
-    ((ph, True), jz :< _) -> riffle (iz, th) (jz, ph) :< i
-    ((ph, False), jz)     -> riffle (iz, th) (jz, ph) :< i
-  (th, False) -> case (thun ph, jz) of
-    ((ph, True), jz :< j) -> riffle (iz, th) (jz, ph) :< j
-    ((ph, False), jz)     -> riffle (iz, th) (jz, ph)
+  (th, True) -> case (jz, thun ph) of
+    (jz :< _, (ph, True)) -> riffle (iz, th) (jz, ph) :< i
+    (jz, (ph, False))     -> riffle (iz, th) (jz, ph) :< i
+  (th, False) -> case (jz, thun ph) of
+    (jz :< j, (ph, True)) -> riffle (iz, th) (jz, ph) :< j
+    (jz, (ph, False))     -> riffle (iz, th) (jz, ph)
 
 -- fixme: avoid quadratic
 copz :: Bwd (CdB a) -> CdB (Bwd (CdB a))
@@ -116,7 +116,7 @@ th ?< xz
 pullback :: Th -> Th -> (Th, Th, Th)
 pullback th ph
   | th == ones = (ph, ph, ones)
-  | ph == ones = (ones, ph, ph)
+  | ph == ones = (ones, th, th)
   | th == none || ph == none = (none, none, none)
   | otherwise = case (thun th, thun ph) of
       ((th, a), (ph, b)) -> case (pullback th ph, a, b) of
