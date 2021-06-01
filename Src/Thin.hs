@@ -33,6 +33,13 @@ instance Show Th where
 inx :: Int -> Th
 inx i = Th (bit i)
 
+
+-- th must not be 0
+lsb :: Th -> Int
+lsb th = case thun th of
+  (_, True) -> 0
+  (th, False) -> 1 + lsb th
+
 -- invert selection
 comp :: Th -> Th
 comp (Th th) = Th (complement th)
@@ -48,6 +55,9 @@ full i = xor (shiftL ones i) ones where ones = complement zeroBits
 -- codeBruijn things are paired with a thinning
 -- from support to scope
 type CdB a = (a, Th)
+
+weak :: CdB a -> CdB a
+weak (t, th) = (t, th -? False)
 
 (*^) :: CdB a -> Th -> CdB a
 (a, th) *^ ph = (a, th <> ph)

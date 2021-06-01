@@ -22,6 +22,10 @@ data Tm m
   | m :$ Sbst m
   deriving (Show, Eq, Functor, Foldable, Traversable)
 
+newtype Meta = Meta [(String, Int)]
+  deriving (Show, Eq)
+type Term = CdB (Tm Meta)
+
 infixr 3 :.
 infixr 4 :%
 infixr 5 :$
@@ -60,8 +64,9 @@ infixr 4 %
 (s, th) % (t, ph) = case cop th ph of
   ((th, ph), ps) -> ((s, th) :% (t, ph), ps)
 
-li :: [CdB (Tm m)] -> CdB (Tm m)
-li = foldr (%) nil
+(#%) :: String -> [CdB (Tm m)] -> CdB (Tm m)
+a #% ts = case foldr (%) nil ts of
+  (t, th) -> (atom a :% (t, ones), th)
 
 infixr 3 \\
 (\\) :: String -> CdB (Tm m) -> CdB (Tm m)
@@ -72,11 +77,31 @@ infixr 5 $:
 ($:) :: m -> CdBS m -> CdB (Tm m)
 m $: (CdBS (sg, th)) = (m :$ sg, th)
 
+-- co-smart destructors for the codeBruijn terms
+
+car, cdr :: CdB (Tm m) -> CdB (Tm m)
+car (s :% _, ph) = s *^ ph
+cdr (_ :% t, ph) = t *^ ph
+
+tag :: CdB (Tm m) -> String
+tag (A a, _) = a
+
+(%<) :: CdB (Tm m) -> (CdB (Tm m) -> CdB (Tm m) -> a) -> a
+t %< f = f (car t) (cdr t)
+
+(#%<) :: CdB (Tm m) -> (String -> CdB (Tm m) -> a) -> a
+t #%< f = t %< (f . tag)
+
+under :: CdB (Tm m) -> CdB (Tm m)
+under ((_, b) :. t, th) = (t, th -? b)
+
+-- smart constructors for the codeBruijn substs
+
 wkSbst :: CdBS m -> CdBS m
 wkSbst (CdBS (Sbst { hits = th, imgs = iz, miss = ph }, ps))
   = CdBS (Sbst
   { hits = th -? False
-  , imgs = fmap (id *** (-? False)) iz
+  , imgs = fmap weak iz
   , miss = ph -? True
   }, ps -? True)
 
@@ -105,7 +130,7 @@ instance Show m =>Monoid (CdBS m) where
     ((th0i, mui), th) = cop th0 mu
     iz0' = fmap (^// ta') iz0
     (_, _, ph0'') = pullback ph0 (comp th1)
-    
+
 instance Show m => Semigroup (CdBS m) where (<>) = mappend
 
 -- restrict the source of a substitution

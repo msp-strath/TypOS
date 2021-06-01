@@ -32,3 +32,9 @@ mapzs f xz = mapzss f xz []
 bwdProj :: Bwd x -> Int -> x
 bwdProj (xz :< x) 0 = x
 bwdProj (xz :< x) n = bwdProj xz (n-1)
+
+top :: Bwd x -> x
+top (xz :< x) = x
+
+only :: Bwd x -> x
+only (B0 :< x) = x
