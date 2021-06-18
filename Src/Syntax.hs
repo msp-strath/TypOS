@@ -14,27 +14,28 @@ type SyntaxDesc = Term
 
 validate :: Map.Map SyntaxCat SyntaxDesc -> Bwd SyntaxCat -> SyntaxDesc -> Term -> Bool
 validate table env s t = s #%< \case
-  "Rec" -> flip (#%<) $ \ a _ -> case t of
-    (V, th) -> a == only (th ?< env)
-    _       -> case Map.lookup a table of
+  "Rec" -> flip (#%<) $ \ a _ -> t ?: \case
+    X x -> a == bwdProj env x
+    _   -> case Map.lookup a table of
       Nothing -> False
       Just s -> validate table env s t
-  "Atom" -> \ _ -> case t of
-    (A (_:_), _) -> True
-    _            -> False
-  "Nil" -> \ _ -> case t of
-    (A "", _) -> True
+  "Atom" -> \ _ -> t ?: \case
+    AX (_:_) -> True
+    _        -> False
+  "Nil" -> \ _ -> t ?: \case
+    AX "" -> True
+    _     -> False
+  "Cons" -> flip (%<) $ \ s1 -> flip (%<) $ \ s2 _ -> t ?: \case
+    t0 :%: t1 -> validate table env s1 t0 && validate table env s2 t1
     _         -> False
-  "Cons" -> flip (%<) $ \ s1 -> flip (%<) $ \ s2 _ -> case t of
-    (_ :% _, _) -> validate table env s1 (car t) && validate table env s2 (cdr t)
-    _           -> False
-  "Bind" -> flip (#%<) $ \ a -> flip (%<) $ \ s _ -> case t of
-    (_ :. _, _) -> validate table (env :< a) s (under t)
-    _           -> False
-  "Tag" -> flip (%<) $ \ s _ -> case t of
-    ((A a, _) :% _, _) -> case ourLookup a s of
+  "Bind" -> flip (#%<) $ \ a -> flip (%<) $ \ s _ -> t ?: \case
+    x :.: t -> validate table (env :< a) s t
+    _       -> False
+  "Tag" -> flip (%<) $ \ s _ -> t ?: \case
+    ((A a, _) :%: t1) -> case ourLookup a s of
       Nothing -> False
-      Just s  -> validate table env s (cdr t)
+      Just s  -> validate table env s t1
+    _                -> False
   "Fix" -> flip (%<) $ \ s' _ -> validate table env (under s' ^// topSbst s) t
   where
    ourLookup  :: String -> Term -> Maybe Term

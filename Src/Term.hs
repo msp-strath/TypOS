@@ -1,7 +1,8 @@
 {-# LANGUAGE
   DeriveTraversable,
   FlexibleInstances,
-  TypeSynonymInstances
+  TypeSynonymInstances,
+  LambdaCase
   #-}
 
 module Term where
@@ -48,21 +49,51 @@ sbst th iz ph = CdBS (Sbst th iz' ph', ps) where
   ((ps1, ph'), ps) = cop ps0 ph
   iz' = fmap (*^ ps1) jz
 
+-- toplevel expansions and contractions of co-deBruijn terms
+
+data Xn m
+  = X Int
+  | AX String
+  | CdB (Tm m) :%: CdB (Tm m)
+  | String :.: CdB (Tm m)
+  | m :$: Sbst m
+  deriving (Show, Functor, Foldable, Traversable)
+
+expand :: CdB (Tm m) -> Xn m
+expand (t, th) = case t of
+  V   -> X (lsb th)
+  A a -> AX a
+  s :% t -> (s *^ th) :%: (t *^ th)
+  (str, b) :. t -> unhide str :.: (t, th -? b)
+  f :$ sg -> f :$: (sg {imgs = fmap (*^ th) (imgs sg), miss = miss sg <> th })
+
+(?:) :: CdB (Tm m) -> (Xn m -> a) -> a
+t ?: f = f (expand t)
+
+contract :: Xn m -> CdB (Tm m)
+contract = \case
+  X x -> (V, inx x)
+  AX a -> (A a, none)
+  (s, th) :%: (t, ph) -> case cop th ph of
+    ((th, ph), ps) -> ((s, th) :% (t, ph), ps)
+  x :.: (t, th) -> case thun th of
+    (th, b) -> ((Hide x, b) :. t, th)
+  m :$: (Sbst hits imgs miss) -> m $^ (sbst hits imgs miss)
+
 -- smart constructors for the codeBruijn terms
 
 var :: Int -> CdB (Tm m)
-var x = (V, inx x)
+var x = contract (X x)
 
 atom :: String -> CdB (Tm m)
-atom a = (A a, none)
+atom a = contract (AX a)
 
 nil :: CdB (Tm m)
 nil = atom ""
 
 infixr 4 %
 (%) :: CdB (Tm m) -> CdB (Tm m) -> CdB (Tm m)
-(s, th) % (t, ph) = case cop th ph of
-  ((th, ph), ps) -> ((s, th) :% (t, ph), ps)
+s % t = contract (s :%: t)
 
 (#%) :: String -> [CdB (Tm m)] -> CdB (Tm m)
 a #% ts = case foldr (%) nil ts of
@@ -70,12 +101,14 @@ a #% ts = case foldr (%) nil ts of
 
 infixr 3 \\
 (\\) :: String -> CdB (Tm m) -> CdB (Tm m)
-x \\ (t, th) = case thun th of
-  (th, b) -> ((Hide x, b) :. t, th)
+x \\ t = contract (x :.: t)
 
 infixr 5 $:
-($:) :: m -> CdBS m -> CdB (Tm m)
-m $: (CdBS (sg, th)) = (m :$ sg, th)
+($:) :: m -> Sbst m -> CdB (Tm m)
+m $: sg = contract (m :$: sg)
+
+($^) :: m -> CdBS m -> CdB (Tm m)
+m $^ (CdBS (sg, th)) = (m :$ sg, th)
 
 -- co-smart destructors for the codeBruijn terms
 
@@ -112,7 +145,7 @@ topSbst t = CdBS (Sbst
   , miss = ones
   }, ones)
 
-instance Show m =>Monoid (CdBS m) where
+instance Monoid (CdBS m) where
   mempty = sbst none B0 ones
   mappend
     (CdBS (Sbst { hits = th0, imgs = iz0, miss = ph0 }, ps0))
@@ -131,7 +164,7 @@ instance Show m =>Monoid (CdBS m) where
     iz0' = fmap (^// ta') iz0
     (_, _, ph0'') = pullback ph0 (comp th1)
 
-instance Show m => Semigroup (CdBS m) where (<>) = mappend
+instance Semigroup (CdBS m) where (<>) = mappend
 
 -- restrict the source of a substitution
 --  gaa ---th---> ga <---~th--- gap ---ph;ps---> de
@@ -140,7 +173,7 @@ instance Show m => Semigroup (CdBS m) where (<>) = mappend
 --  ch'           ch            pi'
 --   |[]           |           []|
 --  gaa' --th'--> ga' <-------- gap'
-(?//) :: Show m => Th -> CdBS m -> CdBS m
+(?//) :: Th -> CdBS m -> CdBS m
 ch ?// (CdBS (Sbst { hits = th, imgs = iz, miss = ph }, ps)) =
   sbst th' iz' ph' //^ ps where
   (th', _, ch') = pullback ch th
@@ -149,12 +182,12 @@ ch ?// (CdBS (Sbst { hits = th, imgs = iz, miss = ph }, ps)) =
   iz' = ch' ?< iz
 
 -- thinning the target of a substitution
-(//^) :: Show m => CdBS m -> Th -> CdBS m
+(//^) :: CdBS m -> Th -> CdBS m
 CdBS sg //^ th = CdBS (sg *^ th)
 
 -- action of codeBruijn substitution ga => de
 -- on codeBruijn term
-(^//) :: Show m => CdB (Tm m) -> CdBS m -> CdB (Tm m)
+(^//) :: CdB (Tm m) -> CdBS m -> CdB (Tm m)
 (t, th) ^// sg =
   if   hits ta == none
   then (t, ps)  -- miss ta = ones if hits ta = none
@@ -165,13 +198,13 @@ CdBS sg //^ th = CdBS (sg *^ th)
 
 -- the worker: presumes we've already restricted
 -- to support and have things to hit
-(//) :: Show m => Tm m -> CdBS m -> CdB (Tm m)
+(//) :: Tm m -> CdBS m -> CdB (Tm m)
 V // (CdBS (Sbst {imgs = (B0 :< t)}, ps)) = t *^ ps
 (s :% t) // sg = (s ^// sg) % (t ^// sg)
 ((Hide x, False) :. t) // sg = x \\ (t // sg)
 ((Hide x, True) :. t) // sg = x \\ (t // wkSbst sg)
-(m :$ ta) // sg = m $: (CdBS (ta, ones) <> sg)
-t // sg = error (show t ++ " // " ++ show sg)
+(m :$ ta) // sg = m $^ (CdBS (ta, ones) <> sg)
+-- t // sg = error (show t ++ " // " ++ show sg)
 
 
 -- uglyprinting
