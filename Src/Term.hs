@@ -9,7 +9,10 @@ module Term where
 
 import Data.List hiding ((\\))
 import Control.Arrow
+import Control.Monad.Writer
 import Data.Bits
+import Data.Monoid
+import qualified Data.Map as Map
 
 import Bwd
 import Thin
@@ -24,7 +27,7 @@ data Tm m
   deriving (Show, Eq, Functor, Foldable, Traversable)
 
 newtype Meta = Meta [(String, Int)]
-  deriving (Show, Eq)
+  deriving (Show, Ord, Eq)
 type Term = CdB (Tm Meta)
 
 infixr 3 :.
@@ -206,6 +209,39 @@ V // (CdBS (Sbst {imgs = (B0 :< t)}, ps)) = t *^ ps
 (m :$ ta) // sg = m $^ (CdBS (ta, ones) <> sg)
 -- t // sg = error (show t ++ " // " ++ show sg)
 
+-- Mangling terms
+
+data Mangler f = Mangler
+  { mangX :: Int -> f Term
+  , mangM :: Meta -> Sbst Meta -> f Term -- mangM needs to recursively deal with subst if needed
+  , mangB :: String -> Mangler f
+  }
+
+mangle :: Applicative f => Mangler f -> Term -> f Term
+mangle mangler@(Mangler mangX mangM mangB) t = t ?: \case
+  X i -> mangX i
+  AX a -> pure (atom a)
+  t0 :%: t1 -> (%) <$> mangle mangler t0 <*> mangle mangler t1
+  x :.: t -> (x \\) <$> mangle (mangB x) t
+  m :$: sg -> mangM m sg
+
+-- meta variable instantiation
+
+instantiate :: Map.Map Meta Term -> Term -> (Bool, Term) -- (did it change?, inst
+instantiate metas t = (getAny b, r) where
+  (r, b) = runWriter (mangle (mangler ones) t)
+  mangler :: Th -> Mangler (Writer Any)
+  -- theta : Gamma -> Gamma'
+  mangler th = Mangler
+    { mangX = pure . var
+    , mangB = \ x -> mangler (th -? False)
+    , mangM = \ m (Sbst hits imgs misses) -> do
+        imgs' <- traverse (mangle (mangler th)) imgs
+        case Map.lookup m metas of
+          Nothing -> pure (m $: (Sbst hits imgs' misses))
+          Just t -> _
+
+    }
 
 -- uglyprinting
 
