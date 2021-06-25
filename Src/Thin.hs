@@ -52,6 +52,10 @@ thChop (Th th) i = (Th (shiftR th i), Th (th .&. full i))
 full :: Bits a => Int -> a
 full i = xor (shiftL ones i) ones where ones = complement zeroBits
 
+-- kind of append, only taking first i bits of second arg into account
+apth :: Th -> (Int, Th) -> Th
+apth (Th th) (i, Th ph) = Th (shiftL th i .|. (ph .&. full i))
+
 -- codeBruijn things are paired with a thinning
 -- from support to scope
 type CdB a = (a, Th)

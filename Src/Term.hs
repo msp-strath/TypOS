@@ -34,13 +34,14 @@ infixr 3 :.
 infixr 4 :%
 infixr 5 :$
 
-data Sbst m = Sbst -- from scope ga to terms with support de
- { hits :: Th -- which things in ga we hit
+data Sbst m = Sbst -- from scope ga,de to terms with support ga,xi
+ { hits :: Th -- which things in de we hit
  , imgs :: Bwd (CdB (Tm m)) -- images of what we hit
- , miss :: Th -- how the missed things embed in de
+ , miss :: Th -- how the missed things in ga,de embed in ga,xi (identity on ga)
  } deriving (Show, Eq, Functor, Foldable, Traversable)
 -- invariant: the target scope is covered by the
 -- imgs thinnings and miss
+-- invariant: miss is ones-extended as if ga is infinite
 
 newtype CdBS m = CdBS (CdB (Sbst m))
   deriving (Show, Eq, Functor, Foldable, Traversable)
@@ -227,7 +228,9 @@ mangle mangler@(Mangler mangX mangM mangB) t = t ?: \case
 
 -- meta variable instantiation
 
-instantiate :: Map.Map Meta Term -> Term -> (Bool, Term) -- (did it change?, inst
+instantiate :: Map.Map Meta (Int, Term) -- Int is how many local vars the metavar depends on
+            -> Term                     -- term to instantiate in
+            -> (Bool, Term)             -- (did it change?, instantiated term)
 instantiate metas t = (getAny b, r) where
   (r, b) = runWriter (mangle (mangler ones) t)
   mangler :: Th -> Mangler (Writer Any)
@@ -237,10 +240,12 @@ instantiate metas t = (getAny b, r) where
     , mangB = \ x -> mangler (th -? False)
     , mangM = \ m (Sbst hits imgs misses) -> do
         imgs' <- traverse (mangle (mangler th)) imgs
+        let sg' = sbst hits imgs' misses
         case Map.lookup m metas of
-          Nothing -> pure (m $: (Sbst hits imgs' misses))
-          Just t -> _
-
+          Nothing -> pure (m $^ sg')
+          Just (i, t) -> do
+            tell (Any True)
+            pure $ (t *^ apth th (i,ones)) ^// sg'
     }
 
 -- uglyprinting
