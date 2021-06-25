@@ -5,6 +5,8 @@ import Control.Arrow
 
 import Bwd
 
+-- TODO: also record the length of the domain of the thinning
+
 newtype Th = Th Integer deriving Eq
 
 ones, none :: Th
@@ -65,6 +67,12 @@ weak (t, th) = (t, th -? False)
 
 (*^) :: CdB a -> Th -> CdB a
 (a, th) *^ ph = (a, th <> ph)
+
+{-
+-- thicken ph ps = Just th when th <> ph = ps
+thicken :: Th -> Th -> Maybe Th
+thicken ph ps = 
+-}
 
 instance Monoid Th where
   mempty = ones

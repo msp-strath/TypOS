@@ -10,6 +10,7 @@ module Term where
 import Data.List hiding ((\\))
 import Control.Arrow
 import Control.Monad.Writer
+import Control.Monad.State
 import Data.Bits
 import Data.Monoid
 import qualified Data.Map as Map
@@ -228,7 +229,9 @@ mangle mangler@(Mangler mangX mangM mangB) t = t ?: \case
 
 -- meta variable instantiation
 
-instantiate :: Map.Map Meta (Int, Term) -- Int is how many local vars the metavar depends on
+type News = Map.Map Meta (Int, Term) -- Int is how many local vars the metavar depends on
+
+instantiate :: News
             -> Term                     -- term to instantiate in
             -> (Bool, Term)             -- (did it change?, instantiated term)
 instantiate metas t = (getAny b, r) where
@@ -247,6 +250,46 @@ instantiate metas t = (getAny b, r) where
             tell (Any True)
             pure $ (t *^ apth th (i,ones)) ^// sg'
     }
+
+-- Name generation monads
+
+-- TODO: refactor and move into another file
+
+class Monad m => FreshName m where
+  fresh :: String -> m Meta
+  nsSplit :: String -> m t -> m t
+
+instance FreshName (State (Bwd (String, Int), Int)) where
+  fresh x = do
+    (root, n) <- get
+    put (root, n+1)
+    pure $ Meta $ root <>> [(x,n)]
+  nsSplit x t = do
+    (root, n) <- get
+    put (root :< (x,n), 0)
+    v <- t
+    put (root, n+1)
+    pure v
+
+-- patterns
+
+data Pat
+  = VP
+  | AP String
+  | Pattern :%? Pattern
+  | (Hide String, Bool) :.? Pat
+  | MP String
+  deriving (Show, Eq)
+
+type Pattern = CdB Pat
+
+match :: (MonadFail m, FreshName m) => (Int, Pattern) -> Term -> m (Map.Map String Meta, News)
+match (i, (p, ph)) (t, th) =
+-- i is the number of bound local vars still in scope
+  case p of
+    MP x -> do
+      let (ph', ps, th') = pullback th (apth ones (i,ph))
+
 
 -- uglyprinting
 
