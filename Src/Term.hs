@@ -35,7 +35,11 @@ infixr 3 :.
 infixr 4 :%
 infixr 5 :$
 
-data Sbst m = Sbst -- from scope ga,de to terms with support ga,xi
+
+-- TODO: go back to global substitutions (to avoid implicitly
+-- ones-extending miss)
+
+data Sbst m = Sbst -- from scope ga,de to terms with scope ga,xi
  { hits :: Th -- which things in de we hit
  , imgs :: Bwd (CdB (Tm m)) -- images of what we hit
  , miss :: Th -- how the missed things in ga,de embed in ga,xi (identity on ga)
@@ -283,12 +287,14 @@ data Pat
 
 type Pattern = CdB Pat
 
+{-
 match :: (MonadFail m, FreshName m) => (Int, Pattern) -> Term -> m (Map.Map String Meta, News)
 match (i, (p, ph)) (t, th) =
 -- i is the number of bound local vars still in scope
   case p of
     MP x -> do
       let (ph', ps, th') = pullback th (apth ones (i,ph))
+-}
 
 
 -- uglyprinting
