@@ -10,6 +10,7 @@ module Term where
 import Data.List hiding ((\\))
 import Control.Arrow
 import Control.Monad.Writer
+import Control.Monad.State
 import Data.Bits
 import Data.Monoid
 import qualified Data.Map as Map
@@ -34,13 +35,18 @@ infixr 3 :.
 infixr 4 :%
 infixr 5 :$
 
-data Sbst m = Sbst -- from scope ga to terms with support de
- { hits :: Th -- which things in ga we hit
+
+-- TODO: go back to global substitutions (to avoid implicitly
+-- ones-extending miss)
+
+data Sbst m = Sbst -- from scope ga,de to terms with scope ga,xi
+ { hits :: Th -- which things in de we hit
  , imgs :: Bwd (CdB (Tm m)) -- images of what we hit
- , miss :: Th -- how the missed things embed in de
+ , miss :: Th -- how the missed things in ga,de embed in ga,xi (identity on ga)
  } deriving (Show, Eq, Functor, Foldable, Traversable)
 -- invariant: the target scope is covered by the
 -- imgs thinnings and miss
+-- invariant: miss is ones-extended as if ga is infinite
 
 newtype CdBS m = CdBS (CdB (Sbst m))
   deriving (Show, Eq, Functor, Foldable, Traversable)
@@ -227,7 +233,11 @@ mangle mangler@(Mangler mangX mangM mangB) t = t ?: \case
 
 -- meta variable instantiation
 
-instantiate :: Map.Map Meta Term -> Term -> (Bool, Term) -- (did it change?, inst
+type News = Map.Map Meta (Int, Term) -- Int is how many local vars the metavar depends on
+
+instantiate :: News
+            -> Term                     -- term to instantiate in
+            -> (Bool, Term)             -- (did it change?, instantiated term)
 instantiate metas t = (getAny b, r) where
   (r, b) = runWriter (mangle (mangler ones) t)
   mangler :: Th -> Mangler (Writer Any)
@@ -237,11 +247,55 @@ instantiate metas t = (getAny b, r) where
     , mangB = \ x -> mangler (th -? False)
     , mangM = \ m (Sbst hits imgs misses) -> do
         imgs' <- traverse (mangle (mangler th)) imgs
+        let sg' = sbst hits imgs' misses
         case Map.lookup m metas of
-          Nothing -> pure (m $: (Sbst hits imgs' misses))
-          Just t -> _
-
+          Nothing -> pure (m $^ sg')
+          Just (i, t) -> do
+            tell (Any True)
+            pure $ (t *^ apth th (i,ones)) ^// sg'
     }
+
+-- Name generation monads
+
+-- TODO: refactor and move into another file
+
+class Monad m => FreshName m where
+  fresh :: String -> m Meta
+  nsSplit :: String -> m t -> m t
+
+instance FreshName (State (Bwd (String, Int), Int)) where
+  fresh x = do
+    (root, n) <- get
+    put (root, n+1)
+    pure $ Meta $ root <>> [(x,n)]
+  nsSplit x t = do
+    (root, n) <- get
+    put (root :< (x,n), 0)
+    v <- t
+    put (root, n+1)
+    pure v
+
+-- patterns
+
+data Pat
+  = VP
+  | AP String
+  | Pattern :%? Pattern
+  | (Hide String, Bool) :.? Pat
+  | MP String
+  deriving (Show, Eq)
+
+type Pattern = CdB Pat
+
+{-
+match :: (MonadFail m, FreshName m) => (Int, Pattern) -> Term -> m (Map.Map String Meta, News)
+match (i, (p, ph)) (t, th) =
+-- i is the number of bound local vars still in scope
+  case p of
+    MP x -> do
+      let (ph', ps, th') = pullback th (apth ones (i,ph))
+-}
+
 
 -- uglyprinting
 
