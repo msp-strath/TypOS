@@ -43,6 +43,11 @@ module TERM (M : Nat -> Set)(A : Set) where
   ... | ff , <> = ff , <>
   is? (_ -/ _) = ff , <>
 
+  is?is : forall {ga} -> is? (is {ga}) ~ (tt , r~ , r~)
+  is?is {[]} = r~
+  is?is {ga -, x} with is? (is {ga}) | is?is {ga}
+  ... | _ | r~ = r~
+
   coverSub : forall {ga0 ga ga1}{th0 : ga0 <= ga}{th1 : ga1 <= ga}{de}
         -> th0 /u\ th1 -> ga %> de
         -> < _<= de *: ga0 %>_ > >< \ (ph0 & _)
@@ -71,6 +76,14 @@ module TERM (M : Nat -> Set)(A : Set) where
        = _ & (sg0 </ w0 \> t) -/ z , _ & (sg1 </ w1 \> t) -/ z , w
   coverSub [] [] = (! ! []) , (! ! []) , []
 
+  coverIs : forall {ga0 ga ga1}{th0 : ga0 <= ga}{th1 : ga1 <= ga}(u : th0 /u\ th1)
+         -> coverSub u is ~ ((! ! is) , (! ! is) , u)
+  coverIs (u -,^ x) rewrite coverIs u = r~
+  coverIs (u -^, y) rewrite coverIs u = r~
+  coverIs (u -, z) rewrite coverIs u = r~
+  coverIs [] = r~
+
+{-
   infix 20 _<%_ _<%^_
   _<%^_ : forall {ga de xi} ->
     ga <= de -> de %>_ ^: xi -> (ga %>_ ^: xi) + (ga <= xi)
@@ -94,6 +107,7 @@ module TERM (M : Nat -> Set)(A : Set) where
   ... | tt , ps with ta & ps <- is & (ps -& luth u) /,\ (t & ruth u) =
     ff , ta -/ x & ps
   [] <% [] = tt , []
+-}
 
   Var = [] -, <> <=_
 
@@ -128,7 +142,7 @@ module TERM (M : Nat -> Set)(A : Set) where
        = pp (act? s sg0 </ v \> act? t sg1)
   act (bb (kk t)) sg = bb (kk (act t sg))
   act (bb (ll t)) sg = bb (ll (act t (sg -, _)))
-  act (mm (m & ro)) sg = mm (m & (ro %% sg))
+  act (mm (m & ro)) sg = mm (m & (ro %%? sg))
   ro %%? sg with is? ro | is? sg
   (ro %%? sg) | ff , x | ff , y = ro %% sg
   (ro %%? .is) | ff , x | tt , r~ , r~ = ro
@@ -139,3 +153,123 @@ module TERM (M : Nat -> Set)(A : Set) where
   ((ro </ u \> t) -/ x) %% sg
     with _ & sg0 , _ & sg1 , v <- coverSub u sg
        = ((ro %%? sg0) </ v \> act? t sg1) -/ x
+
+  act?is : forall {ga}(t : Tm ga) -> act? t is ~ t
+  act?is {ga} t with is? (is {ga}) | is?is {ga}
+  ... | _ | r~ = r~
+
+  lis : forall {ga de}(sg : ga %> de) -> (is %%? sg) ~ sg
+  lis {ga}{de} sg with is? (is {ga}) | is?is {ga}
+  ... | _ | r~ = r~
+
+  lis' : forall {ga de}(sg : ga %> de) -> (is %% sg) ~ sg
+  lis' [] = r~
+  lis' (sg -, x) rewrite lis' sg = r~
+  lis' ((sg </ u \> t) -/ x) rewrite lis sg = r~
+
+  ris : forall {ga de}(sg : ga %> de) -> (sg %%? is) ~ sg
+  ris {ga}{de} sg with is? sg | is? (is {de}) | is?is {de}
+  ris {ga} {de} sg | ff , _  | _ | r~ = r~
+  ris {ga} {de} sg | tt , r~ , r~ | _ | r~ = r~
+
+  ris' : forall {ga de}(sg : ga %> de) -> (sg %% is) ~ sg
+  ris' [] = r~
+  ris' (sg -, x) rewrite ris' sg = r~
+  ris' ((sg </ u \> t) -/ x)
+    rewrite coverIs u
+          | ris sg
+          | act?is t = r~
+
+  opti : forall {ga de xi}(ro : ga %> de)(sg : de %> xi) ->
+         (ro %%? sg) ~ (ro %% sg)
+  opti {ga}{de}{xi} ro sg with is? ro | is? sg
+  opti {ga} {de} {xi} ro sg | ff , z | ff , y = r~
+  opti {ga} {de} {xi} ro sg | ff , z | tt , r~ , r~
+    rewrite ris' ro = r~
+  opti {ga} {de} {xi} ro sg | tt , r~ , r~ | c , y
+    rewrite lis' sg = r~
+
+{-
+  coverSwap : forall {ga0 ga ga1}{th0 : ga0 <= ga}{th1 : ga1 <= ga}(u : th0 /u\ th1)
+              {de}(sg : ga %> de) ->
+              let _ & sg0 , _ & sg1 , v = coverSub u sg in
+              coverSub (swapu u) sg ~ (_ & sg1 , _ & sg0 , swapu v)
+  coverSwap (u -,^ x) (sg -, .x) rewrite coverSwap u sg = r~
+  coverSwap (u -,^ x) ((sg </ v \> t) -/ .x)
+    with coverSub u sg | coverSwap u sg
+  ... | _ & sg0 , _ & sg1 , w | q
+    with coverSub (swapu u) sg
+  coverSwap (u -,^ x) ((sg </ v \> t) -/ .x) | _ & ta1 , _ & ta0 , w | r~ | _
+    with ! ! y , z <- rotateR (swapu w) v
+    rewrite copI (swapu (swapu y)) y
+    = r~
+  coverSwap (u -^, y) (sg -, .y) rewrite coverSwap u sg = r~
+  coverSwap (u -^, y) ((sg </ v \> t) -/ .y) 
+    with coverSub u sg | coverSwap u sg
+  ... | _ & sg0 , _ & sg1 , w | q
+    with coverSub (swapu u) sg
+  coverSwap (u -^, y) ((sg </ v \> t) -/ .y) | _ & ta1 , _ & ta0 , w | r~ | _
+    rewrite copI (swapu (swapu w)) w
+    = r~
+  coverSwap (u -, z) (sg -, .z) rewrite coverSwap u sg = r~
+  coverSwap (u -, z) ((sg </ v \> t) -/ .z) 
+    with coverSub u sg | coverSwap u sg
+  ... | _ & sg0 , _ & sg1 , w | q with coverSub (swapu u) sg
+  coverSwap (u -, z) ((sg </ v \> t) -/ .z) | _ & ta1 , _ & ta0 , w | r~ | _ = {!!}
+  coverSwap [] [] = r~
+-}
+{-
+  cover%% : forall {ga0 ga ga1 de}{th0 : ga0 <= ga}{th1 : ga1 <= ga}
+    (u : th0 /u\ th1)(sg : ga %> de){xi}(ta : de %> xi)
+    ->
+    let _ & sg0 , _ & sg1 , v = coverSub u sg in
+    let _ & ta0 , _ & ta1 , w = coverSub v ta in
+    coverSub u (sg %% ta) ~ (_ & (sg0 %% ta0) , _ & (sg1 %% ta1) , w)
+  cover%% (u -,^ x) (sg -, .x) (ta -, .x) rewrite cover%% u sg ta = r~
+  cover%% (u -,^ x) (sg -, .x) ((ta </ u' \> t) -/ .x)
+    with ih <- cover%% u sg ta
+       | _ & sg0 , _ & sg1 , v <- coverSub u sg
+       | _ & ta0 , _ & ta1 , w <- coverSub v ta
+    rewrite opti sg ta | opti sg0 ta0 | opti sg1 ta1 | ih
+       = r~
+  cover%% (u -,^ x) ((sg </ u' \> t) -/ .x) ta
+    with _ & ta0 , _ & ta1 , u'' <- coverSub u' ta
+       | ih <- cover%% u sg ta0
+       | _ & sg0 , _ & sg1 , v <- coverSub u sg
+       | _ & ta00 , _ & ta01 , w <- coverSub v ta0
+    rewrite opti sg ta0 | ih
+       = {!!}
+  cover%% (u COP.-^, y) (sg -, .y) (ta -, .y) = {!!}
+  cover%% (u COP.-^, y) (sg -, .y) (x -/ .y) = {!!}
+  cover%% (u COP.-^, y) (x -/ .y) [] = {!!}
+  cover%% (u COP.-^, y) (x -/ .y) (ta -, x₁) = {!!}
+  cover%% (u COP.-^, y) (x -/ .y) (x₁ -/ x₂) = {!!}
+  cover%% (u COP.-, z) (sg -, .z) (ta -, .z) = {!!}
+  cover%% (u COP.-, z) (sg -, .z) (x -/ .z) = {!!}
+  cover%% (u COP.-, z) (x -/ .z) [] = {!!}
+  cover%% (u COP.-, z) (x -/ .z) (ta -, x₁) = {!!}
+  cover%% (u COP.-, z) (x -/ .z) (x₁ -/ x₂) = {!!}
+  cover%% COP.[] [] [] = {!!}
+-}
+
+{-
+  asso : forall {ga de xi om}(ro : ga %> de)(sg : de %> xi)(ta : xi %> om)
+      -> ((ro %% sg) %% ta) ~ (ro %% (sg %% ta))
+  asso [] [] [] = r~
+  asso (ro -, x) (sg -, .x) (ta -, .x) rewrite asso ro sg ta = r~
+  asso (ro -, x) (sg -, .x) ((ta </ u \> t) -/ .x)
+    rewrite opti (ro %% sg) ta
+          | opti sg ta
+          | opti ro (sg %% ta)
+          | asso ro sg ta = r~
+  asso (ro -, x) ((sg </ u \> t) -/ .x) ta
+    with _ & ta0 , _ & ta1 , v <- coverSub u ta
+    rewrite opti ro sg | opti (ro %% sg) ta0
+          | opti sg ta0 | opti ro (sg %% ta0)
+          | asso ro sg ta0 = r~
+  asso ((ro </ u \> t) -/ x) sg ta
+    with _ & sg0 , _ & sg1 , v <- coverSub u sg
+       | _ & ta0 , _ & ta1 , w <- coverSub v ta
+    rewrite opti ro sg0 | opti (ro %% sg0) ta0 | asso ro sg0 ta0
+       = {!!}
+-}

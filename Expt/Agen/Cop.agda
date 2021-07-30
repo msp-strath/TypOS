@@ -176,3 +176,39 @@ module COP {X} where
     with ! ! (! v0) , (! v1) , w0 , w , w1 <- distR u0 u
        = ! ! (! v0 -, z) , (! v1 -, z) , w0 -, z , w -, z , w1 -, z
   distR [] [] = ! ! (! []) , (! []) , [] , [] , []
+
+  distR' : forall {ga00 ga0 ga01 ga ga1}
+    {th00 : ga00 <= ga0}{th01 : ga01 <= ga0}{th0 : ga0 <= ga}{th1 : ga1 <= ga}
+    (u0 : th00 /u\ th01)(u : th0 /u\ th1)
+    -> < ga00 <=_ *: ga1 <=_ > >< \ (th10 & ph10)
+    -> < ga01 <=_ *: ga1 <=_ > >< \ (th11 & ph11)
+    -> < [ ph10 -&_]~ th1 > >< \ (ps0 , _)
+    -> < [ ph11 -&_]~ th1 > >< \ (ps1 , _)
+    -> th10 /u\ ph10 * ps0 /u\ ps1 * th11 /u\ ph11
+  distR' {th0 = th0}{th1 = th1} u0 u
+    with ph0 , v0 <- tri (luth u0) (luth u)
+       | ph1 , v1 <- tri (ruth u0) (luth u)
+       | (! ! ! ps0 , a0 , b0) , w0 <- cop ph0 (ruth u)
+       | (! ! ! ps1 , a1 , b1) , w1 <- cop ph1 (ruth u)
+       | (! ! ! ps , a , b) , w <- cop ps0 ps1
+       | c0 & d0 <- assoc02 (a0 & a)
+       | c1 & d1 <- assoc02 (a1 & b)
+       | ! e , f , g <- copU (! ! ! v0 & v1) u0 (! ! ! d0 & d1)
+       | k & l <- assoc02 (b1 & b)
+       | ps' , h , i , j <- copU (! ! ! degio th0 & degio th1) u (! ! ! f & l)
+       | r~ , r~ , r~ <- asy ps ps'
+       | r~ <- rio a
+       | r~ <- rio b
+       = ! ! (! b0) , (! b1) , w0 , w , w1
+
+{-
+  distRswap : forall {ga00 ga0 ga01 ga ga1}
+    {th00 : ga00 <= ga0}{th01 : ga01 <= ga0}{th0 : ga0 <= ga}{th1 : ga1 <= ga}
+    (u0 : th00 /u\ th01)(u : th0 /u\ th1) ->
+    let ! ! (! b0) , (! b1) , w0 , w , w1 = distR' u0 u in
+    distR' (swapu u0) u ~ (! ! (! b1) , (! b0) , w1 , swapu w , w0)
+  distRswap {th0 = th0}{th1 = th1} u0 u
+    with ph0 , v0 <- tri (luth u0) (luth u)
+       | ph1 , v1 <- tri (ruth u0) (luth u)
+       = {!!}
+-}

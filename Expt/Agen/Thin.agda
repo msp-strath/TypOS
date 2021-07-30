@@ -56,6 +56,11 @@ module THIN {X : Set} where
   th -& ph = tri th ph .fst
   infixl 30 _-&_
 
+  degio : forall {ga de}(th : ga <= de) -> [ th -& io ]~ th
+  degio [] = []
+  degio (th -^ x) = degio th -^, x
+  degio (th -, x) = degio th -, x
+
   lio : forall {ga de}{th ph : ga <= de} ->
     [ io -& th ]~ ph -> th ~ ph
   lio (v -^ z) with r~ <- lio v = r~
