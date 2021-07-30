@@ -15,5 +15,10 @@ module BIND {X : Set} where
   x \\ (p & th -^ .x) = kk p & th
   x \\ (p & th -, .x) = ll p & th
 
+  under : forall {x ga}{P : Bwd X -> Set}
+       -> (x |- P) ^: ga -> P ^: ga -, x
+  under (kk p & th) = p & th -^ _
+  under (ll p & th) = p & th -, _
+
   data Only (x : X) : Bwd X -> Set where
     only : Only x ([] -, x)

@@ -4,6 +4,16 @@ data _~_ {X : Set}(x : X) : X -> Set where
   r~ : x ~ x
 {-# BUILTIN EQUALITY _~_ #-}
 
+refl : {X : Set}(x : X) -> x ~ x
+refl x = r~
+
+_~$~_ : forall {S T}
+  {f g : S -> T} -> f ~ g ->
+  {x y : S} -> x ~ y ->
+  f x ~ g y
+r~ ~$~ r~ = r~
+infixl 2 _~$~_
+
 id : forall {l}{X : Set l} -> X -> X
 id x = x
 
@@ -41,10 +51,17 @@ infixr 11 _&_
 _+_ : Set -> Set -> Set
 S + T = `2 >< \ { ff -> S ; tt -> T }
 Maybe = `1 +_
+pattern aye x = tt , x
+pattern naw   = ff , <>
 
 maybe : forall {S T} -> (S -> T) -> Maybe S -> Maybe T
-maybe f (ff , <>) = ff , <>
-maybe f (tt , s)  = tt , f s
+maybe f naw = naw
+maybe f (aye s)  = aye (f s)
+
+_>M=_ : forall {S T} -> Maybe S -> (S -> Maybe T) -> Maybe T
+aye s >M= k = k s
+naw   >M= k = naw
+
 
 module _ {X : Set} where
 

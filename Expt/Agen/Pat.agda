@@ -2,13 +2,20 @@ module Pat where
 
 open import Basics
 open import Thin
+open import Pair
+open import Bind
 open import Term
 open import Pub
 
 open THIN {`1}
+open PAIR {`1}
+open BIND {`1}
 open PUB {`1}
 
-module PAT (A : Set) where
+module PAT
+  (A : Set)
+  (eq? : (a b : A) -> Maybe (a ~ b))
+  where
 
   data Pat (ga : Nat) : Set where
     _?? : forall {de} -> de <= ga -> Pat ga
@@ -45,3 +52,99 @@ module PAT (A : Set) where
       -> de <P- pp p q
     bb : forall {p : Pat (ga -, <>)}(x : de <P- p)
       -> de <P- bb p
+
+  module MATCH (M : Nat -> Set) where
+
+    open TERM M A
+
+    Env : forall {ga} -> Pat ga -> Set
+    Env (_?? {de} th) = Term de
+    Env (vv x) = `1
+    Env (aa x) = `1
+    Env (pp l r) = Env l * Env r
+    Env (bb p) = Env p
+
+    proj : forall {ga}{p : Pat ga} -> Env p ->
+           [ _<P- p -:> Term ]
+    proj t hh = t
+    proj (pi , _) (pl i q) = proj pi i
+    proj (_ , pi) (pr p i) = proj pi i
+    proj pi (bb i) = proj pi i
+
+    match? : forall {ga}(p : Pat ga)(t : Term ga)
+      -> Maybe (Env p)
+    match? (ph ??) (t & th) = 
+      thicken? ph th >M= \ (ps , _) ->
+      aye (t & ps)
+    match? (vv x) (vv only & th) with pub x th
+    ... | ([] , _) , _ = naw
+    ... | (_ -, _ , _) , _ = aye <>
+    match? (aa a) (aa (atom b) & th) =
+      eq? a b >M= \ _ -> aye <>
+    match? (pp lp rp) (pp t & th) = 
+      match? lp (outl (t & th)) >M= \ lpi ->
+      match? rp (outr (t & th)) >M= \ rpi ->
+      aye (lpi , rpi) 
+    match? (bb p) (bb b & th) = match? p (under (b & th))
+    match? _ _ = ff , <>
+
+    data _<P=_ {ga : Nat} : Pat ga -> Pat ga -> Set where
+      mm : forall {de p'} p {th : de <= ga}
+         -> p' ~ p ?^0 th    -- define this relationally?
+         -> p' <P= (th ??)
+      vv  : (x : ([] -, <>) <= ga) -> vv x <P= vv x
+      aa  : (a : A) -> aa a <P= aa a
+      pp  : {l l' r r' : Pat ga} -> l <P= l' -> r <P= r'
+         -> pp l r <P= pp l' r'
+      bb  : {p p' : Pat (ga -, <>)} -> p <P= p'
+         -> bb p <P= bb p'
+
+    data Botify {X : Set}(R : X -> X -> Set) : Maybe X -> Maybe X -> Set where
+      bot  : forall {y} -> Botify R naw y
+      lift : forall {x y} -> R x y -> Botify R (aye x) (aye y)
+
+    _<?=_ : {ga : Nat} -> Maybe (Pat ga) -> Maybe (Pat ga) -> Set
+    _<?=_ = Botify _<P=_
+
+    exclude : forall {ga de}(th : ga <= de)(p : Pat de) ->
+      Maybe (Pat ga >< \ p0 -> Pat de >< \ p1 ->
+        p1 ~ p0 ?^0 th * p1 <P= p)
+    exclude th (ph ??)
+      with th' & ph' , (ps , v , w) , b <- pub th ph
+         = aye (th' ?? , ps ??
+               , (refl _?? ~$~ fst (triQ (! v) (tri th' th)))
+               , mm (ph' ??) (refl _?? ~$~ fst (triQ (! w) (tri ph' ph))))
+    exclude th (vv x) = thicken? th x >M= \ (y , v) ->
+      aye (vv y , vv x , (refl vv ~$~ fst (triQ (! v) (tri y th))) , vv x)
+    exclude th (aa a) = aye (aa a , aa a , r~ , aa a)
+    exclude th (pp p q)
+      with exclude th p | exclude th q
+    ... | aye (p0 , p1 , p~ , p<) | aye (q0 , q1 , q~ , q<)
+        = aye (pp p0 q0 , pp p1 q1 , (refl pp ~$~ p~ ~$~ q~) , pp p< q<)
+    ... | _ | _ = naw
+    exclude th (bb p) =
+      exclude (th -, _) p >M= \ (p0 , p1 , p~ , p<) ->
+      aye (bb p0 , bb p1 , (refl bb ~$~ p~) , bb p<)
+
+    unify : {ga : Nat}(p q : Pat ga) -> < _<?= aye p *: _<?= aye q >
+    unify (th ??) p with exclude th p
+    ... | aye (p0 , p1 , p~ , p<) = lift (mm p0 p~) & lift p<
+    ... | _ = bot & bot
+    unify p (th ??) with exclude th p
+    ... | aye (p0 , p1 , p~ , p<) = lift p< & lift (mm p0 p~)
+    ... | _ = bot & bot
+    unify (vv x) (vv y) with pub x y
+    ... | ([] , _) , _ = bot & bot
+    unify (vv x) (vv y) | (_ -, _ , ([] -, <>) , ([] -, <>)) , b & c , _
+      with r~ , r~ <- lio b , lio c = lift (vv y) & lift (vv x)
+    unify (aa a) (aa b) with eq? a b
+    ... | aye r~ = lift (aa b) & lift (aa a)
+    ... | naw    = bot & bot
+    unify (pp lp rp) (pp lq rq) with unify lp lq | unify rp rq
+    ... | lift ulp & lift ulq | lift urp & lift urq
+        = lift (pp ulp urp) & lift (pp ulq urq)
+    ... | _ | _ = bot & bot
+    unify (bb p) (bb q) with unify p q
+    ... | lift up & lift uq = lift (bb up) & lift (bb uq)
+    ... | _ = bot & bot
+    unify _ _ = bot & bot

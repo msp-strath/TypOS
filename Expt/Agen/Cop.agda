@@ -97,8 +97,8 @@ module COP {X} where
        | r~ <- lio w1
        | r~ <- rio w2
        | r~ <- copI u u'
-       | r~ <- triQ (! v0) (! v2)
-       | r~ <- triQ (! v1) (! v3)
+       | r~ , r~ <- triQ (! v0) (! v2)
+       | r~ , r~ <- triQ (! v1) (! v3)
        = r~
 
   llu : forall {ga} -> io {ga} /u\ no
