@@ -38,3 +38,7 @@ top (xz :< x) = x
 
 only :: Bwd x -> x
 only (B0 :< x) = x
+
+curl :: Int -> (Bwd x, [x]) -> (Bwd x, [x])
+curl 0 xzs = xzs
+curl n (xz :< x, xs) = curl (n-1) (xz, x : xs)

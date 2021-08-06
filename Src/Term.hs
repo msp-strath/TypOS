@@ -80,6 +80,10 @@ euclid x y = let d = x - y in case d < 0 of
   True  -> LtBy (negate d)
   False -> GeBy d
 
+(//^) :: CdB (Tm m) -> CdB (Sbst m) -> CdB (Tm m)
+(t, th) //^ (sg, ph) = case sbstSel th sg of
+  (sg, ps) -> (t // sg, ps <^> ph)
+
 (//) :: Tm m -> Sbst m -> Tm m
 t // (S0, _) = t
 V // (ST (_ :<>: (t, _)), 0) = t
@@ -145,6 +149,7 @@ sbst th iz ph = CdBS (Sbst th iz' ph', ps) where
   (jz, ps0) = copz iz
   ((ps1, ph'), ps) = cop ps0 ph
   iz' = fmap (*^ ps1) jz
+-}
 
 -- toplevel expansions and contractions of co-deBruijn terms
 
@@ -153,60 +158,58 @@ data Xn m
   | AX String
   | CdB (Tm m) :%: CdB (Tm m)
   | String :.: CdB (Tm m)
-  | m :$: Sbst m
-  deriving (Show, Functor, Foldable, Traversable)
+  | m :$: CdB (Sbst m)
+  deriving (Show{-, Functor, Foldable, Traversable-})
 
 expand :: CdB (Tm m) -> Xn m
 expand (t, th) = case t of
   V   -> X (lsb th)
   A a -> AX a
-  s :% t -> (s *^ th) :%: (t *^ th)
+  P (s :<>: t) -> (s *^ th) :%: (t *^ th)
   (str, b) :. t -> unhide str :.: (t, th -? b)
-  f :$ sg -> f :$: (sg {imgs = fmap (*^ th) (imgs sg), miss = miss sg <> th })
+  f :$ sg -> f :$: (sg, th)
 
 (?:) :: CdB (Tm m) -> (Xn m -> a) -> a
 t ?: f = f (expand t)
 
-contract :: Xn m -> CdB (Tm m)
-contract = \case
-  X x -> (V, inx x)
-  AX a -> (A a, none)
-  (s, th) :%: (t, ph) -> case cop th ph of
-    ((th, ph), ps) -> ((s, th) :% (t, ph), ps)
+contract :: Xn m -> Int -> CdB (Tm m)
+contract t ga = case t of
+  X x -> (V, inx (x, ga))
+  AX a -> (A a, none ga)
+  s :%: t -> P $^ (s <&> t)
   x :.: (t, th) -> case thun th of
     (th, b) -> ((Hide x, b) :. t, th)
-  m :$: (Sbst hits imgs miss) -> m $^ (sbst hits imgs miss)
+  m :$: sg -> (m :$) $^ sg
 
 -- smart constructors for the codeBruijn terms
 
-var :: Int -> CdB (Tm m)
+var :: Int -> Int -> CdB (Tm m)
 var x = contract (X x)
 
-atom :: String -> CdB (Tm m)
+atom :: String -> Int -> CdB (Tm m)
 atom a = contract (AX a)
 
-nil :: CdB (Tm m)
+nil :: Int -> CdB (Tm m)
 nil = atom ""
 
 infixr 4 %
-(%) :: CdB (Tm m) -> CdB (Tm m) -> CdB (Tm m)
-s % t = contract (s :%: t)
+(%) :: (Int -> CdB (Tm m)) -> (Int -> CdB (Tm m)) -> Int -> CdB (Tm m)
+(s % t) ga = contract (s ga :%: t ga) ga
 
-(#%) :: String -> [CdB (Tm m)] -> CdB (Tm m)
-a #% ts = case foldr (%) nil ts of
-  (t, th) -> (atom a :% (t, ones), th)
+(#%) :: String -> [Int -> CdB (Tm m)] -> Int -> CdB (Tm m)
+(a #% ts) ga = case foldr (%) nil ts ga of
+  (t, th) -> (P (atom a ga :<>: (t, ones (weeEnd th))), th)
 
 infixr 3 \\
-(\\) :: String -> CdB (Tm m) -> CdB (Tm m)
-x \\ t = contract (x :.: t)
+(\\) :: String -> (Int -> CdB (Tm m)) -> Int -> CdB (Tm m)
+(x \\ t) ga = contract (x :.: t (ga+1)) ga
 
 infixr 5 $:
-($:) :: m -> Sbst m -> CdB (Tm m)
-m $: sg = contract (m :$: sg)
+($:) :: m -> (Int -> CdB (Sbst m)) -> Int -> CdB (Tm m)
+(m $: sg) ga = contract (m :$: sg ga) ga
 
-($^) :: m -> CdBS m -> CdB (Tm m)
-m $^ (CdBS (sg, th)) = (m :$ sg, th)
 
+{-
 -- co-smart destructors for the codeBruijn terms
 
 car, cdr :: CdB (Tm m) -> CdB (Tm m)
@@ -383,21 +386,25 @@ match (i, (p, ph)) (t, th) =
     MP x -> do
       let (ph', ps, th') = pullback th (apth ones (i,ph))
 -}
-
+-}
 
 -- uglyprinting
+
+freshen :: String -> Bwd String -> String
+freshen x xz = head [y | y <- ys, all (y /=) xz] where
+  ys = x : [x ++ show (i :: Integer) | i <- [0..]]
 
 display :: Show m => Bwd String -> Tm m -> String
 display (B0 :< x) V = x
 display B0    (A a) = case a of
   "" -> "[]"
   _  -> '\'' : a
-display xz (s :% (t, ph)) =
+display xz (P (s :<>: (t, ph))) =
   "[" ++ display' xz s ++ displayCdr (ph ?< xz) t ++ "]"
 display xz ((Hide x, b) :. t) = "\\" ++ case b of
   False -> "_." ++ display xz t
   True  -> case mangle xz [] of
-    x -> x ++ "." ++ display (xz :< x) t
+    x -> let y = freshen x xz in y ++ "." ++ display (xz :< y) t
  where
   mangle B0 ss = if elem "" ss then vary 0 ss else x
   mangle (yz :< y) ss = case stripPrefix x y of
@@ -406,33 +413,22 @@ display xz ((Hide x, b) :. t) = "\\" ++ case b of
   vary :: Int -> [String] -> String
   vary i ss = if elem y ss then vary (i + 1) ss else y where y = x ++ show i
 display xz (m :$ sg) = concat
-  [show m, "{", intercalate ", " (displaySg xz sg <>> []), "}"]
+  [show m, "{", intercalate ", " (displaySg xz sg []), "}"]
 
 display' :: Show m => Bwd String -> CdB (Tm m) -> String
 display' xz (t, th) = display (th ?< xz) t
 
 displayCdr :: Show m => Bwd String -> Tm m -> String
 displayCdr B0 (A "") = ""
-displayCdr xz (s :% (t, ph)) =
+displayCdr xz (P (s :<>: (t, ph))) =
   " " ++ display' xz s ++ displayCdr (ph ?< xz) t
 displayCdr xz t = "|" ++ display xz t
 
-displaySg :: Show m => Bwd String -> Sbst m -> Bwd String
-displaySg xz (Sbst th iz ph)
-  | th == none = B0
-  | otherwise = case thun th of
-    (th, False) -> case ph ?< xz of
-      _ :< x -> displaySg xz (Sbst th iz (nip ph)) :< x
-    (th, True) -> case iz of
-      (iz :< t') ->
-        displaySg xz (Sbst th iz ph) :<
-        display' xz t'
-  where
-    nip th
-      | th == none = error "nipping none"
-      | otherwise = case thun th of
-        (th, True)  -> th -? False
-        (th, False) -> nip th -? False
+displaySg :: Show m => Bwd String -> Sbst m -> [String] -> [String]
+displaySg xz (sg, w) xs = case curl w (xz, xs) of
+  (xz, xs) -> case sg of
+    S0 -> xs
+    ST ((sg, th) :<>: (t, ph)) ->
+      displaySg (th ?< xz) sg (display (ph ?< xz) t : xs)
 
 -----------------------------
--}

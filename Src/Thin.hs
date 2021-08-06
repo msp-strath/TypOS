@@ -87,6 +87,10 @@ weak (t, th) = (t, th -? False)
 (*^) :: CdB a -> Th -> CdB a
 (a, th) *^ ph = (a, th <^> ph)
 
+($^) :: (a -> b) -> CdB a -> CdB b
+f $^ (a, th) = (f a, th)
+  -- f better be support-preserving
+
 {-
 -- thicken ph ps = Just th when th <> ph = ps
 thicken :: Th -> Th -> Maybe Th
