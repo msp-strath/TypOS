@@ -22,10 +22,10 @@ import Hide
 data Tm m
   = V
   | A String
-  | CdB (Tm m) :% CdB (Tm m)
+  | P (RP (Tm m) (Tm m))
   | (Hide String, Bool) :. Tm m
   | m :$ Sbst m
-  deriving (Show, Eq, Functor, Foldable, Traversable)
+  deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
 newtype Meta = Meta [(String, Int)]
   deriving (Show, Ord, Eq)
@@ -35,7 +35,29 @@ infixr 3 :.
 infixr 4 :%
 infixr 5 :$
 
+type Sbst m =
+  ( Sbst' m  -- what's below the weakenings
+  , Int      -- how many weakenings
+  )
+data Sbst' m
+  = S0 -- empty -> empty
+  | ST (RP (Sbst m) (Tm m))
+  deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
+-- smart constructors
+sbst0 :: Sbst m
+sbst0 = (S0, 0)
+sbstW :: Sbst m -> Sbst m
+sbstW (sg, w) = (sg, w+1)
+
+sbstSel
+  :: Th -- ga0 from ga
+  -> Sbst m -- ga -> de
+  -> Int -- de
+  -> CdB (Sbst m)
+sbstSel th sg de = _
+
+{-
 -- TODO: go back to global substitutions (to avoid implicitly
 -- ones-extending miss)
 
@@ -347,3 +369,4 @@ displaySg xz (Sbst th iz ph)
         (th, False) -> nip th -? False
 
 -----------------------------
+-}

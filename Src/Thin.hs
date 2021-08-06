@@ -17,6 +17,9 @@ data Th = Th
 instance Eq Th where
   Th th i == Th ph j = (i == j) && ((th .&. full i) == (ph .&. full j))
 
+instance Ord Th where
+  compare (Th th i) (Th ph j) = compare (i, th .&. full i) (j, ph .&. full j)
+
 weeEnd :: Th -> Int
 weeEnd (Th th i) = popCount (th .&. full i)
 
@@ -98,6 +101,14 @@ cop th ph
         ((c, ps), False)       -> (c , ps -? False)
         (((th, ph), ps), True) -> ((th -? a, ph -? b), ps -? True)
 
+-- codeBruijn pairing
+data RP a b = CdB a :<>: CdB b deriving (Show, Eq, Ord)
+(<&>) :: CdB a -> CdB b -> CdB (RP a b)
+(a, th) <&> (b, ph) = ((a, th') :<>: (b, ph'), ps) where
+  ((th', ph'), ps) = cop th ph
+splirp :: CdB (RP a b) -> (CdB a -> CdB b -> t) -> t
+splirp ((a, th) :<>: (b, ph), ps) k =
+  k (a, th <^> ps) (b, ph <^> ps)
 
 -- (iz, th) and (jz, ph) are images for some of a scope
 -- compute a merge of iz and jz which are images for
