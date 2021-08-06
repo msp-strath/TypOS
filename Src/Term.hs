@@ -25,16 +25,16 @@ data Tm m
   | P (RP (Tm m) (Tm m))
   | (Hide String, Bool) :. Tm m
   | m :$ Sbst m
-  deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
+  deriving (Show, Eq, Ord{-, Functor, Foldable, Traversable-})
 
 newtype Meta = Meta [(String, Int)]
   deriving (Show, Ord, Eq)
 type Term = CdB (Tm Meta)
 
 infixr 3 :.
-infixr 4 :%
 infixr 5 :$
 
+-- relevant substitutions
 type Sbst m =
   ( Sbst' m  -- what's below the weakenings
   , Int      -- how many weakenings
@@ -42,20 +42,86 @@ type Sbst m =
 data Sbst' m
   = S0 -- empty -> empty
   | ST (RP (Sbst m) (Tm m))
-  deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
+  deriving (Show, Eq, Ord{-, Functor, Foldable, Traversable-})
 
 -- smart constructors
-sbst0 :: Sbst m
-sbst0 = (S0, 0)
-sbstW :: Sbst m -> Sbst m
-sbstW (sg, w) = (sg, w+1)
+sbst0 :: Int -> CdB (Sbst m)
+sbst0 de = ((S0, 0), none de)
+sbstW :: CdB (Sbst m) -> Th -> CdB (Sbst m)
+sbstW ((sg, w), th) ph = ((sg, w + weeEnd ph), th <> ph)
+sbstT :: CdB (Sbst m) -> CdB (Tm m) -> CdB (Sbst m)
+sbstT sg t = ((ST p, 0), ps) where (p, ps) = sg <&> t
+
+sbstCod :: Sbst m -> Int
+sbstCod (sg, w) = case sg of
+  S0 -> w
+  ST ((sg, th) :<>: (t, ph)) -> bigEnd th + w
 
 sbstSel
   :: Th -- ga0 from ga
   -> Sbst m -- ga -> de
-  -> Int -- de
   -> CdB (Sbst m)
-sbstSel th sg de = _
+sbstSel th (S0, w) = ((S0, weeEnd th), th) -- w = bigEnd th
+sbstSel th (ST ((sg, phl{- del <= de -}) :<>: t), w) =
+  sbstW (if b then sbstT sg0 t else sg0) thw
+  where
+  -- ga, x, w -> de, w
+  (thgax, thw) = thChop th w
+  (thga, b) = thun thgax
+  sg0 = sbstSel thga sg *^ phl
+
+data OrdWit
+  = LtBy Int -- positive
+  | GeBy Int -- non-negative
+  deriving Show
+
+euclid :: Int -> Int -> OrdWit
+euclid x y = let d = x - y in case d < 0 of
+  True  -> LtBy (negate d)
+  False -> GeBy d
+
+(//) :: Tm m -> Sbst m -> Tm m
+t // (S0, _) = t
+V // (ST (_ :<>: (t, _)), 0) = t
+P ((tl, thl) :<>: (tr, thr)) // sg =
+  P ((tl // sgl, phl) :<>: (tr // sgr, phr)) where
+  (sgl, phl) = sbstSel thl sg
+  (sgr, phr) = sbstSel thr sg
+((x, b) :. t) // (sg, w) = (x, b) :. (t // (sg, if b then w+1 else w))
+(m :$ rh) // sg = m :$ (rh /// sg)
+
+(///) :: Sbst m -> Sbst m -> Sbst m
+(S0, _) /// sg = sg
+rh /// (S0, _) = rh
+(rh, v) /// (sg, w) =
+  case euclid w v of
+    LtBy d -> case sg of
+      ST ((sg, phl) :<>: t) ->
+        (ST (((rh, d-1) /// sg, phl) :<>: t), w)
+      {-
+          -------  ;  -------
+             w           w
+          -------     -------
+          -------     ----> t
+           d > 0         sg
+          -------
+             rh
+      -}
+    GeBy d -> case rh of
+      ST ((rh, thl) :<>: (s, thr)) -> let
+        (sgl, phl) = sbstSel thl (sg, d)
+        (sgr, phr) = sbstSel thr (sg, d)
+        in (ST ((rh /// sgl, phl) :<>: (s // sgr, phr)), v)
+      {-
+        -------  ;  -------
+           v           v   
+        -------     -------
+        ----> s     -------
+           rh          d   
+                    -------
+                       sg  
+      -}
+
 
 {-
 -- TODO: go back to global substitutions (to avoid implicitly

@@ -72,9 +72,10 @@ thChop :: Th -> Int -> (Th, Th)
 thChop (Th th i) j = (Th (shiftR th j) (i-j), Th (th .&. full j) j)
 
 -- kind of append, only taking first i bits of second arg into account
--- TODO: refactor into monoid instance
-apth :: Th -> Th -> Th
-apth (Th th j) (Th ph i) = Th (shiftL th i .|. (ph .&. full i)) (i+j)
+instance Monoid Th where
+  mempty = ones 0
+  mappend (Th th j) (Th ph i) = Th (shiftL th i .|. (ph .&. full i)) (i+j)
+instance Semigroup Th where (<>) = mappend
 
 -- codeBruijn things are paired with a thinning
 -- from support to scope
@@ -101,7 +102,7 @@ cop th ph
         ((c, ps), False)       -> (c , ps -? False)
         (((th, ph), ps), True) -> ((th -? a, ph -? b), ps -? True)
 
--- codeBruijn pairing
+-- relevant pairing
 data RP a b = CdB a :<>: CdB b deriving (Show, Eq, Ord)
 (<&>) :: CdB a -> CdB b -> CdB (RP a b)
 (a, th) <&> (b, ph) = ((a, th') :<>: (b, ph'), ps) where
