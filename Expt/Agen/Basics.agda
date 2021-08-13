@@ -54,6 +54,10 @@ Maybe = `1 +_
 pattern aye x = tt , x
 pattern naw   = ff , <>
 
+_>><<_ : forall {S0 S1 T0 T1} -> (f : S0 -> S1)(g : forall {s0} -> T0 s0 -> T1 (f s0)) ->
+  S0 >< T0 -> S1 >< T1
+(f >><< g) (s , t) = f s , g t
+
 maybe : forall {S T} -> (S -> T) -> Maybe S -> Maybe T
 maybe f naw = naw
 maybe f (aye s)  = aye (f s)
@@ -61,6 +65,11 @@ maybe f (aye s)  = aye (f s)
 _>M=_ : forall {S T} -> Maybe S -> (S -> Maybe T) -> Maybe T
 aye s >M= k = k s
 naw   >M= k = naw
+
+pure : forall {X} -> X -> Maybe X
+_<*>_ : forall {S T} -> Maybe (S -> T) -> Maybe S -> Maybe T
+pure x = aye x
+f <*> s = f >M= \ f -> s >M= \ s -> aye (f s)
 
 
 module _ {X : Set} where

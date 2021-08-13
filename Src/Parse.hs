@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections, LambdaCase #-}
 
 module Parse where
 
@@ -10,24 +10,44 @@ import Bwd
 import Thin
 import Term
 
-ptm :: Parser (Int -> CdB (Tm String))
-ptm = var <$> join (pseek <$> pnom)
-  <|> atom <$ pch (== '\'') <*> pnom
+-- parsers, by convention, do not consume either leading
+-- or trailing space
+
+ptm :: Parser (CdB (Tm String))
+ptm = var <$> join (pseek <$> pnom) <*> plen
+  <|> atom <$ pch (== '\'') <*> pnom <*> plen
   <|> id <$ pch (== '\\') <* pspc <*> (do
     x <- pnom
     pspc
     pch (== '.')
     pspc
-    (x \\) <$> pbind x ptm)
-  <|> ($:) <$ pch (== '?') <*> pnom <*> pure
-        (\ w -> ((S0, w), ones w))
+    (x \\) <$> (const <$> pbind x ptm)) <*> plen
+  <|> ($: sbstI) <$ pch (== '?') <*> pnom
+      <*> plen
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> id <$ pch (== '(') <* pspc <*> ptm <* pspc <* pch (== ')')
+  <|> id <$ pch (== '{') <* pspc <*> do
+    (sg, xz) <- psbst
+    (//^ sg) <$> plocal xz ptm
 
-plisp :: Parser (Int -> CdB (Tm String))
-plisp = atom "" <$ pch (== ']')
+psbst :: Parser (CdB (Sbst String), Bwd String)
+psbst = (,) <$ pch (== '}') <*> (sbstI <$> plen) <*> pscope
+  <|> id <$ pch (== ',') <* pspc <*> psbst
+  <|> (pnom >>= \ x -> pspc >> ppop x psbst >>= \ (sg, xz) ->
+       pure (sbstW sg (ones 1), xz :< x))
+  <|> (pnom >>= \ x -> pch (== '*') >> ppop x psbst >>= \ (sg, xz) ->
+       pure (sbstW sg (none 1), xz))
+  <|> do
+    x <- pnom
+    pspc ; pch (== '=') ; pspc
+    t <- ptm
+    (sg, xz) <- psbst
+    return (sbstT sg t, xz :< x)
+
+plisp :: Parser (CdB (Tm String))
+plisp = atom "" <$ pch (== ']') <*> plen
     <|> id <$ pch (== '|') <* pspc <*> ptm <* pspc <* pch (== ']')
-    <|> (%) <$> ptm <* pspc <*> plisp
+    <|> (%) <$> (const <$> ptm) <* pspc <*> (const <$> plisp) <*> plen
   
 
 pnom :: Parser String
@@ -62,6 +82,20 @@ instance Alternative Parser where
 pbind :: String -> Parser a -> Parser a
 pbind x (Parser p) = Parser $ \ xz s -> p (xz :< x) s
 
+pscope :: Parser (Bwd String)
+pscope = Parser $ \ xz s -> [(xz, s)]
+
+plen :: Parser Int
+plen = length <$> pscope
+
+plocal :: Bwd String -> Parser x -> Parser x
+plocal xz (Parser p) = Parser $ \ _ s -> p xz s
+
+ppop :: String -> Parser x -> Parser x
+ppop x p = pscope >>= \case
+  xz :< y | x == y -> plocal xz p
+  _ -> empty
+
 pseek :: String -> Parser Int
 pseek x = Parser $ \ xz s -> let
   chug B0 = []
@@ -80,7 +114,9 @@ pend = Parser $ \ xz s -> case s of
   [] -> [((), "")]
   _ -> []
 
-plen :: Parser (Int -> x) -> Parser x
-plen (Parser p) = Parser $ \ xz s -> do
-  (f, s) <- p xz s
-  return (f (length xz), s)
+pgo :: Parser x -> String -> x
+pgo p s = case parser (id <$> p <* pend) B0 s of
+  [(x, _)] -> x
+
+repl :: IO a
+repl = forever $ getLine >>= \ s -> putStrLn (display' B0 $ pgo ptm s)

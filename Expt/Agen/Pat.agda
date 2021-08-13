@@ -2,12 +2,14 @@ module Pat where
 
 open import Basics
 open import Thin
+open import Cop
 open import Pair
 open import Bind
 open import Term
 open import Pub
 
 open THIN {`1}
+open COP {`1}
 open PAIR {`1}
 open BIND {`1}
 open PUB {`1}
@@ -26,7 +28,7 @@ module PAT
   infix 50 _??
 
   infix 30 _?^0_ _?^1_
-  
+
   -- throw in more vars which we don't like
   _?^0_ : forall {ga ga'} -> Pat ga -> ga <= ga' -> Pat ga'
   th ?? ?^0 ph = (th -& ph) ??
@@ -71,6 +73,16 @@ module PAT
     proj (_ , pi) (pr p i) = proj pi i
     proj pi (bb i) = proj pi i
 
+    -- try to throw some vars out of scope
+    _<?_ : forall {ga ga'} -> ga <= ga' -> (p' : Pat ga')
+        -> Maybe (Pat ga >< \ p -> Env p -> Env p')
+    ph <? (th ??) with ph' & th' , _ <- pub ph th = aye (ph' ?? , \ t -> mu^ (t & th') )
+    ph <? vv x = (| (_, _) (| vv (| fst (thicken? ph x) |) |) |) -- (| vv (| fst (thicken? ph x) |) |)
+    ph <? aa a = (| (_, _) (| (aa a) |) |) -- (| (aa a) |)
+    ph <? pp p q = (ph <? p) >M= \ (p , f) -> (ph <? q) >M= \ (q , g) ->
+      aye (pp p q , (f >><< g)) 
+    ph <? bb p = (| (bb >><< id) ((ph -, <>) <? p) |)
+
     match? : forall {ga}(p : Pat ga)(t : Term ga)
       -> Maybe (Env p)
     match? (ph ??) (t & th) = 
@@ -87,6 +99,20 @@ module PAT
       aye (lpi , rpi) 
     match? (bb p) (bb b & th) = match? p (under (b & th))
     match? _ _ = ff , <>
+
+    mitch? : forall {ga}(p : Pat ga)(t : Tm ga) -> Maybe (Env p)
+    mitch? (th ??) t = all? th >M= \ { (r~ , _) -> aye (t & io) }
+    mitch? (vv x) (vv only) = aye <>
+    mitch? (aa a) (aa (atom b)) = (| (ko <>) (eq? a b) |)
+    mitch? (pp p q) (pp (s </ u \> t)) =
+      (luth u <? p) >M= \ (p , f) ->
+      (ruth u <? q) >M= \ (q , g) ->
+      (| (| f (mitch? p s) |) , (| g (mitch? q t) |) |)
+    mitch? (bb p) (bb (kk t)) =
+      ((io -^ <>) <? p) >M= \ (p , f) ->
+      (| f (mitch? p t) |)
+    mitch? (bb p) (bb (ll t)) = mitch? p t
+    mitch? _ _ = naw
 
     data _<P=_ {ga : Nat} : Pat ga -> Pat ga -> Set where
       mm : forall {de p'} p {th : de <= ga}

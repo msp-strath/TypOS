@@ -5,14 +5,14 @@ import Control.Arrow
 
 import Bwd
 
+data Th = Th
+  { thinning :: Integer
+  , bigEnd   :: Int
+  }
+
 -- 2^(i-1), which is a remarkably well behaved thing
 full :: Bits a => Int -> a
 full i = xor (shiftL ones i) ones where ones = complement zeroBits
-
-data Th = Th
-  { thinning :: Integer
-  , bigEnd  :: Int
-  }
 
 instance Eq Th where
   Th th i == Th ph j = (i == j) && ((th .&. full i) == (ph .&. full j))

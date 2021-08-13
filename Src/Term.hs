@@ -51,6 +51,8 @@ sbstW :: CdB (Sbst m) -> Th -> CdB (Sbst m)
 sbstW ((sg, w), th) ph = ((sg, w + weeEnd ph), th <> ph)
 sbstT :: CdB (Sbst m) -> CdB (Tm m) -> CdB (Sbst m)
 sbstT sg t = ((ST p, 0), ps) where (p, ps) = sg <&> t
+sbstI :: Int -> CdB (Sbst m)
+sbstI w = ((S0, w), ones w)
 
 sbstCod :: Sbst m -> Int
 sbstCod (sg, w) = case sg of
