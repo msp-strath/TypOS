@@ -6,6 +6,7 @@ import Control.Applicative
 import Control.Monad
 import Data.Char
 
+import Hide
 import Bwd
 import Thin
 import Term
@@ -40,9 +41,9 @@ psbst = (,) <$ pch (== '}') <*> (sbstI <$> plen) <*> pscope
   <|> do
     x <- pnom
     pspc ; pch (== '=') ; pspc
-    t <- ptm
+    (t, th) <- ptm
     (sg, xz) <- psbst
-    return (sbstT sg t, xz :< x)
+    return (sbstT sg ((Hide x, t), th), xz :< x)
 
 plisp :: Parser (CdB (Tm String))
 plisp = atom "" <$ pch (== ']') <*> plen
@@ -119,4 +120,4 @@ pgo p s = case parser (id <$> p <* pend) B0 s of
   [(x, _)] -> x
 
 repl :: IO a
-repl = forever $ getLine >>= \ s -> putStrLn (display' B0 $ pgo ptm s)
+repl = forever $ getLine >>= \ s -> putStrLn (display' (B0, ones 0, B0) $ pgo ptm s)

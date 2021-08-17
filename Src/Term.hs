@@ -41,7 +41,7 @@ type Sbst m =
   )
 data Sbst' m
   = S0 -- empty -> empty
-  | ST (RP (Sbst m) (Tm m))
+  | ST (RP (Sbst m) (Hide String, Tm m))
   deriving (Show, Eq, Ord{-, Functor, Foldable, Traversable-})
 
 -- smart constructors
@@ -49,7 +49,7 @@ sbst0 :: Int -> CdB (Sbst m)
 sbst0 de = ((S0, 0), none de)
 sbstW :: CdB (Sbst m) -> Th -> CdB (Sbst m)
 sbstW ((sg, w), th) ph = ((sg, w + weeEnd ph), th <> ph)
-sbstT :: CdB (Sbst m) -> CdB (Tm m) -> CdB (Sbst m)
+sbstT :: CdB (Sbst m) -> CdB (Hide String, Tm m) -> CdB (Sbst m)
 sbstT sg t = ((ST p, 0), ps) where (p, ps) = sg <&> t
 sbstI :: Int -> CdB (Sbst m)
 sbstI w = ((S0, w), ones w)
@@ -88,7 +88,7 @@ euclid x y = let d = x - y in case d < 0 of
 
 (//) :: Tm m -> Sbst m -> Tm m
 t // (S0, _) = t
-V // (ST (_ :<>: (t, _)), 0) = t
+V // (ST (_ :<>: ((_, t), _)), 0) = t
 P ((tl, thl) :<>: (tr, thr)) // sg =
   P ((tl // sgl, phl) :<>: (tr // sgr, phr)) where
   (sgl, phl) = sbstSel thl sg
@@ -114,10 +114,10 @@ rh /// (S0, _) = rh
              rh
       -}
     GeBy d -> case rh of
-      ST ((rh, thl) :<>: (s, thr)) -> let
+      ST ((rh, thl) :<>: ((x, s), thr)) -> let
         (sgl, phl) = sbstSel thl (sg, d)
         (sgr, phr) = sbstSel thr (sg, d)
-        in (ST ((rh /// sgl, phl) :<>: (s // sgr, phr)), v)
+        in (ST ((rh /// sgl, phl) :<>: ((x, s // sgr), phr)), v)
       {-
         -------  ;  -------
            v           v   
@@ -392,45 +392,63 @@ match (i, (p, ph)) (t, th) =
 
 -- uglyprinting
 
-freshen :: String -> Bwd String -> String
-freshen x xz = head [y | y <- ys, all (y /=) xz] where
+type Naming =
+  ( Bwd String  -- what's in scope *now*
+  , Th          -- and how that was chosen from
+  , Bwd String  -- what's been in scope ever
+  )
+
+-- The point is that when we reach a metavariable,
+-- we have to document its permitted dependencies.
+
+nameSel :: Th -> Naming -> Naming
+nameSel th (xz, ph, yz) = (th ?< xz, th <^> ph, yz)
+
+nameOn :: Naming -> String -> Naming
+nameOn (xz, th, yz) x = (xz :< x, th -? True, yz :< x)
+
+freshen :: String -> Naming -> String
+freshen x (xz, _, _) = head [y | y <- ys, all (y /=) xz] where
   ys = x : [x ++ show (i :: Integer) | i <- [0..]]
 
-display :: Show m => Bwd String -> Tm m -> String
-display (B0 :< x) V = x
-display B0    (A a) = case a of
+display :: Show m => Naming -> Tm m -> String
+display (B0 :< x, _, _) V = x
+display (B0, _, _)    (A a) = case a of
   "" -> "[]"
   _  -> '\'' : a
-display xz (P (s :<>: (t, ph))) =
-  "[" ++ display' xz s ++ displayCdr (ph ?< xz) t ++ "]"
-display xz ((Hide x, b) :. t) = "\\" ++ case b of
-  False -> "_." ++ display xz t
-  True  -> case mangle xz [] of
-    x -> let y = freshen x xz in y ++ "." ++ display (xz :< y) t
- where
-  mangle B0 ss = if elem "" ss then vary 0 ss else x
-  mangle (yz :< y) ss = case stripPrefix x y of
-    Nothing -> mangle yz ss
-    Just s -> mangle yz (s : ss)
-  vary :: Int -> [String] -> String
-  vary i ss = if elem y ss then vary (i + 1) ss else y where y = x ++ show i
-display xz (m :$ sg) = concat
-  [show m, "{", intercalate ", " (displaySg xz sg []), "}"]
+display na (P (s :<>: (t, ph))) =
+  "[" ++ display' na s ++ displayCdr (nameSel ph na) t ++ "]"
+display na ((Hide x, b) :. t) = "\\" ++ case b of
+  False -> "_." ++ display na t
+  True  -> let y = freshen x na in
+    y ++ "." ++ display (nameOn na y) t
+display na (m :$ sg) = case displaySg na sg of
+  [] -> "?" ++ show m
+  sg' -> "{" ++ intercalate "," sg' ++ "}?" ++ show m
 
-display' :: Show m => Bwd String -> CdB (Tm m) -> String
-display' xz (t, th) = display (th ?< xz) t
+display' :: Show m => Naming -> CdB (Tm m) -> String
+display' na (t, th) = display (nameSel th na) t
 
-displayCdr :: Show m => Bwd String -> Tm m -> String
-displayCdr B0 (A "") = ""
-displayCdr xz (P (s :<>: (t, ph))) =
-  " " ++ display' xz s ++ displayCdr (ph ?< xz) t
-displayCdr xz t = "|" ++ display xz t
+displayCdr :: Show m => Naming -> Tm m -> String
+displayCdr (B0, _, _) (A "") = ""
+displayCdr na (P (s :<>: (t, ph))) =
+  " " ++ display' na s ++ displayCdr (nameSel ph na) t
+displayCdr na t = "|" ++ display na t
 
-displaySg :: Show m => Bwd String -> Sbst m -> [String] -> [String]
-displaySg xz (sg, w) xs = case curl w (xz, xs) of
-  (xz, xs) -> case sg of
-    S0 -> xs
-    ST ((sg, th) :<>: (t, ph)) ->
-      displaySg (th ?< xz) sg (display (ph ?< xz) t : xs)
+displaySg :: Show m => Naming -> Sbst m -> [String]
+displaySg (_, th, _) (S0, _)
+  | th == ones (bigEnd th) = []
+displaySg na (ST ((sg, th) :<>: ((Hide x, t), ph)), 0) =
+  (x ++ "=" ++ display' na (t, ph)) :
+  displaySg (nameSel th na) sg
+displaySg (xz, th, yz :< y) (sg, w) = case thun th of
+  (th, False) ->
+    (y ++ "*") : displaySg (xz, th, yz) (sg, w)
+  (th, True) ->
+    case xz of
+      xz :< x ->
+        x : displaySg (xz, th, yz) (sg, w - 1)
+
+
 
 -----------------------------
