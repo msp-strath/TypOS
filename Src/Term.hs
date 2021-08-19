@@ -2,7 +2,8 @@
   DeriveTraversable,
   FlexibleInstances,
   TypeSynonymInstances,
-  LambdaCase
+  LambdaCase,
+  TupleSections
   #-}
 
 module Term where
@@ -11,8 +12,10 @@ import Data.List hiding ((\\))
 import Control.Arrow
 import Control.Monad.Writer
 import Control.Monad.State
+import Control.Applicative
 import Data.Bits
 import Data.Monoid
+import Data.Traversable
 import qualified Data.Map as Map
 
 import Bwd
@@ -27,9 +30,24 @@ data Tm m
   | m :$ Sbst m
   deriving (Show, Eq, Ord{-, Functor, Foldable, Traversable-})
 
+instance Traversable Tm where
+  traverse f V = pure V
+  traverse f (A a) = pure (A a)
+  traverse f (P ((s, th) :<>: (t, ph))) =
+     P <$> ((:<>:) <$> ((, th) <$> traverse f s) <*> ((, ph) <$> traverse f t))
+  traverse f (xb :. t) = (xb :.) <$> traverse f t
+  traverse f (m :$ (sg, w)) =
+    (:$) <$> f m <*> ((, w) <$> traverse f sg)
+instance Functor Tm where fmap = fmapDefault
+instance Foldable Tm where foldMap = foldMapDefault
+
 newtype Meta = Meta [(String, Int)]
   deriving (Show, Ord, Eq)
 type Term = CdB (Tm Meta)
+type Root = (Bwd (String, Int), Int)
+
+meta :: Root -> String -> (Meta, Root)
+meta (xiz, j) x = (Meta (xiz <>> [(x, j)]), (xiz, j + 1))
 
 infixr 3 :.
 infixr 5 :$
@@ -43,6 +61,14 @@ data Sbst' m
   = S0 -- empty -> empty
   | ST (RP (Sbst m) (Hide String, Tm m))
   deriving (Show, Eq, Ord{-, Functor, Foldable, Traversable-})
+
+instance Traversable Sbst' where
+  traverse f S0 = pure S0
+  traverse f (ST (((sg, w), th) :<>: ((x, t), ph))) = ST <$>
+    ((:<>:) <$> ((, th) <$> ((, w) <$> traverse f sg))
+            <*> ((, ph) <$> ((x,) <$>traverse f t)))
+instance Functor Sbst' where fmap = fmapDefault
+instance Foldable Sbst' where foldMap = foldMapDefault
 
 -- smart constructors
 sbst0 :: Int -> CdB (Sbst m)
@@ -156,7 +182,7 @@ sbst th iz ph = CdBS (Sbst th iz' ph', ps) where
 -- toplevel expansions and contractions of co-deBruijn terms
 
 data Xn m
-  = X Int
+  = VX Int
   | AX String
   | CdB (Tm m) :%: CdB (Tm m)
   | String :.: CdB (Tm m)
@@ -165,7 +191,7 @@ data Xn m
 
 expand :: CdB (Tm m) -> Xn m
 expand (t, th) = case t of
-  V   -> X (lsb th)
+  V   -> VX (lsb th)
   A a -> AX a
   P (s :<>: t) -> (s *^ th) :%: (t *^ th)
   (str, b) :. t -> unhide str :.: (t, th -? b)
@@ -176,7 +202,7 @@ t ?: f = f (expand t)
 
 contract :: Xn m -> Int -> CdB (Tm m)
 contract t ga = case t of
-  X x -> (V, inx (x, ga))
+  VX x -> (V, inx (x, ga))
   AX a -> (A a, none ga)
   s :%: t -> P $^ (s <&> t)
   x :.: (t, th) -> case thun th of
@@ -186,7 +212,7 @@ contract t ga = case t of
 -- smart constructors for the codeBruijn terms
 
 var :: Int -> Int -> CdB (Tm m)
-var x = contract (X x)
+var x = contract (VX x)
 
 atom :: String -> Int -> CdB (Tm m)
 atom a = contract (AX a)
@@ -389,6 +415,34 @@ match (i, (p, ph)) (t, th) =
       let (ph', ps, th') = pullback th (apth ones (i,ph))
 -}
 -}
+
+-- patterns are de Bruijn
+data Pat
+  = VP Int
+  | AP String
+  | PP Pat Pat
+  | BP (Hide String) Pat
+  | MP String Th
+  deriving Show
+
+-- match assumes that p's vars are the local end of t's
+match :: Root -> Pat -> Term
+  -> Maybe (Root, (Map.Map String Meta, Map.Map Meta Term))
+match r (MP x th) (t, ph) = do
+  let g = bigEnd ph - bigEnd th  -- how many globals?
+  ps <- thicken (ones g <> th) ph
+  let (m, r') = meta r x
+  return (r', (Map.singleton x m, Map.singleton m (t, ps)))
+match r p t = case (p, expand t) of
+  (VP i, VX j) | i == j -> return (r, (Map.empty, Map.empty))
+  (AP a, AX b) | a == b -> return (r, (Map.empty, Map.empty))
+  (PP p q, s :%: t) -> do
+    (r, m) <- match r p s
+    (r, n) <- match r q t
+    return (r, m <> n)
+  (BP _ p, _ :.: t) -> match r p t
+  _ -> empty
+
 
 -- uglyprinting
 

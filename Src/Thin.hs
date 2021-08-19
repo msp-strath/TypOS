@@ -2,6 +2,7 @@ module Thin where
 
 import Data.Bits
 import Control.Arrow
+import Control.Monad
 
 import Bwd
 
@@ -26,6 +27,10 @@ weeEnd (Th th i) = popCount (th .&. full i)
 ones, none :: Int -> Th
 ones i = Th (full i) i
 none i = Th 0 i
+
+is0s, is1s :: Th -> Bool
+is0s th = th == none (bigEnd th)
+is1s th = th == ones (bigEnd th)
 
 -- snoc for bits
 (-?) :: Th -> Bool -> Th
@@ -55,6 +60,13 @@ th <^> ph@(Th _ i) = case thun ph of
 -- de Bruijn index is 2^
 inx :: (Int, Int) -> Th
 inx (i, j) | 0 <= i && i < j = Th (bit i) j
+
+thinx :: Int -> Th -> Int
+thinx i th = case thun th of
+  (th, False) -> 1 + thinx i th
+  (th, True) -> case i of
+    0 -> 0
+    i -> 1 + thinx (i - 1) th
 
 -- th must not be 0
 lsb :: Th -> Int
@@ -90,12 +102,6 @@ weak (t, th) = (t, th -? False)
 ($^) :: (a -> b) -> CdB a -> CdB b
 f $^ (a, th) = (f a, th)
   -- f better be support-preserving
-
-{-
--- thicken ph ps = Just th when th <> ph = ps
-thicken :: Th -> Th -> Maybe Th
-thicken ph ps = 
--}
 
 -- Invariant: bigEnd th = bigEnd ph
 cop :: Th -> Th -> CdB (Th, Th)
@@ -166,3 +172,12 @@ pullback th ph
           (th' -? False, ps -? False, ph')
         ((th', ps, ph'), True, True) ->
           (th' -? True, ps -? True, ph' -? True)
+
+-- thicken th ph computes ps such that ps <^> th = ph
+-- i.e., th is "what's allowed" and ph is "what's required"
+-- ps is the witness that everything required is allowed
+thicken :: Th -> Th -> Maybe Th
+thicken th ph = ps <$ guard (is1s th')
+  where
+  (ps, _, th') = pullback th ph
+
