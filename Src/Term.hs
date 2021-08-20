@@ -66,7 +66,7 @@ instance Traversable Sbst' where
   traverse f S0 = pure S0
   traverse f (ST (((sg, w), th) :<>: ((x, t), ph))) = ST <$>
     ((:<>:) <$> ((, th) <$> ((, w) <$> traverse f sg))
-            <*> ((, ph) <$> ((x,) <$>traverse f t)))
+            <*> ((, ph) <$> ((x,) <$> traverse f t)))
 instance Functor Sbst' where fmap = fmapDefault
 instance Foldable Sbst' where foldMap = foldMapDefault
 
@@ -155,30 +155,6 @@ rh /// (S0, _) = rh
       -}
 
 
-{-
--- TODO: go back to global substitutions (to avoid implicitly
--- ones-extending miss)
-
-data Sbst m = Sbst -- from scope ga,de to terms with scope ga,xi
- { hits :: Th -- which things in de we hit
- , imgs :: Bwd (CdB (Tm m)) -- images of what we hit
- , miss :: Th -- how the missed things in ga,de embed in ga,xi (identity on ga)
- } deriving (Show, Eq, Functor, Foldable, Traversable)
--- invariant: the target scope is covered by the
--- imgs thinnings and miss
--- invariant: miss is ones-extended as if ga is infinite
-
-newtype CdBS m = CdBS (CdB (Sbst m))
-  deriving (Show, Eq, Functor, Foldable, Traversable)
-
--- smart constructor for codeBruijn substitution
-sbst :: Th -> Bwd (CdB (Tm m)) -> Th -> CdBS m
-sbst th iz ph = CdBS (Sbst th iz' ph', ps) where
-  (jz, ps0) = copz iz
-  ((ps1, ph'), ps) = cop ps0 ph
-  iz' = fmap (*^ ps1) jz
--}
-
 -- toplevel expansions and contractions of co-deBruijn terms
 
 data Xn m
@@ -237,185 +213,6 @@ infixr 5 $:
 (m $: sg) ga = contract (m :$: sg ga) ga
 
 
-{-
--- co-smart destructors for the codeBruijn terms
-
-car, cdr :: CdB (Tm m) -> CdB (Tm m)
-car (s :% _, ph) = s *^ ph
-cdr (_ :% t, ph) = t *^ ph
-
-tag :: CdB (Tm m) -> String
-tag (A a, _) = a
-
-(%<) :: CdB (Tm m) -> (CdB (Tm m) -> CdB (Tm m) -> a) -> a
-t %< f = f (car t) (cdr t)
-
-(#%<) :: CdB (Tm m) -> (String -> CdB (Tm m) -> a) -> a
-t #%< f = t %< (f . tag)
-
-under :: CdB (Tm m) -> CdB (Tm m)
-under ((_, b) :. t, th) = (t, th -? b)
-
--- smart constructors for the codeBruijn substs
-
-wkSbst :: CdBS m -> CdBS m
-wkSbst (CdBS (Sbst { hits = th, imgs = iz, miss = ph }, ps))
-  = CdBS (Sbst
-  { hits = th -? False
-  , imgs = fmap weak iz
-  , miss = ph -? True
-  }, ps -? True)
-
-topSbst :: CdB (Tm m) -> CdBS m
-topSbst t = CdBS (Sbst
-  { hits = none -? True
-  , imgs = B0 :< t
-  , miss = ones
-  }, ones)
-
-instance Monoid (CdBS m) where
-  mempty = sbst none B0 ones
-  mappend
-    (CdBS (Sbst { hits = th0, imgs = iz0, miss = ph0 }, ps0))
-    ta
-    = CdBS
-      (Sbst { hits = th
-            , imgs = riffle (iz0', th0i) (ph0' ?< iz1, mui)
-            , miss = ph0'' <> ph1 }
-      , ps1)
-    where
-    ta'@(CdBS (Sbst { hits = th1, imgs = iz1, miss = ph1 }, ps1)) =
-      ps0 ?// ta
-    (th1', _, ph0') = pullback ph0 th1
-    mu = th1' <> comp th0 -- missed by front hit by back
-    ((th0i, mui), th) = cop th0 mu
-    iz0' = fmap (^// ta') iz0
-    (_, _, ph0'') = pullback ph0 (comp th1)
-
-instance Semigroup (CdBS m) where (<>) = mappend
-
--- restrict the source of a substitution
---  gaa ---th---> ga <---~th--- gap ---ph;ps---> de
---   ^             ^             ^
---   |             |             |
---  ch'           ch            pi'
---   |[]           |           []|
---  gaa' --th'--> ga' <-------- gap'
-(?//) :: Th -> CdBS m -> CdBS m
-ch ?// (CdBS (Sbst { hits = th, imgs = iz, miss = ph }, ps)) =
-  sbst th' iz' ph' //^ ps where
-  (th', _, ch') = pullback ch th
-  (_, _, pi') = pullback ch (comp th)
-  ph' = pi' <> ph
-  iz' = ch' ?< iz
-
--- thinning the target of a substitution
-(//^) :: CdBS m -> Th -> CdBS m
-CdBS sg //^ th = CdBS (sg *^ th)
-
--- action of codeBruijn substitution ga => de
--- on codeBruijn term
-(^//) :: CdB (Tm m) -> CdBS m -> CdB (Tm m)
-(t, th) ^// sg =
-  if   hits ta == none
-  then (t, ps)  -- miss ta = ones if hits ta = none
-  else t // taph
-  where
-  -- restrict substitution to support of source term
-  taph@(CdBS (ta, ps)) = th ?// sg
-
--- the worker: presumes we've already restricted
--- to support and have things to hit
-(//) :: Tm m -> CdBS m -> CdB (Tm m)
-V // (CdBS (Sbst {imgs = (B0 :< t)}, ps)) = t *^ ps
-(s :% t) // sg = (s ^// sg) % (t ^// sg)
-((Hide x, False) :. t) // sg = x \\ (t // sg)
-((Hide x, True) :. t) // sg = x \\ (t // wkSbst sg)
-(m :$ ta) // sg = m $^ (CdBS (ta, ones) <> sg)
--- t // sg = error (show t ++ " // " ++ show sg)
-
--- Mangling terms
-
-data Mangler f = Mangler
-  { mangX :: Int -> f Term
-  , mangM :: Meta -> Sbst Meta -> f Term -- mangM needs to recursively deal with subst if needed
-  , mangB :: String -> Mangler f
-  }
-
-mangle :: Applicative f => Mangler f -> Term -> f Term
-mangle mangler@(Mangler mangX mangM mangB) t = t ?: \case
-  X i -> mangX i
-  AX a -> pure (atom a)
-  t0 :%: t1 -> (%) <$> mangle mangler t0 <*> mangle mangler t1
-  x :.: t -> (x \\) <$> mangle (mangB x) t
-  m :$: sg -> mangM m sg
-
--- meta variable instantiation
-
-type News = Map.Map Meta (Int, Term) -- Int is how many local vars the metavar depends on
-
-instantiate :: News
-            -> Term                     -- term to instantiate in
-            -> (Bool, Term)             -- (did it change?, instantiated term)
-instantiate metas t = (getAny b, r) where
-  (r, b) = runWriter (mangle (mangler ones) t)
-  mangler :: Th -> Mangler (Writer Any)
-  -- theta : Gamma -> Gamma'
-  mangler th = Mangler
-    { mangX = pure . var
-    , mangB = \ x -> mangler (th -? False)
-    , mangM = \ m (Sbst hits imgs misses) -> do
-        imgs' <- traverse (mangle (mangler th)) imgs
-        let sg' = sbst hits imgs' misses
-        case Map.lookup m metas of
-          Nothing -> pure (m $^ sg')
-          Just (i, t) -> do
-            tell (Any True)
-            pure $ (t *^ apth th (i,ones)) ^// sg'
-    }
-
--- Name generation monads
-
--- TODO: refactor and move into another file
-
-class Monad m => FreshName m where
-  fresh :: String -> m Meta
-  nsSplit :: String -> m t -> m t
-
-instance FreshName (State (Bwd (String, Int), Int)) where
-  fresh x = do
-    (root, n) <- get
-    put (root, n+1)
-    pure $ Meta $ root <>> [(x,n)]
-  nsSplit x t = do
-    (root, n) <- get
-    put (root :< (x,n), 0)
-    v <- t
-    put (root, n+1)
-    pure v
-
--- patterns
-
-data Pat
-  = VP
-  | AP String
-  | Pattern :%? Pattern
-  | (Hide String, Bool) :.? Pat
-  | MP String
-  deriving (Show, Eq)
-
-type Pattern = CdB Pat
-
-{-
-match :: (MonadFail m, FreshName m) => (Int, Pattern) -> Term -> m (Map.Map String Meta, News)
-match (i, (p, ph)) (t, th) =
--- i is the number of bound local vars still in scope
-  case p of
-    MP x -> do
-      let (ph', ps, th') = pullback th (apth ones (i,ph))
--}
--}
-
 -- patterns are de Bruijn
 data Pat
   = VP Int
@@ -428,9 +225,9 @@ data Pat
 -- match assumes that p's vars are the local end of t's
 match :: Root -> Pat -> Term
   -> Maybe (Root, (Map.Map String Meta, Map.Map Meta Term))
-match r (MP x th) (t, ph) = do
-  let g = bigEnd ph - bigEnd th  -- how many globals?
-  ps <- thicken (ones g <> th) ph
+match r (MP x ph) (t, th) = do
+  let g = bigEnd th - bigEnd ph  -- how many globals?
+  ps <- thicken (ones g <> ph) th
   let (m, r') = meta r x
   return (r', (Map.singleton x m, Map.singleton m (t, ps)))
 match r p t = case (p, expand t) of
@@ -447,9 +244,9 @@ match r p t = case (p, expand t) of
 -- uglyprinting
 
 type Naming =
-  ( Bwd String  -- what's in scope *now*
+  ( Bwd String  -- what's in the support 
   , Th          -- and how that was chosen from
-  , Bwd String  -- what's been in scope ever
+  , Bwd String  -- what's in scope
   )
 
 -- The point is that when we reach a metavariable,

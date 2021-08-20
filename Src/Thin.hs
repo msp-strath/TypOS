@@ -8,7 +8,7 @@ import Bwd
 
 data Th = Th
   { thinning :: Integer
-  , bigEnd   :: Int
+  , bigEnd   :: Int  -- must be non-negative
   }
 
 -- 2^(i-1), which is a remarkably well behaved thing
@@ -50,6 +50,8 @@ instance Show Th where
     go i th = go (i-1) th' . ((if b then '1' else '0'):) where
       (th', b) = thun th
 
+-- thinning composition is diagrammatic
+-- good luck enforcing composability!
 (<^>) :: Th -> Th -> Th
 _  <^> Th _  0 = none 0
 th <^> ph@(Th _ i) = case thun ph of
@@ -57,16 +59,22 @@ th <^> ph@(Th _ i) = case thun ph of
   (ph, True)  -> case thun th of
     (th, b) -> (th <^> ph) -? b
 
--- de Bruijn index is 2^
-inx :: (Int, Int) -> Th
-inx (i, j) | 0 <= i && i < j = Th (bit i) j
+{-
+              o
+       o----->o
+o----->o----->o
+       o----->o
+              o
+o----->o----->o
+-}
 
-thinx :: Int -> Th -> Int
-thinx i th = case thun th of
-  (th, False) -> 1 + thinx i th
-  (th, True) -> case i of
-    0 -> 0
-    i -> 1 + thinx (i - 1) th
+
+-- de Bruijn index is 2^
+inx :: ( Int  -- var is non-negative and strictly less than
+       , Int  -- this
+       )
+    -> Th
+inx (i, j) {- | 0 <= i && i < j -} = Th (bit i) j
 
 -- th must not be 0
 lsb :: Th -> Int
@@ -74,20 +82,29 @@ lsb th = case thun th of
   (_, True) -> 0
   (th, False) -> 1 + lsb th
 
+-- thin a deBruijn index represented as a bounded number,
+-- not as a singleton Thinning
+-- saves us inx-ing, composing, then lsb-ing
+thinx :: Int -> Th -> Int
+thinx i th = case thun th of
+  (th, False) -> 1 + thinx i th
+  (th, True) -> case i of
+    0 -> 0
+    i -> 1 + thinx (i - 1) th
+
 -- invert selection
 comp :: Th -> Th
 comp (Th th i) = Th (xor th (full i)) i
-
-
--- "take" for bits
-thChop :: Th -> Int -> (Th, Th)
-thChop (Th th i) j = (Th (shiftR th j) (i-j), Th (th .&. full j) j)
 
 -- kind of append, only taking first i bits of second arg into account
 instance Monoid Th where
   mempty = ones 0
   mappend (Th th j) (Th ph i) = Th (shiftL th i .|. (ph .&. full i)) (i+j)
 instance Semigroup Th where (<>) = mappend
+
+-- "take" for bits, undoes mappend
+thChop :: Th -> Int -> (Th, Th)
+thChop (Th th i) j = (Th (shiftR th j) (i-j), Th (th .&. full j) j)
 
 -- codeBruijn things are paired with a thinning
 -- from support to scope
@@ -104,6 +121,7 @@ f $^ (a, th) = (f a, th)
   -- f better be support-preserving
 
 -- Invariant: bigEnd th = bigEnd ph
+-- The big ends of the outputs coincide at the union.
 cop :: Th -> Th -> CdB (Th, Th)
 cop th ph
   | bigEnd th == 0 = ((none 0, none 0), none 0)
@@ -111,6 +129,15 @@ cop th ph
       ((th, a), (ph, b)) -> case (cop th ph, a || b) of
         ((c, ps), False)       -> (c , ps -? False)
         (((th, ph), ps), True) -> ((th -? a, ph -? b), ps -? True)
+
+
+-- fixme: avoid quadratic
+-- Invariant: whole list's thinnings have bigEnd i
+copz :: Bwd (CdB a) -> Int -> CdB (Bwd (CdB a))
+copz B0              i = (B0, none i)
+copz (az :< (a, ph)) i = case copz az i of
+  (az, th) -> case cop th ph of
+    ((th, ph), ps) -> (fmap (*^ th) az :< (a, ph), ps)
 
 -- relevant pairing
 data RP a b = CdB a :<>: CdB b deriving (Show, Eq, Ord)
@@ -120,6 +147,12 @@ data RP a b = CdB a :<>: CdB b deriving (Show, Eq, Ord)
 splirp :: CdB (RP a b) -> (CdB a -> CdB b -> t) -> t
 splirp ((a, th) :<>: (b, ph), ps) k =
   k (a, th <^> ps) (b, ph <^> ps)
+
+
+(?<) :: Th -> Bwd x -> Bwd x
+th ?< B0 = B0
+th ?< (xz :< x) = case thun th of
+  (th, b) -> (if b then (:< x) else id) (th ?< xz)
 
 -- (iz, th) and (jz, ph) are images for some of a scope
 -- compute a merge of iz and jz which are images for
@@ -135,26 +168,11 @@ riffle (iz :< i, th) (jz, ph) = case thun th of
     (jz, (ph, False))     -> riffle (iz, th) (jz, ph)
 
 
--- fixme: avoid quadratic
--- Invariant: whole list's thinnings have bigEnd i
-copz :: Bwd (CdB a) -> Int -> CdB (Bwd (CdB a))
-copz B0 i = (B0, none i)
-copz (az :< (a, ph)) i = case copz az i of
-  (az, th) -> case cop th ph of
-    ((th, ph), ps) -> (fmap (*^ th) az :< (a, ph), ps)
-
-
-(?<) :: Th -> Bwd x -> Bwd x
-th ?< B0 = B0
-th ?< (xz :< x) = case thun th of
-  (th, b) -> (if b then (:< x) else id) (th ?< xz)
-
-
 -- pullback th ph = (th*ph, ps, ph*th)
 --   o--th*ph-->o
 --   |\__       |
 --   |   \      |
--- ph*th ps    th
+-- ph*th  ps   th
 --   |      \__ |
 --   |         vv
 --   o---ph---->o
