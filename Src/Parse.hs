@@ -22,9 +22,8 @@ ptm = var <$> join (pseek <$> pnom) <*> plen
     pspc
     pch (== '.')
     pspc
-    (x \\) <$> (const <$> pbind x ptm)) <*> plen
-  <|> ($: sbstI) <$ pch (== '?') <*> pnom
-      <*> plen
+    (x \\) <$> (pbind x ptm))
+  <|> ($:) <$ pch (== '?') <*> pnom <*> (sbstI <$> plen)
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> id <$ pch (== '(') <* pspc <*> ptm <* pspc <* pch (== ')')
   <|> id <$ pch (== '{') <* pspc <*> do
@@ -43,13 +42,12 @@ psbst = (,) <$ pch (== '}') <*> (sbstI <$> plen) <*> pscope
     pspc ; pch (== '=') ; pspc
     (t, th) <- ptm
     (sg, xz) <- psbst
-    return (sbstT sg ((Hide x, t), th), xz :< x)
+    return (sbstT sg ((Hide x := t), th), xz :< x)
 
 plisp :: Parser (CdB (Tm String))
 plisp = atom "" <$ pch (== ']') <*> plen
     <|> id <$ pch (== '|') <* pspc <*> ptm <* pspc <* pch (== ']')
-    <|> (%) <$> (const <$> ptm) <* pspc <*> (const <$> plisp) <*> plen
-  
+    <|> (%) <$> ptm <* pspc <*> plisp
 
 pnom :: Parser String
 pnom = (:) <$> pch isAlpha <*> many (pch isMo) where
@@ -104,7 +102,7 @@ pseek x = Parser $ \ xz s -> let
     | y == x = [0]
     | otherwise = (1+) <$> chug xz
   in (, s) <$> chug xz
-  
+
 pch :: (Char -> Bool) -> Parser Char
 pch p = Parser $ \ xz s -> case s of
   c : cs | p c -> [(c, cs)]
