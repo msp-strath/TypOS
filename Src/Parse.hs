@@ -28,10 +28,11 @@ ptm = var <$> join (pseek <$> pnom) <*> plen
   <|> id <$ pch (== '(') <* pspc <*> ptm <* pspc <* pch (== ')')
   <|> id <$ pch (== '{') <* pspc <*> do
     (sg, xz) <- psbst
+    pspc
     (//^ sg) <$> plocal xz ptm
 
 psbst :: Parser (CdB (Sbst String), Bwd String)
-psbst = (,) <$ pch (== '}') <*> (sbstI <$> plen) <*> pscope
+psbst = (,) <$ pspc <* pch (== '}') <*> (sbstI <$> plen) <*> pscope
   <|> id <$ pch (== ',') <* pspc <*> psbst
   <|> (pnom >>= \ x -> pspc >> ppop x psbst >>= \ (sg, xz) ->
        pure (sbstW sg (ones 1), xz :< x))
