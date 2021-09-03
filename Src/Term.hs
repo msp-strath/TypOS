@@ -52,7 +52,8 @@ data Mangler m f = Mangler
   , mangTh :: Maybe Th           -- are you just embedding src into tgt?
   , mangV :: f (CdB (Tm m))      -- how to replace variables
   , mangB :: Mangler m f         -- how to mangle under a relevant binder
-  , mangM :: m -> f (CdB (Tm m)) -- how to replace a meta
+  , mangM :: m -> f (CdB (Sbst m)) -> f (CdB (Tm m))
+    -- how to replace a meta & mangled substitution
   , mangW :: Int -> Mangler m f  -- how to undo some `mangB`s
   , mangSelFrom :: Th                -- big end should be mangSrc
                 -> Mangler m f       -- source of output mangler
@@ -60,18 +61,29 @@ data Mangler m f = Mangler
                                      --   thinnings; target stays put
   }
 
-{-
-stanMangler :: Ord m => Map.Map m (CdB (Tm m)) -> Mangler m (Writer Any)
-stanMangler tbl = mu where
-  mu = Mangler
-         { mangI = null tbl
-         , mangV = pure V
-         , mangB = mu
-         , mangM = _
-         , mangW = const mu
-         , mangSelFrom = _
-         }
--}
+stanMangler
+  :: Ord m
+  -- Γ: in scope at the root of the term we're traversing
+  -- ξ: binders we've gone under
+  -- θ: support of the term we're traversing
+  => Th                      -- θ ⊆ Γ, ξ
+  -> Th                      -- Γ ⊆ Γ, ξ
+  -> Map.Map m ( Int         -- i: # of variables captured by the meta
+               , CdB (Tm m)) -- (Γ, [1..i])-term to replace the meta with
+  -> Mangler m (Writer Any)  -- (Γ, ξ) terms factory
+stanMangler th emb tbl = Mangler
+  { mangSrc = bigEnd th
+  , mangTgt = bigEnd th
+  , mangTh = th <$ guard (null tbl)
+  , mangV = pure (V, th)
+  , mangB = stanMangler (th -? True) (emb -? False) tbl
+  , mangM = \ m sg ->
+      case Map.lookup m tbl of
+        Nothing -> (m $:) <$> sg
+        Just (i, t) -> ((t *^ (emb <> ones i)) //^) <$> sg <* tell (Any True)
+  , mangW = \ w -> stanMangler (fst $ thChop th w) (fst $ thChop emb w) tbl
+  , mangSelFrom = \ ph -> stanMangler (ph <^> th) emb tbl
+  }
 
 class Manglable m t where
   mangle  :: Applicative f => Mangler m f -> t -> f (CdB t)
@@ -97,7 +109,7 @@ instance Manglable m (Tm m) where
   mangle' mu (P p) = (P $^) <$> mangle' mu p
   mangle' mu ((Hide x := False) :. t) = (x \\) <$> (weak <$> mangle' mu t)
   mangle' mu ((Hide x := True) :. t) = (x \\) <$> mangle' (mangB mu) t
-  mangle' mu (m :$ s) = (//^) <$> mangM mu m <*> mangle' mu s
+  mangle' mu (m :$ sg) = mangM mu m (mangle' mu sg)
 
 instance (Manglable m a, Manglable m b) => Manglable m (RP a b) where
   mangle' mu (a :<>: b)  = (<&>) <$> mangleCdB mu a <*> mangleCdB mu b
@@ -161,6 +173,11 @@ sbstCod :: Sbst m -> Int
 sbstCod (sg :^^ w) = case sg of
   S0 -> w
   ST ((sg, th) :<>: (t, ph)) -> bigEnd th + w
+
+sbstDom :: Sbst m -> Int
+sbstDom (sg :^^ w) = case sg of
+ S0 -> w
+ ST ((sg, th) :<>: (t, ph)) -> sbstDom sg + 1 + w
 
 sbstSel
   :: Th -- ga0 from ga
@@ -301,12 +318,12 @@ data Pat
 
 -- match assumes that p's vars are the local end of t's
 match :: Root -> Pat -> Term
-  -> Maybe (Root, (Map.Map String Meta, Map.Map Meta Term))
+  -> Maybe (Root, (Map.Map String Meta, Map.Map Meta (Int, Term)))
 match r (MP x ph) (t, th) = do
   let g = bigEnd th - bigEnd ph  -- how many globals?
   ps <- thicken (ones g <> ph) th
   let (m, r') = meta r x
-  return (r', (Map.singleton x m, Map.singleton m (t, ps)))
+  return (r', (Map.singleton x m, Map.singleton m (weeEnd ph, (t, ps))))
 match r p t = case (p, expand t) of
   (VP i, VX j _) | i == j -> return (r, (Map.empty, Map.empty))
   (AP a, AX b _) | a == b -> return (r, (Map.empty, Map.empty))
@@ -321,7 +338,7 @@ match r p t = case (p, expand t) of
 -- uglyprinting
 
 type Naming =
-  ( Bwd String  -- what's in the support 
+  ( Bwd String  -- what's in the support
   , Th          -- and how that was chosen from
   , Bwd String  -- what's in scope
   )
