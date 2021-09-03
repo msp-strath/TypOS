@@ -119,4 +119,5 @@ pgo p s = case parser (id <$> p <* pend) B0 s of
   [(x, _)] -> x
 
 repl :: IO a
-repl = forever $ getLine >>= \ s -> putStrLn (display' (B0, ones 0, B0) $ pgo ptm s)
+repl = forever $ getLine >>= \ s ->
+         putStrLn (display' initNaming $ pgo ptm s)

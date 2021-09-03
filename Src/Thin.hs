@@ -120,6 +120,12 @@ weak (t, th) = (t, th -? False)
 f $^ (a, th) = (f a, th)
   -- f better be support-preserving
 
+scope :: CdB a -> Int
+scope (_, th) = bigEnd th
+
+support :: CdB a -> Int
+support (_, th) = weeEnd th
+
 -- Invariant: bigEnd th = bigEnd ph
 -- The big ends of the outputs coincide at the union.
 cop :: Th -> Th -> CdB (Th, Th)
@@ -198,4 +204,3 @@ thicken :: Th -> Th -> Maybe Th
 thicken th ph = ps <$ guard (is1s th')
   where
   (ps, _, th') = pullback th ph
-
