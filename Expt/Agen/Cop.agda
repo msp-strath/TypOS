@@ -41,7 +41,7 @@ module COP {X} where
   Cop {xz}{yz}{zz} th ph =
         _ >< \ uz -> xz <= uz >< \ th' -> zz <= uz >< \ ph' ->
         < [ th' -&_]~ th *: [ ph' -&_]~ ph >
-        
+
   cop : forall {xz yz zz}(th : xz <= yz)(ph : zz <= yz) ->
     Cop th ph >< \ (! th' , ph' , _) -> th' /u\ ph'
   cop (th -^ z) (ph -^ .z)
@@ -89,14 +89,14 @@ module COP {X} where
   copQ {th0 = th0}{th1 = th1 } u ps
     with ph0 , v0 <- tri th0 ps
        | ph1 , v1 <- tri th1 ps
-       | c@(ga' , ch0 , ch1 , ch2 , v2 , v3) , u' <- cop ph0 ph1
-       | ps0 , w0 , w1 , w2 <- copU c u' (! ! ! v0 & v1)
+    with c@(ga' , ch0 , ch1 , ch2 , v2 , v3) , u' <- cop ph0 ph1
+    with ps0 , w0 , w1 , w2 <- copU c u' (! ! ! v0 & v1)
        | ps1 , w3 , w4 , w5 <- copU (! ! ! v0 & v1) u c
-       | r~ , r~ , r~ <- asy ps0 ps1
-       | r~ <- rio w0
+    with r~ , r~ , r~ <- asy ps0 ps1
+    with r~ <- rio w0
        | r~ <- lio w1
        | r~ <- rio w2
-       | r~ <- copI u u'
+    with r~ <- copI u u'
        | r~ , r~ <- triQ (! v0) (! v2)
        | r~ , r~ <- triQ (! v1) (! v3)
        = r~
@@ -188,16 +188,16 @@ module COP {X} where
   distR' {th0 = th0}{th1 = th1} u0 u
     with ph0 , v0 <- tri (luth u0) (luth u)
        | ph1 , v1 <- tri (ruth u0) (luth u)
-       | (! ! ! ps0 , a0 , b0) , w0 <- cop ph0 (ruth u)
+    with (! ! ! ps0 , a0 , b0) , w0 <- cop ph0 (ruth u)
        | (! ! ! ps1 , a1 , b1) , w1 <- cop ph1 (ruth u)
-       | (! ! ! ps , a , b) , w <- cop ps0 ps1
-       | c0 & d0 <- assoc02 (a0 & a)
+    with (! ! ! ps , a , b) , w <- cop ps0 ps1
+    with c0 & d0 <- assoc02 (a0 & a)
        | c1 & d1 <- assoc02 (a1 & b)
-       | ! e , f , g <- copU (! ! ! v0 & v1) u0 (! ! ! d0 & d1)
+    with ! e , f , g <- copU (! ! ! v0 & v1) u0 (! ! ! d0 & d1)
        | k & l <- assoc02 (b1 & b)
-       | ps' , h , i , j <- copU (! ! ! degio th0 & degio th1) u (! ! ! f & l)
-       | r~ , r~ , r~ <- asy ps ps'
-       | r~ <- rio a
+    with ps' , h , i , j <- copU (! ! ! degio th0 & degio th1) u (! ! ! f & l)
+    with r~ , r~ , r~ <- asy ps ps'
+    with r~ <- rio a
        | r~ <- rio b
        = ! ! (! b0) , (! b1) , w0 , w , w1
 

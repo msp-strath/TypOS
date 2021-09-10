@@ -209,7 +209,7 @@ module PAT
     unify (vv x) (vv y) with pub x y
     ... | ([] , _) , _ = bot & bot
     unify (vv x) (vv y) | (_ -, _ , ([] -, <>) , ([] -, <>)) , b & c , _
-      with r~ , r~ <- lio b , lio c = lift (vv y) & lift (vv x)
+      with r~ <- lio b | r~ <- lio c = lift (vv y) & lift (vv x)
     unify (aa a) (aa b) with eq? a b
     ... | aye r~ = lift (aa b) & lift (aa a)
     ... | naw    = bot & bot

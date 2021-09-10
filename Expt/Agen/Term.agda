@@ -58,21 +58,21 @@ module TERM (M : Nat -> Set)(A : Set) where
        = _ & sg0 -, x , _ & sg1 , u' -,^ x
   coverSub (u -,^ x) ((sg </ v \> t) -/ .x)
     with ph0 & sg0 , ph1 & sg1 , u' <- coverSub u sg
-       | ! ! u1 , u2 <- rotateR (swapu u') v
+    with ! ! u1 , u2 <- rotateR (swapu u') v
        = _ & (sg0 </ u2 \> t) -/ x , _ & sg1 , swapu u1
   coverSub (u -^, y) (sg -, .y)
     with ph0 & sg0 , ph1 & sg1 , u' <- coverSub u sg
        = _ & sg0 , _ & sg1 -, y , u' -^, y
   coverSub (u -^, y) ((sg </ v \> t) -/ .y)
     with ph0 & sg0 , ph1 & sg1 , u' <- coverSub u sg
-       | ! ! u1 , u2 <- rotateR u' v
+    with ! ! u1 , u2 <- rotateR u' v
        = _ & sg0 , _ & (sg1 </ u2 \> t) -/ y , u1
   coverSub (u -, z) (sg -, .z)
     with ph0 & sg0 , ph1 & sg1 , u' <- coverSub u sg
        = _ & sg0 -, z , _ & sg1 -, z , u' -, z
   coverSub (u -, z) ((sg </ v \> t) -/ .z)
     with ph0 & sg0 , ph1 & sg1 , u' <- coverSub u sg
-       | ! ! ! ! w0 , w , w1 <- distR u' v
+    with ! ! ! ! w0 , w , w1 <- distR u' v
        = _ & (sg0 </ w0 \> t) -/ z , _ & (sg1 </ w1 \> t) -/ z , w
   coverSub [] [] = (! ! []) , (! ! []) , []
 

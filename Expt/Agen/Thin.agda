@@ -81,9 +81,9 @@ module THIN {X : Set} where
   asy : forall {xz yz}(th : xz <= yz)(ph : yz <= xz) ->
     (xz ~ yz) >< \ { r~ -> (th ~ io) * (ph ~ io) }
   asy (th -^ y) ph with r~ , _ <- asy th ((io -^ y) -& ph)
-    | () <- noBig ph
+    with () <- noBig ph
   asy (th -, x) (ph -^ .x) with r~ , _ <- asy th ((io -^ x) -& ph)
-    | () <- noBig ph
+    with () <- noBig ph
   asy (th -, x) (ph -, .x)
     with r~ , r~ , r~ <- asy th ph
        = r~ , r~ , r~
@@ -111,8 +111,8 @@ module THIN {X : Set} where
     < [ th01 -& th12 ]~_ *: [_-& th23 ]~ th03 >
   assoc02 {th01 = th01}{th12 = th12} (v0 & v1)
     with ! w <- tri th01 th12
-       | v2 & v3 <- assoc03 (w & v1)
-       | r~ , r~ <- triQ (! v0) (! v2)
+       with v2 & v3 <- assoc03 (w & v1)
+       with r~ , r~ <- triQ (! v0) (! v2)
        = w & v3
 
   assoc13 : forall {xz0 xz1 xz2 xz3} ->
@@ -122,8 +122,8 @@ module THIN {X : Set} where
     < [ th01 -&_]~ th03 *: [ th12 -& th23 ]~_ >
   assoc13 {th12 = th12}{th23 = th23} (v0 & v1)
     with ! w <- tri th12 th23
-       | v2 & v3 <- assoc03 (v0 & w)
-       | r~ , r~ <- triQ (! v1) (! v3)
+       with v2 & v3 <- assoc03 (v0 & w)
+       with r~ , r~ <- triQ (! v1) (! v3)
        = v2 & w
 
   infixl 12 _^:_
