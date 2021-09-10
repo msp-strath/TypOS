@@ -66,6 +66,13 @@ module PAT
     Env xi (pp l r) = Env xi l * Env xi r
     Env xi (bb p) = Env xi p
 
+    proj : forall {de ga} xi {p : Pat ga} -> de <P- p ->
+      Env xi p -> Term (xi <<< de)
+    proj xi hh       t        = t
+    proj xi (pl x q) (pi , _) = proj xi x pi 
+    proj xi (pr p x) (_ , pi) = proj xi x pi
+    proj xi (bb x)   pi       = proj xi x pi
+
     match? : forall xi {ga}
       (p : Pat ga)(t : Term (xi <<< ga))
       -> Maybe (Env xi p)
@@ -83,6 +90,17 @@ module PAT
       aye (lpi , rpi) 
     match? xi (bb p) (bb b & th) = match? xi p (under (b & th))
     match? _ _ _ = naw
+
+    module _ (p : Pat []) where
+
+      module E = TERM (_<P- p) A
+
+      stan : forall {xi ga} -> E.Term ga -> Env xi p -> Term (xi <<< ga)
+      stan (vv only & x) pi = vv only & no +^+ x
+      stan (aa (atom a) & _) pi = aa (atom a) & no
+      stan (pp x & th) pi = {!!}
+      stan (bb x & th) pi = {!!}
+      stan (mm (m & sg) & th) pi = {!? //^ ?!}
 
   module MATCH (M : Nat -> Set) where
 
