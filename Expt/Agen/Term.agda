@@ -23,14 +23,21 @@ module TERM (M : Nat -> Set)(A : Set) where
     bb : (<> |- Tm) ga   -> Tm ga
     mm : < M *: _%> ga > -> Tm ga
 
-  Term = Tm ^:_
-
   infix 20 _%>_
   infixl 30 _-/_
   data _%>_ where
     []   : [] %> []
     _-,_ : forall {ga de} -> ga %> de -> forall x -> ga -, x %> de -, x
     _-/_ : forall {ga de} -> (ga %>_ </\> Tm) de -> forall x -> ga -, x %> de
+
+  supp : forall {ga} -> Tm ga -> Nat
+  supp {ga} t = ga
+
+  Term = Tm ^:_
+
+  _%>^_ : Nat -> Nat -> Set
+  ga %>^ de = (ga %>_) ^: de
+
 
   is : forall {ga} -> ga %> ga
   is {[]} = []
@@ -124,7 +131,7 @@ module TERM (M : Nat -> Set)(A : Set) where
   b^ t with b & th <- <> \\ t = bb b & th
 
   m^ : forall {ga de} ->
-       M ga -> ga %>_ ^: de -> Term de
+       M ga -> ga %>^ de -> Term de
   m^ m (sg & th) = mm (m & sg) & th
 
   act?  : forall {ga de} -> Tm ga -> ga %> de -> Tm de
@@ -188,6 +195,28 @@ module TERM (M : Nat -> Set)(A : Set) where
     rewrite ris' ro = r~
   opti {ga} {de} {xi} ro sg | tt , r~ , r~ | c , y
     rewrite lis' sg = r~
+
+  sbstSel : forall {ga0 ga de} -> ga0 <= ga -> ga %> de -> ga0 %>^ de
+  sbstSel [] [] = [] & []
+  sbstSel (th -^ .x) (sg -, x) = sbstSel th sg :^ x
+  sbstSel (th -, .x) (sg -, x) =
+    let (ta & ph) = sbstSel th sg in ta -, x & ph -, x
+  sbstSel (th -^ .x) ((sg </ u \> t) -/ x) = mu^ (sbstSel th sg & luth u)
+  sbstSel (th -, .x) ((sg </ u \> t) -/ x) =
+    (_-/ x) $^ ((mu^ (sbstSel th sg & luth u)) /,\ t & ruth u)
+
+
+  _//^_ : forall {ga de} -> Term ga -> ga %>^ de -> Term de
+  (t & th) //^ (sg & ph) =
+    let (sg' & ph') = sbstSel th sg in act t sg' & ph' -& ph
+
+  _<%<_ : forall {ga0 ga1 de0 de1} ->
+          ga0 %> de0 -> ga1 %> de1 -> (ga0 <<< ga1) %> (de0 <<< de1)
+  sg <%< [] = sg
+  sg <%< (ta -, x) = (sg <%< ta) -, x
+  sg <%< ((ta </ u \> t) -/ x) with ! ! u' <- tensor llu u
+    rewrite []<<< supp t = ((sg <%< ta) </ u' \> t) -/ x
+
 
 {-
   coverSwap : forall {ga0 ga ga1}{th0 : ga0 <= ga}{th1 : ga1 <= ga}(u : th0 /u\ th1)

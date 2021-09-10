@@ -95,12 +95,21 @@ module PAT
 
       module E = TERM (_<P- p) A
 
-      stan : forall {xi ga} -> E.Term ga -> Env xi p -> Term (xi <<< ga)
-      stan (vv only & x) pi = vv only & no +^+ x
-      stan (aa (atom a) & _) pi = aa (atom a) & no
-      stan (pp x & th) pi = {!!}
-      stan (bb x & th) pi = {!!}
-      stan (mm (m & sg) & th) pi = {!? //^ ?!}
+      stan : forall {xi ga} -> E.Tm ga -> Env xi p -> Term (xi <<< ga)
+      stanS : forall {xi ga de} -> ga E.%> de -> Env xi p -> (xi <<< ga) %>^ (xi <<< de)
+
+      stan (vv only) pi = v^ (no -, <>)
+      stan (aa (atom a)) pi = a^ a
+      stan (pp (a </ u \> b)) pi = mu^ (stan a pi & io +^+ luth u) ,^ mu^ (stan b pi & io +^+ ruth u)
+      stan (bb (kk t)) pi = (\ x -> bb (kk x)) $^ stan t pi
+      stan (bb (ll t)) pi = b^ (stan t pi)
+      stan {xi} (mm (m & sg)) pi = proj xi m pi //^ stanS sg pi
+
+      stanS [] pi = eta^ is
+      stanS (sg -, x) pi =
+        let (sg' & th) = stanS sg pi in sg' -, x & th -, x
+      stanS ((sg </ u \> t) -/ x) pi =
+        (_-/ x) $^ (mu^ (stanS sg pi & io +^+ luth u) /,\ mu^ (stan t pi & io +^+ ruth u))
 
   module MATCH (M : Nat -> Set) where
 

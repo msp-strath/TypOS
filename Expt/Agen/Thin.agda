@@ -141,6 +141,9 @@ module THIN {X : Set} where
   mu^ : forall {P} -> [ P ^:_ ^:_ -:> P ^:_ ]
   mu^ ((p & th) & ph) = p & th -& ph
 
+  _$^_ : forall {P Q} -> [ P -:> Q ] -> [ P ^:_ -:> Q ^:_ ]
+  f $^ (p & th) = (f p & th)
+
   _=12>_ : forall {xz zz}
            {(th0 & ph0) (th1 & ph1) : < xz <=_ *: _<= zz >}
            {ps : xz <= zz} ->

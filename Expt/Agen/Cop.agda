@@ -109,11 +109,24 @@ module COP {X} where
   rru {[]}      = []
   rru {ga -, x} = rru -^, x
 
+  tensor : forall {ga0 ga1 ga de0 de1 de} ->
+                  {th0 : ga0 <= ga}{th1 : ga1 <= ga}
+                  {ph0 : de0 <= de}{ph1 : de1 <= de} ->
+                  th0 /u\ th1 -> ph0 /u\ ph1 ->
+                  (ga0 <<< de0) <= (ga <<< de) >< \ th0ph0 ->
+                  (ga1 <<< de1) <= (ga <<< de) >< \ th1ph1 ->
+                  th0ph0 /u\ th1ph1
+  tensor u [] = ! ! u
+  tensor u (v -,^ x) with ! ! w <- tensor u v = ! ! w -,^ x
+  tensor u (v -^, x) with ! ! w <- tensor u v = ! ! w -^, x
+  tensor u (v -, x) with ! ! w <- tensor u v = ! ! w -, x
+
+
   allRight : forall {ga de}{th : [] <= de}{ph : ga <= de}
     -> th /u\ ph -> (ga ~ de) >< \ { r~ -> (th ~ no) * (ph ~ io) }
   allRight (u -^, y) with r~ , r~ , r~ <- allRight u = r~ , r~ , r~
   allRight [] = r~ , r~ , r~
-           
+
   rotateR : forall {ga00 ga0 ga01 ga1 ga}{th00 : ga00 <= ga0}{th01 : ga01 <= ga0}
     {th0 : ga0 <= ga}{th1 : ga1 <= ga}
     (u0 : th00 /u\ th01)(u : th0 /u\ th1)

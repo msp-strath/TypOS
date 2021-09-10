@@ -40,6 +40,10 @@ _<<<_ : forall {X} -> Bwd X -> Bwd X -> Bwd X
 xz <<< [] = xz
 xz <<< (yz -, y) = xz <<< yz -, y
 
+[]<<<_ : forall {X} -> (yz : Bwd X) -> [] <<< yz ~ yz
+[]<<< [] = r~
+[]<<< (yz -, x) rewrite []<<< yz = r~
+
 record _><_ (S : Set)(T : S -> Set) : Set where
   constructor _,_
   field
