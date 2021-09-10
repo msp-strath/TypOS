@@ -11,6 +11,7 @@
 module Term where
 
 import Data.List hiding ((\\))
+import Data.Maybe (fromMaybe)
 import Control.Arrow
 import Control.Monad.Writer
 import Control.Monad.State
@@ -23,6 +24,10 @@ import qualified Data.Map as Map
 import Bwd
 import Thin
 import Hide
+
+import Debug.Trace
+
+track = const id -- trace
 
 data Tm m
   = V
@@ -52,7 +57,8 @@ data Mangler m f = Mangler
   , mangTh :: Maybe Th           -- are you just embedding src into tgt?
   , mangV :: f (CdB (Tm m))      -- how to replace variables
   , mangB :: Mangler m f         -- how to mangle under a relevant binder
-  , mangM :: m -> f (CdB (Tm m)) -- how to replace a meta
+  , mangM :: m -> f (CdB (Sbst m)) -> f (CdB (Tm m))
+    -- how to replace a meta & mangled substitution
   , mangW :: Int -> Mangler m f  -- how to undo some `mangB`s
   , mangSelFrom :: Th                -- big end should be mangSrc
                 -> Mangler m f       -- source of output mangler
@@ -60,18 +66,30 @@ data Mangler m f = Mangler
                                      --   thinnings; target stays put
   }
 
-{-
-stanMangler :: Ord m => Map.Map m (CdB (Tm m)) -> Mangler m (Writer Any)
-stanMangler tbl = mu where
-  mu = Mangler
-         { mangI = null tbl
-         , mangV = pure V
-         , mangB = mu
-         , mangM = _
-         , mangW = const mu
-         , mangSelFrom = _
-         }
--}
+stanMangler
+  :: Show m
+  => Ord m
+  -- Γ: in scope at the root of the term we're traversing
+  -- ξ: binders we've gone under
+  -- θ: support of the term we're traversing
+  => Th                      -- θ ⊆ Γ, ξ
+  -> Th                      -- Γ ⊆ Γ, ξ
+  -> Map.Map m ( Int         -- i: # of variables captured by the meta
+               , CdB (Tm m)) -- (Γ, [1..i])-term to replace the meta with
+  -> Mangler m (Writer Any)  -- (Γ, ξ) terms factory
+stanMangler th emb tbl = Mangler
+  { mangSrc = bigEnd th
+  , mangTgt = bigEnd th
+  , mangTh = th <$ guard (null tbl)
+  , mangV = pure (V, th)
+  , mangB = stanMangler (th -? True) (emb -? False) tbl
+  , mangM = \ m sg ->
+      case Map.lookup m tbl of
+        Nothing -> (m $:) <$> sg
+        Just (i, t) -> ((t *^ (emb <> ones i)) //^) <$> sg <* tell (Any True)
+  , mangW = \ w -> stanMangler (fst $ thChop th w) (fst $ thChop emb w) tbl
+  , mangSelFrom = \ ph -> stanMangler (ph <^> th) emb tbl
+  }
 
 class Manglable m t where
   mangle  :: Applicative f => Mangler m f -> t -> f (CdB t)
@@ -97,7 +115,7 @@ instance Manglable m (Tm m) where
   mangle' mu (P p) = (P $^) <$> mangle' mu p
   mangle' mu ((Hide x := False) :. t) = (x \\) <$> (weak <$> mangle' mu t)
   mangle' mu ((Hide x := True) :. t) = (x \\) <$> mangle' (mangB mu) t
-  mangle' mu (m :$ s) = (//^) <$> mangM mu m <*> mangle' mu s
+  mangle' mu (m :$ sg) = mangM mu m (mangle' mu sg)
 
 instance (Manglable m a, Manglable m b) => Manglable m (RP a b) where
   mangle' mu (a :<>: b)  = (<&>) <$> mangleCdB mu a <*> mangleCdB mu b
@@ -105,8 +123,13 @@ instance (Manglable m a, Manglable m b) => Manglable m (RP a b) where
 newtype Meta = Meta [(String, Int)]
   deriving (Show, Ord, Eq)
 type Term = CdB (Tm Meta)
-type Root = (Bwd (String, Int), Int)
+type Root = ( Bwd (String, Int) -- name prefix
+            , Int)              -- counter
 
+initRoot :: Root
+initRoot = (B0, 0)
+
+-- fresh meta in the current root space
 meta :: Root -> String -> (Meta, Root)
 meta (xiz, j) x = (Meta (xiz <>> [(x, j)]), (xiz, j + 1))
 
@@ -141,7 +164,11 @@ instance Manglable m (Sbst m) where
   mangle' mu (sg :^^ w) = sbstW <$> sg' <*> pure (ones w) where
     mu' = mangW mu w
     sg' = case sg of
-      S0 -> pure (sbst0 (mangTgt mu'))
+      S0 -> pure (sbstI (mangTgt mu'))
+            -- ^ used to be sbst0
+            -- this is more in line with pure (ones w) above
+            -- & seems to fix the beta test case
+            -- NEED: Agda model!
       ST (sg :<>: t) -> sbstT <$> mangleCdB mu' sg <*> mangleCdB mu' t
 
 -- smart constructors
@@ -161,6 +188,11 @@ sbstCod :: Sbst m -> Int
 sbstCod (sg :^^ w) = case sg of
   S0 -> w
   ST ((sg, th) :<>: (t, ph)) -> bigEnd th + w
+
+sbstDom :: Sbst m -> Int
+sbstDom (sg :^^ w) = case sg of
+ S0 -> w
+ ST ((sg, th) :<>: (t, ph)) -> sbstDom sg + 1 + w
 
 sbstSel
   :: Th -- ga0 from ga
@@ -185,9 +217,16 @@ euclid x y = let d = x - y in case d < 0 of
   True  -> LtBy (negate d)
   False -> GeBy d
 
-(//^) :: CdB (Tm m) -> CdB (Sbst m) -> CdB (Tm m)
-(t, th) //^ (sg, ph) = case sbstSel th sg of
-  (sg, ps) -> (t // sg, ps <^> ph)
+(//^) :: Show m => CdB (Tm m) -> CdB (Sbst m) -> CdB (Tm m)
+tth@(t, th) //^ sgph@(sg, ph) =
+   track "\n" $
+   track ("Term: " ++ show tth) $
+   track ("Subst: " ++ show sgph) $
+   case sbstSel th sg of
+     (sg, ps) -> let res = (t // sg, ps <^> ph) in
+                 track ("Result: " ++ show res) $
+                 track "\n" $
+                 res
 
 (//) :: Tm m -> Sbst m -> Tm m
 t // (S0 :^^ _) = t
@@ -299,14 +338,46 @@ data Pat
   | MP String Th
   deriving Show
 
+(#?) :: String -> [Pat] -> Pat
+a #? ts = foldr PP (AP "") (AP a : ts)
+
+betaLHS :: Pat
+betaLHS = "App" #? [ "Lam" #? [BP (Hide "x") (MP "body" (ones 1))]
+                   , MP "arg" (ones 0)
+                   ]
+
+betaRHS :: CdB (Tm String)
+betaRHS = "body" $: (sbstT (sbst0 0) ((Hide "x" :=) $^ ("arg" $: sbst0 0)))
+
+beta :: Root -> Term -> Maybe (Root, Term)
+beta r t = do
+  (r, (m, val)) <- match r betaLHS t
+  let ga = scope t
+  let rhs = (fmap (trustMe m) $^ betaRHS) *^ none ga
+  track (show rhs) $ pure ()
+  let (res, _) = runWriter $ mangleCdB (stanMangler (ones ga) (ones ga) val) rhs
+  pure (r, res)
+
+  where
+
+    trustMe :: Ord a => Map.Map a b -> (a -> b)
+    trustMe m v = fromMaybe (error "IMPOSSIBLE") (Map.lookup v m)
+
+redex :: Term
+redex = ("App", 1) #% [ ("Lam", 1) #% [ "y" \\ var 0 2 ]
+                      , var 0 1
+                      ]
+
 -- match assumes that p's vars are the local end of t's
-match :: Root -> Pat -> Term
-  -> Maybe (Root, (Map.Map String Meta, Map.Map Meta Term))
+match :: Root
+      -> Pat
+      -> Term
+      -> Maybe (Root, (Map.Map String Meta, Map.Map Meta (Int, Term)))
 match r (MP x ph) (t, th) = do
   let g = bigEnd th - bigEnd ph  -- how many globals?
   ps <- thicken (ones g <> ph) th
   let (m, r') = meta r x
-  return (r', (Map.singleton x m, Map.singleton m (t, ps)))
+  return (r', (Map.singleton x m, Map.singleton m (weeEnd ph, (t, ps))))
 match r p t = case (p, expand t) of
   (VP i, VX j _) | i == j -> return (r, (Map.empty, Map.empty))
   (AP a, AX b _) | a == b -> return (r, (Map.empty, Map.empty))
@@ -321,10 +392,13 @@ match r p t = case (p, expand t) of
 -- uglyprinting
 
 type Naming =
-  ( Bwd String  -- what's in the support 
+  ( Bwd String  -- what's in the support
   , Th          -- and how that was chosen from
   , Bwd String  -- what's in scope
   )
+
+initNaming :: Naming
+initNaming = (B0, ones 0, B0)
 
 -- The point is that when we reach a metavariable,
 -- we have to document its permitted dependencies.
@@ -377,6 +451,7 @@ displaySg (xz, th, yz :< y) (sg :^^ w) = case thun th of
       xz :< x ->
         x : displaySg (xz, th, yz) (sg :^^ (w - 1))
 
-
+displayCdB :: Show m => Naming -> CdB (Tm m) -> String
+displayCdB nm (t, th) = "(" ++ display nm t ++ ", " ++ show th ++ ")"
 
 -----------------------------

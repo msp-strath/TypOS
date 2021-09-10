@@ -15,7 +15,7 @@ type SyntaxDesc = Term
 validate :: Map.Map SyntaxCat SyntaxDesc -> Bwd SyntaxCat -> SyntaxDesc -> Term -> Bool
 validate table env s t = s #%< \case
   "Rec" -> flip (#%<) $ \ a _ -> t ?: \case
-    X x -> a == bwdProj env x
+    VX x _ -> a == bwdProj env x
     _   -> case Map.lookup a table of
       Nothing -> False
       Just s -> validate table env s t
