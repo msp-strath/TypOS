@@ -55,6 +55,35 @@ module PAT
     bb : forall {p : Pat (ga -, <>)}(x : de <P- p)
       -> de <P- bb p
 
+  module OMATCH (M : Nat -> Set) where
+
+    open TERM M A
+
+    Env : forall (xi : Nat){ga} -> Pat ga -> Set
+    Env xi (_?? {de} th) = Term (xi <<< de)
+    Env xi (vv x) = `1
+    Env xi (aa x) = `1
+    Env xi (pp l r) = Env xi l * Env xi r
+    Env xi (bb p) = Env xi p
+
+    match? : forall xi {ga}
+      (p : Pat ga)(t : Term (xi <<< ga))
+      -> Maybe (Env xi p)
+    match? xi {ga} (ph ??) (t & th) with thChop ga th
+    match? xi {ga} (ph ??) (t & .(th0 +^+ th1)) | ! th0 , th1 , r~ , r~
+      = thicken? ph th1 >M= \ (ps , _) ->
+      aye (t & th0 +^+ ps)
+    match? xi (vv x) (vv only & th) with pub (no {xi} +^+ x) th
+    match? xi (vv x) (vv only & th) | [] -^ .<> & v , w = naw
+    match? xi (vv x) (vv only & th) | [] -, .<> & v , w = aye <>
+    match? xi (aa a) (aa (atom b) & _)  = eq? a b >M= \ _ -> aye <>
+    match? xi (pp lp rp) (pp t & th) =
+      match? xi lp (outl (t & th)) >M= \ lpi ->
+      match? xi rp (outr (t & th)) >M= \ rpi ->
+      aye (lpi , rpi) 
+    match? xi (bb p) (bb b & th) = match? xi p (under (b & th))
+    match? _ _ _ = naw
+
   module MATCH (M : Nat -> Set) where
 
     open TERM M A

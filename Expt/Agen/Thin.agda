@@ -156,3 +156,24 @@ module THIN {X : Set} where
   all? (th -, x) =
     maybe (\ { (r~ , r~) -> r~ , r~ }) (all? th)
   all? [] = tt , r~ , r~
+
+  infixl 30 _+^+_
+  _+^+_ : forall {ga0 ga1 de0 de1}(th : ga0 <= ga1)(ph : de0 <= de1) ->
+    (ga0 <<< de0) <= (ga1 <<< de1)
+  th +^+ (ph -^ y) = (th +^+ ph) -^ y
+  th +^+ (ph -, x) = (th +^+ ph) -, x
+  th +^+ [] = th
+
+  thChop : forall {ga de0} de1 (th : ga <= (de0 <<< de1)) ->
+    (Bwd X * Bwd X) >< \ (ga0 , ga1)
+    -> ga0 <= de0 >< \ th0
+    -> ga1 <= de1 >< \ th1
+    -> ga ~ (ga0 <<< ga1) >< \ { r~ ->
+    th ~ (th0 +^+ th1) }
+  thChop [] th = ! th , [] , r~ , r~
+  thChop (de1 -, x) (th -^ .x)
+    with ! th0 , th1 , r~ , r~ <- thChop de1 th
+       = ! th0 , th1 -^ x , r~ , r~
+  thChop (de1 -, x) (th -, .x)
+    with ! th0 , th1 , r~ , r~ <- thChop de1 th
+       = ! th0 , th1 -, x , r~ , r~

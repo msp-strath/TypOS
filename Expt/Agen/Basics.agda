@@ -34,7 +34,11 @@ data `2 : Set where ff tt : `2
 data Bwd (X : Set) : Set where
   [] : Bwd X
   _-,_ : Bwd X -> X -> Bwd X
-infixl 30 _-,_
+infixl 30 _-,_ _<<<_
+
+_<<<_ : forall {X} -> Bwd X -> Bwd X -> Bwd X
+xz <<< [] = xz
+xz <<< (yz -, y) = xz <<< yz -, y
 
 record _><_ (S : Set)(T : S -> Set) : Set where
   constructor _,_
