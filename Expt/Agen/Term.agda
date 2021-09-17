@@ -1,3 +1,4 @@
+{-# OPTIONS --guardedness #-}
 module Term where
 
 open import Basics
@@ -243,34 +244,34 @@ module TERM (M : Nat -> Set)(A : Set) where
 
   module _ {f : Set -> Set}{{App : Applicative f}} where
 
-    mangle : forall {ga de} -> Mangler f ga de -> Tm ga
-          -> f (Term de)
-  
-    mangleCdB : forall {ga de} -> Mangler f ga de -> Term ga -> f (Term de)
-  
-    mangleS : forall {ga de xi} -> Mangler f ga de -> xi %> ga -> f (xi %>^ de)
+    mangle : forall {ga de} -> Mangler f ga de ->
+             Tm ga -> f (Term de)
+    mangleCdB : forall {ga ga' de} -> Mangler f ga de ->
+                Tm ga' -> ga' <= ga -> f (Term de)
+    mangleS : forall {ga de xi} -> Mangler f ga de ->
+              xi %> ga -> f (xi %>^ de)
+    mangleCdBS : forall {ga ga' de xi} -> Mangler f ga de ->
+                 xi %> ga' -> ga' <= ga -> f (xi %>^ de)
 
-    mangleCdBS : forall {ga de xi} -> Mangler f ga de -> xi %>^ ga -> f (xi %>^ de)
-
-    mangleCdB mu (tm & th) = mangle (mangSelFrom mu th) tm
-  
     mangle mu (vv x) = mangV mu
     mangle mu (aa (atom x)) = pure (a^ x)
     mangle mu (pp (a </ u \> b))
-     = (| mangleCdB mu (a & luth u) ,^ mangleCdB mu (b & ruth u) |)
+     = (| mangleCdB mu a (luth u) ,^ mangleCdB mu b (ruth u) |)
     mangle mu (bb (BIND.kk tm)) = ((kk - bb) $^_) <$> mangle mu tm
     mangle mu (bb (BIND.ll tm)) = (| b^ (mangle (mangB mu) tm) |)
     mangle mu (mm (m & sg)) = mangM mu m (mangleS mu sg)
 
-    mangleS mu [] = pure os
-    mangleS mu (sg -, x) with ! r~ , mu' <- mangW mu r~ = helper <$> mangleS mu' sg
-     where
-      helper : forall {ga de x} -> ga %>^ de -> (ga -, x) %>^ (de -, x)
-      helper (sg & th) = sg -, x & th -, x
+    mangleCdB mu tm th = mangle (mangSelFrom mu th) tm
 
+    mangleS mu [] = pure os
+    mangleS mu (sg -, x) with ! r~ , mu' <- mangW mu r~ = adjust <$> mangleS mu' sg
+     where
+      adjust : forall {ga de x} -> ga %>^ de -> (ga -, x) %>^ (de -, x)
+      adjust (sg & th) = sg -, x & th -, x
     mangleS mu ((sg </ u \> tm) -/ x)
-     = (| (| mangleCdBS mu (sg & luth u) /,\ mangleCdB mu (tm & ruth u)|) -/^ pure x |)
-    mangleCdBS mu (sg & th) = mangleS (mangSelFrom mu th) sg
+     = (| (| mangleCdBS mu sg (luth u) /,\ mangleCdB mu tm (ruth u)|) -/^ pure x |)
+
+    mangleCdBS mu sg th = mangleS (mangSelFrom mu th) sg
 {-
   record Mangler (f : Set -> Set) (ga de xi : Nat)
     : Set where
