@@ -74,12 +74,6 @@ _>M=_ : forall {S T} -> Maybe S -> (S -> Maybe T) -> Maybe T
 aye s >M= k = k s
 naw   >M= k = naw
 
-pure : forall {X} -> X -> Maybe X
-_<*>_ : forall {S T} -> Maybe (S -> T) -> Maybe S -> Maybe T
-pure x = aye x
-f <*> s = f >M= \ f -> s >M= \ s -> aye (f s)
-
-
 module _ {X : Set} where
 
   <_> [_] : (X -> Set) -> Set
@@ -92,3 +86,23 @@ module _ {X : Set} where
   (S -:> T) x = S x -> T x
   infixr 10 _*:_
   infixr 9 _-:>_
+
+record Applicative (f : Set -> Set) : Set₁ where
+  field
+    pure  : {X : Set} -> X -> f X
+    _<*>_ : {X Y : Set} -> f (X -> Y) -> f X -> f Y
+
+  _<$>_ : {X Y : Set} -> (X -> Y) -> f X -> f Y
+  f <$> x = (| f x |)
+
+  infixr 11 _<$>_
+  infixl 10 _<*>_
+
+open Applicative {{...}} public
+
+instance
+  MaybeApp : Applicative Maybe
+  MaybeApp = record { pure = aye
+                    ; _<*>_ = \f s -> f >M= \ f -> s >M= \ s -> aye (f s)
+                    }
+
