@@ -1,4 +1,3 @@
-{-# OPTIONS --guardedness #-}
 module Term where
 
 open import Basics
