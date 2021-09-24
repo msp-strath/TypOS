@@ -72,8 +72,8 @@ stanMangler
   => Ord m
   -- Γ: in scope at the root of the term we're traversing
   -- ξ: binders we've gone under
-  -- θ: support of the term we're traversing
-  => Th                      -- θ ⊆ Γ, ξ
+  -- Δ: support of the term we're traversing
+  => Th                      -- Δ ⊆ Γ, ξ
   -> Th                      -- Γ ⊆ Γ, ξ
   -> Map.Map m ( Int         -- i: # of variables captured by the meta
                , CdB (Tm m)) -- (Γ, [1..i])-term to replace the meta with

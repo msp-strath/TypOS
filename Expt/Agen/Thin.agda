@@ -130,6 +130,9 @@ module THIN {X : Set} where
   _^:_ : (Bwd X -> Set) -> Bwd X -> Set
   P ^: de = < P *: _<= de >
 
+  _|^_ : forall {P ga} -> P ^: ga -> [ ga <=_ -:> P ^:_ ]
+  (p & th) |^ ph = p & (th -& ph)
+
   _:^_ : forall {P de} ->
     P ^: de -> forall x ->
     P ^: de -, x
@@ -139,7 +142,7 @@ module THIN {X : Set} where
   eta^ p = p & io
 
   mu^ : forall {P} -> [ P ^:_ ^:_ -:> P ^:_ ]
-  mu^ ((p & th) & ph) = p & th -& ph
+  mu^ (x & ph) = x |^ ph
 
   _$^_ : forall {P Q} -> [ P -:> Q ] -> [ P ^:_ -:> Q ^:_ ]
   f $^ (p & th) = (f p & th)

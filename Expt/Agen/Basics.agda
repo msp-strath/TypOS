@@ -36,6 +36,9 @@ data Bwd (X : Set) : Set where
   _-,_ : Bwd X -> X -> Bwd X
 infixl 30 _-,_ _<<<_
 
+Nat : Set
+Nat = Bwd `1
+
 _<<<_ : forall {X} -> Bwd X -> Bwd X -> Bwd X
 xz <<< [] = xz
 xz <<< (yz -, y) = xz <<< yz -, y
@@ -99,6 +102,10 @@ record Applicative (f : Set -> Set) : Set₁ where
   infixl 10 _<*>_
 
 open Applicative {{...}} public
+
+IdApp : Applicative id
+Applicative.pure IdApp = id
+Applicative._<*>_ IdApp = id
 
 instance
   MaybeApp : Applicative Maybe

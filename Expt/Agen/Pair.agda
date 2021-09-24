@@ -48,3 +48,5 @@ module PAIR {X : Set} where
   `_ : forall {A} -> A -> [ Atom A ^:_ ]
   ` a = atom a & no
   
+  mota : forall {A ga} -> Atom A ga -> A * ga ~ []
+  mota (atom a) = (a , r~)

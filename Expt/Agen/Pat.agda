@@ -6,6 +6,7 @@ open import Cop
 open import Pair
 open import Bind
 open import Term
+open import Mangler
 open import Pub
 
 open THIN {`1}
@@ -110,6 +111,20 @@ module PAT
         let (sg' & th) = stanS sg pi in sg' -, x & th -, x
       stanS ((sg </ u \> t) -/ x) pi =
         (_-/ x) $^ (mu^ (stanS sg pi & io +^+ luth u) /,\ mu^ (stan t pi & io +^+ ruth u))
+
+      open module MA = MANGLE (_<P- p) M A
+      open MA.Mangler
+
+      stanMangler : forall {ga xi} ->
+                    Env xi p ->
+                    Mangler id xi ga
+      mangV (stanMangler pi) only = vv only & (no -, <>)
+      mangB (stanMangler pi) = stanMangler pi
+      mangM (stanMangler {xi = xi} pi) i sg = proj xi i pi //^ {!!}
+      mangSelFrom (stanMangler pi) th = stanMangler pi
+
+      stan' : forall {xi ga} -> E.Tm ga -> Env xi p -> Term (xi <<< ga)
+      stan' t pi = mangle {{IdApp}} (stanMangler pi) t
 
   module MATCH (M : Nat -> Set) where
 

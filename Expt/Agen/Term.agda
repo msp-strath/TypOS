@@ -11,8 +11,6 @@ open COP  {`1}
 open PAIR {`1}
 open BIND {`1}
 
-Nat = Bwd `1
-
 module TERM (M : Nat -> Set)(A : Set) where
 
   data _%>_ : Nat -> Nat -> Set
@@ -219,83 +217,18 @@ module TERM (M : Nat -> Set)(A : Set) where
   sg <%< ((ta </ u \> t) -/ x) with ! ! u' <- tensor llu u
     rewrite []<<< supp t = ((sg <%< ta) </ u' \> t) -/ x
 
+{-
+--  foo : forall {ga de xi} -> ga %>^ de -> xi %>^ de -> (ga <<< xi) %>^ de
+
+  padPrefix : forall {ga de xi} -> ga %>^ (xi <<< de) -> (xi <<< ga) %>^ (xi <<< de)
+  padPrefix {de = de} ([] & th) = {!!} --ok
+  padPrefix (_-,_ {de = []} sg x & th) = {!!}
+  padPrefix (_-,_ {de = de -, x₁} sg x & th) = {!!}
+  padPrefix (x -/ x₁ & th) = {!!}
+-}
+
   _-/^_ : forall {ga de} -> (ga %>_ </\> Tm) ^: de -> forall x -> ga -, x %>^ de
   p^ -/^ x = (_-/ x) $^ p^
-
-  -- ga: source context
-  -- de: target context
-  -- xi: number of binders we're under
-  record Mangler (f : Set -> Set) (ga de : Nat)
-    : Set where
-    coinductive
-    field
-      mangTh : Maybe (ga <= de)
-      mangV  : f (Term de)
-      mangB  : forall {x} -> Mangler f (ga -, x) (de -, x)
-      mangM  : forall {ga'} -> M ga' -> f (ga' %>^ de)
-            -> f (Term de)
-      -- undo only 1 binding (the haskell version does many)
-      mangW  : forall {ga0 x} -> (ga0 -, x ~ ga)
-            -> Nat >< \de0 -> (de0 -, x ~ de) * Mangler f ga0 de0
-      mangSelFrom : forall {ga0} -> ga0 <= ga -> Mangler f ga0 de
-
-  open Mangler
-
-  module _ {f : Set -> Set}{{App : Applicative f}} where
-
-    mangle : forall {ga de} -> Mangler f ga de ->
-             Tm ga -> f (Term de)
-    mangleCdB : forall {ga ga' de} -> Mangler f ga de ->
-                Tm ga' -> ga' <= ga -> f (Term de)
-    mangleS : forall {ga de xi} -> Mangler f ga de ->
-              xi %> ga -> f (xi %>^ de)
-    mangleCdBS : forall {ga ga' de xi} -> Mangler f ga de ->
-                 xi %> ga' -> ga' <= ga -> f (xi %>^ de)
-
-    mangle mu (vv x) = mangV mu
-    mangle mu (aa (atom x)) = pure (a^ x)
-    mangle mu (pp (a </ u \> b))
-     = (| mangleCdB mu a (luth u) ,^ mangleCdB mu b (ruth u) |)
-    mangle mu (bb (BIND.kk tm)) = ((kk - bb) $^_) <$> mangle mu tm
-    mangle mu (bb (BIND.ll tm)) = (| b^ (mangle (mangB mu) tm) |)
-    mangle mu (mm (m & sg)) = mangM mu m (mangleS mu sg)
-
-    mangleCdB mu tm th = mangle (mangSelFrom mu th) tm
-
-    mangleS mu [] = pure os
-    mangleS mu (sg -, x) with ! r~ , mu' <- mangW mu r~ = adjust <$> mangleS mu' sg
-     where
-      adjust : forall {ga de x} -> ga %>^ de -> (ga -, x) %>^ (de -, x)
-      adjust (sg & th) = sg -, x & th -, x
-    mangleS mu ((sg </ u \> tm) -/ x)
-     = (| (| mangleCdBS mu sg (luth u) /,\ mangleCdB mu tm (ruth u)|) -/^ pure x |)
-
-    mangleCdBS mu sg th = mangleS (mangSelFrom mu th) sg
-{-
-  record Mangler (f : Set -> Set) (ga de xi : Nat)
-    : Set where
-    coinductive
-    field
-      mangTh : Maybe (ga <= de)
-      mangV  : f (Term (de <<< xi))
-      mangB  : forall x -> Mangler f ga de (xi -, x)
-      mangM  : forall ga' -> M ga' -> f (ga' %>^ (de <<< xi))
-            -> f (Term (de <<< xi))
-      -- undo only 1 binding (the haskell version does many)
-      mangW  : forall {xi0 x} -> (xi0 -, x ~ xi)
-            -> Mangler f xi0 ga de
-      mangSelFrom : forall {th} -> th <= (ga <<< xi) -> {!!}
-
-  open Mangler
-
-  mangle : forall {f ga de xi} -> Mangler f ga de xi -> Tm (ga <<< xi)
-        -> f (Term (de <<< xi))
-  mangle mu (vv x) = mangV mu
-  mangle mu (aa x) = {!x!}
-  mangle mu (pp (lout PAIR.</ pcop \> rout)) = {!!}
-  mangle mu (bb x) = {!!}
-  mangle mu (mm x) = {!!}
--}    
 
 
 {-
