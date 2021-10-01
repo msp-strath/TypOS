@@ -52,78 +52,74 @@ instance Traversable Tm where
 instance Functor Tm where fmap = fmapDefault
 instance Foldable Tm where foldMap = foldMapDefault
 
-data Mangler m f = Mangler
-  { mangSrc :: Int               -- size of source scope
-  , mangTgt :: Int               -- size of target scope
-  , mangTh :: Maybe Th           -- are you just embedding src into tgt?
-  , mangV :: f (CdB (Tm m))      -- how to replace variables
-  , mangB :: Mangler m f         -- how to mangle under a relevant binder
-  , mangM :: m -> f (CdB (Sbst m)) -> f (CdB (Tm m))
-    -- how to replace a meta & mangled substitution
-  , mangW :: Int -> Mangler m f  -- how to undo some `mangB`s
-  , mangSelFrom :: Th                -- big end should be mangSrc
-                -> Mangler m f       -- source of output mangler
-                                     --   should be the wee end of the input
-                                     --   thinnings; target stays put
+data Mangler f {-xi-} {-ga-} = Mangler
+  { mangGlo :: Int -- size of xi
+  , mangLoc :: Int -- size of ga
+  , mangV :: f (Term {-xi <<< ga -}) -- ga is singleton
+  , mangB :: Mangler f {-xi-} {-ga , x-}        -- how to mangle under a relevant binder
+  , mangM :: Meta {-de-} -> f (Subst {-xi <<< de --> xi <<< ga -}) -> f (Term {-xi <<< ga -})
+  , mangSelFrom :: Th {-ga0 <= ga -}
+                -> Mangler f {-xi-} {-ga0-}
   }
 
-stanMangler
-  :: Show m
-  => Ord m
-  -- Γ: in scope at the root of the term we're traversing
-  -- ξ: binders we've gone under
-  -- Δ: support of the term we're traversing
-  => Th                      -- Δ ⊆ Γ, ξ
-  -> Th                      -- Γ ⊆ Γ, ξ
-  -> Map.Map m ( Int         -- i: # of variables captured by the meta
-               , CdB (Tm m)) -- (Γ, [1..i])-term to replace the meta with
-  -> Mangler m (Writer Any)  -- (Γ, ξ) terms factory
-stanMangler th emb tbl = Mangler
-  { mangSrc = bigEnd th
-  , mangTgt = bigEnd th
-  , mangTh = th <$ guard (null tbl)
-  , mangV = pure (V, th)
-  , mangB = stanMangler (th -? True) (emb -? False) tbl
+mangTgt :: Mangler f -> Int
+mangTgt mu = mangGlo mu + mangLoc mu
+
+mangW :: Mangler f {-xi-} {-ga0 <<< ga1-} ->
+         Int ->  -- size of ga1
+         Mangler f {-xi-} {-ga0-}
+mangW mu w = mangSelFrom mu (ones (mangLoc mu - w) <> none w)
+
+stanMangler :: Int -- number of global vars xi
+            -> Int -- number of local vars ga
+            -> Map.Map Meta (Term {-xi <<< de-}) -- de are vars in pattern you are allowed to depend on
+            -> Mangler (Writer Any) {-xi-} {-ga-}
+stanMangler xi ga tbl = Mangler
+  { mangGlo = xi
+  , mangLoc = ga
+  , mangV = pure (V, none xi -? True)
+  , mangB = stanMangler xi (ga + 1) tbl
   , mangM = \ m sg ->
       case Map.lookup m tbl of
         Nothing -> (m $:) <$> sg
-        Just (i, t) -> ((t *^ (emb <> ones i)) //^) <$> sg <* tell (Any True)
-  , mangW = \ w -> stanMangler (fst $ thChop th w) (fst $ thChop emb w) tbl
-  , mangSelFrom = \ ph -> stanMangler (ph <^> th) emb tbl
+        Just t -> (t //^) <$> sg <* tell (Any True)
+  , mangSelFrom = \ ph -> stanMangler xi (weeEnd ph) tbl
   }
 
-class Manglable m t where
-  mangle  :: Applicative f => Mangler m f -> t -> f (CdB t)
-  -- mangle' is worker for mangle
-  mangle' :: Applicative f => Mangler m f -> t -> f (CdB t)
-  -- Int is size of the target scope
-  mangleCdB :: Applicative f => Mangler m f -> CdB t -> f (CdB t)
+class Manglable t where
+  mangle  :: Applicative f => Mangler f {-xi-} {-ga-} -> t {-ga-} -> f (CdB t {- xi <<< ga-})
+  -- -- mangle' is worker for mangle
+  -- mangle' :: Applicative f => Mangler m m' f -> t m -> f (CdB (t m'))
+  mangleCdB :: Applicative f => Mangler f {-xi-} {-ga-} -> CdB (t {-ga-}) -> f (CdB (t {- xi <<< ga-}))
 
+  {-
   mangle mu t = case mangTh mu of
     Just th -> pure (t, th)
     Nothing -> mangle' mu t
+  -}
 
   mangleCdB mu (t, th) = mangle mu' t where
     -- we recheck for mangI after doing a selection computing m'
     mu' = mangSelFrom mu th
 
-instance Manglable m a => Manglable m (Named a) where
-  mangle' mu (x := a) = ((x :=) $^) <$> mangle' mu a
+instance Manglable a => Manglable (Named a) where
+  mangle mu (x := a) = ((x :=) $^) <$> mangle mu a
 
-instance Manglable m (Tm m) where
-  mangle' mu V = mangV mu
-  mangle' mu (A a) = pure (atom a (mangTgt mu))
-  mangle' mu (P p) = (P $^) <$> mangle' mu p
-  mangle' mu ((Hide x := False) :. t) = (x \\) <$> (weak <$> mangle' mu t)
-  mangle' mu ((Hide x := True) :. t) = (x \\) <$> mangle' (mangB mu) t
-  mangle' mu (m :$ sg) = mangM mu m (mangle' mu sg)
+instance Manglable (Tm Meta) where
+  mangle mu V = mangV mu
+  mangle mu (A a) = pure (atom a (mangTgt mu))
+  mangle mu (P p) = (P $^) <$> mangle mu p
+  mangle mu ((Hide x := False) :. t) = (x \\) <$> (weak <$> mangle mu t)
+  mangle mu ((Hide x := True) :. t) = (x \\) <$> mangle (mangB mu) t
+  mangle mu (m :$ sg) = mangM mu m (mangle mu sg)
 
-instance (Manglable m a, Manglable m b) => Manglable m (RP a b) where
-  mangle' mu (a :<>: b)  = (<&>) <$> mangleCdB mu a <*> mangleCdB mu b
+instance (Manglable a, Manglable b) => Manglable (RP a b) where
+  mangle mu (a :<>: b)  = (<&>) <$> mangleCdB mu a <*> mangleCdB mu b
 
 newtype Meta = Meta [(String, Int)]
   deriving (Show, Ord, Eq)
 type Term = CdB (Tm Meta)
+type Subst = CdB (Sbst Meta)
 type Root = ( Bwd (String, Int) -- name prefix
             , Int)              -- counter
 
@@ -161,16 +157,13 @@ instance Traversable Sbst' where
 instance Functor Sbst' where fmap = fmapDefault
 instance Foldable Sbst' where foldMap = foldMapDefault
 
-instance Manglable m (Sbst m) where
-  mangle' mu (sg :^^ w) = sbstW <$> sg' <*> pure (ones w) where
+instance Manglable (Sbst Meta) where
+  mangle mu (sg :^^ w) = sbstW <$> sg' <*> pure (ones w) where
     mu' = mangW mu w
     sg' = case sg of
-      S0 -> pure (sbstI (mangTgt mu'))
-            -- ^ used to be sbst0
-            -- this is more in line with pure (ones w) above
-            -- & seems to fix the beta test case
-            -- NEED: Agda model!
+      S0 -> pure (sbstI (mangGlo mu))
       ST (sg :<>: t) -> sbstT <$> mangleCdB mu' sg <*> mangleCdB mu' t
+
 
 -- smart constructors
 sbst0 :: Int -> CdB (Sbst m)
@@ -353,10 +346,10 @@ betaRHS = "body" $: (sbstT (sbst0 0) ((Hide "x" :=) $^ ("arg" $: sbst0 0)))
 beta :: Root -> Term -> Maybe (Root, Term)
 beta r t = do
   (r, (m, val)) <- match r betaLHS t
-  let ga = scope t
-  let rhs = (fmap (trustMe m) $^ betaRHS) *^ none ga
+  let xi = scope t
+  let rhs = fmap (trustMe m) $^ betaRHS
   track (show rhs) $ pure ()
-  let (res, _) = runWriter $ mangleCdB (stanMangler (ones ga) (ones ga) val) rhs
+  let (res, _) = runWriter $ mangleCdB (stanMangler xi 0 val) rhs
   pure (r, res)
 
   where
@@ -365,20 +358,20 @@ beta r t = do
     trustMe m v = fromMaybe (error "IMPOSSIBLE") (Map.lookup v m)
 
 redex :: Term
-redex = ("App", 1) #% [ ("Lam", 1) #% [ "y" \\ var 0 2 ]
-                      , var 0 1
+redex = ("App", 2) #% [ ("Lam", 2) #% [ "y" \\ var 2 3 ]
+                      , var 0 2
                       ]
 
 -- match assumes that p's vars are the local end of t's
 match :: Root
       -> Pat
       -> Term
-      -> Maybe (Root, (Map.Map String Meta, Map.Map Meta (Int, Term)))
+      -> Maybe (Root, (Map.Map String Meta, Map.Map Meta Term))
 match r (MP x ph) (t, th) = do
   let g = bigEnd th - bigEnd ph  -- how many globals?
   ps <- thicken (ones g <> ph) th
   let (m, r') = meta r x
-  return (r', (Map.singleton x m, Map.singleton m (weeEnd ph, (t, ps))))
+  return (r', (Map.singleton x m, Map.singleton m (t, ps)))
 match r p t = case (p, expand t) of
   (VP i, VX j _) | i == j -> return (r, (Map.empty, Map.empty))
   (AP a, AX b _) | a == b -> return (r, (Map.empty, Map.empty))
