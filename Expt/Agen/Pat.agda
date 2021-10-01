@@ -120,11 +120,14 @@ module PAT
                     Mangler id xi ga
       mangV (stanMangler pi) only = vv only & (no -, <>)
       mangB (stanMangler pi) = stanMangler pi
-      mangM (stanMangler {xi = xi} pi) i sg = proj xi i pi //^ {!!}
+      mangM (stanMangler {xi = xi} pi) i sg = proj xi i pi //^ sg
       mangSelFrom (stanMangler pi) th = stanMangler pi
 
       stan' : forall {xi ga} -> E.Tm ga -> Env xi p -> Term (xi <<< ga)
       stan' t pi = mangle {{IdApp}} (stanMangler pi) t
+
+      stan'^ : forall {xi ga} -> E.Term ga -> Env xi p -> Term (xi <<< ga)
+      stan'^ (t & ph) pi = mangleCdB {{IdApp}} (stanMangler pi) t ph
 
   module MATCH (M : Nat -> Set) where
 

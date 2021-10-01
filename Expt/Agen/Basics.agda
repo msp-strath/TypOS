@@ -1,5 +1,8 @@
 module Basics where
 
+open import Agda.Builtin.FromNat public
+import Agda.Builtin.Nat as N
+
 data _~_ {X : Set}(x : X) : X -> Set where
   r~ : x ~ x
 {-# BUILTIN EQUALITY _~_ #-}
@@ -28,7 +31,7 @@ ko : forall {i j}{A : Set i}{B : A -> Set j}
 ko a _ = a
 
 data `0 : Set where
-record `1 : Set where constructor <>
+record `1 : Set where instance constructor <>
 data `2 : Set where ff tt : `2
 
 data Bwd (X : Set) : Set where
@@ -38,6 +41,15 @@ infixl 30 _-,_ _<<<_
 
 Nat : Set
 Nat = Bwd `1
+
+pattern zero = []
+pattern suc x = x -, _
+
+instance
+  numberNat : Number Nat
+  Number.Constraint numberNat _ = `1
+  Number.fromNat numberNat N.zero = zero
+  Number.fromNat numberNat (N.suc n) = suc (Number.fromNat numberNat n)
 
 _<<<_ : forall {X} -> Bwd X -> Bwd X -> Bwd X
 xz <<< [] = xz
@@ -76,6 +88,8 @@ maybe f (aye s)  = aye (f s)
 _>M=_ : forall {S T} -> Maybe S -> (S -> Maybe T) -> Maybe T
 aye s >M= k = k s
 naw   >M= k = naw
+
+_>>=_ = _>M=_
 
 module _ {X : Set} where
 
