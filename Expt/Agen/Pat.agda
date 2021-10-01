@@ -112,6 +112,9 @@ module PAT
       stanS ((sg </ u \> t) -/ x) pi =
         (_-/ x) $^ (mu^ (stanS sg pi & io +^+ luth u) /,\ mu^ (stan t pi & io +^+ ruth u))
 
+      stan^ : forall {xi ga} -> E.Term ga -> Env xi p -> Term (xi <<< ga)
+      stan^ (t & ph) pi = mu^ (stan t pi & io +^+ ph)
+
       open module MA = MANGLE (_<P- p) M A
       open MA.Mangler
 
