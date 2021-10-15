@@ -178,6 +178,9 @@ sbstT sg t = ((ST p :^^ 0), ps) where (p, ps) = sg <&> t
 sbstI :: Int -> CdB (Sbst m)
 sbstI w = ((S0 :^^ w), ones w)
 
+topSbst :: String -> CdB (Tm m) -> CdB (Sbst m)
+topSbst x t = sbstT (sbstI (scope t)) ((Hide x :=) $^ t)
+
 sbstCod :: Sbst m -> Int
 sbstCod (sg :^^ w) = case sg of
   S0 -> w
@@ -313,6 +316,40 @@ s % t = contract (s :%: t)
 (#%) :: (String, Int) -> [CdB (Tm m)] -> CdB (Tm m)
 (a, ga) #% ts = case foldr (%) (nil ga) ts of
   (t, th) -> (P (atom a ga :<>: (t, ones (weeEnd th))), th)
+
+(#%+) :: String -> [CdB (Tm m)] -> CdB (Tm m)
+a #%+ ts = let ga = scope (head ts) in (a, ga) #% ts
+
+class OrBust x where
+  bust :: x
+
+instance OrBust (Maybe x) where
+  bust = Nothing
+
+instance OrBust Bool where
+  bust = False
+
+instance OrBust b => OrBust (a -> b) where
+  bust = \ _ -> bust
+
+asTagged :: OrBust x => ((String, Int) -> CdB (Tm m) -> x) -> CdB (Tm m) -> x
+asTagged f = asPair $ asAtom f
+
+asAtom :: OrBust x => ((String, Int) -> x) -> CdB (Tm m) -> x
+asAtom f t = t ?: \case
+ AX s n -> f (s, n)
+ _ -> bust
+
+asBind :: OrBust x => (String -> CdB (Tm m) -> x) -> CdB (Tm m) -> x
+asBind f t = t ?: \case
+ x :.: t -> f x t
+ _ -> bust
+
+
+asPair :: OrBust x => (CdB (Tm m) -> CdB (Tm m) -> x) -> CdB (Tm m) -> x
+asPair f t = t ?: \case
+  a :%: b -> f a b
+  _ -> bust
 
 infixr 3 \\
 (\\) :: String -> CdB (Tm m) -> CdB (Tm m)

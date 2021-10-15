@@ -13,63 +13,58 @@ type SyntaxCat = String
 type SyntaxDesc = Term
 
 validate :: Map.Map SyntaxCat SyntaxDesc -> Bwd SyntaxCat -> SyntaxDesc -> Term -> Bool
-validate table env s t = s #%< \case
-  "Rec" -> flip (#%<) $ \ a _ -> t ?: \case
+validate table env s t = ($ s) $ asTagged $ (. fst) $ \case
+  "Rec" -> asTagged $ \ (a,_) _ -> t ?: \case
     VX x _ -> a == bwdProj env x
     _   -> case Map.lookup a table of
       Nothing -> False
       Just s -> validate table env s t
-  "Atom" -> \ _ -> t ?: \case
-    AX (_:_) -> True
-    _        -> False
-  "Nil" -> \ _ -> t ?: \case
-    AX "" -> True
-    _     -> False
-  "Cons" -> flip (%<) $ \ s1 -> flip (%<) $ \ s2 _ -> t ?: \case
-    t0 :%: t1 -> validate table env s1 t0 && validate table env s2 t1
-    _         -> False
-  "Bind" -> flip (#%<) $ \ a -> flip (%<) $ \ s _ -> t ?: \case
-    x :.: t -> validate table (env :< a) s t
-    _       -> False
-  "Tag" -> flip (%<) $ \ s _ -> t ?: \case
-    ((A a, _) :%: t1) -> case ourLookup a s of
-      Nothing -> False
-      Just s  -> validate table env s t1
-    _                -> False
-  "Fix" -> flip (%<) $ \ s' _ -> validate table env (under s' ^// topSbst s) t
+  "Atom" -> \ _ -> ($ t) $ asAtom $ \ (a,_) -> not (null a)
+  "Nil"  -> \ _ -> ($ t) $ asAtom $ \ (a,_) -> null a
+  "Cons" -> asPair $ \ s0 -> asPair $ \ s1 _ ->
+                   ($ t) $ asPair $ \ t0 t1 -> validate table env s0 t0 && validate table env s1 t1
+  "Bind" -> asTagged $ \ (a,_) -> asPair $ \ s _ ->
+                   ($ t) $ asBind $ \ x t -> validate table (env :< a) s t
+  "Tag" -> asPair $ \ s _ ->
+                   ($ t) $ asTagged $ \ (a,_) t ->case ourLookup a s of
+                                                    Nothing -> False
+                                                    Just s  -> validate table env s t
+  "Fix" -> asPair $ asBind $ \ x s' _ -> validate table env (s' //^ topSbst x s)  t
   where
    ourLookup  :: String -> Term -> Maybe Term
-   ourLookup a s = s #%< \case
-     "Nil" -> \ _ -> Nothing
-     "Cons" -> flip (%<) $ \ s1 -> flip (%<) $ \ s2 _ -> s1 #%< \ b s ->
+   ourLookup a = asTagged $ (. fst) $ \case
+     "Nil" -> bust
+     "Cons" -> asPair $ \ s1 -> asPair $ \ s2 _ -> ($ s1) $ asTagged $ \ (b,_) s ->
        if a == b then Just s else ourLookup a s2
 
 (%:) :: Term -> Term -> Term
-s %: t = "Cons" #% [s, t]
+s %: t = "Cons" #%+ [s, t]
 
-nul :: Term
-nul = "Nil" #% []
+nul :: Int -> Term
+nul ga = ("Nil", ga) #% []
 
 infixr 5 %:
 
 listOf :: SyntaxDesc -> SyntaxDesc
-listOf d = "Fix" #% ["list" \\ ("Tag" #% [(atom "Nil" % nul) %:
-                                          (atom "Cons" % (weak d %: var 0 %: nul)) %:
-                                          nul])]
+listOf d = let ga = scope d + 1 in
+           "Fix" #%+ ["list" \\ ("Tag" #%+ [(atom "Nil" ga % nul ga) %:
+                                            (atom "Cons" ga % (weak d %: var 0 ga %: nul ga)) %:
+                                            nul ga])]
 
 syntaxTable :: Map.Map SyntaxCat SyntaxDesc
 syntaxTable = Map.singleton "syntax" syntaxDesc
 
 syntaxDesc :: SyntaxDesc
-syntaxDesc = "Tag" #% [
-  (atom "Rec" % (("Atom" #% []) %: nul)) %:
-  (atom "Atom" % nul) %:
-  (atom "Nil" % nul) %:
-  (atom "Cons" % (syntax %: syntax %: nul)) %:
-  (atom "Bind" % (("Atom" #% []) %: syntax %: nul)) %:
-  (atom "Tag" % (listOf (("Atom" #% []) %: syntax) %: nul)) %:
-  (atom "Fix" % (("Bind" #% [atom "syntax" , syntax])) %: nul) %:
-  nul]
-  where syntax = "Rec" #% [atom "syntax"]
+syntaxDesc = "Tag" #%+ [
+  (atom "Rec" 0 % (atom0 %: nul 0)) %:
+  (atom "Atom" 0 % nul 0) %:
+  (atom "Nil" 0 % nul 0) %:
+  (atom "Cons" 0 % (syntax %: syntax %: nul 0)) %:
+  (atom "Bind" 0 % (atom0 %: syntax %: nul 0)) %:
+  (atom "Tag" 0 % (listOf (atom0 %: syntax) %: nul 0)) %:
+  (atom "Fix" 0 % (("Bind" #%+ [atom "syntax" 0, syntax])) %: nul 0) %:
+  nul 0]
+  where syntax = "Rec" #%+ [atom "syntax" 0]
+        atom0 = (("Atom",0) #% [])
 
--- test = validate syntaxTable B0 ("Rec" #% [atom "syntax"]) syntaxDesc
+-- test = validate syntaxTable B0 ("Rec" #%+ [atom "syntax" 0]) syntaxDesc
