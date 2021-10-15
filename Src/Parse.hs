@@ -114,10 +114,10 @@ pend = Parser $ \ xz s -> case s of
   [] -> [((), "")]
   _ -> []
 
-pgo :: Parser x -> String -> x
-pgo p s = case parser (id <$> p <* pend) B0 s of
+parse :: Parser x -> String -> x
+parse p s = case parser (id <$> p <* pend) B0 s of
   [(x, _)] -> x
 
 repl :: IO a
 repl = forever $ getLine >>= \ s ->
-         putStrLn (display' initNaming $ pgo ptm s)
+         putStrLn (display' initNaming $ parse ptm s)
