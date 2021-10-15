@@ -57,6 +57,9 @@ pnom = (:) <$> pch isAlpha <*> many (pch isMo) where
 pspc :: Parser ()
 pspc = () <$ many (pch isSpace)
 
+pnl :: Parser ()
+pnl = () <$ pch (== '\n')
+
 data Parser a = Parser
   { parser :: Bwd String -> String -> [(a, String)]
   }

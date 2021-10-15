@@ -11,9 +11,9 @@ shitMeta :: String -> Meta
 shitMeta s = Meta [("user",0),(s,0)]
 
 terms :: String -> [Term]
-terms s = case parser (pspc *> ptm) B0 s of
+terms s = case parser (pspc *> ptm <* pnl) B0 s of
   [(t,s)] -> (fmap shitMeta $^ t):(terms s)
-  _ -> (error $ "syntax error: " ++ s) `seq` []
+  _ -> (error $ "Unparsed input: " ++ s) `seq` []
 
 main :: IO ()
 main = do
