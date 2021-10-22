@@ -51,8 +51,8 @@ listOf d = let ga = scope d + 1 in
                                             (atom "Cons" ga % (weak d %: var 0 ga %: nul ga)) %:
                                             nul ga])]
 
-syntaxTable :: Map.Map SyntaxCat SyntaxDesc
-syntaxTable = Map.singleton "syntax" syntaxDesc
+rec :: String -> SyntaxDesc
+rec a = "Rec" #%+ [atom a 0]
 
 syntaxDesc :: SyntaxDesc
 syntaxDesc = "Tag" #%+ [
@@ -64,7 +64,7 @@ syntaxDesc = "Tag" #%+ [
   (atom "Tag" 0 % (listOf (atom0 %: syntax) %: nul 0)) %:
   (atom "Fix" 0 % (("Bind" #%+ [atom "syntax" 0, syntax])) %: nul 0) %:
   nul 0]
-  where syntax = "Rec" #%+ [atom "syntax" 0]
+  where syntax = rec "syntax"
         atom0 = (("Atom",0) #% [])
 
 -- '[ a b c ] ~~> [ 'Cons a [ 'Cons b [ 'Cons c ['Nil]]]]

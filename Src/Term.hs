@@ -429,3 +429,5 @@ match r p t = case (p, expand t) of
   (BP _ p, _ :.: t) -> match r p t
   _ -> empty
 
+shitMeta :: String -> Meta
+shitMeta s = Meta [("user",0),(s,0)]
