@@ -1,7 +1,6 @@
 module Thin where
 
 import Data.Bits
-import Control.Arrow
 import Control.Monad
 
 import Bwd

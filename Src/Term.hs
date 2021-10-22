@@ -10,14 +10,9 @@
 
 module Term where
 
-import Data.List hiding ((\\))
 import Data.Maybe (fromMaybe)
-import Control.Arrow
 import Control.Monad.Writer
-import Control.Monad.State
 import Control.Applicative
-import Data.Bits
-import Data.Monoid
 import Data.Traversable
 import qualified Data.Map as Map
 
@@ -25,7 +20,7 @@ import Bwd
 import Thin
 import Hide
 
-import Debug.Trace
+-- import Debug.Trace
 
 track = const id
 -- track = trace
