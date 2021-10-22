@@ -1,0 +1,30 @@
+cabal-version:       2.2
+
+name:                typos
+version:             0.1.0.0
+author:              Conor McBride,
+                     Fredrik Nordvall Forsberg,
+                     Guillaume Allais,
+                     Georgi Nakov,
+                     Craig Roy
+
+build-type:          Simple
+extra-source-files:  README.md
+
+common haskell
+  default-extensions:  LambdaCase,
+                       TupleSections
+
+library
+  import:              haskell
+  exposed-modules:     Bwd, Display, Hide, Parse, Syntax, Term, Thin
+  build-depends:       base <5, mtl, containers
+  hs-source-dirs:      Src
+  default-language:    Haskell2010
+  ghc-options:         -Wunused-imports
+
+executable typos
+  import:              haskell
+  main-is:             Src/Main.hs
+  build-depends:       base <5, typos
+  default-language:    Haskell2010
