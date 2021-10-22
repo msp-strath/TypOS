@@ -67,4 +67,22 @@ syntaxDesc = "Tag" #%+ [
   where syntax = "Rec" #%+ [atom "syntax" 0]
         atom0 = (("Atom",0) #% [])
 
+-- '[ a b c ] ~~> [ 'Cons a [ 'Cons b [ 'Cons c ['Nil]]]]
+
+-- '[] --> ['Nil]
+-- '[a bs] ~~> [ 'Cons a '[bs]]
+
+{- > putStrLn $ display' initNaming syntaxDesc
+['Tag
+  '[['Rec| '[['Atom]]]
+    ['Atom| '[]]
+    ['Nil| '[]]
+    ['Cons| '[['Rec 'syntax] ['Rec 'syntax]]]
+    ['Bind| '[['Atom] ['Rec 'syntax]]]
+    ['Tag| '[['Fix \list.['Tag '[['Nil| '[]]
+                                 ['Cons| '[['Cons ['Atom] ['Rec 'syntax]] list]]]]]]]
+    ['Fix| '[['Bind 'syntax ['Rec 'syntax]]]]]]
+-}
+
 -- test = validate syntaxTable B0 ("Rec" #%+ [atom "syntax" 0]) syntaxDesc
+

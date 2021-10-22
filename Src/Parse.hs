@@ -24,12 +24,17 @@ ptm = var <$> join (pseek <$> pnom) <*> plen
     pspc
     (x \\) <$> (pbind x ptm))
   <|> ($:) <$ pch (== '?') <*> pnom <*> (sbstI <$> plen)
+  <|> glomQlist <$> plen <* pch (== '\'') <* pch (== '[') <* pspc <*> many (ptm <* pspc) <* pch (== ']')
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> id <$ pch (== '(') <* pspc <*> ptm <* pspc <* pch (== ')')
   <|> id <$ pch (== '{') <* pspc <*> do
     (sg, xz) <- psbst
     pspc
     (//^ sg) <$> plocal xz ptm
+  where
+    glomQlist l = foldr qc qn where
+      qc a d = ("Cons",l) #% [a, d]
+      qn = ("Nil",l) #% []
 
 psbst :: Parser (CdB (Sbst String), Bwd String)
 psbst = (,) <$ pspc <* pch (== '}') <*> (sbstI <$> plen) <*> pscope
@@ -121,6 +126,3 @@ parse :: Parser x -> String -> x
 parse p s = case parser (id <$> p <* pend) B0 s of
   [(x, _)] -> x
 
-repl :: IO a
-repl = forever $ getLine >>= \ s ->
-         putStrLn (display' initNaming $ parse ptm s)

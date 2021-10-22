@@ -6,6 +6,9 @@ import Bwd
 import Parse
 import Term
 import Thin
+import Display
+import Syntax
+import Command
 
 shitMeta :: String -> Meta
 shitMeta s = Meta [("user",0),(s,0)]
@@ -21,3 +24,7 @@ main = do
   let ts = terms s
   for_ ts $ \ t ->
     putStrLn (display' initNaming t)
+
+{-
+test = display' initNaming (fst (head (parser (pspc *> ptm) B0 (display' initNaming syntaxDesc)))) == display' initNaming syntaxDesc
+-}
