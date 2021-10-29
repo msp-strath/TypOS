@@ -13,7 +13,8 @@ extra-source-files:  README.md
 
 common haskell
   default-extensions:  LambdaCase,
-                       TupleSections
+                       TupleSections,
+                       TypeSynonymInstances
 
 library
   import:              haskell

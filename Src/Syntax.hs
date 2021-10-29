@@ -12,7 +12,9 @@ import Term
 type SyntaxCat = String
 type SyntaxDesc = Term
 
-validate :: Map.Map SyntaxCat SyntaxDesc -> Bwd SyntaxCat -> SyntaxDesc -> Term -> Bool
+type SyntaxTable = Map.Map SyntaxCat SyntaxDesc
+
+validate :: SyntaxTable -> Bwd SyntaxCat -> SyntaxDesc -> Term -> Bool
 validate table env s t = ($ s) $ asTagged $ (. fst) $ \case
   "Rec" -> asTagged $ \ (a,_) _ -> t ?: \case
     VX x _ -> a == bwdProj env x
@@ -30,6 +32,8 @@ validate table env s t = ($ s) $ asTagged $ (. fst) $ \case
                                                     Nothing -> False
                                                     Just s  -> validate table env s t
   "Fix" -> asPair $ asBind $ \ x s' _ -> validate table env (s' //^ topSbst x s)  t
+  "Enum" -> asPair $ asListOf (asAtom $ Just . fst) $ \es -> asNil $ ($ t) $ asAtom $ \ (e,_) -> e `elem` es
+  "Term" -> \ _ -> True
   where
    ourLookup  :: String -> Term -> Maybe Term
    ourLookup a = asTagged $ (. fst) $ \case
@@ -62,10 +66,12 @@ syntaxDesc = "Tag" #%+ [
   (atom "Cons" 0 % (syntax %: syntax %: nul 0)) %:
   (atom "Bind" 0 % (atom0 %: syntax %: nul 0)) %:
   (atom "Tag" 0 % (listOf (atom0 %: syntax) %: nul 0)) %:
-  (atom "Fix" 0 % (("Bind" #%+ [atom "syntax" 0, syntax])) %: nul 0) %:
+  (atom "Fix" 0 % ("Bind" #%+ [atom "syntax" 0, syntax]) %: nul 0) %:
+  (atom "Enum" 0 % listOf atom0 %: nul 0) %:
+  (atom "Term" 0 % nul 0) %:
   nul 0]
   where syntax = rec "syntax"
-        atom0 = (("Atom",0) #% [])
+        atom0 = ("Atom",0) #% []
 
 -- '[ a b c ] ~~> [ 'Cons a [ 'Cons b [ 'Cons c ['Nil]]]]
 
@@ -81,8 +87,13 @@ syntaxDesc = "Tag" #%+ [
     ['Bind| '[['Atom] ['Rec 'syntax]]]
     ['Tag| '[['Fix \list.['Tag '[['Nil| '[]]
                                  ['Cons| '[['Cons ['Atom] ['Rec 'syntax]] list]]]]]]]
-    ['Fix| '[['Bind 'syntax ['Rec 'syntax]]]]]]
+    ['Fix| '[['Bind 'syntax ['Rec 'syntax]]]]
+    ['Term| '[]]]]
+
 -}
 
--- test = validate syntaxTable B0 ("Rec" #%+ [atom "syntax" 0]) syntaxDesc
+validateDesc :: SyntaxDesc -> Bool
+validateDesc = validate (Map.singleton "syntax" syntaxDesc) B0 ("Rec" #%+ [atom "syntax" 0])
+
+test = validateDesc syntaxDesc
 

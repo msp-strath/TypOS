@@ -350,6 +350,11 @@ asNil f = asAtom $ \case
   ("",_) -> f
   _      -> bust
 
+asListOf :: OrBust x => (CdB (Tm m) -> Maybe y) -> ([y] -> x) -> CdB (Tm m) -> x
+asListOf asY f = asList $ \ts -> case traverse asY ts of
+                                   Just ys -> f ys
+                                   Nothing -> bust
+
 asList :: OrBust x => ([CdB (Tm m)] -> x) -> CdB (Tm m) -> x
 asList f = asTagged $ \case
   ("Cons",_) -> asPair $ \ a -> asPair $ asList $ \ xs -> asNil $ f (a:xs)
