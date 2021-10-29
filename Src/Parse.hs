@@ -63,7 +63,7 @@ pspc :: Parser ()
 pspc = () <$ many (pch isSpace)
 
 pnl :: Parser ()
-pnl = () <$ pch (== '\n')
+pnl = () <$ pch (\c -> c == '\n' || c == '\0')
 
 data Parser a = Parser
   { parser :: Bwd String -> String -> [(a, String)]
