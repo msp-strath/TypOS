@@ -31,14 +31,18 @@ data Actor
  deriving Show
 
 check :: (JudgementForm, (Channel, Actor))
-check = ("check", ("p", Recv "p" "ty" $ Recv "p" "tm" $ Match ("tm" $: sbst0 0)
+check = ("check", ("p", Recv "p" "ty" $
+                        Recv "p" "tm" $
+                        Match ("tm" $: sbst0 0)
         [ ("Lam" #? [BP (Hide "x") (MP "body" (ones 1))]
-          ,FreshMeta "S" $ FreshMeta "T" $
+          ,FreshMeta "S" $
+           FreshMeta "T" $
             let ty = Constrain ("ty" $: sbst0 0) ("Arr" #%+ [("S" $: sbst0 0), ("T" $: sbst0 0)])
-                body = Under "y" $ Extend "synth" "y" ("r", Send "r" ("S" $: sbst0 0) Win) $
-                  Spawn "check" "q" $
-                  Send "q" ("T" $: sbst0 0) $
-                  Send "q" ("body" $: (sbstT (sbst0 0) ((Hide "x" :=) $^ ("y" $: sbst0 0)))) Win
+                body = Under "y" $
+                       Extend "synth" "y" ("r", Send "r" ("S" $: sbst0 0) Win) $
+                       Spawn "check" "q" $
+                       Send "q" ("T" $: sbst0 0) $
+                       Send "q" ("body" $: (sbstT (sbst0 0) ((Hide "x" :=) $^ ("y" $: sbst0 0)))) Win
             in  ty :|: body)
         , ("Emb" #? [MP "e" (ones 0)]
           ,Spawn "synth" "q" $
@@ -75,6 +79,7 @@ data Frame
   | Spawnee (Hole, Channel) (Channel, Process [])
   | Spawner (Process [], Channel) (Channel, Hole)
   | Sent Channel Term
+  | Defn ActorVar Term
   deriving Show
 
 type Process t
@@ -109,6 +114,7 @@ exec (zf, root, scope, Spawn j p actor)
 exec (zf, root, scope, Send p tm actor) = send p (tm, lookupActorVars subRoot scope zf tm) (zf :<+>: [], newRoot, scope, actor)
  where
   (subRoot, newRoot) = splitRoot root ""
+exec (zf, root, scope, Recv p x actor) = recv p x (zf :<+>: [], root, scope, actor)
 exec (zf, root, scope, actor) = move (zf :<+>: [], root, scope, actor)
 
 -- very very shit temporary hack because we haven't implemented `recv` yet
@@ -127,7 +133,6 @@ actorVarsMangler xi ga = Mangler
   , mangSelFrom = \ ph -> actorVarsMangler xi (weeEnd ph)
   }
 
-
 send :: Channel -> (CdB (Tm String), Term) -> Process Cursor -> Process []
 send p (tm, term) (B0 :<+>: fs, root, scope, actor) = move (B0 <>< fs :<+>: [], root, scope, Send p tm actor)
 send p (tm, term) ((zf :< Spawner ((cfs, croot, cscope, childActor), q) (r, Hole)) :<+>: fs, root, scope, actor)
@@ -136,6 +141,14 @@ send p (tm, term) (zf'@(zf :< Spawnee (Hole, q) (r, (pfs, proot, pscope, parentA
  | p == q = exec (zf :< Spawnee (Hole, q) (r, (Sent r term : pfs, proot, pscope, parentActor)) <>< fs, root, scope, actor)
  | otherwise = move (zf' <>< fs :<+>: [], root, scope, Send p tm actor)
 send p (tm, term) ((zf :< f) :<+>: fs, root, scope, actor) = send p (tm, term) (zf :<+>: (f:fs), root, scope, actor)
+
+recv :: Channel -> ActorVar -> Process Cursor -> Process []
+recv p x (B0 :<+>: fs, root, scope, actor) = move (B0 <>< fs :<+>: [], root, scope, Recv p x actor)
+recv p x (zf :< Sent q y :<+>: fs, root, scope, actor)
+ | p == q = exec (zf :< Defn x y <>< fs, root, scope, actor)
+recv p x (zf'@(zf :< Spawnee (Hole, q) (r, process)) :<+>: fs, root, scope, actor)
+ = move (zf' <>< fs :<+>: [], root, scope, Recv p x actor)
+recv p x (zf :< f :<+>: fs, root, scope, actor) = recv p x (zf :<+>: (f:fs), root, scope, actor)
 
 -- find the next thing to run
 move :: Process Cursor -> Process []
