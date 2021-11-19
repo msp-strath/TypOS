@@ -3,7 +3,7 @@
 module Bwd where
 
 data Bwd x = B0 | Bwd x :< x deriving (Show, Eq, Functor, Foldable, Traversable)
-infixl 6 :<
+infixl 4 :<
 
 instance Monoid (Bwd x) where
   mempty = B0
@@ -42,3 +42,8 @@ only (B0 :< x) = x
 curl :: Int -> (Bwd x, [x]) -> (Bwd x, [x])
 curl 0 xzs = xzs
 curl n (xz :< x, xs) = curl (n-1) (xz, x : xs)
+
+data Cursor x
+  = Bwd x :<+>: [x]
+  deriving (Eq, Foldable, Functor, Show, Traversable)
+infixl 3 :<+>:

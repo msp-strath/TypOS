@@ -8,6 +8,7 @@ import Data.Maybe
 import Data.Foldable
 import Control.Monad.State
 
+import Actor
 import Bwd
 import Parse
 import Term
@@ -15,8 +16,6 @@ import Thin
 import Display
 import Syntax
 import Command
-
-type JudgementForm = String
 
 data Mode = Input | Subject | Output deriving (Eq, Show)
 

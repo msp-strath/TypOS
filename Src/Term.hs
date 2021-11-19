@@ -125,6 +125,9 @@ initRoot = (B0, 0)
 meta :: Root -> String -> (Meta, Root)
 meta (xiz, j) x = (Meta (xiz <>> [(x, j)]), (xiz, j + 1))
 
+splitRoot :: Root -> String -> (Root, Root)
+splitRoot (xiz, j) x = ((xiz :< (x, j), 0), (xiz, j + 1))
+
 infixr 3 :.
 infixr 5 :$
 
