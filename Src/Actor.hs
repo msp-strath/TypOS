@@ -154,7 +154,7 @@ mangleActors zf tm = go tm
             VX i j -> pure $ var i j
             AX s i -> pure $ atom s i
             a :%: b -> (%) <$> go a <*> go b
-            x :.: t -> mangleActors (zf :< Binding x) t
+            x :.: t -> (x \\) <$> mangleActors (zf :< Binding x) t
 
   goSbst :: Bwd Frame -> CdB (Sbst String) -> Maybe Subst
   goSbst _ (S0 :^^ 0, th) = pure (S0 :^^ 0, th)
