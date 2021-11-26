@@ -3,9 +3,14 @@ module Actor where
 import Control.Monad.Reader
 
 import Bwd
+import Display
 import Hide
 import Term
 import Thin
+
+import Debug.Trace
+
+dmesg = trace
 
 -- TODO:
 --  A zipper for process trees
@@ -80,6 +85,7 @@ data Frame
   | Spawner (Process [], Channel) (Channel, Hole)
   | Sent Channel Term
   | Defn ActorVar Term
+  | Binding String
   deriving Show
 
 type Process t
@@ -103,6 +109,8 @@ processTest
   nat = ("Nat", 0) #% []
 -- run an actor
 exec :: Process Bwd -> Process []
+exec (zf, _, _, a)
+ | dmesg ("\nexec\n  " ++ show zf ++ "\n  " ++ show a) False = undefined
 exec (zf, root, scope, a :|: b) = exec (zf :< LeftBranch Hole ([], rroot, scope, b), lroot, scope, a)
  where
   (lroot, rroot) = splitRoot root ""
@@ -111,17 +119,60 @@ exec (zf, root, scope, Spawn j p actor)
   = exec (zf :< Spawnee (Hole, q) (p, ([], newRoot, scope, actor)), subRoot, scope, spawnedActor)
  where
   (subRoot, newRoot) = splitRoot root j
-exec (zf, root, scope, Send p tm actor) = send p (tm, lookupActorVars subRoot scope zf tm) (zf :<+>: [], newRoot, scope, actor)
+exec (zf, root, scope, Send p tm actor)
+  | Just term <- mangleActors zf tm
+  = send p (tm, term) (zf :<+>: [], newRoot, scope, actor)
  where
   (subRoot, newRoot) = splitRoot root ""
 exec (zf, root, scope, Recv p x actor) = recv p x (zf :<+>: [], root, scope, actor)
+exec (zf, root, scope, m@(Match s ((pat, a):cs)))
+  | Just term <- mangleActors zf s
+  = match zf [(pat, term)]
+ where
+  match :: Bwd Frame -> [(Pat, Term)] -> Process []
+  match zf [] = exec (zf, root, scope, a)
+  match zf' ((MP x ph, (t, th)):xs)
+    = let g = bigEnd th - bigEnd ph
+      in  case thicken (ones g <> ph) th of
+            Just ps -> match (zf' :< Defn x (t, ps)) xs
+            Nothing -> exec (zf, root, scope, Match s cs)
+  match zf' ((p, tm):xs) = case (p, expand tm) of
+    (_, (_ :$: _)) -> move (zf :<+>: [], root, scope, m)
+    (VP i, VX j _) | i == j -> match zf' xs
+    (AP a, AX b _) | a == b -> match zf' xs
+    (PP p q, s :%: t) -> match zf' ((p,s):(q,t):xs)
+    (BP _ p, _ :.: t) -> match zf' ((p,t):xs)
+    _ -> exec (zf, root, scope, Match s cs)
 exec (zf, root, scope, actor) = move (zf :<+>: [], root, scope, actor)
 
--- very very shit temporary hack because we haven't implemented `recv` yet
-lookupActorVars :: Root -> Int -> Bwd Frame -> CdB (Tm String) -> Term
-lookupActorVars (meta, _) scope zf tm = (notSoShitMeta <$>) $^ tm
+mangleActors :: Bwd Frame -> CdB (Tm String) -> Maybe Term
+mangleActors zf tm = go tm
  where
-  notSoShitMeta s = Meta (meta <>> [(s, 0)])
+  go :: CdB (Tm String) -> Maybe Term
+  go tm = case expand tm of
+            m :$: sbst -> (//^) <$> lookupVar zf m <*> goSbst zf sbst
+            VX i j -> pure $ var i j
+            AX s i -> pure $ atom s i
+            a :%: b -> (%) <$> go a <*> go b
+            x :.: t -> mangleActors (zf :< Binding x) t
+
+  goSbst :: Bwd Frame -> CdB (Sbst String) -> Maybe Subst
+  goSbst _ (S0 :^^ 0, th) = pure (S0 :^^ 0, th)
+  goSbst zf (ST rp :^^ 0, th) = splirp (rp, th) $ \s (x := tm, ph) -> do
+    s <- goSbst zf s
+    tm <- mangleActors zf (tm, ph)
+    pure $ sbstT s ((x :=) $^ tm)
+  goSbst (zf :< Binding _) (sbst :^^ w, th)
+    | (ph, True) <- thun th = do
+        sbst <- goSbst zf (sbst :^^ (w - 1), ph)
+        pure $ sbstW sbst (ones 1)
+
+  lookupVar :: Bwd Frame -> String -> Maybe Term
+  lookupVar B0 _ = Nothing
+  lookupVar (zf :< Defn x t) y | x == y = Just t
+  lookupVar (zf :< Binding _) y = weak <$> lookupVar zf y
+  lookupVar (zf :< Spawnee _ _) y = Nothing
+  lookupVar (zf :< _) y = lookupVar zf y
 
 actorVarsMangler :: Int -> Int -> Mangler (Reader (Bwd Frame))
 actorVarsMangler xi ga = Mangler
@@ -134,6 +185,8 @@ actorVarsMangler xi ga = Mangler
   }
 
 send :: Channel -> (CdB (Tm String), Term) -> Process Cursor -> Process []
+send ch (tm, term) (zfs@(zf :<+>: fs), _, _, a)
+ | dmesg ("\nsend " ++ show ch ++ " " ++ display' (frnaming zf) term ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
 send p (tm, term) (B0 :<+>: fs, root, scope, actor) = move (B0 <>< fs :<+>: [], root, scope, Send p tm actor)
 send p (tm, term) ((zf :< Spawner ((cfs, croot, cscope, childActor), q) (r, Hole)) :<+>: fs, root, scope, actor)
  | r == p = exec (zf :< Spawnee (Hole, q) (r, (fs, root, scope, actor)) :< Sent q term <>< cfs, croot, cscope, childActor)
@@ -143,6 +196,8 @@ send p (tm, term) (zf'@(zf :< Spawnee (Hole, q) (r, (pfs, proot, pscope, parentA
 send p (tm, term) ((zf :< f) :<+>: fs, root, scope, actor) = send p (tm, term) (zf :<+>: (f:fs), root, scope, actor)
 
 recv :: Channel -> ActorVar -> Process Cursor -> Process []
+recv ch v (zfs, _, _, a)
+ | dmesg ("\nrecv " ++ show ch ++ " " ++ show v ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
 recv p x (B0 :<+>: fs, root, scope, actor) = move (B0 <>< fs :<+>: [], root, scope, Recv p x actor)
 recv p x (zf :< Sent q y :<+>: fs, root, scope, actor)
  | p == q = exec (zf :< Defn x y <>< fs, root, scope, actor)
@@ -152,9 +207,18 @@ recv p x (zf :< f :<+>: fs, root, scope, actor) = recv p x (zf :<+>: (f:fs), roo
 
 -- find the next thing to run
 move :: Process Cursor -> Process []
+move (zfs, _, _, a)
+ | dmesg ("\nmove\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
 move (B0 :<+>: fs, root, scope, actor) = (fs, root, scope, actor)
 move ((zf :< LeftBranch Hole (rfs, rroot, rscope, ractor)) :<+>: fs, root, scope, actor)
   = exec (zf :< RightBranch (fs, root, scope, actor) Hole <>< rfs, rroot, rscope, ractor)
 move ((zf :< Spawnee (Hole, p) (q, (sfs, sroot, sscope, parentActor))) :<+>: fs, root, scope, childActor)
   = exec (zf :< Spawner ((fs, root, scope, childActor), p) (q, Hole) <>< sfs, sroot, sscope, parentActor)
 move ((zf :< f) :<+>: fs, root, scope, actor) = move (zf :<+>: (f:fs), root, scope, actor)
+
+frnaming :: Bwd Frame -> Naming
+frnaming zf = (zv, ones (length zv), zv)
+ where
+  zv = flip foldMap zf $ \case
+    Binding x -> B0 :< x
+    _ -> B0

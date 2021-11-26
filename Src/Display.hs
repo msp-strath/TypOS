@@ -53,6 +53,7 @@ display na ((Hide x := b) :. t) = "\\" ++ case b of
 display na (m :$ sg) = case displaySg na sg of
   [] -> "?" ++ show m
   sg' -> "{" ++ intercalate "," sg' ++ "}?" ++ show m
+display na tm = error $ show na ++ "\n" ++ show tm
 
 display' :: Show m => Naming -> CdB (Tm m) -> String
 display' na t@(t', th) = case asList Just t of
