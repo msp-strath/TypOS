@@ -1,6 +1,11 @@
 module Actor where
 
+
 import Control.Monad.Reader
+import Control.Monad.Writer
+import Control.Applicative
+
+import qualified Data.Map as Map
 
 import Bwd
 import Display
@@ -86,6 +91,8 @@ data Frame
   | Sent Channel Term
   | Defn ActorVar Term
   | Binding String
+  | DeclMeta Meta (Maybe Term)
+  | UnificationProblem Term Term
   deriving Show
 
 type Process t
@@ -107,6 +114,7 @@ processTest
                       Win)
  where
   nat = ("Nat", 0) #% []
+
 -- run an actor
 exec :: Process Bwd -> Process []
 exec (zf, _, _, a)
@@ -143,6 +151,14 @@ exec (zf, root, scope, m@(Match s ((pat, a):cs)))
     (PP p q, s :%: t) -> match zf' ((p,s):(q,t):xs)
     (BP _ p, _ :.: t) -> match zf' ((p,t):xs)
     _ -> exec (zf, root, scope, Match s cs)
+exec (zf, root, scope, FreshMeta x a) = exec (zf :< DeclMeta xm Nothing :< Defn x xt, root', scope, a)
+  where
+  (xm, root') = meta root x
+  xt = xm $: sbstI scope
+exec (zf, root, scope, Constrain s t)
+ | Just s' <- mangleActors zf s,
+   Just t' <- mangleActors zf t = unify (zf :<+>: [UnificationProblem s' t'], root, scope, Win)
+
 exec (zf, root, scope, actor) = move (zf :<+>: [], root, scope, actor)
 
 mangleActors :: Bwd Frame -> CdB (Tm String) -> Maybe Term
@@ -183,6 +199,46 @@ actorVarsMangler xi ga = Mangler
   , mangM   = error ""
   , mangSelFrom = \ ph -> actorVarsMangler xi (weeEnd ph)
   }
+
+unify :: Process Cursor -> Process []
+unify (zf :<+>: UnificationProblem s t : fs, root, scope, a) = case (expand s, expand t) of
+  (VX i _, VX i' _)     | i  == i'  -> unify (zf :<+>: fs, root, scope, a)
+  (AX at _, AX at' _)   | at == at' -> unify (zf :<+>: fs, root, scope, a)
+  (p :%: q, p' :%: q') -> unify (zf :<+>: UnificationProblem p p' : UnificationProblem q q' : fs, root, scope, a)
+  (x :.: p, x' :.: p') -> unify (zf :<+>: UnificationProblem p p' : fs, root, scope, a)
+  (m :$: sg, m' :$: sg') | m == m' -> _ -- STILL LEFT TO DO
+  (m :$: sg, _) -> solveMeta [] m sg t (zf :<+>: fs, root, scope, a)
+  (_, m :$: sg) -> solveMeta [] m sg s (zf :<+>: fs, root, scope, a)
+  (_, _) -> move (zf :<+>: UnificationProblem s t : fs, root, scope, Fail "Unification failure")
+unify p = move p
+
+solveMeta :: [Meta] -> Meta -> Subst -> Term -> Process Cursor -> Process []
+solveMeta ms m sg t (zf :<+>: fs, root, scope, a) = case zf of
+  zf' :< DeclMeta m' mt -> case (m == m', mt) of
+         (b, Just solution) -> let
+           sm = stanMangler 0 scope (Map.singleton m' solution)
+           (sg', _) = runWriter $ mangleCdB sm sg
+           (t', _) = runWriter $ mangleCdB sm t
+          in
+            if b then
+              unify (zf' <>< map (\ m -> DeclMeta m Nothing) ms :<+>: UnificationProblem t' (solution //^ sg') : DeclMeta m' mt : fs, root, scope, a)
+            else
+              solveMeta ms m sg' t' (zf' :<+>: DeclMeta m' mt : fs, root, scope, a)
+         (True, Nothing) -> let
+           dm = depMangler [m']
+           in
+            if getAny (getConst (mangleCdB dm t *> mangleCdB dm sg)) then
+              (zf' <>> map (\ m -> DeclMeta m Nothing) ms ++ DeclMeta m' mt : fs, root, scope, Fail "Occurs check fail")
+            else
+              _ -- STILL LEFT TO DO
+         (False, Nothing) -> let
+           dm = depMangler [m']
+           in
+            if getAny (getConst (mangleCdB dm t *> mangleCdB dm sg)) then
+              solveMeta (m':ms) m sg t (zf' :<+>: fs, root, scope, a)
+            else
+              solveMeta ms m sg t (zf' :<+>: DeclMeta m' Nothing : fs, root, scope, a)
+  B0 -> (map (\ m -> DeclMeta m Nothing) ms ++ fs, root, scope, Fail "Missing meta") -- should not happen
 
 send :: Channel -> (CdB (Tm String), Term) -> Process Cursor -> Process []
 send ch (tm, term) (zfs@(zf :<+>: fs), _, _, a)

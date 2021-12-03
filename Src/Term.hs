@@ -81,6 +81,18 @@ stanMangler xi ga tbl = Mangler
   , mangSelFrom = \ ph -> stanMangler xi (weeEnd ph) tbl
   }
 
+depMangler :: Foldable t => t Meta -- do we depend on any of these metas?
+            -> Mangler (Const Any)
+depMangler ms = Mangler
+  { mangGlo = 0 -- hack
+  , mangLoc = 0 -- hack
+  , mangV = Const mempty
+  , mangB = depMangler ms
+  , mangM = \ m sg -> sg *> (Const $ Any $ m `elem` ms)
+  , mangSelFrom = \ ph -> depMangler ms
+  }
+
+
 class Manglable t where
   mangle  :: Applicative f => Mangler f {-xi-} {-ga-} -> t {-ga-} -> f (CdB t {- xi <<< ga-})
   -- -- mangle' is worker for mangle
