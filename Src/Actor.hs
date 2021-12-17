@@ -73,7 +73,6 @@ synth =
               FreshMeta "T" $
               let fSyn = Spawn "synth" "q" $
                          Send "q" ("f" $: sbst0 0) $
-                         Recv "q" "ty" $
                          Constrain ("ty" $: sbst0 0) ("Arr" #%+ [("S" $: sbst0 0), ("T" $: sbst0 0)])
                   sChk = Spawn "check" "r" $ Send "r" ("S" $: sbst0 0) $ Send "r" ("s" $: sbst0 0) Win
                   result = Send "p" ("T" $: sbst0 0) Win
@@ -91,7 +90,9 @@ data Frame
   | Sent Channel Term
   | Defn ActorVar Term
   | Binding String
-  | DeclMeta Meta (Maybe Term)
+  -- Left: which dependencies are permitted
+  -- Right: what solution we already have
+  | DeclMeta Meta (Either Th Term)
   | UnificationProblem Term Term
   deriving Show
 
@@ -212,10 +213,15 @@ unify (zf :<+>: UnificationProblem s t : fs, root, scope, a) = case (expand s, e
   (_, _) -> move (zf :<+>: UnificationProblem s t : fs, root, scope, Fail "Unification failure")
 unify p = move p
 
-solveMeta :: [Meta] -> Meta -> Subst -> Term -> Process Cursor -> Process []
+solveMeta :: [Meta] -- The meta's (ms) that we're moving
+          -> Meta   -- The meta (m) we're solving
+          -> Subst  -- The substitution (sg) which acts on m
+          -> Term   -- The term (t) that must be equal to m :$ sg and depends on ms
+          -> Process Cursor
+          -> Process []
 solveMeta ms m sg t (zf :<+>: fs, root, scope, a) = case zf of
   zf' :< DeclMeta m' mt -> case (m == m', mt) of
-         (b, Just solution) -> let
+         (b, Right solution) -> let
            sm = stanMangler 0 scope (Map.singleton m' solution)
            (sg', _) = runWriter $ mangleCdB sm sg
            (t', _) = runWriter $ mangleCdB sm t
@@ -224,14 +230,15 @@ solveMeta ms m sg t (zf :<+>: fs, root, scope, a) = case zf of
               unify (zf' <>< map (\ m -> DeclMeta m Nothing) ms :<+>: UnificationProblem t' (solution //^ sg') : DeclMeta m' mt : fs, root, scope, a)
             else
               solveMeta ms m sg' t' (zf' :<+>: DeclMeta m' mt : fs, root, scope, a)
-         (True, Nothing) -> let
+         (True, Left th) -> let
            dm = depMangler [m']
            in
+           -- the domain of th and sg should be the same
             if getAny (getConst (mangleCdB dm t *> mangleCdB dm sg)) then
               (zf' <>> map (\ m -> DeclMeta m Nothing) ms ++ DeclMeta m' mt : fs, root, scope, Fail "Occurs check fail")
             else
               _ -- STILL LEFT TO DO
-         (False, Nothing) -> let
+         (False, Left th) -> let
            dm = depMangler [m']
            in
             if getAny (getConst (mangleCdB dm t *> mangleCdB dm sg)) then

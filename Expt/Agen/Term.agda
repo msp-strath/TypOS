@@ -5,11 +5,13 @@ open import Thin
 open import Cop
 open import Pair
 open import Bind
+open import Pub
 
 open THIN {`1}
 open COP  {`1}
 open PAIR {`1}
 open BIND {`1}
+open PUB  {`1}
 
 module TERM (M : Nat -> Set)(A : Set) where
 
@@ -230,6 +232,17 @@ module TERM (M : Nat -> Set)(A : Set) where
   _-/^_ : forall {ga de} -> (ga %>_ </\> Tm) ^: de -> forall x -> ga -, x %>^ de
   p^ -/^ x = (_-/ x) $^ p^
 
+  prune : ∀ {ga xi de} -> xi <= de -> ga %> de -> < _<= ga *: _%>^ xi >
+  prune th ((sg </ u \> tm) -/ x) with pub (luth u) th
+  ... | (ph & th') , _ with prune ph sg
+  ... | (ph' & ta) with thicken? th (ruth u)
+  ... | aye (ps , _) = ph' -, x & (((ta |^ th') /,\ tm & ps) -/^ x)
+  ... | naw = ph' -^ x & (ta |^ th')
+  prune (th -^ .x) (sg -, x) = let ph & ta = prune th sg
+                               in  ph -^ x & ta
+  prune (th -, .x) (sg -, x) = let ph & ta & ps = prune th sg
+                               in  ph -, x & ta -, x & ps -, x
+  prune [] [] = [] & os
 
 {-
   coverSwap : forall {ga0 ga ga1}{th0 : ga0 <= ga}{th1 : ga1 <= ga}(u : th0 /u\ th1)

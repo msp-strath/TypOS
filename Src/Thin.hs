@@ -203,3 +203,6 @@ thicken :: Th -> Th -> Maybe Th
 thicken th ph = ps <$ guard (is1s th')
   where
   (ps, _, th') = pullback th ph
+
+thickenCdB :: Th -> CdB a -> Maybe (CdB a)
+thickenCdB th (x, ph) = (x,) <$> thicken th ph

@@ -183,3 +183,6 @@ module THIN {X : Set} where
   thChop (de1 -, x) (th -, .x)
     with ! th0 , th1 , r~ , r~ <- thChop de1 th
        = ! th0 , th1 -, x , r~ , r~
+
+  _<-_ : X -> Bwd X -> Set
+  x <- zx = [] -, x <= zx
