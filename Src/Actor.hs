@@ -20,6 +20,7 @@ dmesg = trace
 -- TODO:
 --  A zipper for process trees
 
+type Store = Map.Map Meta Term
 type Channel = String
 type ActorVar = String -- Stands for a term
 type JudgementForm = String
@@ -83,23 +84,21 @@ synth =
 data Hole = Hole deriving Show
 
 data Frame
-  = LeftBranch Hole (Process [])
-  | RightBranch (Process []) Hole
-  | Spawnee (Hole, Channel) (Channel, Process [])
-  | Spawner (Process [], Channel) (Channel, Hole)
+  = LeftBranch Hole (Process () [])
+  | RightBranch (Process () []) Hole
+  | Spawnee (Hole, Channel) (Channel, Process () [])
+  | Spawner (Process () [], Channel) (Channel, Hole)
   | Sent Channel Term
   | Defn ActorVar Term
   | Binding String
-  -- Left: which dependencies are permitted
-  -- Right: what solution we already have
-  | DeclMeta Meta (Either Th Term)
   | UnificationProblem Term Term
   deriving Show
 
-type Process t
+type Process s t
   = (t Frame -- Stack frames ahead of or behind us
     ,Root    -- Name supply
     ,Int     -- Number of things in scope
+    ,s       -- Definitions we know for metas (or not)
     ,Actor   -- The thing we are
     )
 
@@ -107,60 +106,63 @@ type Process t
 judgementForms :: [(JudgementForm, (Channel, Actor))]
 judgementForms = [synth, check]
 
-processTest :: Process Bwd
+processTest :: Process Store Bwd
 processTest
-  = (B0, initRoot, 0, Spawn "check" "p" $
-                      Send "p" ("Arr" #%+ [nat, nat]) $
-                      Send "p" ("Lam" #%+ ["x" \\ ("Emb" #%+ [var 0 1])]) $
-                      Win)
+  = (B0, initRoot, 0, Map.empty,
+      Spawn "check" "p" $
+      Send "p" ("Arr" #%+ [nat, bool]) $
+      Send "p" ("Lam" #%+ ["x" \\ ("Emb" #%+ [var 0 1])]) $
+      Win)
  where
   nat = ("Nat", 0) #% []
+  bool = ("Bool", 0) #% []
 
 -- run an actor
-exec :: Process Bwd -> Process []
-exec (zf, _, _, a)
- | dmesg ("\nexec\n  " ++ show zf ++ "\n  " ++ show a) False = undefined
-exec (zf, root, scope, a :|: b) = exec (zf :< LeftBranch Hole ([], rroot, scope, b), lroot, scope, a)
+exec :: Process Store Bwd -> Process Store []
+exec (zf, _, _, store, a)
+ | dmesg ("\nexec\n  " ++ show zf ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
+exec (zf, root, scope, store, a :|: b) = exec (zf :< LeftBranch Hole ([], rroot, scope, (), b), lroot, scope, store, a)
  where
   (lroot, rroot) = splitRoot root ""
-exec (zf, root, scope, Spawn j p actor)
+exec (zf, root, scope, store, Spawn j p actor)
  | Just (q, spawnedActor) <- lookup j judgementForms
-  = exec (zf :< Spawnee (Hole, q) (p, ([], newRoot, scope, actor)), subRoot, scope, spawnedActor)
+  = exec (zf :< Spawnee (Hole, q) (p, ([], newRoot, scope, (), actor)), subRoot, scope, store, spawnedActor)
  where
   (subRoot, newRoot) = splitRoot root j
-exec (zf, root, scope, Send p tm actor)
+exec (zf, root, scope, store, Send p tm actor)
   | Just term <- mangleActors zf tm
-  = send p (tm, term) (zf :<+>: [], newRoot, scope, actor)
+  = send p (tm, term) (zf :<+>: [], newRoot, scope, store, actor)
  where
   (subRoot, newRoot) = splitRoot root ""
-exec (zf, root, scope, Recv p x actor) = recv p x (zf :<+>: [], root, scope, actor)
-exec (zf, root, scope, m@(Match s ((pat, a):cs)))
+exec (zf, root, scope, store, Recv p x actor) = recv p x (zf :<+>: [], root, scope, store, actor)
+exec (zf, root, scope, store, m@(Match s ((pat, a):cs)))
   | Just term <- mangleActors zf s
   = match zf [(pat, term)]
  where
-  match :: Bwd Frame -> [(Pat, Term)] -> Process []
-  match zf [] = exec (zf, root, scope, a)
+  match :: Bwd Frame -> [(Pat, Term)] -> Process Store []
+  match zf [] = exec (zf, root, scope, store, a)
   match zf' ((MP x ph, (t, th)):xs)
     = let g = bigEnd th - bigEnd ph
       in  case thicken (ones g <> ph) th of
             Just ps -> match (zf' :< Defn x (t, ps)) xs
-            Nothing -> exec (zf, root, scope, Match s cs)
-  match zf' ((p, tm):xs) = case (p, expand tm) of
-    (_, (_ :$: _)) -> move (zf :<+>: [], root, scope, m)
+            -- bug: t may not depend on disallowed things until definitions are expanded
+            Nothing -> exec (zf, root, scope, store, Match s cs)
+  match zf' ((p, tm):xs) = case (p, expand (headUp store tm)) of
+    (_, (_ :$: _)) -> move (zf :<+>: [], root, scope, store, m)
     (VP i, VX j _) | i == j -> match zf' xs
     (AP a, AX b _) | a == b -> match zf' xs
     (PP p q, s :%: t) -> match zf' ((p,s):(q,t):xs)
     (BP _ p, _ :.: t) -> match zf' ((p,t):xs)
-    _ -> exec (zf, root, scope, Match s cs)
-exec (zf, root, scope, FreshMeta x a) = exec (zf :< DeclMeta xm Nothing :< Defn x xt, root', scope, a)
+    _ -> exec (zf, root, scope, store, Match s cs)
+exec (zf, root, scope, store, FreshMeta x a) = exec (zf :< Defn x xt, root', scope, store, a)
   where
   (xm, root') = meta root x
   xt = xm $: sbstI scope
-exec (zf, root, scope, Constrain s t)
+exec (zf, root, scope, store, Constrain s t)
  | Just s' <- mangleActors zf s,
-   Just t' <- mangleActors zf t = unify (zf :<+>: [UnificationProblem s' t'], root, scope, Win)
+   Just t' <- mangleActors zf t = unify (zf :<+>: [UnificationProblem s' t'], root, scope, store, Win)
 
-exec (zf, root, scope, actor) = move (zf :<+>: [], root, scope, actor)
+exec (zf, root, scope, store, actor) = move (zf :<+>: [], root, scope, store, actor)
 
 mangleActors :: Bwd Frame -> CdB (Tm String) -> Maybe Term
 mangleActors zf tm = go tm
@@ -201,25 +203,29 @@ actorVarsMangler xi ga = Mangler
   , mangSelFrom = \ ph -> actorVarsMangler xi (weeEnd ph)
   }
 
-unify :: Process Cursor -> Process []
-unify (zf :<+>: UnificationProblem s t : fs, root, scope, a) = case (expand s, expand t) of
-  (VX i _, VX i' _)     | i  == i'  -> unify (zf :<+>: fs, root, scope, a)
-  (AX at _, AX at' _)   | at == at' -> unify (zf :<+>: fs, root, scope, a)
-  (p :%: q, p' :%: q') -> unify (zf :<+>: UnificationProblem p p' : UnificationProblem q q' : fs, root, scope, a)
-  (x :.: p, x' :.: p') -> unify (zf :<+>: UnificationProblem p p' : fs, root, scope, a)
-  (m :$: sg, m' :$: sg') | m == m' -> _ -- STILL LEFT TO DO
-  (m :$: sg, _) -> solveMeta [] m sg t (zf :<+>: fs, root, scope, a)
-  (_, m :$: sg) -> solveMeta [] m sg s (zf :<+>: fs, root, scope, a)
-  (_, _) -> move (zf :<+>: UnificationProblem s t : fs, root, scope, Fail "Unification failure")
+unify :: Process Store Cursor -> Process Store []
+unify (zf :<+>: up@(UnificationProblem s t) : fs, _, _, store, a)
+ | dmesg ("\nunify\n  " ++ show up ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
+unify (zf :<+>: UnificationProblem s t : fs, root, scope, store, a) = case (expand (headUp store s), expand (headUp store t)) of
+  (s, t) | s == t      -> unify (zf :<+>: fs, root, scope, store, a)
+  (p :%: q, p' :%: q') -> unify (zf :<+>: UnificationProblem p p' : UnificationProblem q q' : fs, root, scope, store, a)
+  (x :.: p, x' :.: p') -> unify (zf :<+>: UnificationProblem p p' : fs, root, scope, store, a)
+  (m :$: sg, _) | Just p <- solveMeta m sg t (zf :<+>: fs, root, scope, store, a) -> unify p
+  (_, m :$: sg) | Just p <- solveMeta m sg s (zf :<+>: fs, root, scope, store, a) -> unify p
+  (_, _) -> unify (zf :< UnificationProblem s t :<+>: fs, root, scope, store, a)
 unify p = move p
 
-solveMeta :: [Meta] -- The meta's (ms) that we're moving
-          -> Meta   -- The meta (m) we're solving
+solveMeta :: Meta   -- The meta (m) we're solving
           -> Subst  -- The substitution (sg) which acts on m
           -> Term   -- The term (t) that must be equal to m :$ sg and depends on ms
-          -> Process Cursor
-          -> Process []
-solveMeta ms m sg t (zf :<+>: fs, root, scope, a) = case zf of
+          -> Process Store Cursor
+          -> Maybe (Process Store Cursor)
+solveMeta m (S0 :^^ _, ph) (tm, th) (zf :<+>: fs, root, scope, store, a) = do
+  ps <- thicken ph th
+  -- FIXME: do a deep occurs check here to avoid the bug from match 
+  return (zf :<+>: fs, root, scope, (Map.insert m (tm, ps) store), a)
+{-
+solveMeta ms m sg t (zf :<+>: fs, root, scope, store, a) = case zf of
   zf' :< DeclMeta m' mt -> case (m == m', mt) of
          (b, Right solution) -> let
            sm = stanMangler 0 scope (Map.singleton m' solution)
@@ -246,38 +252,39 @@ solveMeta ms m sg t (zf :<+>: fs, root, scope, a) = case zf of
             else
               solveMeta ms m sg t (zf' :<+>: DeclMeta m' Nothing : fs, root, scope, a)
   B0 -> (map (\ m -> DeclMeta m Nothing) ms ++ fs, root, scope, Fail "Missing meta") -- should not happen
+-}
 
-send :: Channel -> (CdB (Tm String), Term) -> Process Cursor -> Process []
-send ch (tm, term) (zfs@(zf :<+>: fs), _, _, a)
+send :: Channel -> (CdB (Tm String), Term) -> Process Store Cursor -> Process Store []
+send ch (tm, term) (zfs@(zf :<+>: fs), _, _, _, a)
  | dmesg ("\nsend " ++ show ch ++ " " ++ display' (frnaming zf) term ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
-send p (tm, term) (B0 :<+>: fs, root, scope, actor) = move (B0 <>< fs :<+>: [], root, scope, Send p tm actor)
-send p (tm, term) ((zf :< Spawner ((cfs, croot, cscope, childActor), q) (r, Hole)) :<+>: fs, root, scope, actor)
- | r == p = exec (zf :< Spawnee (Hole, q) (r, (fs, root, scope, actor)) :< Sent q term <>< cfs, croot, cscope, childActor)
-send p (tm, term) (zf'@(zf :< Spawnee (Hole, q) (r, (pfs, proot, pscope, parentActor))) :<+>: fs, root, scope, actor)
- | p == q = exec (zf :< Spawnee (Hole, q) (r, (Sent r term : pfs, proot, pscope, parentActor)) <>< fs, root, scope, actor)
- | otherwise = move (zf' <>< fs :<+>: [], root, scope, Send p tm actor)
-send p (tm, term) ((zf :< f) :<+>: fs, root, scope, actor) = send p (tm, term) (zf :<+>: (f:fs), root, scope, actor)
+send p (tm, term) (B0 :<+>: fs, root, scope, store, actor) = move (B0 <>< fs :<+>: [], root, scope, store, Send p tm actor)
+send p (tm, term) ((zf :< Spawner ((cfs, croot, cscope, (), childActor), q) (r, Hole)) :<+>: fs, root, scope, store, actor)
+ | r == p = exec (zf :< Spawnee (Hole, q) (r, (fs, root, scope, (), actor)) :< Sent q term <>< cfs, croot, cscope, store, childActor)
+send p (tm, term) (zf'@(zf :< Spawnee (Hole, q) (r, (pfs, proot, pscope, (), parentActor))) :<+>: fs, root, scope, store, actor)
+ | p == q = exec (zf :< Spawnee (Hole, q) (r, (Sent r term : pfs, proot, pscope, (), parentActor)) <>< fs, root, scope, store, actor)
+ | otherwise = move (zf' <>< fs :<+>: [], root, scope, store, Send p tm actor)
+send p (tm, term) ((zf :< f) :<+>: fs, root, scope, store, actor) = send p (tm, term) (zf :<+>: (f:fs), root, scope, store, actor)
 
-recv :: Channel -> ActorVar -> Process Cursor -> Process []
-recv ch v (zfs, _, _, a)
+recv :: Channel -> ActorVar -> Process Store Cursor -> Process Store []
+recv ch v (zfs, _, _, _, a)
  | dmesg ("\nrecv " ++ show ch ++ " " ++ show v ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
-recv p x (B0 :<+>: fs, root, scope, actor) = move (B0 <>< fs :<+>: [], root, scope, Recv p x actor)
-recv p x (zf :< Sent q y :<+>: fs, root, scope, actor)
- | p == q = exec (zf :< Defn x y <>< fs, root, scope, actor)
-recv p x (zf'@(zf :< Spawnee (Hole, q) (r, process)) :<+>: fs, root, scope, actor)
- = move (zf' <>< fs :<+>: [], root, scope, Recv p x actor)
-recv p x (zf :< f :<+>: fs, root, scope, actor) = recv p x (zf :<+>: (f:fs), root, scope, actor)
+recv p x (B0 :<+>: fs, root, scope, store, actor) = move (B0 <>< fs :<+>: [], root, scope, store, Recv p x actor)
+recv p x (zf :< Sent q y :<+>: fs, root, scope, store, actor)
+ | p == q = exec (zf :< Defn x y <>< fs, root, scope, store, actor)
+recv p x (zf'@(zf :< Spawnee (Hole, q) (r, process)) :<+>: fs, root, scope, store, actor)
+ = move (zf' <>< fs :<+>: [], root, scope, store, Recv p x actor)
+recv p x (zf :< f :<+>: fs, root, scope, store, actor) = recv p x (zf :<+>: (f:fs), root, scope, store, actor)
 
 -- find the next thing to run
-move :: Process Cursor -> Process []
-move (zfs, _, _, a)
- | dmesg ("\nmove\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
-move (B0 :<+>: fs, root, scope, actor) = (fs, root, scope, actor)
-move ((zf :< LeftBranch Hole (rfs, rroot, rscope, ractor)) :<+>: fs, root, scope, actor)
-  = exec (zf :< RightBranch (fs, root, scope, actor) Hole <>< rfs, rroot, rscope, ractor)
-move ((zf :< Spawnee (Hole, p) (q, (sfs, sroot, sscope, parentActor))) :<+>: fs, root, scope, childActor)
-  = exec (zf :< Spawner ((fs, root, scope, childActor), p) (q, Hole) <>< sfs, sroot, sscope, parentActor)
-move ((zf :< f) :<+>: fs, root, scope, actor) = move (zf :<+>: (f:fs), root, scope, actor)
+move :: Process Store Cursor -> Process Store []
+move (zfs, _, _, store, a)
+ | dmesg ("\nmove\n  " ++ show zfs ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
+move (B0 :<+>: fs, root, scope, store, actor) = (fs, root, scope, store, actor)
+move ((zf :< LeftBranch Hole (rfs, rroot, rscope, (), ractor)) :<+>: fs, root, scope, store, actor)
+  = exec (zf :< RightBranch (fs, root, scope, (), actor) Hole <>< rfs, rroot, rscope, store, ractor)
+move ((zf :< Spawnee (Hole, p) (q, (sfs, sroot, sscope, (), parentActor))) :<+>: fs, root, scope, store, childActor)
+  = exec (zf :< Spawner ((fs, root, scope, (), childActor), p) (q, Hole) <>< sfs, sroot, sscope, store, parentActor)
+move ((zf :< f) :<+>: fs, root, scope, store, actor) = move (zf :<+>: (f:fs), root, scope, store, actor)
 
 frnaming :: Bwd Frame -> Naming
 frnaming zf = (zv, ones (length zv), zv)
@@ -285,3 +292,8 @@ frnaming zf = (zv, ones (length zv), zv)
   zv = flip foldMap zf $ \case
     Binding x -> B0 :< x
     _ -> B0
+
+headUp :: Store -> Term -> Term
+headUp store term
+  | m :$: sg <- expand term, Just t <- Map.lookup m store = headUp store (t //^ sg)
+  | otherwise = term

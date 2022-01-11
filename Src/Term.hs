@@ -286,7 +286,7 @@ data Xn m
   | CdB (Tm m) :%: CdB (Tm m)
   | String :.: CdB (Tm m)
   | m :$: CdB (Sbst m)
-  deriving (Show{-, Functor, Foldable, Traversable-})
+  deriving (Eq, Show{-, Functor, Foldable, Traversable-})
 
 expand :: CdB (Tm m) -> Xn m
 expand (t, th) = case t of
