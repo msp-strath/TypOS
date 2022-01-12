@@ -20,7 +20,17 @@ common haskell
 
 library
   import:              haskell
-  exposed-modules:     Actor, Bwd, Display, Hide, Parse, Syntax, Term, Thin, Command
+  exposed-modules:     Actor,
+                       ANSI,
+                       Bwd,
+                       Command,
+                       Display,
+                       Hide,
+                       Parse,
+                       Syntax,
+                       Term,
+                       Thin
+
   build-depends:       base <5, mtl, containers
   hs-source-dirs:      Src
   default-language:    Haskell2010

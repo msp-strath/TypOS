@@ -15,6 +15,7 @@ import Bwd
 import Thin
 import Hide
 import Term
+import ANSI
 
 -- uglyprinting
 
@@ -153,4 +154,7 @@ instance Collapse [] where
 
 instance Collapse Cursor where
   collapse (lstrs :<+>: rstrs) =
-    collapse lstrs ++ " :<+>: " ++ collapse rstrs
+    unwords [ collapse lstrs
+            , withANSI [SetColour Foreground Red, SetWeight Bold] ":<+>:"
+            , collapse rstrs
+            ]
