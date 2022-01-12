@@ -22,14 +22,15 @@ dmesg = trace
 --  A zipper for process trees
 
 type Store = Map.Map Meta Term
-type Channel = String
-data ActorVar = ActorVar String -- Stands for a term
-  deriving (Eq)
-instance Show ActorVar where
-  show (ActorVar str) = str
+data Channel = Channel String deriving (Eq)
+-- | Stands for a term
+data ActorVar = ActorVar String deriving (Eq)
 
-instance IsString ActorVar where
-  fromString = ActorVar
+instance Show Channel  where show (Channel str)  = str
+instance Show ActorVar where show (ActorVar str) = str
+
+instance IsString Channel  where fromString = Channel
+instance IsString ActorVar where fromString = ActorVar
 
 type JudgementForm = String
 type Gripe = String
@@ -127,7 +128,7 @@ instance Display Frame where
     RightBranch p Hole -> display na p ++ " | <>"
     Spawnee (Hole, lch) (rch, p) -> "<> @ " ++ show lch ++ " | " ++ show rch ++ " @ " ++ display na p
     Spawner (p, lch) (rch, Hole) -> display na p ++ " @ " ++ show lch ++ " | " ++ show rch ++ " @ <>"
-    Sent ch t -> "!" ++ ch ++ ". " ++ display na t
+    Sent ch t -> "!" ++ show ch ++ ". " ++ display na t
     Defn v xs t -> show v ++ (xs >>= (' ':)) ++ " = " ++ display (foldl nameOn na xs) t
     Binding x -> "\\" ++ x ++ ". "
     UnificationProblem s t -> display na s ++ " ~? " ++ display na t
