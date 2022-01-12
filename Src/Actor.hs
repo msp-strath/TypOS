@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances, OverloadedStrings, StandaloneDeriving #-}
 
 module Actor where
 
@@ -133,10 +133,10 @@ instance Display Frame where
     UnificationProblem s t -> display na s ++ " ~? " ++ display na t
 
 instance (Traversable t, Collapse t, Display s) => Display (Process s t) where
-  display na (fs, rt, n, store, a) =
-     let (fs', na') = runState (traverse go fs) na
+  display na Process{..} =
+     let (fs', na') = runState (traverse go stack) na
          store'     = display na store
-         a'         = display na' a
+         a'         = display na' actor
      in unlines $ map ("  " ++) [ collapse fs', store', a']
 
     where
@@ -153,30 +153,18 @@ instance Display Store where
   display na = collapse . map go . Map.toList where
 
     go :: (Meta, Term) -> String
-    go (k, t) = "?" ++ show k ++ " := " ++ display (fromScope (scope t)) t
+    go (k, t) = "?" ++ show k ++ " := " ++ display (fromScope (Thin.scope t)) t
 
-{-
 data Process s t
   = Process
-  { stack  :: t Frame -- Stack frames ahead of or behind us
-  , supply :: Root    -- Name supply
-  , gamma  :: Int     -- Number of things in scope
-  , store  :: s       -- Definitions we know for metas (or not)
-  , actor  :: Actor   -- The thing we are
+  { stack :: t Frame -- Stack frames ahead of or behind us
+  , root  :: Root    -- Name supply
+  , scope :: Int     -- Number of things in scope
+  , store :: s       -- Definitions we know for metas (or not)
+  , actor :: Actor   -- The thing we are
   }
--}
 
-type Process s t
-  =
-  ( t Frame -- Stack frames ahead of or behind us
-  , Root    -- Name supply
-  , Int     -- Number of things in scope
-  , s       -- Definitions we know for metas (or not)
-  , Actor   -- The thing we are
-  )
-
-stack :: Process s t -> t Frame
-stack (fs, _, _, _, _) = fs
+deriving instance (Show s, Show (t Frame)) => Show (Process s t)
 
 -- Hardwired judgement forms that we know how to do
 judgementForms :: [(JudgementForm, (Channel, Actor))]
@@ -184,7 +172,7 @@ judgementForms = [synth, check]
 
 processTest :: Process Store Bwd
 processTest
-  = (B0, initRoot, 0, Map.empty,) $
+  = Process B0 initRoot 0 Map.empty $
       Spawn "check" "p" $
       Send "p" ("Arr" #%+ [nat, bool]) $
       Send "p" ("Lam" #%+ ["x" \\ ("Emb" #%+ [var 0 1])]) $
@@ -200,51 +188,54 @@ debug str p =
 
 -- run an actor
 exec :: Process Store Bwd -> Process Store []
-exec (zf, _, _, store, a)
+exec (Process zf _ _ store a)
   | dmesg ("\nexec\n  " ++ show zf ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
 exec p | debug "exec" p = undefined
-exec (zf, root, scope, store, a :|: b) = exec (zf :< LeftBranch Hole ([], rroot, scope, (), b), lroot, scope, store, a)
- where
-  (lroot, rroot) = splitRoot root ""
-exec (zf, root, scope, store, Spawn j p actor)
- | Just (q, spawnedActor) <- lookup j judgementForms
-  = exec (zf :< Spawnee (Hole, q) (p, ([], newRoot, scope, (), actor)), subRoot, scope, store, spawnedActor)
- where
-  (subRoot, newRoot) = splitRoot root j
-exec (zf, root, scope, store, Send p tm actor)
-  | Just term <- mangleActors zf tm
-  = send p (tm, term) (zf :<+>: [], newRoot, scope, store, actor)
- where
-  (subRoot, newRoot) = splitRoot root ""
-exec (zf, root, scope, store, Recv p x actor) = recv p x (zf :<+>: [], root, scope, store, actor)
-exec (zf, root, scope, store, m@(Match s ((pat, a):cs)))
-  | Just term <- mangleActors zf s
-  = match zf [(pat, term)]
+exec p@Process { actor = a :|: b, ..} =
+  let (lroot, rroot) = splitRoot root ""
+      rbranch = Process [] rroot scope () b
+  in exec (p { stack = stack :< LeftBranch Hole rbranch, root = lroot, actor = a})
+exec p@Process { actor = Spawn jd spawnerCh actor, ..}
+  | Just (spawnedCh, spawnedActor) <- lookup jd judgementForms
+  = let (subRoot, newRoot) = splitRoot root jd
+        spawner = Process [] newRoot scope () actor
+    in exec (p { stack = stack :< Spawnee (Hole, spawnedCh) (spawnerCh, spawner)
+               , root = subRoot
+               , actor = spawnedActor })
+exec p@Process { actor = Send ch tm a, ..}
+  | Just term <- mangleActors stack tm
+  = let (subRoot, newRoot) = splitRoot root ""
+    in send ch (tm, term) (p { stack = stack :<+>: [], root = newRoot, actor = a })
+exec p@Process { actor = Recv ch x a, ..}
+  = recv ch x (p { stack = stack :<+>: [], actor = a })
+exec p@Process { actor = m@(Match s ((pat, a):cs)), ..}
+  | Just term <- mangleActors stack s
+  = match stack [(pat, term)]
  where
   match :: Bwd Frame -> [(Pat, Term)] -> Process Store []
-  match zf [] = exec (zf, root, scope, store, a)
-  match zf' ((MP x ph, (t, th)):xs)
+  match stack' [] = exec (p { stack = stack', actor = a })
+  match stack' ((MP x ph, (t, th)):xs)
     = let g = bigEnd th - bigEnd ph
       in  case thicken (ones g <> ph) th of
-            Just ps -> match (zf' :< Defn (ActorVar x) (t, ps)) xs
+            Just ps -> match (stack' :< Defn (ActorVar x) (t, ps)) xs
             -- bug: t may not depend on disallowed things until definitions are expanded
-            Nothing -> exec (zf, root, scope, store, Match s cs)
-  match zf' ((p, tm):xs) = case (p, expand (headUp store tm)) of
-    (_, (_ :$: _)) -> move (zf :<+>: [], root, scope, store, m)
-    (VP i, VX j _) | i == j -> match zf' xs
-    (AP a, AX b _) | a == b -> match zf' xs
-    (PP p q, s :%: t) -> match zf' ((p,s):(q,t):xs)
-    (BP _ p, _ :.: t) -> match zf' ((p,t):xs)
-    _ -> exec (zf, root, scope, store, Match s cs)
-exec (zf, root, scope, store, FreshMeta av@(ActorVar x) a) = exec (zf :< Defn av xt, root', scope, store, a)
-  where
-  (xm, root') = meta root x
-  xt = xm $: sbstI scope
-exec (zf, root, scope, store, Constrain s t)
- | Just s' <- mangleActors zf s,
-   Just t' <- mangleActors zf t = unify (zf :<+>: [UnificationProblem s' t'], root, scope, store, Win)
-
-exec (zf, root, scope, store, actor) = move (zf :<+>: [], root, scope, store, actor)
+            Nothing -> exec (p { actor = Match s cs })
+  match stack' ((pat, tm):xs) = case (pat, expand (headUp store tm)) of
+    (_, (_ :$: _)) -> move (p { stack = stack :<+>: [], actor = m })
+    (VP i, VX j _) | i == j -> match stack' xs
+    (AP a, AX b _) | a == b -> match stack' xs
+    (PP p q, s :%: t) -> match stack' ((p,s):(q,t):xs)
+    (BP _ p, _ :.: t) -> match stack' ((p,t):xs)
+    _ -> exec (p { actor = Match s cs })
+exec p@Process { actor = FreshMeta av@(ActorVar x) a, ..} =
+  let (xm, root') = meta root x
+      xt = xm $: sbstI scope
+  in exec (p { stack = stack :< Defn av xt, root = root', actor = a })
+exec p@Process { actor = Constrain s t, ..}
+ | Just s' <- mangleActors stack s
+ , Just t' <- mangleActors stack t
+ = unify (p { stack = stack :<+>: [UnificationProblem s' t'], actor = Win })
+exec p@Process {..} = move (p { stack = stack :<+>: [] })
 
 mangleActors :: Bwd Frame -> CdB (Tm ActorVar) -> Maybe Term
 mangleActors zf tm = go tm
@@ -289,13 +280,14 @@ unify :: Process Store Cursor -> Process Store []
 unify p | debug "unify" p = undefined
 --unify (zf :<+>: up@(UnificationProblem s t) : fs, _, _, store, a)
 -- | dmesg ("\nunify\n  " ++ show up ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
-unify (zf :<+>: UnificationProblem s t : fs, root, scope, store, a) = case (expand (headUp store s), expand (headUp store t)) of
-  (s, t) | s == t      -> unify (zf :<+>: fs, root, scope, store, a)
-  (p :%: q, p' :%: q') -> unify (zf :<+>: UnificationProblem p p' : UnificationProblem q q' : fs, root, scope, store, a)
-  (x :.: p, x' :.: p') -> unify (zf :<+>: UnificationProblem p p' : fs, root, scope, store, a)
-  (m :$: sg, _) | Just p <- solveMeta m sg t (zf :<+>: fs, root, scope, store, a) -> unify p
-  (_, m :$: sg) | Just p <- solveMeta m sg s (zf :<+>: fs, root, scope, store, a) -> unify p
-  (_, _) -> unify (zf :< UnificationProblem s t :<+>: fs, root, scope, store, a)
+unify p@Process { stack = zf :<+>: UnificationProblem s t : fs, ..} =
+  case (expand (headUp store s), expand (headUp store t)) of
+    (s, t) | s == t      -> unify (p { stack = zf :<+>: fs })
+    (a :%: b, a' :%: b') -> unify (p { stack = zf :<+>: UnificationProblem a a' : UnificationProblem b b' : fs })
+    (x :.: a, x' :.: a') -> unify (p { stack = zf :<+>: UnificationProblem a a' : fs })
+    (m :$: sg, _) | Just p <- solveMeta m sg t (p { stack = zf :<+>: fs }) -> unify p
+    (_, m :$: sg) | Just p <- solveMeta m sg s (p { stack = zf :<+>: fs }) -> unify p
+    (_, _) -> unify (p { stack = zf :< UnificationProblem s t :<+>: fs })
 unify p = move p
 
 solveMeta :: Meta   -- The meta (m) we're solving
@@ -303,10 +295,10 @@ solveMeta :: Meta   -- The meta (m) we're solving
           -> Term   -- The term (t) that must be equal to m :$ sg and depends on ms
           -> Process Store Cursor
           -> Maybe (Process Store Cursor)
-solveMeta m (S0 :^^ _, ph) (tm, th) (zf :<+>: fs, root, scope, store, a) = do
+solveMeta m (S0 :^^ _, ph) (tm, th) p@Process{..} = do
   ps <- thicken ph th
   -- FIXME: do a deep occurs check here to avoid the bug from match 
-  return (zf :<+>: fs, root, scope, (Map.insert m (tm, ps) store), a)
+  return (p { store = Map.insert m (tm, ps) store })
 {-
 solveMeta ms m sg t (zf :<+>: fs, root, scope, store, a) = case zf of
   zf' :< DeclMeta m' mt -> case (m == m', mt) of
@@ -343,36 +335,46 @@ send ch (tm, term) p
  = undefined
 -- send ch (tm, term) (zfs@(zf :<+>: fs), _, _, _, a)
 --  | dmesg ("\nsend " ++ show ch ++ " " ++ display (frnaming zf) term ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
-send p (tm, term) (B0 :<+>: fs, root, scope, store, actor) = move (B0 <>< fs :<+>: [], root, scope, store, Send p tm actor)
-send p (tm, term) ((zf :< Spawner ((cfs, croot, cscope, (), childActor), q) (r, Hole)) :<+>: fs, root, scope, store, actor)
- | r == p = exec (zf :< Spawnee (Hole, q) (r, (fs, root, scope, (), actor)) :< Sent q term <>< cfs, croot, cscope, store, childActor)
-send p (tm, term) (zf'@(zf :< Spawnee (Hole, q) (r, (pfs, proot, pscope, (), parentActor))) :<+>: fs, root, scope, store, actor)
- | p == q = exec (zf :< Spawnee (Hole, q) (r, (Sent r term : pfs, proot, pscope, (), parentActor)) <>< fs, root, scope, store, actor)
- | otherwise = move (zf' <>< fs :<+>: [], root, scope, store, Send p tm actor)
-send p (tm, term) ((zf :< f) :<+>: fs, root, scope, store, actor) = send p (tm, term) (zf :<+>: (f:fs), root, scope, store, actor)
+send ch (tm, term) (p@Process { stack = B0 :<+>: fs, ..})
+  = move (p { stack = B0 <>< fs :<+>: [], actor = Send ch tm actor })
+send ch (tm, term) (p@Process { stack = zf :< Spawner (childP, q) (r, Hole) :<+>: fs, ..})
+  | r == ch =
+  let parentP = p { stack = fs, store = () }
+      stack' = zf :< Spawnee (Hole, q) (r, parentP) :< Sent q term <>< stack childP
+  in exec (childP { stack = stack', store })
+send ch (tm, term) p@Process { stack = zf'@(zf :< Spawnee (Hole, q) (r, parentP)) :<+>: fs, ..}
+  | ch == q = exec (p { stack = zf :< Spawnee (Hole, q) (r, parentP { stack = Sent r term : stack parentP }) <>< fs })
+  | otherwise = move (p { stack = zf' <>< fs :<+>: [], actor = Send ch tm actor })
+send ch (tm, term) p@Process { stack = (zf :< f) :<+>: fs }
+  = send ch (tm, term) (p { stack = zf :<+>: (f:fs) })
 
 recv :: Channel -> ActorVar -> Process Store Cursor -> Process Store []
 recv ch v p | debug ("recv " ++ show ch ++ " " ++ show v) p = undefined
 -- recv ch v (zfs, _, _, _, a)
  -- | dmesg ("\nrecv " ++ show ch ++ " " ++ show v ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
-recv p x (B0 :<+>: fs, root, scope, store, actor) = move (B0 <>< fs :<+>: [], root, scope, store, Recv p x actor)
-recv p x (zf :< Sent q y :<+>: fs, root, scope, store, actor)
- | p == q = exec (zf :< Defn x y <>< fs, root, scope, store, actor)
-recv p x (zf'@(zf :< Spawnee (Hole, q) (r, process)) :<+>: fs, root, scope, store, actor)
- = move (zf' <>< fs :<+>: [], root, scope, store, Recv p x actor)
-recv p x (zf :< f :<+>: fs, root, scope, store, actor) = recv p x (zf :<+>: (f:fs), root, scope, store, actor)
+recv ch x p@Process { stack = B0 :<+>: fs, ..}
+  = move (p { stack = B0 <>< fs :<+>: [], actor = Recv ch x actor })
+recv ch x p@Process { stack = zf :< Sent q y :<+>: fs }
+  | ch == q = exec (p { stack = zf :< Defn x y <>< fs })
+recv ch x p@Process { stack = zf'@(zf :< Spawnee (Hole, q) (r, parentP)) :<+>: fs, ..}
+  = move (p { stack = zf' <>< fs :<+>: [], actor = Recv ch x actor })
+recv ch x p@Process { stack = zf :< f :<+>: fs }
+  = recv ch x (p { stack = zf :<+>: (f:fs) })
 
 -- find the next thing to run
 move :: Process Store Cursor -> Process Store []
 move p | debug "move" p = undefined
 -- move (zfs, _, _, store, a)
 -- | dmesg ("\nmove\n  " ++ show zfs ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
-move (B0 :<+>: fs, root, scope, store, actor) = (fs, root, scope, store, actor)
-move ((zf :< LeftBranch Hole (rfs, rroot, rscope, (), ractor)) :<+>: fs, root, scope, store, actor)
-  = exec (zf :< RightBranch (fs, root, scope, (), actor) Hole <>< rfs, rroot, rscope, store, ractor)
-move ((zf :< Spawnee (Hole, p) (q, (sfs, sroot, sscope, (), parentActor))) :<+>: fs, root, scope, store, childActor)
-  = exec (zf :< Spawner ((fs, root, scope, (), childActor), p) (q, Hole) <>< sfs, sroot, sscope, store, parentActor)
-move ((zf :< f) :<+>: fs, root, scope, store, actor) = move (zf :<+>: (f:fs), root, scope, store, actor)
+move p@Process { stack = B0 :<+>: fs } = p { stack = fs }
+move p@Process { stack = zf :< LeftBranch Hole rp :<+>: fs, ..}
+  = exec (rp { stack = zf :< RightBranch (p { stack = fs, store = () }) Hole <>< stack rp, store })
+move p@Process { stack = zf :< Spawnee (Hole, q) (r, parentP) :<+>: fs, ..}
+  = let childP = p { stack = fs, store = () }
+        stack' = zf :< Spawner (childP, q) (r, Hole) <>< stack parentP
+    in exec (parentP { stack = stack', store })
+move p@Process { stack = (zf :< f) :<+>: fs }
+  = move (p { stack = zf :<+>: (f : fs) })
 
 frnaming :: Foldable t => t Frame -> Naming
 frnaming zf = (zv, ones (length zv), zv)

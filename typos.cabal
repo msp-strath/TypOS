@@ -14,7 +14,9 @@ extra-source-files:  README.md
 common haskell
   default-extensions:  LambdaCase,
                        TupleSections,
-                       TypeSynonymInstances
+                       TypeSynonymInstances,
+                       RecordWildCards,
+                       NamedFieldPuns
 
 library
   import:              haskell
