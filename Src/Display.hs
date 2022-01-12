@@ -29,7 +29,7 @@ initNaming = (B0, ones 0, B0)
 
 fromScope :: Int -> Naming
 fromScope n = (ns, ones n, ns) where
-  ns = B0 <>< map (("x" ++) . show) [0..n]
+  ns = B0 <>< map (("x" ++) . show) [0..n-1]
 
 -- The point is that when we reach a metavariable,
 -- we have to document its permitted dependencies.
