@@ -1,5 +1,3 @@
-{-# LANGUAGE TupleSections, LambdaCase #-}
-
 module Parse where
 
 import Control.Applicative
