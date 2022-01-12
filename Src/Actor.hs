@@ -134,12 +134,15 @@ instance Display Frame where
     UnificationProblem s t -> display na s ++ " ~? " ++ display na t
 
 instance (Traversable t, Collapse t, Display s) => Display (Process s t) where
-  display na Process{..} =
+  display na p = let (fs', store', a') = displayProcess' na p in
+     concat ["(", collapse fs', " ", store', " ", a', ")"]
+
+displayProcess' :: (Traversable t, Collapse t, Display s) => Naming -> Process s t -> (t String, String, String)
+displayProcess' na Process{..} =
      let (fs', na') = runState (traverse go stack) na
          store'     = display initNaming store
          a'         = pdisplay na' actor
-     in unlines $ map ("  " ++)
-         [ collapse fs', store', a']
+     in (fs', store', a')
 
     where
 
@@ -150,6 +153,8 @@ instance (Traversable t, Collapse t, Display s) => Display (Process s t) where
                 Binding x -> put (na `nameOn` x)
                 _ -> pure ()
               pure dis
+
+
 
 instance Display Store where
   display na = collapse . map go . Map.toList where
@@ -184,8 +189,9 @@ processTest
 
 debug :: (Traversable t, Collapse t, Display s)
       => String -> Process s t -> Bool
-debug str p =
-  dmesg ("\n" ++ str ++ "\n" ++ display initNaming p) False
+debug str p = let (fs', store', a') = displayProcess' initNaming p
+                  p' = unlines $ map ("  " ++) [collapse fs', store', a'] in
+  dmesg ("\n" ++ str ++ "\n" ++ p') False
 
 -- run an actor
 exec :: Process Store Bwd -> Process Store []
