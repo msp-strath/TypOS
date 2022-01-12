@@ -98,7 +98,7 @@ main = do
   s <- getContents
   let ts = evalState (traverse command (terms s)) initState
   for_ ts $ \ t ->
-    putStrLn (display' initNaming t)
+    putStrLn (display initNaming t)
 
 {-
 test = display' initNaming (fst (head (parser (pspc *> ptm) B0 (display' initNaming syntaxDesc)))) == display' initNaming syntaxDesc

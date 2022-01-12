@@ -1,8 +1,6 @@
 {-# LANGUAGE
   FlexibleInstances,
   TypeSynonymInstances,
-  LambdaCase,
-  TupleSections,
   PatternGuards
   #-}
 
