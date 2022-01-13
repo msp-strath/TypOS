@@ -112,6 +112,9 @@ type CdB a = (a, Th)
 weak :: CdB a -> CdB a
 weak (t, th) = (t, th -? False)
 
+weaks :: Int -> CdB a -> CdB a
+weaks i (t, th) = (t, th <> none i)
+
 (*^) :: CdB a -> Th -> CdB a
 (a, th) *^ ph = (a, th <^> ph)
 
