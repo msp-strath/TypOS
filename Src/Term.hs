@@ -386,15 +386,17 @@ m $: sg = contract (m :$: sg)
 
 
 -- patterns are de Bruijn
-data Pat
-  = VP Int
+data PatF v
+  = VP v
   | AP String
-  | PP Pat Pat
-  | BP (Hide String) Pat
+  | PP (PatF v) (PatF v)
+  | BP (Hide String) (PatF v)
   | MP String Th
-  deriving Show
+  deriving (Show, Functor)
 
-(#?) :: String -> [Pat] -> Pat
+type Pat = PatF Int
+
+(#?) :: String -> [PatF v] -> PatF v
 a #? ts = foldr PP (AP "") (AP a : ts)
 
 betaLHS :: Pat

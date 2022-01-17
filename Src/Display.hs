@@ -6,7 +6,6 @@
 
 module Display where
 
-import Data.Foldable (toList)
 import Data.List
 
 import Bwd
@@ -86,9 +85,9 @@ instance Show m => Display (CdB (Tm m)) where
     Nothing -> pdisplay (nameSel th na) t'
 
 -- TODO: fancy printing for lists
-instance Display Pat where
-  display na@(ns, _, _) = \case
-    VP n -> toList ns !! n
+instance Display t => Display (PatF t) where
+  display na = \case
+    VP n -> display na n
     AP ""  -> "[]"
     AP str -> "'" ++ str
     PP p q -> "[" ++ pdisplay na p ++ displayPatCdr na q ++ "]"
@@ -100,7 +99,7 @@ instance Display Pat where
     PP{} -> display na p
     _ -> pdisplayDFT na p
 
-displayPatCdr :: Naming -> Pat -> String
+displayPatCdr :: Display t => Naming -> PatF t -> String
 displayPatCdr na (AP "") = ""
 displayPatCdr na (PP p q) = " " ++ pdisplay na p ++ displayPatCdr na q
 displayPatCdr na t = "|" ++ display na t
