@@ -5,7 +5,6 @@ module Actor where
 import Control.Monad.Reader
 import Control.Monad.State
 
-import Data.Foldable (toList)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.String (IsString(..))
@@ -38,7 +37,7 @@ data PatVar = AliasP Alias | VarP Int
 instance Display PatVar where
   display na@(ns, _, _) = \case
     AliasP al -> al
-    VarP n -> toList ns !! n
+    VarP n -> ns <! n
 
 instance IsString ActorMeta where fromString = ActorVar
 instance Show ActorMeta where
@@ -59,8 +58,8 @@ data Env = Env
   , aliases   :: Map.Map String Int -- names to de Bruijn indices
   } deriving (Show)
 
-initEnv :: Env
-initEnv = Env 0 Map.empty Map.empty
+initEnv :: Int -> Env
+initEnv gamma = Env gamma Map.empty Map.empty
 
 newAlias :: String -> Env -> Env
 newAlias x env =
@@ -98,6 +97,12 @@ strengthenEnv i (Env sc avs als) = Env (sc - i) avs' als' where
         (thl, thr) = thChop th n
     in (xs, (t, fst (thChop thl i) <> thr))
 
+instance Display Env where
+  display na (Env sc avs als) =
+    collapse $
+    map (\ (av, (xs, t)) -> concat (show (ActorVar av) : map (" " ++) xs ++ [" = ", display (foldl nameOn na xs) t])) (Map.toList avs)
+    ++ map (\ (al, i) -> show (Alias al) ++ " = " ++ display na (var i sc :: Term)) (Map.toList als)
+
 
 type PatActor = PatF PatVar
 -- We expect all the terms to be closed
@@ -120,7 +125,7 @@ data Actor
 instance Display Actor where
   display na = \case
     a :|: b -> pdisplay na a ++ " :|: " ++ pdisplay na b
-    Closure env a -> unwords ["Closure", {- show env,-} pdisplay na a]
+    Closure env a -> unwords ["Closure", display na env, pdisplay na a]
     Spawn jd ch a -> unwords ["Spawn", jd, show ch, pdisplay na a]
     Send ch tm a -> unwords ["Send", show ch, pdisplay initNaming tm, pdisplay na a]
     Recv ch av a -> unwords ["Recv", show ch, av, pdisplay na a]
@@ -193,7 +198,7 @@ data Frame
 instance Display Frame where
   display na = \case
     Rules jd (ch, a) -> jd ++ " |- {}" -- @" ++ show ch ++ " " ++ pdisplay na a
-    RulePatch jd ml i env a -> jd ++ " |- +" ++ ml ++ " " ++ show i ++ " -> " ++ {- show env ++ " " ++ -} pdisplay na a
+    RulePatch jd ml i env a -> jd ++ " |- +" ++ ml ++ " " ++ show i ++ " -> {}"{- ++ display na env ++ " " ++ pdisplay na a -}
     LeftBranch Hole p -> "<> | " ++ display na p
     RightBranch p Hole -> display na p ++ " | <>"
     Spawnee (Hole, lch) (rch, p) -> "<> @ " ++ show lch ++ " | " ++ show rch ++ " @ " ++ display na p
@@ -204,17 +209,16 @@ instance Display Frame where
 
 instance (Traversable t, Collapse t, Display s) => Display (Process s t) where
   display na p = let (fs', store', env', a') = displayProcess' na p in
-     concat ["(", collapse fs', " ", store', " ", env', " ", a', ")"]
+     concat ["(", collapse fs', " ", store', {-" ", env',-} " ", a', ")"]
 
 displayProcess' :: (Traversable t, Collapse t, Display s) =>
   Naming -> Process s t -> (t String, String, String, String)
 displayProcess' na Process{..} =
      let (fs', na') = runState (traverse go stack) na
          store'     = display initNaming store
-         env'       = show env
-         -- collapse (map (\ (av, (xs, t)) -> concat (show av : map (" " ++) xs ++ [" = ", display (foldl nameOn na' xs) t])) $ Map.toList env)
+         env'       = pdisplay na' env
          a'         = pdisplay na' actor
-     in (fs', store', "", a')
+     in (fs', store', env', a')
 
     where
 
@@ -251,10 +255,10 @@ initStack = B0 <>< map (uncurry Rules) judgementForms
 
 processTest :: Process Store Bwd
 processTest
-  = Process initStack initRoot initEnv Map.empty $
+  = Process initStack initRoot (initEnv 0) Map.empty $
       Spawn "check" "p" $
-      Send "p" ("Arr" #%+ [nat, nat]) $
-      Send "p" ("Lam" #%+ ["x" \\ ("Emb" #%+ [var 0 1])]) $
+      Send "p" ("Arr" #%+ [nat, "Arr" #%+ [bool, nat]]) $
+      Send "p" ("Lam" #%+ ["y" \\ ("Lam" #%+ ["x" \\ ("Emb" #%+ [var 1 2])])]) $
       Win
  where
   nat = ("Nat", 0) #% []
@@ -262,9 +266,10 @@ processTest
 
 debug :: (Traversable t, Collapse t, Display s)
       => String -> Process s t -> Bool
-debug str p = let (fs', store', env', a') = displayProcess' initNaming p
-                  p' = unlines $ map ("  " ++) [collapse fs', store'{-, env'-}, a'] in
-  dmesg ("\n" ++ str ++ "\n" ++ p') False
+debug str p =
+  let (fs', store', env', a') = displayProcess' initNaming p
+      p' = unlines $ map ("  " ++) [collapse fs', store', env', a']
+  in dmesg ("\n" ++ str ++ "\n" ++ p') False
 
 lookupRules :: JudgementForm -> Bwd Frame -> Maybe (Channel, Actor)
 lookupRules jd = go 0 Map.empty where
@@ -275,12 +280,13 @@ lookupRules jd = go 0 Map.empty where
   go bd acc B0 = Nothing
   go bd acc (zf :< f) = case f of
     Binding _  -> go (1+bd) acc zf
-    RulePatch jd' ml al env a | jd == jd' ->
-      let pat  = VP (AliasP al)
+    RulePatch jd' ml al env a | jd == jd' -> do
+      i <- Map.lookup al (aliases env)
+      let pat  = VP (VarP (i + bd))
           env' = weakenEnv bd env
-          a'   = {-weaks bd <$> -} a
+          a'   = a
           acc' = Map.insertWith (++) ml [(pat, Closure env' a')] acc
-      in go bd acc' zf
+      go bd acc' zf
     Rules jd' (ch, a) | jd == jd' -> Just (ch, patch acc $ {- fmap (weaks bd)-} a)
     _ -> go bd acc zf
 
@@ -313,7 +319,7 @@ exec p@Process { actor = Closure env' a, ..} =
 exec p@Process { actor = Spawn jd spawnerCh actor, ..}
   | Just (spawnedCh, spawnedActor) <- lookupRules jd stack
   = let (subRoot, newRoot) = splitRoot root jd
-        spawnee = Process [] subRoot env () spawnedActor
+        spawnee = Process [] subRoot (initEnv $ scopeEnv env) () spawnedActor
     in exec (p { stack = stack :< Spawner (spawnee, spawnedCh) (spawnerCh, Hole)
                , root = newRoot
                , actor })
@@ -325,7 +331,7 @@ exec p@Process { actor = Recv ch x a, ..}
   = recv ch x (p { stack = stack :<+>: [], actor = a })
 exec p@Process { actor = m@(Match lbl s ((pat, a):cs)), ..}
   | Just term <- mangleActors env s
-  = match env B0 [(pat, term)]
+  = match env [(B0, pat, term)]
  where
 
   toDeBruijn :: Bwd String -> PatVar -> Maybe Int
@@ -334,23 +340,24 @@ exec p@Process { actor = m@(Match lbl s ((pat, a):cs)), ..}
     AliasP al -> (+ length zx) <$> Map.lookup al (aliases env)
 
   match :: Env ->
-           Bwd String -> -- binder we have gone under
-           [(PatActor, Term)] -> Process Store []
-  match env' zx [] = exec (p { env = env', actor = a })
-  match env' zx ((MP x ph, (t, th)):xs)
+           [(Bwd String -- binders we have gone under
+            , PatActor
+            , Term)] -> Process Store []
+  match env' [] = exec (p { env = env', actor = a })
+  match env' ((zx, MP x ph, (t, th)):xs)
     = let g = bigEnd th - bigEnd ph
       in case thicken (ones g <> ph) th of
             Just ps -> let env' = newActorVar x ((ph ?< zx) <>> [], (t, ps)) env in
-                       match env' zx xs
+                       match env' xs
             -- bug: t may not depend on disallowed things until definitions are expanded
             Nothing -> exec (p { actor = Match lbl s cs })
-  match env' zx ((pat, tm):xs) = case (pat, expand (headUp store tm)) of
+  match env' ((zx, pat, tm):xs) = case (pat, expand (headUp store tm)) of
     (_, (_ :$: _)) -> move (p { stack = stack :<+>: [], actor = m })
     (VP v, VX j _) | Just i <- toDeBruijn zx v
-                   , i == j -> match env' zx xs
-    (AP a, AX b _) | a == b -> match env' zx xs
-    (PP p q, s :%: t) -> match env' zx ((p,s):(q,t):xs)
-    (BP (Hide x) p, _ :.: t) -> match env' (zx :< x) ((p,t):xs)
+                   , i == j -> match env' xs
+    (AP a, AX b _) | a == b -> match env' xs
+    (PP p q, s :%: t) -> match env' ((zx,p,s):(zx,q,t):xs)
+    (BP (Hide x) p, _ :.: t) -> match env' ((zx :< x,p,t):xs)
     _ -> exec (p { actor = Match lbl s cs })
 exec p@Process { actor = FreshMeta av a, ..} =
   let (xm, root') = meta root av
@@ -360,9 +367,13 @@ exec p@Process { actor = FreshMeta av a, ..} =
 exec p@Process { actor = Constrain s t, ..}
   | Just s' <- mangleActors env s
   , Just t' <- mangleActors env t
+  -- , dmesg "HERE" True
+  -- , dmesg (show env) True
+  -- , dmesg (show s ++ " ----> " ++ show s') True
+  -- , dmesg (show t ++ " ----> " ++ show t') True
   = unify (p { stack = stack :<+>: [UnificationProblem s' t'], actor = Win })
 exec p@Process { actor = Under x a, ..}
-  = let stack' = stack :< Binding x
+  = let stack' = stack :< Binding (x ++ show (scopeEnv env))
         env'   = newAlias x env
         actor' = a
     in exec (p { stack = stack', env = env', actor = actor' })
@@ -378,13 +389,13 @@ mangleActors env@(Env sc _ _) tm = go tm
   go :: CdB (Tm ActorMeta) -> Maybe Term
   go tm = case expand tm of
     m :$: sbst -> (//^) <$> lookupVar env m <*> goSbst env sbst
-    VX i j -> pure $ var i j
-    AX s i -> pure $ atom s i
+    VX i _ -> pure $ var i sc
+    AX s _ -> pure $ atom s sc
     a :%: b -> (%) <$> go a <*> go b
     x :.: t -> (x \\) <$> mangleActors (weakenEnv 1 env) t
 
   goSbst :: Env -> CdB (Sbst ActorMeta) -> Maybe Subst
-  goSbst env' (S0 :^^ 0, th)
+  goSbst env' (S0 :^^ 0, _)
     = pure (S0 :^^ sc, ones sc <> none (scopeEnv env' - sc))
   goSbst env (ST rp :^^ 0, th) = splirp (rp, th) $ \s (x := tm, ph) -> do
     s <- goSbst env s
@@ -412,8 +423,9 @@ actorVarsMangler xi ga = Mangler
   }
 
 unify :: Process Store Cursor -> Process Store []
+-- unify p | dmesg ("\nunify\n  " ++ show p) False = undefined
 --unify (Process zf'@(zf :<+>: up@(UnificationProblem s t) : fs) _ _ store a)
---  | dmesg ("\nunify\n  " ++ show zf' ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
+--  | dmesg ("\nunify\n  " ++ show t ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
 unify p | debug "unify" p = undefined
 unify p@Process { stack = zf :<+>: UnificationProblem s t : fs, ..} =
   case (expand (headUp store s), expand (headUp store t)) of
@@ -507,9 +519,10 @@ recv ch x p@Process { stack = zf :< f :<+>: fs }
 
 -- find the next thing to run
 move :: Process Store Cursor -> Process Store []
-move p | debug "move" p = undefined
--- move (zfs, _, _, store, a)
+-- move (Process zfs _ _ store a)
 -- | dmesg ("\nmove\n  " ++ show zfs ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
+-- move p | debug "move" p = undefined
+
 move p@Process { stack = B0 :<+>: fs } = p { stack = fs }
 move p@Process { stack = zf :< LeftBranch Hole rp :<+>: fs, ..}
   = exec (rp { stack = zf :< RightBranch (p { stack = fs, store = () }) Hole <>< stack rp, store })

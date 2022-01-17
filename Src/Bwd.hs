@@ -12,6 +12,10 @@ instance Monoid (Bwd x) where
 
 instance Semigroup (Bwd x) where (<>) = mappend
 
+(<!) :: Bwd x -> Int -> x
+(_  :< x) <! 0 = x
+(xs :< _) <! n = xs <! (n - 1)
+
 infixl 4 <><
 
 (<><) :: Bwd x -> [x] -> Bwd x
