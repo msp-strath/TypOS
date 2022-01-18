@@ -236,7 +236,7 @@ instance Display Frame where
     Sent ch t -> "!" ++ show ch ++ ". " ++ display na t
     Binding x -> withANSI [SetColour Foreground Yellow, SetWeight Bold]
                  $ "\\" ++ x ++ ". "
-    UnificationProblem s t -> display na s ++ " ~? " ++ display na t
+    UnificationProblem s t -> withANSI [SetColour Background Red] (display na s ++ " ~? " ++ display na t)
 
 instance (Traversable t, Collapse t, Display s) => Display (Process s t) where
   display na p = let (fs', store', env', a') = displayProcess' na p in
@@ -262,7 +262,7 @@ displayProcess' na Process{..} =
               pure dis
 
 instance Display Store where
-  display na = collapse . map go . Map.toList where
+  display na = withANSI [SetColour Background Green, SetColour Foreground Black] . collapse . map go . Map.toList where
     go :: (Meta, Term) -> String
     go (k, t) = "?" ++ show k ++ " := " ++ display (fromScope (scope t)) t
 

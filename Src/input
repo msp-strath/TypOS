@@ -1,0 +1,32 @@
+syntax
+  { 'Check = ['Tag '[ ['Lam | '[['Bind 'Synth ['Rec 'Check]]]]
+                      ['Emb | '[ ['Rec 'Synth]]]]]
+  ; 'Synth = ['Tag '[ ['Rad | '[ ['Rec 'Check] ['Rec 'Type]]]
+                      ['App | '[ ['Rec 'Synth] ['Rec 'Check]]]]]
+  ; 'Type = ['Tag '[ ['Base | '[]]
+                     ['Nat | '[]]
+                     ['Bool | '[]]
+                     ['Arr  | '[ ['Rec 'Type] ['Rec 'Type]]]]]
+  }
+
+check : ?'Type. ?'Check.
+synth : ?'Synth. !'Type.
+
+check@p = p?ty. p?tm. case tm
+    { ['Lam \x. body] -> ?S. ?T.
+         (ty ~ ['Arr S T]
+         | \x. synth/subject { x -> p!S. }. check@q. q!T. q!{x=x}body.)
+    ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
+    }
+
+synth@p = p?tm. case/subject tm
+   { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)
+   ; ['App f s] -> ?S. ?T.
+        ( synth@q. q!f. ty ~ ['Arr S T]
+        | check@r. r!S. r!s.
+        | p!T.)
+   }
+
+exec check@p. p! ['Arr ['Nat] ['Arr ['Bool] ['Bool]]].
+     BREAK "Stopped here".
+     p!['Lam \y. ['Lam \x. ['Emb y]]].

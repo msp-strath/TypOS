@@ -77,6 +77,9 @@ pstring = Parser $ \ xz str -> case str of
     _ -> []
   _ -> []
 
+pACT0 :: Parser Actor
+pACT0 = pACT Set.empty
+
 pACT :: Set Alias -> Parser Actor
 pACT als = pact als >>= more where
 
@@ -117,9 +120,12 @@ pvar str int = (either str int <=< pseek) =<< pvar'
 pactpat :: Parser PatActor
 pactpat = fmap VarP <$> ppat
 
+patom :: Parser String
+patom = pch (== '\'') *> pnom
+
 ppat :: Parser Pat
 ppat = pvar (\ str -> MP str . ones <$> plen) (pure . VP)
-  <|> AP <$ pch (== '\'') <*> pnom
+  <|> AP <$> patom
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pch (== ')')
   <|> id <$ pch (== '\\') <* pspc <*> (do
@@ -135,7 +141,7 @@ ppat = pvar (\ str -> MP str . ones <$> plen) (pure . VP)
 
 ptm :: Parser (CdB (Tm String))
 ptm = pvar (\ str -> (str $:) . sbstI <$> plen) (\ i -> var i <$> plen)
-  <|> atom <$ pch (== '\'') <*> pnom <*> plen
+  <|> atom <$> patom <*> plen
   <|> id <$ pch (== '\\') <* pspc <*> (do
     x <- pnom
     pspc
