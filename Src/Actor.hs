@@ -14,6 +14,7 @@ import Display
 import Hide
 import Term
 import Thin
+import ANSI
 
 import Debug.Trace
 
@@ -204,7 +205,8 @@ instance Display Frame where
     Spawnee (Hole, lch) (rch, p) -> "<> @ " ++ show lch ++ " | " ++ show rch ++ " @ " ++ display na p
     Spawner (p, lch) (rch, Hole) -> display na p ++ " @ " ++ show lch ++ " | " ++ show rch ++ " @ <>"
     Sent ch t -> "!" ++ show ch ++ ". " ++ display na t
-    Binding x -> "\\" ++ x ++ ". "
+    Binding x -> withANSI [SetColour Foreground Yellow, SetWeight Bold]
+                 $ "\\" ++ x ++ ". "
     UnificationProblem s t -> display na s ++ " ~? " ++ display na t
 
 instance (Traversable t, Collapse t, Display s) => Display (Process s t) where
