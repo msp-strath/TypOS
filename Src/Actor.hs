@@ -17,6 +17,7 @@ import Thin
 import ANSI
 
 import Debug.Trace
+import System.IO.Unsafe
 
 dmesg = trace
 
@@ -121,6 +122,7 @@ data Actor
  | Extend (JudgementForm, MatchLabel, Alias, Actor) Actor
  | Fail Gripe
  | Win
+ | Break String Actor
  deriving (Show)
 
 instance Display Actor where
@@ -138,6 +140,7 @@ instance Display Actor where
       unwords ["Extend", jd, ml, i, pdisplay na a, pdisplay na b]
     Fail gr -> unwords ["Fail", gr]
     Win -> "Win"
+    Break str a -> display na a
 
 instance Display t => Display (PatF t, Actor) where
   display na (p, a) = display na p ++ " -> " ++ display na a
@@ -260,6 +263,7 @@ processTest
   = Process initStack initRoot (initEnv 0) Map.empty $
       Spawn "check" "p" $
       Send "p" ("Arr" #%+ [nat, "Arr" #%+ [bool, nat]]) $
+      Break "Stopped here" $
       Send "p" ("Lam" #%+ ["y" \\ ("Lam" #%+ ["x" \\ ("Emb" #%+ [var 1 2])])]) $
       Win
  where
@@ -382,6 +386,12 @@ exec p@Process { actor = Under x a, ..}
 exec p@Process { actor = Extend (jd, ml, i, a) b, ..}
   = let stack' = stack :< RulePatch jd ml i env a in
     exec (p { stack = stack', actor = b })
+
+exec p@Process { actor = Break str a }
+  = unsafePerformIO $ do
+      putStrLn str
+      _ <- getLine
+      pure (exec (p { actor = a }))
 
 exec p@Process {..} = move (p { stack = stack :<+>: [] })
 
