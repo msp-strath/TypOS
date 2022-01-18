@@ -1,4 +1,4 @@
-module Driver where
+module Main where
 
 import Bwd
 import Thin

@@ -26,7 +26,7 @@ library
                        Bwd,
                        Command,
                        Display,
-                       Driver,
+--                       Driver,
                        Hide,
                        Parse,
                        Syntax,
@@ -40,6 +40,6 @@ library
 
 executable typos
   import:              haskell
-  main-is:             Src/Main.hs
+  main-is:             Src/Driver.hs
   build-depends:       base <5, mtl, containers, typos
   default-language:    Haskell2010
