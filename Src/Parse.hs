@@ -4,10 +4,14 @@ import Control.Applicative
 import Control.Monad
 import Data.Char
 
+import Data.Set (Set)
+import qualified Data.Set as Set
+
 import Hide
 import Bwd
 import Thin
 import Term
+import Actor
 
 -- parsers, by convention, do not consume either leading
 -- or trailing space
@@ -27,6 +31,78 @@ instance Lisp Pat where
   mkCons = PP
   pCar = ppat
 
+pchan :: Parser Channel
+pchan = Channel <$> pnom
+
+pactorvar :: Parser ActorVar
+pactorvar = pnom
+
+pmatchlabel :: Parser MatchLabel
+pmatchlabel = id <$ pch ('/' ==) <*> pnom <|> pure ""
+
+pactm :: Set Alias -> Parser (CdB (Tm ActorMeta))
+pactm als = (fmap adjust $^) <$> plocal B0 ptm where
+
+  adjust :: String -> ActorMeta
+  adjust str
+    | str `Set.member` als = Alias str
+    | otherwise = ActorVar str
+
+palias :: Set Alias -> Parser Alias
+palias als = do
+  x <- pnom
+  guard (x `Set.member` als)
+  pure x
+
+pjudge :: Parser JudgementForm
+pjudge = pnom
+
+pextension :: Set Alias -> Parser (JudgementForm, MatchLabel, Alias, Actor)
+pextension als =
+  (,,,) <$> pjudge <* pch (== '/') <*> pnom
+        <* punc "{" <*> palias als
+        <* punc "->" <*> pACT als
+        <* pspc <* pch (== '}')
+
+plit :: String -> Parser ()
+plit = mapM_ (pch . (==))
+
+punc :: String -> Parser ()
+punc cs = () <$ pspc <* plit cs <* pspc
+
+pstring :: Parser String
+pstring = Parser $ \ xz str -> case str of
+  '"' : str -> case span ('"' /=) str of
+    (str, _:end) -> pure (str, end)
+    _ -> []
+  _ -> []
+
+pACT :: Set Alias -> Parser Actor
+pACT als = pact als >>= more where
+
+  more :: Actor -> Parser Actor
+  more act = (act :|:) <$ punc "|" <*> pACT als
+    <|> pure act
+
+pact :: Set Alias -> Parser Actor
+pact als = id <$ pch (== '\\') <* pspc <*> (do
+    x <- pnom
+    punc "."
+    Under x <$> pact (Set.insert x als))
+  <|> Send <$> pchan <* punc "!" <*> pactm als <* punc "." <*> pact als
+  <|> Recv <$> pchan <* punc "?" <*> pactorvar <* punc "." <*> pact als
+  <|> FreshMeta <$ pch (== '?') <* pspc <*> pactorvar <* punc "." <*> pact als
+  <|> Spawn <$> pjudge <* punc "@" <*> pchan <* punc "." <*> pact als
+  <|> Constrain <$> pactm als <* punc "~" <*> pactm als
+  <|> Match <$ plit "case" <*> pmatchlabel <* pspc <*> pactm als <* punc "{"
+       <*> psep (punc ";") ((,) <$> pactpat <* punc "->" <*> pACT als)
+       <* pspc <* pch (== '}')
+  <|> id <$ pch (== '(') <* pspc <*> pACT als <* pspc <* pch (== ')')
+  <|> Break <$ plit "BREAK" <* pspc <*> pstring <* punc "." <*> pact als
+  <|> Fail <$ pch (== '#') <* pspc <*> pstring
+  <|> Extend <$> pextension als <* punc "." <*> pact als
+  <|> pure Win
+
 pnat :: Parser Int
 pnat = Parser $ \ xz str -> case span isDigit str of
   (ds@(_:_), str) -> [(read ds, str)]
@@ -35,11 +111,14 @@ pnat = Parser $ \ xz str -> case span isDigit str of
 pvar' :: Parser (String, Int)
 pvar' = (,) <$> pnom <*> ((id <$ pch (== '^') <*> pnat) <|> pure 0)
 
-pvar :: Parser Int
-pvar = pseek =<< pvar'
+pvar :: (String -> Parser a) -> (Int -> Parser a) -> Parser a
+pvar str int = (either str int <=< pseek) =<< pvar'
+
+pactpat :: Parser PatActor
+pactpat = fmap VarP <$> ppat
 
 ppat :: Parser Pat
-ppat = VP <$> pvar
+ppat = pvar (\ str -> MP str . ones <$> plen) (pure . VP)
   <|> AP <$ pch (== '\'') <*> pnom
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pch (== ')')
@@ -49,14 +128,13 @@ ppat = VP <$> pvar
     pch (== '.')
     pspc
     (BP (Hide x)) <$> (pbind x ppat))
-  <|> MP <$ pch (== '?') <*> pnom <*> (ones <$> plen)
   <|> id <$ pch (== '{') <* pspc <*> do
     (th, xz) <- pth
     pspc
     (*^ th) <$> plocal xz ppat
 
 ptm :: Parser (CdB (Tm String))
-ptm = var <$> pvar <*> plen
+ptm = pvar (\ str -> (str $:) . sbstI <$> plen) (\ i -> var i <$> plen)
   <|> atom <$ pch (== '\'') <*> pnom <*> plen
   <|> id <$ pch (== '\\') <* pspc <*> (do
     x <- pnom
@@ -64,7 +142,6 @@ ptm = var <$> pvar <*> plen
     pch (== '.')
     pspc
     (x \\) <$> (pbind x ptm))
-  <|> ($:) <$ pch (== '?') <*> pnom <*> (sbstI <$> plen)
   <|> glomQlist <$> plen <* pch (== '\'') <* pch (== '[') <* pspc <*> many (ptm <* pspc) <* pch (== ']')
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> id <$ pch (== '(') <* pspc <*> ptm <* pspc <* pch (== ')')
@@ -116,10 +193,14 @@ pnom = (:) <$> pch isAlpha <*> many (pch isMo) where
   isMo c = isAlphaNum c || elem c "_'"
 
 pspc :: Parser ()
-pspc = () <$ many (pch isSpace)
+pspc = Parser $ \ xs str -> [((),snd (span isSpace str))]
 
 pnl :: Parser ()
 pnl = () <$ pch (\c -> c == '\n' || c == '\0')
+
+psep :: Parser () -> Parser a -> Parser [a]
+psep s p = (:) <$> p <*> many (id <$ s <*> p)
+ <|> pure []
 
 data Parser a = Parser
   { parser :: Bwd String -> String -> [(a, String)]
@@ -160,12 +241,12 @@ ppop x p = pscope >>= \case
   xz :< y | x == y -> plocal xz p
   _ -> empty
 
-pseek :: (String, Int) -> Parser Int
+pseek :: (String, Int) -> Parser (Either String Int)
 pseek (x, n) = Parser $ \ xz s -> let
-  chug B0 n = []
+  chug B0 n = [Left x]
   chug (xz :< y) n
-    | y == x = if n == 0 then [0] else (1+) <$> chug xz (n - 1)
-    | otherwise = (1+) <$> chug xz n
+    | y == x = if n == 0 then [Right 0] else fmap (1+) <$> chug xz (n - 1)
+    | otherwise = fmap (1+) <$> chug xz n
   in (, s) <$> chug xz n
 
 pch :: (Char -> Bool) -> Parser Char
