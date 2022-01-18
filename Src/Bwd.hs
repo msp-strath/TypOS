@@ -1,8 +1,14 @@
-{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DeriveTraversable, ScopedTypeVariables #-}
 
 module Bwd where
 
-data Bwd x = B0 | Bwd x :< x deriving (Show, Eq, Functor, Foldable, Traversable)
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
+import Control.Monad.State
+
+data Bwd x = B0 | Bwd x :< x
+  deriving (Show, Eq, Functor, Foldable, Traversable)
 infixl 4 :<
 
 instance Monoid (Bwd x) where
@@ -51,3 +57,26 @@ data Cursor x
   = Bwd x :<+>: [x]
   deriving (Eq, Foldable, Functor, Show, Traversable)
 infixl 3 :<+>:
+
+-- | Each value of type `x` induces its own space of
+--   de Bruijn indices. This function tags each value
+--   with the corresponding index.
+--
+--   deBruijnify (B0 :< "x" :< "y" :< "x")
+--   == B0 :< ("x",1) :< ("y",0) :< ("x",0)
+deBruijnify :: forall x. Ord x => Bwd x -> Bwd (x, Int)
+deBruijnify xz = go xz `evalState` Map.empty where
+
+  new :: x -> State (Map x Int) Int
+  new x = do
+    st <- get
+    let n = fromMaybe 0 (Map.lookup x st)
+    put (Map.insert x (n + 1) st)
+    pure n
+
+  go :: Bwd x -> State (Map x Int) (Bwd (x, Int))
+  go B0 = pure B0
+  go (xz :< x) = do
+    n <- new x
+    xnz <- go xz
+    pure (xnz :< (x, n))
