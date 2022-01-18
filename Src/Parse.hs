@@ -12,6 +12,38 @@ import Term
 -- parsers, by convention, do not consume either leading
 -- or trailing space
 
+class Lisp t where
+  mkNil  :: Int -> t
+  mkCons :: t -> t -> t
+  pCar   :: Parser t
+
+instance Lisp (CdB (Tm String)) where
+  mkNil = atom ""
+  mkCons = (%)
+  pCar = ptm
+
+instance Lisp Pat where
+  mkNil = const (AP "")
+  mkCons = PP
+  pCar = ppat
+
+ppat :: Parser Pat
+ppat = VP <$> join (pseek <$> pnom)
+  <|> AP <$ pch (== '\'') <*> pnom
+  <|> id <$ pch (== '[') <* pspc <*> plisp
+  <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pch (== ')')
+  <|> id <$ pch (== '\\') <* pspc <*> (do
+    x <- pnom
+    pspc
+    pch (== '.')
+    pspc
+    (BP (Hide x)) <$> (pbind x ppat))
+  <|> MP <$ pch (== '?') <*> pnom <*> (ones <$> plen)
+  <|> id <$ pch (== '{') <* pspc <*> do
+    (th, xz) <- pth
+    pspc
+    (*^ th) <$> plocal xz ppat
+
 ptm :: Parser (CdB (Tm String))
 ptm = var <$> join (pseek <$> pnom) <*> plen
   <|> atom <$ pch (== '\'') <*> pnom <*> plen
@@ -34,6 +66,20 @@ ptm = var <$> join (pseek <$> pnom) <*> plen
       qc a d = ("Cons",l) #% [a, d]
       qn = ("Nil",l) #% []
 
+pth :: Parser (Th, Bwd String)
+pth = do
+  (xs, b) <- raw
+  xz <- pscope
+  let th = (if b then comp else id) (findSub (B0 <>< xs) xz)
+  pure (th, th ^? xz)
+
+  where
+
+  raw :: Parser ([String], Bool)
+  raw = (,) <$> many (id <$ pspc <*> pnom) <* pspc
+            <*> (True <$ pch (== '*') <|> pure False)
+            <* pspc <* pch (== '}')
+
 psbst :: Parser (CdB (Sbst String), Bwd String)
 psbst = (,) <$ pspc <* pch (== '}') <*> (sbstI <$> plen) <*> pscope
   <|> id <$ pch (== ',') <* pspc <*> psbst
@@ -48,10 +94,10 @@ psbst = (,) <$ pspc <* pch (== '}') <*> (sbstI <$> plen) <*> pscope
     (sg, xz) <- psbst
     return (sbstT sg ((Hide x := t), th), xz :< x)
 
-plisp :: Parser (CdB (Tm String))
-plisp = atom "" <$ pch (== ']') <*> plen
-    <|> id <$ pch (== '|') <* pspc <*> ptm <* pspc <* pch (== ']')
-    <|> (%) <$> ptm <* pspc <*> plisp
+plisp :: Lisp t => Parser t
+plisp = mkNil <$ pch (== ']') <*> plen
+    <|> id <$ pch (== '|') <* pspc <*> pCar <* pspc <* pch (== ']')
+    <|> mkCons <$> pCar <* pspc <*> plisp
 
 pnom :: Parser String
 pnom = (:) <$> pch isAlpha <*> many (pch isMo) where

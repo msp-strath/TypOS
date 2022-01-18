@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleInstances, OverloadedStrings, StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor, OverloadedStrings, StandaloneDeriving #-}
 
 module Actor where
 

@@ -16,7 +16,8 @@ common haskell
                        TupleSections,
                        TypeSynonymInstances,
                        RecordWildCards,
-                       NamedFieldPuns
+                       NamedFieldPuns,
+                       FlexibleInstances
 
 library
   import:              haskell

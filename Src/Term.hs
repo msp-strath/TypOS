@@ -396,6 +396,13 @@ data PatF v
 
 type Pat = PatF Int
 
+instance Thable v => Thable (PatF v) where
+  VP v *^ th = VP (v *^ th)
+  AP a *^ th = AP a
+  PP p q *^ th = PP (p *^ th) (q *^ th)
+  BP x b *^ th = BP x (b *^ (th -? True))
+  MP m ph *^ th = MP m (ph *^ th)
+
 (#?) :: String -> [PatF v] -> PatF v
 a #? ts = foldr PP (AP "") (AP a : ts)
 

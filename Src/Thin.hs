@@ -10,6 +10,45 @@ data Th = Th
   , bigEnd   :: Int  -- must be non-negative
   }
 
+class Thable t where
+  (*^) :: t -> Th -> t
+
+class Selable t where
+  (^?) :: Th -> t -> t
+
+instance Thable (CdB a) where
+  (a, th) *^ ph = (a, th *^ ph)
+
+{-
+thinning composition is diagrammatic
+good luck enforcing composability!
+
+              o
+       o----->o
+o----->o----->o
+       o----->o
+              o
+o----->o----->o
+-}
+
+instance Thable Th where
+  _  *^ Th _  0 = none 0
+  th *^ ph = case thun ph of
+    (ph, False) -> (th *^ ph) -? False
+    (ph, True)  -> case thun th of
+      (th, b) -> (th *^ ph) -? b
+
+instance Selable Th where
+  (^?) = (*^)
+
+instance Thable Int where
+  i *^ th | i >= bigEnd th = error $ "Failed thinning " ++ show i ++ " by " ++ show th
+  i *^ th = case thun th of
+    (th, False) -> 1 + (i *^ th)
+    (th, True) -> case i of
+      0 -> 0
+      i -> 1 + ((i - 1) *^ th)
+
 -- 2^(i-1), which is a remarkably well behaved thing
 full :: Bits a => Int -> a
 full i = xor (shiftL ones i) ones where ones = complement zeroBits
@@ -49,24 +88,8 @@ instance Show Th where
     go i th = go (i-1) th' . ((if b then '1' else '0'):) where
       (th', b) = thun th
 
--- thinning composition is diagrammatic
--- good luck enforcing composability!
 (<^>) :: Th -> Th -> Th
-_  <^> Th _  0 = none 0
-th <^> ph@(Th _ i) = case thun ph of
-  (ph, False) -> (th <^> ph) -? False
-  (ph, True)  -> case thun th of
-    (th, b) -> (th <^> ph) -? b
-
-{-
-              o
-       o----->o
-o----->o----->o
-       o----->o
-              o
-o----->o----->o
--}
-
+(<^>) = (*^)
 
 -- de Bruijn index is 2^
 inx :: ( Int  -- var is non-negative and strictly less than
@@ -85,11 +108,7 @@ lsb th = case thun th of
 -- not as a singleton Thinning
 -- saves us inx-ing, composing, then lsb-ing
 thinx :: Int -> Th -> Int
-thinx i th = case thun th of
-  (th, False) -> 1 + thinx i th
-  (th, True) -> case i of
-    0 -> 0
-    i -> 1 + thinx (i - 1) th
+thinx = (*^)
 
 -- invert selection
 comp :: Th -> Th
@@ -114,9 +133,6 @@ weak (t, th) = (t, th -? False)
 
 weaks :: Int -> CdB a -> CdB a
 weaks i (t, th) = (t, th <> none i)
-
-(*^) :: CdB a -> Th -> CdB a
-(a, th) *^ ph = (a, th <^> ph)
 
 ($^) :: (a -> b) -> CdB a -> CdB b
 f $^ (a, th) = (f a, th)
@@ -156,11 +172,13 @@ splirp :: CdB (RP a b) -> (CdB a -> CdB b -> t) -> t
 splirp ((a, th) :<>: (b, ph), ps) k =
   k (a, th <^> ps) (b, ph <^> ps)
 
+instance Selable (Bwd x) where
+  th ^? B0 = B0
+  th ^? (xz :< x) = case thun th of
+    (th, b) -> (if b then (:< x) else id) (th ^? xz)
 
 (?<) :: Th -> Bwd x -> Bwd x
-th ?< B0 = B0
-th ?< (xz :< x) = case thun th of
-  (th, b) -> (if b then (:< x) else id) (th ?< xz)
+(?<) = (^?)
 
 -- (iz, th) and (jz, ph) are images for some of a scope
 -- compute a merge of iz and jz which are images for
@@ -209,3 +227,13 @@ thicken th ph = ps <$ guard (is1s th')
 
 thickenCdB :: Th -> CdB a -> Maybe (CdB a)
 thickenCdB th (x, ph) = (x,) <$> thicken th ph
+
+which :: (a -> Bool) -> Bwd a -> Th
+which p B0 = none 0
+which p (xz :< x) = which p xz -? p x
+
+findSub :: Eq a => Bwd a -> Bwd a -> Th
+findSub aza@(az :< a) (bz :< b)
+  | a == b    = findSub az  bz -? True
+  | otherwise = findSub aza bz -? False
+findSub _ bz = none (length bz)
