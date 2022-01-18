@@ -289,10 +289,9 @@ lookupRules jd = go 0 Map.empty where
       i <- Map.lookup al (aliases env)
       let pat  = VP (VarP (i + bd))
           env' = weakenEnv bd env
-          a'   = a
-          acc' = Map.insertWith (++) ml [(pat, Closure env' a')] acc
+          acc' = Map.insertWith (++) ml [(pat, Closure env' a)] acc
       go bd acc' zf
-    Rules jd' (ch, a) | jd == jd' -> Just (ch, patch acc $ {- fmap (weaks bd)-} a)
+    Rules jd' (ch, a) | jd == jd' -> Just (ch, patch acc a)
     _ -> go bd acc zf
 
   patch :: Map.Map MatchLabel [(PatActor, Actor)] -> Actor -> Actor
