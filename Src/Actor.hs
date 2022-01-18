@@ -34,11 +34,10 @@ data ActorMeta
   | ActorVar ActorVar
   deriving (Eq, Ord)
 
-data PatVar = AliasP Alias | VarP Int
+data PatVar = VarP Int
   deriving (Show)
 instance Display PatVar where
   display na@(ns, _, _) = \case
-    AliasP al -> al
     VarP n -> ns <! n
 
 instance IsString ActorMeta where fromString = ActorVar
@@ -262,7 +261,7 @@ processTest :: Process Store Bwd
 processTest
   = Process initStack initRoot (initEnv 0) Map.empty $
       Spawn "check" "p" $
-      Send "p" ("Arr" #%+ [nat, "Arr" #%+ [bool, nat]]) $
+      Send "p" ("Arr" #%+ [nat, "Arr" #%+ [bool, bool]]) $
       Break "Stopped here" $
       Send "p" ("Lam" #%+ ["y" \\ ("Lam" #%+ ["x" \\ ("Emb" #%+ [var 1 2])])]) $
       Win
@@ -340,11 +339,6 @@ exec p@Process { actor = m@(Match lbl s ((pat, a):cs)), ..}
   = match env [(B0, pat, term)]
  where
 
-  toDeBruijn :: Bwd String -> PatVar -> Maybe Int
-  toDeBruijn zx = \case
-    VarP i -> pure i
-    AliasP al -> (+ length zx) <$> Map.lookup al (aliases env)
-
   match :: Env ->
            [(Bwd String -- binders we have gone under
             , PatActor
@@ -359,8 +353,7 @@ exec p@Process { actor = m@(Match lbl s ((pat, a):cs)), ..}
             Nothing -> exec (p { actor = Match lbl s cs })
   match env' ((zx, pat, tm):xs) = case (pat, expand (headUp store tm)) of
     (_, (_ :$: _)) -> move (p { stack = stack :<+>: [], actor = m })
-    (VP v, VX j _) | Just i <- toDeBruijn zx v
-                   , i == j -> match env' xs
+    (VP (VarP i), VX j _) | i == j -> match env' xs
     (AP a, AX b _) | a == b -> match env' xs
     (PP p q, s :%: t) -> match env' ((zx,p,s):(zx,q,t):xs)
     (BP (Hide x) p, _ :.: t) -> match env' ((zx :< x,p,t):xs)
@@ -389,7 +382,7 @@ exec p@Process { actor = Extend (jd, ml, i, a) b, ..}
 
 exec p@Process { actor = Break str a }
   = unsafePerformIO $ do
-      putStrLn str
+      putStrLn $ withANSI [SetColour Background Red] str
       _ <- getLine
       pure (exec (p { actor = a }))
 
