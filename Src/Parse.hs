@@ -27,8 +27,19 @@ instance Lisp Pat where
   mkCons = PP
   pCar = ppat
 
+pnat :: Parser Int
+pnat = Parser $ \ xz str -> case span isDigit str of
+  (ds@(_:_), str) -> [(read ds, str)]
+  _ -> []
+
+pvar' :: Parser (String, Int)
+pvar' = (,) <$> pnom <*> ((id <$ pch (== '^') <*> pnat) <|> pure 0)
+
+pvar :: Parser Int
+pvar = pseek =<< pvar'
+
 ppat :: Parser Pat
-ppat = VP <$> join (pseek <$> pnom)
+ppat = VP <$> pvar
   <|> AP <$ pch (== '\'') <*> pnom
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pch (== ')')
@@ -45,7 +56,7 @@ ppat = VP <$> join (pseek <$> pnom)
     (*^ th) <$> plocal xz ppat
 
 ptm :: Parser (CdB (Tm String))
-ptm = var <$> join (pseek <$> pnom) <*> plen
+ptm = var <$> pvar <*> plen
   <|> atom <$ pch (== '\'') <*> pnom <*> plen
   <|> id <$ pch (== '\\') <* pspc <*> (do
     x <- pnom
@@ -68,15 +79,16 @@ ptm = var <$> join (pseek <$> pnom) <*> plen
 
 pth :: Parser (Th, Bwd String)
 pth = do
-  (xs, b) <- raw
+  (xns, b) <- raw
   xz <- pscope
-  let th = (if b then comp else id) (findSub (B0 <>< xs) xz)
+  let xnz = deBruijnify xz
+  let th = (if b then comp else id) (which (`elem` xns) xnz)
   pure (th, th ^? xz)
 
   where
 
-  raw :: Parser ([String], Bool)
-  raw = (,) <$> many (id <$ pspc <*> pnom) <* pspc
+  raw :: Parser ([(String, Int)], Bool)
+  raw = (,) <$> many (id <$ pspc <*> pvar') <* pspc
             <*> (True <$ pch (== '*') <|> pure False)
             <* pspc <* pch (== '}')
 
@@ -148,13 +160,13 @@ ppop x p = pscope >>= \case
   xz :< y | x == y -> plocal xz p
   _ -> empty
 
-pseek :: String -> Parser Int
-pseek x = Parser $ \ xz s -> let
-  chug B0 = []
-  chug (xz :< y)
-    | y == x = [0]
-    | otherwise = (1+) <$> chug xz
-  in (, s) <$> chug xz
+pseek :: (String, Int) -> Parser Int
+pseek (x, n) = Parser $ \ xz s -> let
+  chug B0 n = []
+  chug (xz :< y) n
+    | y == x = if n == 0 then [0] else (1+) <$> chug xz (n - 1)
+    | otherwise = (1+) <$> chug xz n
+  in (, s) <$> chug xz n
 
 pch :: (Char -> Bool) -> Parser Char
 pch p = Parser $ \ xz s -> case s of
@@ -169,4 +181,3 @@ pend = Parser $ \ xz s -> case s of
 parse :: Parser x -> String -> x
 parse p s = case parser (id <$> p <* pend) B0 s of
   [(x, _)] -> x
-
