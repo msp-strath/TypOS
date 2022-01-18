@@ -35,7 +35,7 @@ data ActorMeta
   deriving (Eq, Ord)
 
 data PatVar = VarP Int
-  deriving (Show)
+  deriving (Show, Eq)
 instance Display PatVar where
   display na@(ns, _, _) = \case
     VarP n -> ns <! n
@@ -57,7 +57,7 @@ data Env = Env
   { scopeEnv  :: Int
   , actorVars :: Map.Map String ([String], Term)
   , aliases   :: Map.Map String Int -- names to de Bruijn indices
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 initEnv :: Int -> Env
 initEnv gamma = Env gamma Map.empty Map.empty
@@ -106,6 +106,8 @@ instance Display Env where
 
 
 type PatActor = PatF PatVar
+
+infixr 3 :|:
 -- We expect all the terms to be closed
 data Actor
  = Actor :|: Actor
@@ -122,7 +124,7 @@ data Actor
  | Fail Gripe
  | Win
  | Break String Actor
- deriving (Show)
+ deriving (Show, Eq)
 
 instance Display Actor where
   display na = \case
@@ -165,6 +167,19 @@ check = ("check", ("p", Recv "p" "ty" $
            Constrain ("S" $: sbst0 0) ("ty" $: sbst0 0))
         ]))
 
+check' :: String
+check' = concat
+  [ "p?ty. "
+  , "p?tm. "
+  , "case tm "
+  , " { ['Lam \\x. body] -> "
+  , "     ?S. ?T. (ty ~ ['Arr S T] "
+  , "           | \\x. synth/subject { x -> p!S. }. check@q. q!T. q!{x=x}body.)"
+  , " ; ['Emb e] -> "
+  , "     synth@q. q!e. q?S. S ~ ty"
+  , " }"
+  ]
+
 synth :: (JudgementForm, (Channel, Actor))
 synth =
   ("synth", ("p", Recv "p" "tm" $ Match "subject" ("tm" $: sbst0 0)
@@ -183,6 +198,18 @@ synth =
               in  fSyn :|: sChk :|: result
              )
            ]))
+
+synth' :: String
+synth' = concat
+  [ "p?tm. "
+  , "case/subject tm "
+  , " { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)"
+  , " ; ['App f s] -> "
+  , "      ?S. ?T. ( synth@q. q!f. ty ~ ['Arr S T]"
+  , "              | check@r. r!S. r!s. "
+  , "              | p!T.)"
+  , " }"
+  ]
 
 data Hole = Hole deriving Show
 

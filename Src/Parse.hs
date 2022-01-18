@@ -189,8 +189,13 @@ plisp = mkNil <$ pch (== ']') <*> plen
     <|> mkCons <$> pCar <* pspc <*> plisp
 
 pnom :: Parser String
-pnom = (:) <$> pch isAlpha <*> many (pch isMo) where
-  isMo c = isAlphaNum c || elem c "_'"
+pnom = Parser $
+  let isMo c = isAlphaNum c || elem c "_'" in
+  \ xz str -> case str of
+  c : cs | isAlpha c -> case span isMo cs of
+      (nm, str) -> [(c:nm, str)]
+  _ -> []
+
 
 pspc :: Parser ()
 pspc = Parser $ \ xs str -> [((),snd (span isSpace str))]
@@ -262,3 +267,4 @@ pend = Parser $ \ xz s -> case s of
 parse :: Parser x -> String -> x
 parse p s = case parser (id <$> p <* pend) B0 s of
   [(x, _)] -> x
+  x -> error (show $ length x)

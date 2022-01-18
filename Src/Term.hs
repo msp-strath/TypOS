@@ -392,7 +392,7 @@ data PatF v
   | PP (PatF v) (PatF v)
   | BP (Hide String) (PatF v)
   | MP String Th
-  deriving (Show, Functor)
+  deriving (Show, Functor, Eq)
 
 type Pat = PatF Int
 
