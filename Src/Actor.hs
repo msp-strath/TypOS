@@ -192,6 +192,7 @@ synth =
               FreshMeta "T" $
               let fSyn = Spawn "synth" "q" $
                          Send "q" ("f" $: sbst0 0) $
+                         Recv "q" "ty" $
                          Constrain ("ty" $: sbst0 0) ("Arr" #%+ [("S" $: sbst0 0), ("T" $: sbst0 0)])
                   sChk = Spawn "check" "r" $ Send "r" ("S" $: sbst0 0) $ Send "r" ("s" $: sbst0 0) Win
                   result = Send "p" ("T" $: sbst0 0) Win
@@ -205,7 +206,7 @@ synth' = concat
   , "case/subject tm "
   , " { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)"
   , " ; ['App f s] -> "
-  , "      ?S. ?T. ( synth@q. q!f. ty ~ ['Arr S T]"
+  , "      ?S. ?T. ( synth@q. q!f. q?ty. ty ~ ['Arr S T]"
   , "              | check@r. r!S. r!s. "
   , "              | p!T.)"
   , " }"

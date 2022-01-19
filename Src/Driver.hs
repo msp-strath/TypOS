@@ -51,7 +51,7 @@ run p@Process{..} (c : cs) = case c of
 main :: IO ()
 main = do
   args <- getArgs
-  let fp = case args of {(fp :_) -> fp; _ -> "Src/input"}
+  let fp = case args of {(fp :_) -> fp; _ -> "stlc.act"}
   txt <- readFile fp
   let cs = parse pfile txt
   putStrLn $ display initNaming $

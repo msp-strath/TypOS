@@ -4,7 +4,7 @@ syntax
   ; 'Synth = ['Tag '[ ['Rad | '[ ['Rec 'Check] ['Rec 'Type]]]
                       ['App | '[ ['Rec 'Synth] ['Rec 'Check]]]]]
   ; 'Type = ['Tag '[ ['Base | '[]]
-                     ['Nat | '[]]
+                     ['Nat  | '[]]
                      ['Bool | '[]]
                      ['Arr  | '[ ['Rec 'Type] ['Rec 'Type]]]]]
   }
@@ -15,18 +15,22 @@ synth : ?'Synth. !'Type.
 check@p = p?ty. p?tm. case tm
     { ['Lam \x. body] -> ?S. ?T.
          (ty ~ ['Arr S T]
-         | \x. synth/subject { x -> p!S. }. check@q. q!T. q!{x=x}body.)
+         | \y. synth/subject { y -> p!S. }. check@q. q!T. q!{x=y}body.)
     ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
     }
 
 synth@p = p?tm. case/subject tm
    { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)
    ; ['App f s] -> ?S. ?T.
-        ( synth@q. q!f. ty ~ ['Arr S T]
+        ( synth@q. q!f. q?ty. ty ~ ['Arr S T]
         | check@r. r!S. r!s.
         | p!T.)
    }
 
-exec check@p. p! ['Arr ['Nat] ['Arr ['Bool] ['Bool]]].
-     BREAK "Stopped here".
-     p!['Lam \y. ['Lam \x. ['Emb y]]].
+exec check@p. p! ['Arr ['Nat] ['Nat]].
+     BREAK "Type transmitted".
+     p! ['Lam \z. ['App ['Rad ['Lam \w. ['Emb w]] ['Arr ['Nat] ['Nat]]] ['Emb z]]].
+
+exec check@p. p! ['Arr ['Nat] ['Arr ['Bool] ['Nat]]].
+     p! ['Lam \z. ['Lam \w. ['Emb z]]].
+     BREAK "Example one".
