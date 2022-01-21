@@ -1,4 +1,4 @@
-{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, StandaloneDeriving #-}
 
 module Machine.Base where
 
@@ -7,7 +7,8 @@ import qualified Data.Map as Map
 import Term
 import Actor
 
-type Date = Int
+newtype Date = Date Int
+  deriving (Show, Eq, Ord, Num)
 
 data Store = Store
   { solutions :: Map.Map Meta Term

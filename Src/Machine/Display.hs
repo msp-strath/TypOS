@@ -13,6 +13,9 @@ import Actor
 import Actor.Display()
 import Machine.Base
 
+instance Display Date where
+  display na (Date i) = show i
+
 instance Display Frame where
   display na = \case
     Rules jd (ch, a) -> jd ++ " |- {}" -- @" ++ show ch ++ " " ++ pdisplay na a

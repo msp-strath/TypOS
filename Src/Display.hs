@@ -53,9 +53,6 @@ class Display t where
 instance Display () where
   display _ _ = "()"
 
-instance Display Int where
-  display _ i = show i
-
 class Collapse t where
   collapse :: t String -> String
 
