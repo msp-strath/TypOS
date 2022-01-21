@@ -54,5 +54,5 @@ main = do
   let fp = case args of {(fp :_) -> fp; _ -> "stlc.act"}
   txt <- readFile fp
   let cs = parse pfile txt
-  putStrLn $ display initNaming $
-    run (Process B0 initRoot (initEnv 0) Map.empty Win) cs
+  let p = Process B0 initRoot (initEnv 0) Map.empty Win
+  debug "" (run p cs) `seq` pure ()

@@ -241,7 +241,7 @@ instance Display Frame where
 
 instance (Traversable t, Collapse t, Display s) => Display (Process s t) where
   display na p = let (fs', store', env', a') = displayProcess' na p in
-     concat ["(", collapse fs', " ", store', {-" ", env',-} " ", a', ")"]
+     concat ["(", collapse fs', " ", store', " ", env', " ", a', ")"]
 
 displayProcess' :: (Traversable t, Collapse t, Display s) =>
   Naming -> Process s t -> (t String, String, String, String)
@@ -361,30 +361,37 @@ exec p@Process { actor = Send ch tm a, ..}
     in send ch (tm, term) (p { stack = stack :<+>: [], root = newRoot, actor = a })
 exec p@Process { actor = Recv ch x a, ..}
   = recv ch x (p { stack = stack :<+>: [], actor = a })
-exec p@Process { actor = m@(Match lbl s ((pat, a):cs)), ..}
+exec p@Process { actor = m@(Match lbl s cls), ..}
   | Just term <- mangleActors env s
-  = match env [(B0, pat, term)]
+  = switch term cls
  where
+
+  switch :: Term -> [(PatActor, Actor)] -> Process Store []
+  switch t [] = move (p { stack = stack :<+>: [] })
+  switch t ((pat, a):cs) = case match env [(B0, pat,t)] of
+    Left True -> switch t cs
+    Left False -> move (p { stack = stack :<+>: [] })
+    Right env -> exec (p { env = env, actor = a } )
 
   match :: Env ->
            [(Bwd String -- binders we have gone under
             , PatActor
-            , Term)] -> Process Store []
-  match env' [] = exec (p { env = env', actor = a })
-  match env' ((zx, MP x ph, (t, th)):xs)
-    = let g = bigEnd th - bigEnd ph
-      in case thicken (ones g <> ph) th of
-            Just ps -> let env'' = newActorVar x ((ph ?< zx) <>> [], (t, ps)) env' in
-                       match env'' xs
-            -- bug: t may not depend on disallowed things until definitions are expanded
-            Nothing -> exec (p { actor = Match lbl s cs })
-  match env' ((zx, pat, tm):xs) = case (pat, expand (headUp store tm)) of
-    (_, (_ :$: _)) -> move (p { stack = stack :<+>: [], actor = m })
-    (VP (VarP i), VX j _) | i == j -> match env' xs
-    (AP a, AX b _) | a == b -> match env' xs
-    (PP p q, s :%: t) -> match env' ((zx,p,s):(zx,q,t):xs)
-    (BP (Hide x) p, _ :.: t) -> match env' ((zx :< x,p,t):xs)
-    _ -> exec (p { actor = Match lbl s cs })
+            , Term)] -> Either Bool Env -- Bool: should we keep trying other clauses?
+  match env [] = pure env
+  match env ((zx, MP x ph, (t, th)):xs) = do
+    let g = bigEnd th - bigEnd ph
+    -- we can do better: t may not depend on disallowed things until definitions are expanded
+    ps <- maybe (Left True) Right $ thicken (ones g <> ph) th
+    env <- pure $ newActorVar x ((ph ?< zx) <>> [], (t, ps)) env
+    match env xs
+  match env ((zx, pat, tm):xs) = case (pat, expand (headUp store tm)) of
+    (_, (_ :$: _)) -> Left False
+    (VP (VarP i), VX j _) | i == j -> match env xs
+    (AP a, AX b _) | a == b -> match env xs
+    (PP p q, s :%: t) -> match env ((zx,p,s):(zx,q,t):xs)
+    (BP (Hide x) p, _ :.: t) -> match env ((zx :< x,p,t):xs)
+    _ -> Left True
+
 exec p@Process { actor = FreshMeta av a, ..} =
   let (xm, root') = meta root av
       xt = xm $: sbstI (scopeEnv env)
