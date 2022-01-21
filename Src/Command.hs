@@ -4,6 +4,7 @@ import Thin
 import Term
 import Syntax
 import Parse
+import Term.Parse
 
 type Command = Term
 type Response = Term

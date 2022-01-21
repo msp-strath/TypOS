@@ -22,15 +22,18 @@ common haskell
 library
   import:              haskell
   exposed-modules:     Actor,
+                       Actor.Parse,
                        ANSI,
                        Bwd,
                        Command,
                        Display,
 --                       Driver,
                        Hide,
+                       Machine,
                        Parse,
                        Syntax,
                        Term,
+                       Term.Parse,
                        Thin
 
   build-depends:       base <5, mtl, containers

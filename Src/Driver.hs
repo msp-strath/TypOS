@@ -4,7 +4,10 @@ import Bwd
 import Thin
 import Parse
 import Actor
+import Actor.Parse
+import Machine
 import Term
+import Term.Parse
 import Display
 
 import System.Environment
