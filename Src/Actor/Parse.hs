@@ -9,6 +9,7 @@ import qualified Data.Set as Set
 import Bwd
 import Thin
 import Term
+import Pattern
 import Actor
 
 import Parse

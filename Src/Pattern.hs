@@ -1,0 +1,114 @@
+{-# LANGUAGE DeriveFunctor #-}
+module Pattern where
+
+import qualified Data.Map as Map
+
+import Control.Applicative
+
+import Bwd
+import Thin
+import Hide
+import Display
+import Parse
+
+import Term.Base
+
+-- patterns are de Bruijn
+data PatF v
+  = VP v
+  | AP String
+  | PP (PatF v) (PatF v)
+  | BP (Hide String) (PatF v)
+  | MP String Th
+  deriving (Show, Functor, Eq)
+
+type Pat = PatF Int
+
+instance Thable v => Thable (PatF v) where
+  VP v *^ th = VP (v *^ th)
+  AP a *^ th = AP a
+  PP p q *^ th = PP (p *^ th) (q *^ th)
+  BP x b *^ th = BP x (b *^ (th -? True))
+  MP m ph *^ th = MP m (ph *^ th)
+
+(#?) :: String -> [PatF v] -> PatF v
+a #? ts = foldr PP (AP "") (AP a : ts)
+
+-- match assumes that p's vars are the local end of t's
+match :: Root
+      -> Pat
+      -> Term
+      -> Maybe (Root, (Map.Map String Meta, Map.Map Meta Term))
+match r (MP x ph) (t, th) = do
+  let g = bigEnd th - bigEnd ph  -- how many globals?
+  ps <- thicken (ones g <> ph) th
+  let (m, r') = meta r x
+  return (r', (Map.singleton x m, Map.singleton m (t, ps)))
+match r p t = case (p, expand t) of
+  (VP i, VX j _) | i == j -> return (r, (Map.empty, Map.empty))
+  (AP a, AX b _) | a == b -> return (r, (Map.empty, Map.empty))
+  (PP p q, s :%: t) -> do
+    (r, m) <- match r p s
+    (r, n) <- match r q t
+    return (r, m <> n)
+  (BP _ p, _ :.: t) -> match r p t
+  _ -> empty
+
+-- Parsing
+
+instance Lisp Pat where
+  mkNil = const (AP "")
+  mkCons = PP
+  pCar = ppat
+
+ppat :: Parser Pat
+ppat = pvar (\ str -> MP str . ones <$> plen) (pure . VP)
+  <|> AP <$> patom
+  <|> id <$ pch (== '[') <* pspc <*> plisp
+  <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pch (== ')')
+  <|> id <$ pch (== '\\') <* pspc <*> (do
+    x <- pnom
+    pspc
+    pch (== '.')
+    pspc
+    (BP (Hide x)) <$> (pbind x ppat))
+  <|> id <$ pch (== '{') <* pspc <*> do
+    (th, xz) <- pth
+    pspc
+    (*^ th) <$> plocal xz ppat
+
+pth :: Parser (Th, Bwd String)
+pth = do
+  (xns, b) <- raw
+  xz <- pscope
+  let xnz = deBruijnify xz
+  let th = (if b then comp else id) (which (`elem` xns) xnz)
+  pure (th, th ^? xz)
+
+  where
+
+  raw :: Parser ([(String, Int)], Bool)
+  raw = (,) <$> many (id <$ pspc <*> pvar') <* pspc
+            <*> (True <$ pch (== '*') <|> pure False)
+            <* pspc <* pch (== '}')
+
+-- Displaying
+
+instance Display t => Display (PatF t) where
+  display na = \case
+    VP n -> display na n
+    AP ""  -> "[]"
+    AP str -> "'" ++ str
+    PP p q -> "[" ++ pdisplay na p ++ displayPatCdr na q ++ "]"
+    BP (Hide x) p -> "\\" ++ x ++ "." ++ display (na `nameOn` x) p
+    MP m th -> m
+
+  pdisplay na p = case p of
+    AP{} -> display na p
+    PP{} -> display na p
+    _ -> pdisplayDFT na p
+
+displayPatCdr :: Display t => Naming -> PatF t -> String
+displayPatCdr na (AP "") = ""
+displayPatCdr na (PP p q) = " " ++ pdisplay na p ++ displayPatCdr na q
+displayPatCdr na t = "|" ++ display na t

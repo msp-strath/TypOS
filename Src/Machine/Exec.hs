@@ -7,6 +7,7 @@ import Bwd
 import Display
 import Hide
 import Term
+import Pattern
 import Thin
 import ANSI
 

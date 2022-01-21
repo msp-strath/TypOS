@@ -35,6 +35,14 @@ pnom = Parser $
       (nm, str) -> [(c:nm, str)]
   _ -> []
 
+pvar' :: Parser (String, Int)
+pvar' = (,) <$> pnom <*> ((id <$ pch (== '^') <*> pnat) <|> pure 0)
+
+pvar :: (String -> Parser a) -> (Int -> Parser a) -> Parser a
+pvar str int = (either str int <=< pseek) =<< pvar'
+
+patom :: Parser String
+patom = pch (== '\'') *> pnom
 
 pspc :: Parser ()
 pspc = Parser $ \ xs str -> [((),snd (span isSpace str))]
@@ -107,3 +115,13 @@ parse :: Parser x -> String -> x
 parse p s = case parser (id <$> p <* pend) B0 s of
   [(x, _)] -> x
   x -> error (show $ length x)
+
+class Lisp t where
+  mkNil  :: Int -> t
+  mkCons :: t -> t -> t
+  pCar   :: Parser t
+
+plisp :: Lisp t => Parser t
+plisp = mkNil <$ pch (== ']') <*> plen
+    <|> id <$ pch (== '|') <* pspc <*> pCar <* pspc <* pch (== ']')
+    <|> mkCons <$> pCar <* pspc <*> plisp

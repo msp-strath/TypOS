@@ -35,10 +35,14 @@ library
                        Machine.Display,
                        Machine.Exec,
                        Parse,
+                       Pattern,
                        Syntax,
                        Term,
+                       Term.Base,
                        Term.Display,
+                       Term.Mangler,
                        Term.Parse,
+                       Term.Substitution,
                        Thin
 
   build-depends:       base <5, mtl, containers

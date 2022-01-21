@@ -5,6 +5,7 @@ module Actor where
 import qualified Data.Map as Map
 
 import Term
+import Pattern
 import Thin
 import ANSI
 

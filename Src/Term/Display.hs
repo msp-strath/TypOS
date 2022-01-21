@@ -39,25 +39,6 @@ instance Show m => Display (CdB (Tm m)) where
     Just ts -> "'[" ++ intercalate " " (map (display na) ts) ++ "]"
     Nothing -> pdisplay (nameSel th na) t'
 
-instance Display t => Display (PatF t) where
-  display na = \case
-    VP n -> display na n
-    AP ""  -> "[]"
-    AP str -> "'" ++ str
-    PP p q -> "[" ++ pdisplay na p ++ displayPatCdr na q ++ "]"
-    BP (Hide x) p -> "\\" ++ x ++ "." ++ display (na `nameOn` x) p
-    MP m th -> m
-
-  pdisplay na p = case p of
-    AP{} -> display na p
-    PP{} -> display na p
-    _ -> pdisplayDFT na p
-
-displayPatCdr :: Display t => Naming -> PatF t -> String
-displayPatCdr na (AP "") = ""
-displayPatCdr na (PP p q) = " " ++ pdisplay na p ++ displayPatCdr na q
-displayPatCdr na t = "|" ++ display na t
-
 displayCdr :: Show m => Naming -> Tm m -> String
 displayCdr (B0, _, _) (A "") = ""
 displayCdr na (P (s :<>: t)) = " " ++ pdisplay na s ++ displayCdr' na t
