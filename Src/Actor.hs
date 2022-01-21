@@ -234,7 +234,7 @@ instance Display Frame where
     RightBranch p Hole -> display na p ++ " | <>"
     Spawnee (Hole, lch) (rch, p) -> "<> @ " ++ show lch ++ " | " ++ show rch ++ " @ " ++ display na p
     Spawner (p, lch) (rch, Hole) -> display na p ++ " @ " ++ show lch ++ " | " ++ show rch ++ " @ <>"
-    Sent ch t -> "!" ++ show ch ++ ". " ++ display na t
+    Sent ch t -> withANSI [SetColour Foreground Blue, SetWeight Bold] $ "!" ++ show ch ++ ". " ++ display na t
     Binding x -> withANSI [SetColour Foreground Yellow, SetWeight Bold]
                  $ "\\" ++ x ++ ". "
     UnificationProblem s t -> withANSI [SetColour Background Red] (display na s ++ " ~? " ++ display na t)
@@ -374,8 +374,8 @@ exec p@Process { actor = m@(Match lbl s ((pat, a):cs)), ..}
   match env' ((zx, MP x ph, (t, th)):xs)
     = let g = bigEnd th - bigEnd ph
       in case thicken (ones g <> ph) th of
-            Just ps -> let env' = newActorVar x ((ph ?< zx) <>> [], (t, ps)) env in
-                       match env' xs
+            Just ps -> let env'' = newActorVar x ((ph ?< zx) <>> [], (t, ps)) env' in
+                       match env'' xs
             -- bug: t may not depend on disallowed things until definitions are expanded
             Nothing -> exec (p { actor = Match lbl s cs })
   match env' ((zx, pat, tm):xs) = case (pat, expand (headUp store tm)) of
@@ -420,7 +420,7 @@ mangleActors env@(Env sc _ _) tm = go tm
  where
   go :: CdB (Tm ActorMeta) -> Maybe Term
   go tm = case expand tm of
-    m :$: sbst -> (//^) <$> lookupVar env m <*> goSbst env sbst
+    m :$: sbst -> (//^) <$> noisyLookupVar env m <*> goSbst env sbst
     VX i _ -> pure $ var i sc
     AX s _ -> pure $ atom s sc
     a :%: b -> (%) <$> go a <*> go b
@@ -438,6 +438,11 @@ mangleActors env@(Env sc _ _) tm = go tm
     let env' = strengthenEnv w env
     sbst <- goSbst env' (sbst :^^ 0, ph)
     pure $ sbstW sbst ts
+
+  noisyLookupVar :: Env -> ActorMeta -> Maybe Term
+  noisyLookupVar env av = case lookupVar env av of
+    Just t -> Just t
+    Nothing -> dmesg (withANSI [SetColour Foreground Red] $ "Alarm: couldn't find " ++ show av ++ " in " ++ show env) $ Nothing
 
   lookupVar :: Env -> ActorMeta -> Maybe Term
   lookupVar (Env sc avs als) = \case
@@ -511,15 +516,9 @@ solveMeta ms m sg t (zf :<+>: fs, root, scope, store, a) = case zf of
 send :: Channel -> (CdB (Tm ActorMeta), Term) -> Process Store Cursor -> Process Store []
 --send ch (tm, term) (Process zfs@(zf :<+>: fs) _ _ _ a)
 --  | dmesg ("\nsend " ++ show ch ++ " " ++ show term ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
---send ch (tm, term) p
---  | dmesg ("send "  ++ unlines [show ch, "  " ++ show tm, "  " ++ show term]) False
---  = undefined
---send ch (tm, term) p
---  | dmesg ("send "  ++ show ch ++ " " ++ display (frnaming (stack p)) term) False
---  = undefined
---send ch (tm, term) p
---  | debug ("send "  ++ show ch ++ " " ++ display (frnaming (stack p)) term) p
---  = undefined
+send ch (tm, term) p
+  | debug ("send "  ++ show ch ++ " " ++ display (frnaming (stack p)) term) p
+  = undefined
 
 send ch (tm, term) (p@Process { stack = B0 :<+>: fs, ..})
   = move (p { stack = B0 <>< fs :<+>: [], actor = Send ch tm actor })

@@ -19,18 +19,18 @@ check@p = p?ty. p?tm. case tm
     ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
     }
 
-synth@p = p?tm. case/subject tm
+synth@p = p?tm . case/subject tm
    { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)
-   ; ['App f s] -> ?S. ?T.
-        ( synth@q. q!f. q?ty. ty ~ ['Arr S T]
-        | check@r. r!S. r!s.
-        | p!T.)
+   ; ['App f s] -> ?U. ?V.
+        ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
+        | check@r. r!U. r!s.
+        | p!V.)
    }
 
 exec check@p. p! ['Arr ['Nat] ['Nat]].
-     BREAK "Type transmitted".
-     p! ['Lam \z. ['App ['Rad ['Lam \w. ['Emb w]] ['Arr ['Nat] ['Nat]]] ['Emb z]]].
+              p! ['Lam \z. ['Emb ['App ['Rad ['Lam \w. ['Emb w]] ['Arr ['Nat] ['Nat]]] ['Emb z]]]].
 
-exec check@p. p! ['Arr ['Nat] ['Arr ['Bool] ['Nat]]].
-     p! ['Lam \z. ['Lam \w. ['Emb z]]].
-     BREAK "Example one".
+exec check@p. BREAK "Example 2" .
+              p! ['Arr ['Arr ['Nat] ['Bool]] ['Arr ['Nat] ['Bool]]].
+              p! ['Lam \f. ['Lam \z. ['Emb ['App f ['Emb z]]]]].
+
