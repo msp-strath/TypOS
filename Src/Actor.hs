@@ -304,6 +304,12 @@ debug str p =
       p' = unlines $ map ("  " ++) [collapse fs', store', env', a']
   in dmesg ("\n" ++ str ++ "\n" ++ p') False
 
+alarm :: String -> a -> a
+alarm str x = unsafePerformIO $ do
+  putStrLn $ withANSI [SetColour Foreground Red] "Alarm: " ++ str
+  _ <- getLine
+  pure x
+
 lookupRules :: JudgementForm -> Bwd Frame -> Maybe (Channel, Actor)
 lookupRules jd = go 0 Map.empty where
 
@@ -367,7 +373,7 @@ exec p@Process { actor = m@(Match lbl s cls), ..}
  where
 
   switch :: Term -> [(PatActor, Actor)] -> Process Store []
-  switch t [] = move (p { stack = stack :<+>: [] })
+  switch t [] = alarm ("No matching clause for " ++ display (frnaming stack) t ++ " in " ++ display initNaming m) $ move (p { stack = stack :<+>: [] })
   switch t ((pat, a):cs) = case match env [(B0, pat,t)] of
     Left True -> switch t cs
     Left False -> move (p { stack = stack :<+>: [] })
@@ -449,7 +455,7 @@ mangleActors env@(Env sc _ _) tm = go tm
   noisyLookupVar :: Env -> ActorMeta -> Maybe Term
   noisyLookupVar env av = case lookupVar env av of
     Just t -> Just t
-    Nothing -> dmesg (withANSI [SetColour Foreground Red] $ "Alarm: couldn't find " ++ show av ++ " in " ++ show env) $ Nothing
+    Nothing -> alarm ("couldn't find " ++ show av ++ " in " ++ show env) Nothing
 
   lookupVar :: Env -> ActorMeta -> Maybe Term
   lookupVar (Env sc avs als) = \case

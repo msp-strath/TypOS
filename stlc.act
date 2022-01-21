@@ -28,6 +28,6 @@ synth@p = p?tm . case/subject tm
    }
 
 exec check@p. p! ['Arr ['Nat] ['Nat]].
-              p! ['Lam \z. ['App ['Rad ['Lam \w. ['Emb w]] ['Arr ['Nat] ['Nat]]] ['Emb z]]].
+              p! ['Lam \z. ['Emb ['App ['Rad ['Lam \w. ['Emb w]] ['Arr ['Nat] ['Nat]]] ['Emb z]]]].
 
 
