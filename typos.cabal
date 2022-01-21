@@ -22,6 +22,7 @@ common haskell
 library
   import:              haskell
   exposed-modules:     Actor,
+                       Actor.Display,
                        Actor.Parse,
                        ANSI,
                        Bwd,
@@ -30,9 +31,13 @@ library
 --                       Driver,
                        Hide,
                        Machine,
+                       Machine.Base,
+                       Machine.Display,
+                       Machine.Exec,
                        Parse,
                        Syntax,
                        Term,
+                       Term.Display,
                        Term.Parse,
                        Thin
 
