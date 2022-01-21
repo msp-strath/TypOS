@@ -24,7 +24,19 @@ dmesg = trace
 -- TODO:
 --  A zipper for process trees
 
-type Store = Map.Map Meta Term
+type Date = Int
+
+data Store = Store
+  { solutions :: Map.Map Meta Term
+  , today :: Date
+  }
+
+initStore :: Store
+initStore = Store Map.empty 0
+
+updateStore :: Meta -> Term -> Store -> Store
+updateStore m t (Store{..}) = Store { solutions = Map.insert m t solutions, today = today + 1 }
+
 -- | Stands for a term
 
 type Alias = String
@@ -217,13 +229,13 @@ data Hole = Hole deriving Show
 data Frame
   = Rules JudgementForm (Channel, Actor)
   | RulePatch JudgementForm MatchLabel Alias Env Actor
-  | LeftBranch Hole (Process () [])
-  | RightBranch (Process () []) Hole
-  | Spawnee (Hole, Channel) (Channel, Process () [])
-  | Spawner (Process () [], Channel) (Channel, Hole)
+  | LeftBranch Hole (Process Date [])
+  | RightBranch (Process Date []) Hole
+  | Spawnee (Hole, Channel) (Channel, Process Date [])
+  | Spawner (Process Date [], Channel) (Channel, Hole)
   | Sent Channel Term
   | Binding String
-  | UnificationProblem Term Term
+  | UnificationProblem Date Term Term
   deriving (Show)
 
 instance Display Frame where
@@ -237,7 +249,7 @@ instance Display Frame where
     Sent ch t -> withANSI [SetColour Foreground Blue, SetWeight Bold] $ "!" ++ show ch ++ ". " ++ display na t
     Binding x -> withANSI [SetColour Foreground Yellow, SetWeight Bold]
                  $ "\\" ++ x ++ ". "
-    UnificationProblem s t -> withANSI [SetColour Background Red] (display na s ++ " ~? " ++ display na t)
+    UnificationProblem date s t -> withANSI [SetColour Background Red] (display na s ++ " ~?[" ++ show date ++ "] " ++ display na t)
 
 instance (Traversable t, Collapse t, Display s) => Display (Process s t) where
   display na p = let (fs', store', env', a') = displayProcess' na p in
@@ -250,7 +262,7 @@ displayProcess' na Process{..} =
          store'     = display initNaming store
          env'       = pdisplay na' env
          a'         = pdisplay na' actor
-     in (fs', store', env', a')
+     in (fs', store', case actor of Win -> ""; _ -> env', a')
 
     where
 
@@ -263,7 +275,7 @@ displayProcess' na Process{..} =
               pure dis
 
 instance Display Store where
-  display na = withANSI [SetColour Background Green, SetColour Foreground Black] . collapse . map go . Map.toList where
+  display na st = show (today st) ++ ": " ++ (withANSI [SetColour Background Green, SetColour Foreground Black] . collapse . map go . Map.toList . solutions) st where
     go :: (Meta, Term) -> String
     go (k, t) = "?" ++ show k ++ " := " ++ display (fromScope (scope t)) t
 
@@ -287,7 +299,7 @@ initStack = B0 <>< map (uncurry Rules) judgementForms
 
 processTest :: Process Store Bwd
 processTest
-  = Process initStack initRoot (initEnv 0) Map.empty $
+  = Process initStack initRoot (initEnv 0) initStore $
       Spawn "check" "p" $
       Send "p" ("Arr" #%+ [nat, "Arr" #%+ [bool, bool]]) $
       Break "Stopped here" $
@@ -343,7 +355,7 @@ exec :: Process Store Bwd -> Process Store []
 exec p | debug "exec" p = undefined
 exec p@Process { actor = a :|: b, ..} =
   let (lroot, rroot) = splitRoot root ""
-      rbranch = Process [] rroot env () b
+      rbranch = Process [] rroot env (today store) b
   in exec (p { stack = stack :< LeftBranch Hole rbranch, root = lroot, actor = a})
 exec p@Process { actor = Closure env' a, ..} =
   exec (p { env = env', actor = a })
@@ -357,7 +369,7 @@ exec p@Process { actor = Closure env' a, ..} =
 exec p@Process { actor = Spawn jd spawnerCh actor, ..}
   | Just (spawnedCh, spawnedActor) <- lookupRules jd stack
   = let (subRoot, newRoot) = splitRoot root jd
-        spawnee = Process [] subRoot (initEnv $ scopeEnv env) () spawnedActor
+        spawnee = Process [] subRoot (initEnv $ scopeEnv env) (today store) spawnedActor
     in exec (p { stack = stack :< Spawner (spawnee, spawnedCh) (spawnerCh, Hole)
                , root = newRoot
                , actor })
@@ -410,7 +422,7 @@ exec p@Process { actor = Constrain s t, ..}
   -- , dmesg (show env) True
   -- , dmesg (show s ++ " ----> " ++ show s') True
   -- , dmesg (show t ++ " ----> " ++ show t') True
-  = unify (p { stack = stack :<+>: [UnificationProblem s' t'], actor = Win })
+  = unify (p { stack = stack :<+>: [UnificationProblem (today store) s' t'], actor = Win })
 exec p@Process { actor = Under x a, ..}
   = let stack' = stack :< Binding (x ++ show (scopeEnv env))
         env'   = newAlias x env
@@ -477,14 +489,14 @@ unify :: Process Store Cursor -> Process Store []
 --unify (Process zf'@(zf :<+>: up@(UnificationProblem s t) : fs) _ _ store a)
 --  | dmesg ("\nunify\n  " ++ show t ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
 unify p | debug "unify" p = undefined
-unify p@Process { stack = zf :<+>: UnificationProblem s t : fs, ..} =
+unify p@Process { stack = zf :<+>: UnificationProblem date s t : fs, ..} =
   case (expand (headUp store s), expand (headUp store t)) of
     (s, t) | s == t      -> unify (p { stack = zf :<+>: fs })
-    (a :%: b, a' :%: b') -> unify (p { stack = zf :<+>: UnificationProblem a a' : UnificationProblem b b' : fs })
-    (x :.: a, x' :.: a') -> unify (p { stack = zf :<+>: UnificationProblem a a' : fs })
+    (a :%: b, a' :%: b') -> unify (p { stack = zf :<+>: UnificationProblem date a a' : UnificationProblem date b b' : fs })
+    (x :.: a, x' :.: a') -> unify (p { stack = zf :<+>: UnificationProblem date a a' : fs })
     (m :$: sg, _) | Just p <- solveMeta m sg t (p { stack = zf :<+>: fs }) -> unify p
     (_, m :$: sg) | Just p <- solveMeta m sg s (p { stack = zf :<+>: fs }) -> unify p
-    (_, _) -> unify (p { stack = zf :< UnificationProblem s t :<+>: fs })
+    (_, _) -> unify (p { stack = zf :< UnificationProblem date s t :<+>: fs })
 unify p = move p
 
 solveMeta :: Meta   -- The meta (m) we're solving
@@ -495,7 +507,7 @@ solveMeta :: Meta   -- The meta (m) we're solving
 solveMeta m (S0 :^^ _, ph) (tm, th) p@Process{..} = do
   ps <- thicken ph th
   -- FIXME: do a deep occurs check here to avoid the bug from match
-  return (p { store = Map.insert m (tm, ps) store })
+  return (p { store = updateStore m (tm, ps) store })
 {-
 solveMeta ms m sg t (zf :<+>: fs, root, scope, store, a) = case zf of
   zf' :< DeclMeta m' mt -> case (m == m', mt) of
@@ -537,7 +549,7 @@ send ch (tm, term) (p@Process { stack = B0 :<+>: fs, ..})
   = move (p { stack = B0 <>< fs :<+>: [], actor = Send ch tm actor })
 send ch (tm, term) (p@Process { stack = zf :< Spawner (childP, q) (r, Hole) :<+>: fs, ..})
   | r == ch =
-  let parentP = p { stack = fs, store = () }
+  let parentP = p { stack = fs, store = today store }
       stack' = zf :< Spawnee (Hole, q) (r, parentP) :< Sent q term <>< stack childP
   in exec (childP { stack = stack', store })
 send ch (tm, term) p@Process { stack = zf'@(zf :< Spawnee (Hole, q) (r, parentP)) :<+>: fs, ..}
@@ -565,15 +577,29 @@ recv ch x p@Process { stack = zf :< f :<+>: fs }
 move :: Process Store Cursor -> Process Store []
 -- move (Process zfs _ _ store a)
 -- | dmesg ("\nmove\n  " ++ show zfs ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
--- move p | debug "move" p = undefined
+move p | debug "move" p = undefined
 
 move p@Process { stack = B0 :<+>: fs } = p { stack = fs }
 move p@Process { stack = zf :< LeftBranch Hole rp :<+>: fs, ..}
-  = exec (rp { stack = zf :< RightBranch (p { stack = fs, store = () }) Hole <>< stack rp, store })
+  = let lp = p { stack = fs, store = today store }
+    in exec (rp { stack = zf :< RightBranch lp Hole <>< stack rp, store })
+move p@Process { stack = zf :< RightBranch lp Hole :<+>: fs, store = st, ..}
+  -- | dmesg (show (today st) ++ " " ++ show (store lp)) True
+  | today st > store lp
+  = let rp = p { stack = fs, store = today st }
+    in exec (lp { stack = zf :< LeftBranch Hole rp <>< stack lp, store = st})
 move p@Process { stack = zf :< Spawnee (Hole, q) (r, parentP) :<+>: fs, ..}
-  = let childP = p { stack = fs, store = () }
+  = let childP = p { stack = fs, store = today store }
         stack' = zf :< Spawner (childP, q) (r, Hole) <>< stack parentP
     in exec (parentP { stack = stack', store })
+move p@Process { stack = zf :< Spawner (childP, q) (r, Hole) :<+>: fs, store = st, ..}
+  | today st > store childP
+  = let parentP = p { stack = fs, store = today st }
+        stack'  = zf :< Spawnee (Hole, q) (r, parentP) <>< stack childP
+    in exec (childP { stack = stack', store = st })
+move p@Process { stack = zf :< UnificationProblem date s t :<+>: fs, .. }
+  | today store > date
+  = unify (p { stack = zf :<+>: UnificationProblem (today store) s t : fs })
 move p@Process { stack = (zf :< f) :<+>: fs }
   = move (p { stack = zf :<+>: (f : fs) })
 
@@ -586,5 +612,5 @@ frnaming zf = (zv, ones (length zv), zv)
 
 headUp :: Store -> Term -> Term
 headUp store term
-  | m :$: sg <- expand term, Just t <- Map.lookup m store = headUp store (t //^ sg)
+  | m :$: sg <- expand term, Just t <- Map.lookup m (solutions store) = headUp store (t //^ sg)
   | otherwise = term

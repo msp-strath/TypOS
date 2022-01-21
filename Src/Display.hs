@@ -138,6 +138,8 @@ instance Show m => Display (Sbst m) where
 -- displayCdB :: Show m => Naming -> CdB (Tm m) -> String
 -- displayCdB nm (t, th) = "(" ++ display nm t ++ ", " ++ show th ++ ")"
 
+instance Display Int where
+  display _ i = show i
 
 class Collapse t where
   collapse :: t String -> String

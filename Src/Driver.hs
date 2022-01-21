@@ -44,7 +44,7 @@ run p [] = exec p
 run p@Process{..} (c : cs) = case c of
   DefnJ jd cha -> run (p { stack = stack :< Rules jd cha }) cs
   Go a -> let (lroot, rroot) = splitRoot root ""
-              rbranch = Process [] rroot env () a
+              rbranch = Process [] rroot env (today store) a
           in run (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
   _ -> run p cs
 
@@ -54,5 +54,5 @@ main = do
   let fp = case args of {(fp :_) -> fp; _ -> "stlc.act"}
   txt <- readFile fp
   let cs = parse pfile txt
-  let p = Process B0 initRoot (initEnv 0) Map.empty Win
+  let p = Process B0 initRoot (initEnv 0) initStore Win
   debug "" (run p cs) `seq` pure ()
