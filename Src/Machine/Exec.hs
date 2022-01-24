@@ -161,7 +161,7 @@ solveMeta :: Meta   -- The meta (m) we're solving
 solveMeta m (S0 :^^ _, ph) (tm, th) p@Process{..} = do
   ps <- thicken ph th
   -- FIXME: do a deep occurs check here to avoid the bug from match
-  return (p { store = updateStore m (tm, ps) store })
+  return (p { store = updateStore m (frnaming stack) (tm, ps) store })
 
 send :: Channel -> (CdB (Tm ActorMeta), Term) -> Process Store Cursor -> Process Store []
 --send ch (tm, term) (Process zfs@(zf :<+>: fs) _ _ _ a)
@@ -230,7 +230,7 @@ move p@Process { stack = (zf :< f) :<+>: fs }
 
 headUp :: Store -> Term -> Term
 headUp store term
-  | m :$: sg <- expand term, Just t <- Map.lookup m (solutions store) = headUp store (t //^ sg)
+  | m :$: sg <- expand term, Just (_, t) <- Map.lookup m (solutions store) = headUp store (t //^ sg)
   | otherwise = term
 
 debug :: (Traversable t, Collapse t, Display s)

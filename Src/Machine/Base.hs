@@ -10,16 +10,17 @@ import Actor
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
 
-data Store = Store
-  { solutions :: Map.Map Meta Term
+-- | i stores extra information, typically a naming
+data StoreF i = Store
+  { solutions :: Map.Map Meta (i, Term)
   , today :: Date
   }
 
-initStore :: Store
+initStore :: StoreF i
 initStore = Store Map.empty 0
 
-updateStore :: Meta -> Term -> Store -> Store
-updateStore m t (Store{..}) = Store { solutions = Map.insert m t solutions, today = today + 1 }
+updateStore :: Meta -> i -> Term -> StoreF i -> StoreF i
+updateStore m i t (Store{..}) = Store { solutions = Map.insert m (i, t) solutions, today = today + 1 }
 
 data Hole = Hole deriving Show
 

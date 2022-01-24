@@ -52,10 +52,15 @@ displayProcess' na Process{..} =
                 _ -> pure ()
               pure dis
 
+type Store = StoreF Naming
+
 instance Display Store where
-  display na st = show (today st) ++ ": " ++ (withANSI [SetColour Background Green, SetColour Foreground Black] . collapse . map go . Map.toList . solutions) st where
-    go :: (Meta, Term) -> String
-    go (k, t) = "?" ++ show k ++ " := " ++ display (fromScope (scope t)) t
+  display _ st = show (today st) ++ ": " ++
+                 withANSI [SetColour Background Green, SetColour Foreground Black]
+                 (collapse $ map go $ Map.toList $ solutions st)
+    where
+    go :: (Meta, (Naming, Term)) -> String
+    go (k, (na, t)) = "?" ++ show k ++ " := " ++ display na t
 
 frnaming :: Foldable t => t Frame -> Naming
 frnaming zf = (zv, ones (length zv), zv)
