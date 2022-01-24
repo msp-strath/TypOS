@@ -202,7 +202,7 @@ recv ch x p@Process { stack = zf :< f :<+>: fs }
 move :: Process Store Cursor -> Process Store []
 -- move (Process zfs _ _ store a)
 -- | dmesg ("\nmove\n  " ++ show zfs ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
-move p | debug "move" p = undefined
+-- move p | debug "move" p = undefined
 
 move p@Process { stack = B0 :<+>: fs } = p { stack = fs }
 move p@Process { stack = zf :< LeftBranch Hole rp :<+>: fs, ..}

@@ -27,7 +27,7 @@ instance Display Frame where
     Sent ch t -> withANSI [SetColour Foreground Blue, SetWeight Bold] $ "!" ++ show ch ++ ". " ++ display na t
     Binding x -> withANSI [SetColour Foreground Yellow, SetWeight Bold]
                  $ "\\" ++ x ++ ". "
-    UnificationProblem date s t -> withANSI [SetColour Background Red] (display na s ++ " ~?[" ++ show date ++ "] " ++ display na t)
+    UnificationProblem date s t -> withANSI [SetColour Background Red] (display na s ++ " ~?[" ++ display na date ++ "] " ++ display na t)
 
 instance (Traversable t, Collapse t, Display s) => Display (Process s t) where
   display na p = let (fs', store', env', a') = displayProcess' na p in

@@ -12,7 +12,6 @@ import Term
 import Term.Display()
 import Pattern
 
-
 instance Display PatVar where
   display na@(ns, _, _) = \case
     VarP n -> ns <! n
