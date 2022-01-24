@@ -121,6 +121,7 @@ mangleActors env@(Env sc _ _) tm = go tm
   covers nz _ = pure nz
 
   goSbst :: Env -> Bwd String -> CdB (Sbst ActorMeta) -> Maybe Subst
+--  goSbst env _ (S0 :^^ 0, _) | (scopeEnv env - sc) < 0 = error $ "Oops...! " ++ show (scopeEnv env) ++ " " ++ show sc
   goSbst env _ (S0 :^^ 0, _)
     = pure (S0 :^^ sc, ones sc <> none (scopeEnv env - sc))
   goSbst env nz (ST rp :^^ 0, th) =
