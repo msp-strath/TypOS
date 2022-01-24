@@ -55,7 +55,7 @@ displayProcess' na Process{..} =
 type Store = StoreF Naming
 
 instance Display Store where
-  display _ st = show (today st) ++ ": " ++
+  display na st = display na (today st) ++ ": " ++
                  withANSI [SetColour Background Green, SetColour Foreground Black]
                  (collapse $ map go $ Map.toList $ solutions st)
     where
