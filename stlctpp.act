@@ -54,7 +54,7 @@ synth@p = p?tm . case/subject tm
 	     \y. synth/subject { y -> p!X. }.
 	     \ys. synth/subject { ys -> p!['List X]. }.
 	     \jh. synth/subject { jh -> p!ty. }.
-	     	  check@v. v!ty. v!{x=y, xs=ys, ih=jh}c.
+                  check@v. v!ty. v!{ih=jh, xs=ys, x=y}c.
 	    )
    ; ['App f s]  -> ?U. ?V.
         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
