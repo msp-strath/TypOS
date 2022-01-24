@@ -1,0 +1,69 @@
+syntax
+  { 'Check = ['Tag '[ ['Lam  | '[['Bind 'Synth ['Rec 'Check]]]]
+    	     	      ['Nil  | '[]]
+		      ['Cons | '[['Rec 'Check] ['Rec 'Check]]]
+                      ['Emb  | '[['Rec 'Synth]]]]]
+  ; 'Synth = ['Tag '[ ['Rad    	 | '[['Rec 'Check] ['Rec 'Type]]]
+    	     	      ['Fst   	 | '[['Rec 'Synth]]]
+		      ['Snd      | '[['Rec 'Synth]]]
+		      ['ListElim | '[['Rec 'Type] ['Rec 'Synth] ['Rec 'Check]
+		      		     ['Bind 'Synth ['Bind 'Synth ['Bind 'Synth ['Rec 'Check]]]]]]
+                      ['App 	 | '[['Rec 'Synth] ['Rec 'Check]]]]]
+  ; 'Type = ['Tag '[ ['One  | '[]]
+    	    	     ['Pair | '[['Rec 'Type] ['Rec 'Type]]]
+		     ['List | '[['Rec 'Type]]]
+                     ['Arr  | '[['Rec 'Type] ['Rec 'Type]]]]]
+  }
+
+type  : ?'Type. 
+check : ?'Type. ?'Check.
+synth : ?'Synth. !'Type.
+
+type@p = p?ty. case/subject ty
+    { ['One]   	  ->  
+    ; ['Pair S T] -> type@q. q!S. | type@r. r!T.
+    ; ['List S]   -> type@q. q!S.
+    ; ['Arr S T]  -> type@q. q!S. | type@r. r!T.
+    ; otherwise	  -> #"not a valid type"
+    }
+
+check@p = p?ty. p?tm. case tm
+    { ['Lam \x. body] -> ?S. ?T.
+         (ty ~ ['Arr S T]
+         | \y. synth/subject { y -> p!S. }. check@q. q!T. q!{x=y}body.)
+    ; ['Nil]   -> case ty
+       { ['One]    ->
+       ; ['List S] ->
+       ; otherwise -> #"wrong type for Nil"
+       }
+    ; ['Cons s t] -> case ty
+       { ['Pair S T] -> check@q. q!S. q!s. | check@r. r!T. r!t.
+       ; ['List S]   -> check@q. q!S. q!s. | check@r. r!['List S]. r!t. 
+       ; otherwise   -> #"wrong type for Cons" 
+       }
+    ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
+    }
+
+synth@p = p?tm . case/subject tm
+   { ['Rad t ty] -> (type@r. r!ty. | check@q. q!ty. q!t. | p!ty.)
+   ; ['Fst e]    -> ?S. ?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!S.) 
+   ; ['Snd e]    -> ?S. ?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!T.)
+   ; ['ListElim ty e n (\x. \xs. \ih. c)] ->
+     	p!ty. | type@r. r!ty. | check@q. q!ty. q!n. |
+	?X. (synth@u. u!e. u?V. V ~ ['List X] |
+	     \y. synth/subject { y -> p!X. }.
+	     \ys. synth/subject { ys -> p!['List X]. }.
+	     \jh. synth/subject { jh -> p!ty. }.
+	     	  check@v. v!ty. v!{x=y, xs=ys, ih=jh}c.
+	    ) 
+   ; ['App f s]  -> ?U. ?V.
+        ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
+        | check@r. r!U. r!s.
+        | p!V.)
+   }
+
+exec \A. type/subject {A -> }. check@p. p!['Arr ['List A] ['Arr ['List A] ['List A]]].
+        p!['Lam \xs. ['Lam \ys.
+		['Emb ['ListElim ['List A] xs ['Emb ys] (\x. \xs. \ih. ['Cons ['Emb x] ['Emb ih]])]]]].
+     
+
