@@ -18,7 +18,6 @@ check@p = p?ty. p?tm. case tm
          | \y. synth/subject { y -> p!S. }. check@q. q!T. q!{x=y}body.)
     ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
     }
-
 synth@p = p?tm . case/subject tm
    { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)
    ; ['App f s] -> ?U. ?V.
@@ -27,7 +26,14 @@ synth@p = p?tm . case/subject tm
         | p!V.)
    }
 
-exec check@p. p! ['Arr ['Nat] ['Nat]].
+-- this is a comment
+
+{- this a
+multiline
+comment
+  {- with some nesting too!
+-}
+-}
+
+exec  check@p. p! ['Arr ['Nat] ['Nat]].
               p! ['Lam \z. ['Emb ['App ['Rad ['Lam \w. ['Emb w]] ['Arr ['Nat] ['Nat]]] ['Emb z]]]].
-
-

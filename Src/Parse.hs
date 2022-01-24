@@ -44,8 +44,33 @@ pvar str int = (either str int <=< pseek) =<< pvar'
 patom :: Parser String
 patom = pch (== '\'') *> pnom
 
+-- | Returns whether a comment was found
+pcom :: Parser Bool
+pcom = Parser $ \ xs str -> pure $ case str of
+  '{':'-':str -> (True, multiLine 1 str)
+  '-':'-':str -> (True, singleLine str)
+  _ -> (False, str)
+
+  where
+
+  multiLine 0 str = str
+  multiLine n str = case dropWhile (`notElem` "{-") str of
+    -- closing
+    '-':'}':str -> multiLine (n-1) str
+    -- starting
+    '{':'-':str -> multiLine (1+n) str
+    '-':'-':str -> multiLine n (singleLine str)
+    -- unclosed bracket which is fine by us
+    [] -> []
+
+  singleLine str = drop 1 $ dropWhile (/= '\n') str
+
+-- Remove leading spaces, an optional comment, and repeat
 pspc :: Parser ()
-pspc = Parser $ \ xs str -> [((),snd (span isSpace str))]
+pspc = do
+  Parser $ \ xs str -> [((),snd (span isSpace str))]
+  b <- pcom
+  if b then pspc else pure ()
 
 pnl :: Parser ()
 pnl = () <$ pch (\c -> c == '\n' || c == '\0')

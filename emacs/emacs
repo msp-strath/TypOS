@@ -1,0 +1,8 @@
+;; this should be inserted in your .emacs
+;; be careful to replace PATH/TO/ with the path...
+
+;; typos
+(autoload 'typos-mode "PATH/TO/typos/emacs/typos.el" nil t)
+(add-to-list 'auto-mode-alist '("\\.act\\'" . typos-mode))
+;; additionally if you want rainbow delimiters on parens, braces & brackets
+(add-hook 'typos-mode-hook 'rainbow-delimiters-mode)
