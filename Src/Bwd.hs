@@ -46,6 +46,10 @@ bwdProj (xz :< x) n = bwdProj xz (n-1)
 top :: Bwd x -> x
 top (xz :< x) = x
 
+dropz :: Bwd x -> Int -> Bwd x
+dropz xz 0 = xz
+dropz (xz :< x) w = dropz xz (w-1)
+
 only :: Bwd x -> x
 only (B0 :< x) = x
 

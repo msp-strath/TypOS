@@ -1,6 +1,10 @@
-module MangleActors where
-
 open import Basics
+
+module MangleActors
+  (ActorVar Unknown : Nat -> Set)
+  (ATOM : Set)
+  where
+
 open import Thin
 open import Cop
 open import Pair
@@ -13,9 +17,6 @@ open PAIR {`1}
 open BIND {`1}
 open PUB  {`1}
 open import Term
-
-postulate ActorVar Unknown : Nat -> Set
-postulate ATOM : Set
 
 module _ where
 
@@ -45,43 +46,42 @@ Env ga = forall {xi}
 module T {M} = TERM M ATOM
 open T
 
-ma : forall
-     {de0 -- support of source term
-      de  -- how many binders in source term we're under
-      ga  -- how many vars are really in scope
+module _
+  {ga {- how many vars are really in scope -}}
+  (rh : Env ga) where
+
+  ma : forall
+       {de0 -- support of source term
+        de  -- how many binders in source term we're under
      }
-  -> Src de0
-  -> de0 <= de
-  -> Env ga
-  -> Trg ^: (ga <<< de)
+    -> Src de0
+    -> de0 <= de
+    -> Trg ^: (ga <<< de)
 
-masu : forall
-     {xi  -- scope of actor var
-      de0 -- support of source term
-      de  -- how many binders in source term we're under
-      ga  -- how many vars are really in scope
-     }
-  -> xi S> de0
-  -> de0 <= de
-  -> Env ga
-  -> (ga <<< xi) T>^ (ga <<< de)
+  masu : forall
+       {xi  -- scope of actor var
+        de0 -- support of source term
+        de  -- how many binders in source term we're under
+       }
+    -> xi S> de0
+    -> de0 <= de
+    -> (ga <<< xi) T>^ (ga <<< de)
 
-ma (vv only) th rh = v^ (no +^+ th)
-ma (aa (atom a)) th rh = a^ a
-ma (pp (s </ u \> t)) th rh =
-  ma s (luth u -& th) rh ,^ ma t (ruth u -& th) rh
-ma (bb (kk t)) th rh = b^ (ma t (th -^ <>) rh)
-ma (bb (ll t)) th rh = b^ (ma t (th -, <>) rh)
-ma (mm (x & sg)) th rh = rh x //^ masu sg th rh
+  ma (vv only) th = v^ (no +^+ th)
+  ma (aa (atom a)) th = a^ a
+  ma (pp (s </ u \> t)) th =
+    ma s (luth u -& th) ,^ ma t (ruth u -& th)
+  ma (bb (kk t)) th = b^ (ma t (th -^ <>))
+  ma (bb (ll t)) th = b^ (ma t (th -, <>))
+  ma (mm (x & sg)) th = rh x //^ masu sg th
 
-masu [] th rh = is & io{-ga-} +^+ no{-de-}
-masu (sg -, x) (th -^ y) rh
-  with ta & ph <- masu (sg -, x) th rh
-     = ta & ph -^ y
-masu (sg -, x) (th -, .x) rh
-  with ta & ph <- masu sg th rh
-     = ta -, x & ph -, x
-masu ((sg </ u \> t) -/ x) th rh =
-  (masu sg (luth u -& th) rh /,\ ma t (ruth u -& th) rh)
-  -/^ x
-
+  masu [] th = is {- ga -} & io{-ga-} +^+ th {- 0<=de -}
+  masu (sg -, x) (th -^ y)
+    with ta & ph <- masu (sg -, x) th
+       = ta & ph -^ y
+  masu (sg -, x) (th -, .x)
+    with ta & ph <- masu sg th
+       = ta -, x & ph -, x
+  masu ((sg </ u \> t) -/ x) th =
+    (masu sg (luth u -& th) /,\ ma t (ruth u -& th))
+    -/^ x

@@ -16,7 +16,7 @@ module THIN {X : Set} where
   io : forall {xz} -> xz <= xz
   io {[]}      = []
   io {xz -, x} = io -, x
-  
+
   no : forall {xz} -> [] <= xz
   no {[]}      = []
   no {xz -, x} = no -^ x

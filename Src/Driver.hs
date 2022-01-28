@@ -14,6 +14,7 @@ import System.Environment
 import Control.Applicative
 import qualified Data.Map as Map
 
+
 data Mode = Input | {- Subject | -} Output
   deriving (Show)
 
@@ -46,7 +47,8 @@ run :: Process Store Bwd -> [Command] -> Process Store []
 run p [] = exec p
 run p@Process{..} (c : cs) = case c of
   DefnJ jd cha -> run (p { stack = stack :< Rules jd cha }) cs
-  Go a -> let (lroot, rroot) = splitRoot root ""
+  Go a -> dmesg (show a) $
+          let (lroot, rroot) = splitRoot root ""
               rbranch = Process [] rroot env (today store) a
           in run (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
   _ -> run p cs

@@ -124,6 +124,13 @@ instance Semigroup Th where (<>) = mappend
 thChop :: Th -> Int -> (Th, Th)
 thChop (Th th i) j = (Th (shiftR th j) (i-j), Th (th .&. full j) j)
 
+-- "take" from the wee end
+chopTh :: Int -> Th -> (Th, Th)
+chopTh 0 th = (th, ones 0)
+chopTh w th = case thun th of
+  (th, True)  -> chopTh (w-1) th <> (ones 0, ones 1)
+  (th, False) -> chopTh w     th <> (ones 0, none 1)
+
 -- codeBruijn things are paired with a thinning
 -- from support to scope
 type CdB a = (a, Th)
