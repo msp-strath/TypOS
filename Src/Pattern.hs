@@ -24,6 +24,12 @@ data PatF v
 
 type Pat = PatF Int
 
+bound :: Bwd String -> PatF v -> MetaScopes
+bound xz (PP l r) = bound xz l <> bound xz r
+bound xz (BP (Hide x) b) = bound (xz :< x) b
+bound xz (MP m th) = Map.singleton m (th ^? xz)
+bound _ _ = mempty
+
 instance Thable v => Thable (PatF v) where
   VP v *^ th = VP (v *^ th)
   AP a *^ th = AP a
@@ -71,7 +77,7 @@ ppat = pvar (\ str -> MP str . ones <$> plen) (pure . VP)
     pspc
     pch (== '.')
     pspc
-    (BP (Hide x)) <$> (pbind x ppat))
+    BP (Hide x) <$> pbind x ppat)
   <|> id <$ pch (== '{') <* pspc <*> do
     (th, xz) <- pth
     pspc

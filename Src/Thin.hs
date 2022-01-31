@@ -239,8 +239,9 @@ which :: (a -> Bool) -> Bwd a -> Th
 which p B0 = none 0
 which p (xz :< x) = which p xz -? p x
 
-findSub :: Eq a => Bwd a -> Bwd a -> Th
+findSub :: Eq a => Bwd a -> Bwd a -> Maybe Th
 findSub aza@(az :< a) (bz :< b)
-  | a == b    = findSub az  bz -? True
-  | otherwise = findSub aza bz -? False
-findSub _ bz = none (length bz)
+  | a == b    = (-? True)  <$> findSub az  bz
+  | otherwise = (-? False) <$> findSub aza bz
+findSub B0 bz = pure $ none (length bz)
+findSub _ _ = Nothing

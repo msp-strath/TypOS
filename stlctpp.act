@@ -64,4 +64,4 @@ synth@p = p?tm . case/subject tm
 
 exec \A. type/subject {A -> }. check@p. p!['Arr ['List A] ['Arr ['List A] ['List A]]].
         p!['Lam \xs. ['Lam \ys.
-		['Emb ['ListElim ['List {ys*,xs*}A] xs ['Emb ys] (\x. \xs. \ih. ['Cons ['Emb x] ['Emb ih]])]]]].
+		['Emb ['ListElim ['List A] xs ['Emb ys] (\x. \xs. \ih. ['Cons ['Emb x] ['Emb ih]])]]]].

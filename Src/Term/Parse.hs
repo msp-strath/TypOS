@@ -15,7 +15,7 @@ instance Lisp (CdB (Tm String)) where
   pCar = ptm
 
 ptm :: Parser (CdB (Tm String))
-ptm = pvar (\ str -> (str $:) . sbstI <$> plen) (\ i -> var i <$> plen)
+ptm = pvar ptmmeta (\ i -> var i <$> plen)
   <|> atom <$> patom <*> plen
   <|> id <$ pch (== '\\') <* pspc <*> (do
     x <- pnom
@@ -31,6 +31,13 @@ ptm = pvar (\ str -> (str $:) . sbstI <$> plen) (\ i -> var i <$> plen)
     pspc
     (//^ sg) <$> plocal xz ptm
   where
+    ptmmeta str = do
+      xz <- pmeta str
+      sc <- pscope
+      case findSub xz sc of
+        Just th -> pure (str $: sbstW (sbst0 0) th)
+        Nothing -> empty
+
     glomQlist l = foldr qc qn where
       qc a d = ("Cons",l) #% [a, d]
       qn = ("Nil",l) #% []
