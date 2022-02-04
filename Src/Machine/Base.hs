@@ -14,7 +14,7 @@ newtype Date = Date Int
 data StoreF i = Store
   { solutions :: Map.Map Meta (i, Term)
   , today :: Date
-  }
+  } deriving (Show)
 
 initStore :: StoreF i
 initStore = Store Map.empty 0
@@ -26,7 +26,7 @@ data Hole = Hole deriving Show
 
 data Frame
   = Rules JudgementForm (Channel, Actor)
-  | RulePatch JudgementForm MatchLabel Alias Env Actor
+  | RulePatch JudgementForm MatchLabel PatVar Env Actor
   | LeftBranch Hole (Process Date [])
   | RightBranch (Process Date []) Hole
   | Spawnee (Hole, Channel) (Channel, Process Date [])

@@ -34,6 +34,13 @@ comment
   {- with some nesting too!
 -}
 -}
-
+exec  check@p. p! ['Arr ['Nat] ['Arr ['One] ['Nat]]].
+              p! ['Lam \z. ['Lam \y. ['Emb z]]].
+{-
+exec  check@p. p! ['Arr ['Nat] ['Nat]].
+              p! ['Lam \z. ['Emb z]].
+-}
+{-
 exec  check@p. p! ['Arr ['Nat] ['Nat]].
               p! ['Lam \z. ['Emb ['App ['Rad ['Lam \w. ['Emb w]] ['Arr ['Nat] ['Nat]]] ['Emb z]]]].
+-}

@@ -51,7 +51,7 @@ displayCdr' na t@(t', th) = case asList Just t of
 
 
 instance Show m => Display (Sbst m) where
-  display na sg = case displaySg na sg of
+  display na@(_, th, _) sg = case displaySg na sg of
     [] -> []
     sg' -> "{" ++ intercalate "," sg' ++ "}"
 

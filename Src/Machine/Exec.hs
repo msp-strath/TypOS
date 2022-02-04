@@ -18,7 +18,7 @@ import Machine.Display
 import System.IO.Unsafe
 
 import Debug.Trace
-dmesg = trace
+dmesg = flip const -- trace
 
 lookupRules :: JudgementForm -> Bwd Frame -> Maybe (Channel, Actor)
 lookupRules jd = go 0 Map.empty where
@@ -29,8 +29,7 @@ lookupRules jd = go 0 Map.empty where
   go bd acc B0 = Nothing
   go bd acc (zf :< f) = case f of
     Binding _  -> go (1+bd) acc zf
-    RulePatch jd' ml al env a | jd == jd' -> do
-      i <- Map.lookup al (aliases env)
+    RulePatch jd' ml (VarP i) env a | jd == jd' -> do
       let pat  = VP (VarP (i + bd))
           env' = weakenEnv bd env
           acc' = Map.insertWith (++) ml [(pat, Closure env' a)] acc
@@ -47,9 +46,9 @@ lookupRules jd = go 0 Map.empty where
 
 -- run an actor
 exec :: Process Store Bwd -> Process Store []
---exec (Process zf _ env store a)
---  | dmesg ("\nexec\n  " ++ unlines (map ("  " ++) [show zf, show store, show env, show a])) False
---  = undefined
+-- exec (Process zf _ env store a)
+--   | dmesg ("\nexec\n  " ++ unlines (map ("  " ++) [show a])) False
+--   = undefined
 exec p | debug "exec" p = undefined
 exec p@Process { actor = a :|: b, ..} =
   let (lroot, rroot) = splitRoot root ""
@@ -66,6 +65,7 @@ exec p@Process { actor = Closure env' a, ..} =
 --                , actor = spawnedActor })
 exec p@Process { actor = Spawn jd spawnerCh actor, ..}
   | Just (spawnedCh, spawnedActor) <- lookupRules jd stack
+  , dmesg (show spawnedActor) True
   = let (subRoot, newRoot) = splitRoot root jd
         spawnee = Process [] subRoot (initEnv $ scopeEnv env) (today store) spawnedActor
     in exec (p { stack = stack :< Spawner (spawnee, spawnedCh) (spawnerCh, Hole)
@@ -98,7 +98,7 @@ exec p@Process { actor = m@(Match lbl s cls), ..}
     let g = bigEnd th - bigEnd ph
     -- we can do better: t may not depend on disallowed things until definitions are expanded
     ps <- maybe (Left True) Right $ thicken (ones g <> ph) th
-    env <- pure $ newActorVar x ((ph ?< zx) <>> [], (t, ps)) env
+    env <- pure $ newActorVar (ActorMeta x) ((ph ?< zx) <>> [], (t, ps)) env
     match env xs
   match env ((zx, pat, tm):xs) = case (pat, expand (headUp store tm)) of
     (_, (_ :$: _)) -> Left False
@@ -108,8 +108,8 @@ exec p@Process { actor = m@(Match lbl s cls), ..}
     (BP (Hide x) p, _ :.: t) -> match env ((zx :< x,p,t):xs)
     _ -> Left True
 
-exec p@Process { actor = FreshMeta av a, ..} =
-  let (xm, root') = meta root av
+exec p@Process { actor = FreshMeta av@(ActorMeta x) a, ..} =
+  let (xm, root') = meta root x
       xt = xm $: sbstI (scopeEnv env)
       env' = newActorVar av ([], xt) env
   in exec (p { env = env', root = root', actor = a })
@@ -123,7 +123,7 @@ exec p@Process { actor = Constrain s t, ..}
   = unify (p { stack = stack :<+>: [UnificationProblem (today store) s' t'], actor = Win })
 exec p@Process { actor = Under x a, ..}
   = let stack' = stack :< Binding (x ++ show (scopeEnv env))
-        env'   = newAlias x env
+        env'   = weakenEnv 1 env
         actor' = a
     in exec (p { stack = stack', env = env', actor = actor' })
 exec p@Process { actor = Extend (jd, ml, i, a) b, ..}
@@ -183,8 +183,8 @@ send ch (tm, term) p@Process { stack = zf'@(zf :< Spawnee (Hole, q) (r, parentP)
 send ch (tm, term) p@Process { stack = (zf :< f) :<+>: fs }
   = send ch (tm, term) (p { stack = zf :<+>: (f:fs) })
 
-recv :: Channel -> ActorVar -> Process Store Cursor -> Process Store []
-recv ch v p | debug ("recv " ++ show ch ++ " " ++ show v) p = undefined
+recv :: Channel -> ActorMeta -> Process Store Cursor -> Process Store []
+-- recv ch v p | debug ("recv " ++ show ch ++ " " ++ show v) p = undefined
 -- recv ch v (zfs, _, _, _, a)
  -- | dmesg ("\nrecv " ++ show ch ++ " " ++ show v ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
 recv ch x p@Process { stack = B0 :<+>: fs, ..}

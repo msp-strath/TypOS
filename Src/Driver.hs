@@ -34,11 +34,11 @@ pcommand :: Parser Command
 pcommand
   = DeclJ <$> pjudge <* punc ":"
      <*> psep pspc ((,) <$> pmode <* pspc <*> patom <* pspc <* pch (== '.'))
-  <|> DefnJ <$> pjudge <* punc "@" <*> ((,) <$> pchan <* punc "=" <*> pACT0)
+  <|> DefnJ <$> pjudge <* punc "@" <*> ((,) <$> pchan <* punc "=" <*> pACT)
   <|> DeclS <$ plit "syntax" <* punc "{"
        <*> psep (punc ";") ((,) <$> patom <* punc "=" <*> plocal B0 ptm)
        <* pspc <* pch (== '}')
-  <|> Go <$ plit "exec" <* pspc <*> pACT0
+  <|> Go <$ plit "exec" <* pspc <*> pACT
 
 pfile :: Parser [Command]
 pfile = id <$ pspc <*> psep pspc pcommand <* pspc
@@ -60,4 +60,7 @@ main = do
   txt <- readFile fp
   let cs = parse pfile txt
   let p = Process B0 initRoot (initEnv 0) initStore Win
-  debug "" (run p cs) `seq` pure ()
+  let res@(Process fs _ env sto Win) = run p cs
+--  putStrLn $ display initNaming res
+  putStrLn $ unlines $ show <$> fs
+  putStrLn $ show sto
