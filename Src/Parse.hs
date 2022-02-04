@@ -63,6 +63,8 @@ pcom = Parser $ \ xs str -> pure $ case str of
     -- starting
     '{':'-':str -> multiLine (1+n) str
     '-':'-':str -> multiLine n (singleLine str)
+    -- false alarm: ignore the unrelated '-'/'{'
+    _:str -> multiLine n str
     -- unclosed bracket which is fine by us
     [] -> []
 
