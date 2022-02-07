@@ -1,10 +1,9 @@
-{-# LANGUAGE OverloadedStrings, StandaloneDeriving #-}
-
 module Actor where
 
 import qualified Data.Map as Map
 
 import Hide
+import Scope
 import Bwd
 import Term
 import Pattern
@@ -21,6 +20,9 @@ instance Show ActorMeta where
 
 data PatVar = VarP Int
   deriving (Show, Eq)
+
+instance Thable PatVar where
+  VarP i *^ th = VarP (i *^ th)
 
 data Channel = Channel String deriving (Eq)
 instance Show Channel  where show (Channel str)  = str
@@ -40,19 +42,14 @@ initEnv gamma = Env gamma Map.empty
 newActorVar :: ActorMeta -> ([String], Term) -> Env -> Env
 newActorVar x defn env@(Env _ avs) = env { actorVars = Map.insert x defn avs }
 
+instance Thable Env where
+  Env sc avs *^ th = Env (bigEnd th) (fmap thinDefn avs) where
+
+    thinDefn :: ([String], Term) -> ([String], Term)
+    thinDefn (xs, (t, ph)) = (xs, (t, ph <^> (th <> ones (length xs))))
+
 weakenEnv :: Int -> Env -> Env
-weakenEnv i (Env sc avs) = Env (sc + i) avs' where
-
-  avs' = fmap weakenDefn avs
-
-  weakenDefn :: ([String], Term) -> ([String], Term)
-  weakenDefn (xs, (t, th)) =
-    -- 11111 gamma ++ xs 11111        11111 gamma ++ [1..i] : xs 11111
-    --         th                -->         ....
-    -- 00110 support     00010        00110 support' 0 ... 0  00010
-    let n = length xs
-        (thl, thr) = thChop th n
-    in (xs, (t, thl <> none i <> thr))
+weakenEnv i rho = rho *^ (ones (scopeEnv rho) <> none i)
 
 type PatActor = PatF PatVar
 
@@ -65,7 +62,7 @@ data Actor
  | Send Channel (CdB (Tm ActorMeta)) Actor
  | Recv Channel ActorMeta Actor
  | FreshMeta ActorMeta Actor
- | Under String Actor
+ | Under (Scope Actor)
  | Match MatchLabel (CdB (Tm ActorMeta)) [(PatActor, Actor)]
  -- This is going to bite us when it comes to dependent types
  | Constrain (CdB (Tm ActorMeta)) (CdB (Tm ActorMeta))
@@ -74,6 +71,22 @@ data Actor
  | Win
  | Break String Actor
  deriving (Show, Eq)
+
+instance Thable Actor where
+  a *^ th = case a of
+    a :|: b -> a *^ th :|: b *^ th
+    Closure rho a -> Closure (rho *^ th) (a *^ th)
+    Spawn jd ch a -> Spawn jd ch (a *^ th)
+    Send ch t a -> Send ch (t *^ th) (a *^ th)
+    Recv ch av a -> Recv ch av (a *^ th)
+    FreshMeta av a -> FreshMeta av (a *^ th)
+    Under sc -> Under (sc *^ th)
+    Match ml t pas -> Match ml (t *^ th) (map (fmap (*^ th)) pas)
+    Constrain s t -> Constrain (s *^ th) (t *^ th)
+    Extend (jd, ml, pv, a) b -> Extend (jd, ml, pv *^ th, a *^ th) (b *^ th)
+    Fail gr -> Fail gr
+    Win -> Win
+    Break str a -> Break str (a *^ th)
 
 mangleActors :: Env                {- Env ga -}
                                    {- ga ~ ga0 <<< de -}

@@ -12,12 +12,13 @@ build-type:          Simple
 extra-source-files:  README.md
 
 common haskell
-  default-extensions:  LambdaCase,
+  default-extensions:  DeriveTraversable,
+                       FlexibleInstances,
+                       NamedFieldPuns,
+                       RecordWildCards,
                        TupleSections,
                        TypeSynonymInstances,
-                       RecordWildCards,
-                       NamedFieldPuns,
-                       FlexibleInstances
+                       LambdaCase
 
 library
   import:              haskell
@@ -36,6 +37,7 @@ library
                        Machine.Exec,
                        Parse,
                        Pattern,
+                       Scope,
                        Syntax,
                        Term,
                        Term.Base,

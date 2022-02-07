@@ -15,7 +15,7 @@ synth : ?'Synth. !'Type.
 check@p = p?ty. p?tm. case tm
     { ['Lam \x. body] -> ?S. ?T.
          (ty ~ ['Arr S T]
-         | \y. synth/subject { y -> p!S. }. check@q. q!T. q!{x=y}body.)
+         | \x. synth/subject { x -> p!S. }. check@q. q!T. q!{x=x}body.)
     ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
     }
 synth@p = p?tm . case/subject tm

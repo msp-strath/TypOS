@@ -3,13 +3,14 @@ module Machine.Exec where
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 
+import ANSI
 import Bwd
 import Display
 import Hide
-import Term
 import Pattern
+import Scope
+import Term
 import Thin
-import ANSI
 
 import Actor
 import Machine.Base
@@ -20,22 +21,20 @@ import System.IO.Unsafe
 import Debug.Trace
 dmesg = trace
 
-lookupRules :: JudgementForm -> Bwd Frame -> Maybe (Channel, Actor)
-lookupRules jd = go 0 Map.empty where
+lookupRules :: Th -> JudgementForm -> Bwd Frame -> Maybe (Channel, Actor)
+lookupRules th jd = go th Map.empty where
 
-  go :: Int -> -- number of binders we have traversed on the way out
+  go :: Th -> -- how to transport the local scope in the stack into the target one
         Map.Map MatchLabel [(PatActor, Actor)] -> -- accumulated patches
         Bwd Frame -> Maybe (Channel, Actor)
-  go bd acc B0 = Nothing
-  go bd acc (zf :< f) = case f of
-    Binding _  -> go (1+bd) acc zf
-    RulePatch jd' ml (VarP i) env a | jd == jd' -> do
-      let pat  = VP (VarP (i + bd))
-          env' = weakenEnv bd env
-          acc' = Map.insertWith (++) ml [(pat, Closure env' a)] acc
-      go bd acc' zf
-    Rules jd' (ch, a) | jd == jd' -> Just (ch, patch acc a)
-    _ -> go bd acc zf
+  go th acc B0 = Nothing
+  go th acc (zf :< f) = case f of
+    Binding _  -> go (pop th) acc zf
+    RulePatch jd' ml v env a | jd == jd' -> do
+      let acc' = Map.insertWith (++) ml [(VP (v *^ th), ((Closure env a) *^ th))] acc
+      go th acc' zf
+    Rules jd' (ch, a) | jd == jd' -> Just (ch, patch acc (a *^ th))
+    _ -> go th acc zf
 
   patch :: Map.Map MatchLabel [(PatActor, Actor)] -> Actor -> Actor
   patch ps (Match ml tm pts) =
@@ -64,7 +63,7 @@ exec p@Process { actor = Closure env' a, ..} =
 --                , root = subRoot
 --                , actor = spawnedActor })
 exec p@Process { actor = Spawn jd spawnerCh actor, ..}
-  | Just (spawnedCh, spawnedActor) <- lookupRules jd stack
+  | Just (spawnedCh, spawnedActor) <- lookupRules (ones (scopeEnv env)) jd stack
   , dmesg (show spawnedActor) True
   = let (subRoot, newRoot) = splitRoot root jd
         spawnee = Process [] subRoot (initEnv $ scopeEnv env) (today store) spawnedActor
@@ -121,7 +120,7 @@ exec p@Process { actor = Constrain s t, ..}
   -- , dmesg (show s ++ " ----> " ++ show s') True
   -- , dmesg (show t ++ " ----> " ++ show t') True
   = unify (p { stack = stack :<+>: [UnificationProblem (today store) s' t'], actor = Win })
-exec p@Process { actor = Under x a, ..}
+exec p@Process { actor = Under (Scope (Hide x) a), ..}
   = let stack' = stack :< Binding (x ++ show (scopeEnv env))
         env'   = weakenEnv 1 env
         actor' = a

@@ -1,5 +1,6 @@
 module Term.Substitution where
 
+import Hide
 import Thin
 import Term.Base
 

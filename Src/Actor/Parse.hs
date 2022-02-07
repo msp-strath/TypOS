@@ -4,11 +4,13 @@ import Control.Applicative
 
 import qualified Data.Map as Map
 
-import Bwd
-import Thin
-import Term
-import Pattern
 import Actor
+import Bwd
+import Hide
+import Pattern
+import Scope
+import Term
+import Thin
 
 import Parse
 import Term.Parse
@@ -55,7 +57,7 @@ pact :: Parser Actor
 pact = id <$ pch (== '\\') <* pspc <*> (do
          x <- pnom
          punc "."
-         Under x <$> pbind x pact)
+         Under . Scope (Hide x) <$> pbind x pact)
   <|> Send <$> pchan <* punc "!" <*> pactm <* punc "." <*> pact
   <|> uncurry . Recv <$> pchan <* punc "?" <*> pactorvar (\ x -> (x,) <$ punc "." <*> pact)
   <|> uncurry FreshMeta <$ pch (== '?') <* pspc <*> pactorvar (\ x -> (x,) <$ punc "." <*> pact)

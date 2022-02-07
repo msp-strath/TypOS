@@ -245,3 +245,11 @@ findSub aza@(az :< a) (bz :< b)
   | otherwise = (-? False) <$> findSub aza bz
 findSub B0 bz = pure $ none (length bz)
 findSub _ _ = Nothing
+
+-- | Replace the most local 1 in a thinning with 0
+---     th = 0000110[1]00000
+--- pop th = 0000110[0]00000
+pop :: Th -> Th
+pop th
+   | weeEnd th <= 0 = error "pop'd an empty thinning"
+   | otherwise = (ones (weeEnd th - 1) -? False) <^> th

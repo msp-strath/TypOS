@@ -8,8 +8,10 @@ import qualified Data.Map as Map
 import Actor
 import Bwd
 import Display
-import Term.Display()
+import Hide
 import Pattern
+import Scope
+import Term.Display()
 
 instance Display PatVar where
   display na@(ns, _, _) = \case
@@ -28,7 +30,7 @@ instance Display Actor where
     Send ch tm a -> unwords ["Send", show ch, pdisplay na tm, pdisplay na a]
     Recv ch av a -> unwords ["Recv", show ch, show av, pdisplay na a]
     FreshMeta av a -> unwords ["FreshMeta", show av, pdisplay na a]
-    Under x a -> unwords ["Under", x, pdisplay (na `nameOn` x) a]
+    Under (Scope (Hide x) a) -> unwords ["Under", x, pdisplay (na `nameOn` x) a]
     Match lbl tm pts -> unwords ["Match", lbl, pdisplay na tm, collapse (display na <$> pts)]
     Constrain s t -> unwords ["Constrain", pdisplay na s, pdisplay na t]
     Extend (jd, ml, i, a) b ->

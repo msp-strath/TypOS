@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveTraversable #-}
 module Term.Base where
 
 import Data.Traversable
@@ -11,12 +10,9 @@ data Tm m
   = V
   | A String
   | P (RP (Tm m) (Tm m))
-  | Named Bool :. Tm m
+  | (:.) (Named Bool) (Tm m)
   | m :$ Sbst m
   deriving (Show, Eq, Ord)
-
-data Named a = Hide String := a
-  deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
 instance Traversable Tm where
   traverse f V = pure V
