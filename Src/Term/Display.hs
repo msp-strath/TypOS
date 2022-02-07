@@ -4,6 +4,7 @@ module Term.Display where
 
 import Data.List
 
+import ANSI
 import Bwd
 import Thin
 import Hide
@@ -31,13 +32,17 @@ instance Show m => Display (Tm m) where
     _ -> pdisplayDFT na t
 
 instance Show m => Display (CdB (Tm m)) where
-  display na t@(t', th) = case asList Just t of
+  display na@(_, ph, _) t@(t', th) = case asList Just t of
     Just ts -> "'[" ++ intercalate " " (map (display na) ts) ++ "]"
-    Nothing -> display (nameSel th na) t'
+    Nothing
+      | bigEnd th /= weeEnd ph -> alarm ("Crashing on " ++ show (na, t)) ""
+      | otherwise -> display (nameSel th na) t'
 
-  pdisplay na t@(t', th) = case asList Just t of
+  pdisplay na@(_, ph, _) t@(t', th) = case asList Just t of
     Just ts -> "'[" ++ intercalate " " (map (display na) ts) ++ "]"
-    Nothing -> pdisplay (nameSel th na) t'
+    Nothing
+      | bigEnd th /= weeEnd ph -> alarm ("Crashing on " ++ show (na, t)) ""
+      | otherwise -> pdisplay (nameSel th na) t'
 
 displayCdr :: Show m => Naming -> Tm m -> String
 displayCdr (B0, _, _) (A "") = ""

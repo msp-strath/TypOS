@@ -18,7 +18,7 @@ import Machine.Display
 import System.IO.Unsafe
 
 import Debug.Trace
-dmesg = flip const -- trace
+dmesg = trace
 
 lookupRules :: JudgementForm -> Bwd Frame -> Maybe (Channel, Actor)
 lookupRules jd = go 0 Map.empty where

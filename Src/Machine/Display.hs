@@ -18,7 +18,7 @@ instance Display Date where
 
 instance Display Frame where
   display na = \case
-    Rules jd (ch, a) -> jd ++ " |-@" ++ show ch ++ " " ++ pdisplay na a
+    Rules jd (ch, a) -> jd ++ " |-@" ++ show ch ++ " {}" -- ++ pdisplay na a
     RulePatch jd ml i env a -> jd ++ " |- +" ++ ml ++ " " ++ show i ++ " -> {}"{- ++ display na env ++ " " ++ pdisplay na a -}
     LeftBranch Hole p -> "<> | " ++ display na p
     RightBranch p Hole -> display na p ++ " | <>"
@@ -56,7 +56,8 @@ type Store = StoreF Naming
 
 instance Display Store where
   display na st = display na (today st) ++ ": " ++
-                 withANSI [SetColour Background Green, SetColour Foreground Black]
+                 withANSI [SetColour Background Green
+                          , SetColour Foreground Black]
                  (collapse $ map go $ Map.toList $ solutions st)
     where
     go :: (Meta, (Naming, Term)) -> String

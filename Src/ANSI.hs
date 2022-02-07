@@ -49,6 +49,6 @@ withANSI anns str = concat
 
 alarm :: String -> a -> a
 alarm str x = unsafePerformIO $ do
-  putStrLn $ withANSI [SetColour Foreground Red] "Alarm: " ++ str
+  putStrLn $ withANSI [SetColour Background Red] "Alarm:" ++ ' ' : str
   _ <- getLine
   pure x

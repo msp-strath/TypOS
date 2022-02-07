@@ -61,6 +61,4 @@ main = do
   let cs = parse pfile txt
   let p = Process B0 initRoot (initEnv 0) initStore Win
   let res@(Process fs _ env sto Win) = run p cs
---  putStrLn $ display initNaming res
-  putStrLn $ unlines $ show <$> fs
-  putStrLn $ show sto
+  dmesg (pdisplay initNaming res) "" `seq` pure ()
