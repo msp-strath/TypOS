@@ -43,9 +43,58 @@ Env ga = forall {xi}
       -> ActorVar xi
       -> Trg ^: (ga <<< xi)
 
+thEnv : forall {ga de} -> Env ga -> ga <= de -> Env de
+thEnv rho th av = rho av |^ (th +^+ io)
+
 module T {M} = TERM M ATOM
 open T
 
+ma : forall
+     {ga0 -- support of source term
+      ga {- how many vars are really in scope -}
+     }
+    -> Env ga
+    -> Src ga0
+    -> ga0 <= ga
+    -> Trg ^: ga
+
+masu : forall
+     {xi -- scope of the actor var
+      ga0 -- support of source term
+      ga {- how many vars are really in scope -}
+     }
+    -> Env ga
+    -> xi S> ga0
+    -> ga0 <= ga
+    -> (ga <<< xi) T>^ ga
+
+ma rh (vv only) th = v^ th
+ma rh (aa (atom a)) th = a^ a
+ma rh (pp x) th = {!!}
+ma rh (bb (kk x)) th = b^ (ma (thEnv rh (io -^ <>)) x (th -^ <>))
+ma rh (bb (ll x)) th = b^ (ma (thEnv rh (io -^ <>)) x (th -, <>))
+ma rh (mm (x & sg)) th = rh x //^ masu rh sg th
+
+masu rh [] th = eta^ is
+masu rh (sg -, x) th =
+  (masu rh sg (io -^ x -& th) /,\ v^ ((no -, x) -& th))
+  -/^ x
+masu rh ((sg </ u \> t) -/ x) th =
+  (masu rh sg (luth u -& th) /,\ ma rh t (ruth u -& th))
+  -/^ x
+
+{-
+  masu : forall
+       {xi  -- scope of actor var
+        de0 -- support of source term
+        de  -- how many binders in source term we're under
+       }
+    -> xi S> de0
+    -> de0 <= de
+    -> (ga <<< xi) T>^ (ga <<< de)
+-}
+
+{-
 module _
   {ga {- how many vars are really in scope -}}
   (rh : Env ga) where
@@ -85,3 +134,4 @@ module _
   masu ((sg </ u \> t) -/ x) th =
     (masu sg (luth u -& th) /,\ ma t (ruth u -& th))
     -/^ x
+-}
