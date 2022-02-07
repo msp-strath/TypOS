@@ -1,0 +1,86 @@
+syntax
+  { 'Check = ['Tag '[ ['Lam  | '[['Bind 'Synth ['Rec 'Check]]]]
+    	     	      ['Nil  | '[]]
+		      ['Cons | '[['Rec 'Check] ['Rec 'Check]]]
+                      ['Emb  | '[['Rec 'Synth]]]]]
+  ; 'Synth = ['Tag '[ ['Rad    	 | '[['Rec 'Check] ['Rec 'Type]]]
+    	     	      ['Fst   	 | '[['Rec 'Synth]]]
+		      ['Snd      | '[['Rec 'Synth]]]
+		      ['ListElim | '[['Rec 'Type] ['Rec 'Synth] ['Rec 'Check]
+		      		     ['Bind 'Synth ['Bind 'Synth ['Bind 'Synth ['Rec 'Check]]]]]]
+                      ['App 	 | '[['Rec 'Synth] ['Rec 'Check]]]]]
+  ; 'Type = ['Tag '[ ['One  | '[]]
+    	    	     ['Pair | '[['Rec 'Type] ['Rec 'Type]]]
+		     ['List | '[['Rec 'Type]]]
+                     ['Arr  | '[['Rec 'Type] ['Rec 'Type]]]]]
+  }
+
+type  : ?'Type.
+check : ?'Type. ?'Check.
+synth : ?'Synth. !'Type.
+checkEval : ?'Type. ?'Check. !'Check.
+evalSynth : ?'Synth. !'Synth. !'Type.
+
+{-
+type@p = p?ty. case/subject ty
+    { ['One]   	  -> -- winning is silent
+    ; ['Pair S T] -> type@q. q!S. | type@r. r!T.
+    ; ['List S]   -> type@q. q!S.
+    ; ['Arr S T]  -> type@q. q!S. | type@r. r!T.
+    ; otherwise	  -> #"not a valid type"
+    }
+
+check@p = p?ty. p?tm. case tm
+    { ['Lam \x. body] -> ?S. ?T. -- fresh metas for S(ource) and T(arget) of function type
+         (ty ~ ['Arr S T]        -- ensure ty is (S -> T)
+         | \y.                              -- bind the fresh variable y
+               synth/subject { y -> p!S. }. -- extend the synth rule for fresh variable y : S
+               check@q. q!T. q!{x=y}body.)  -- check the body with x=y
+    ; ['Nil]   -> case ty -- Nil is overloaded, type-directed disambiguation now
+       { ['One]    ->
+       ; ['List S] ->
+       ; otherwise -> #"wrong type for Nil"
+       }
+    ; ['Cons s t] -> case ty -- Cons is also overloaded
+       { ['Pair S T] -> check@q. q!S. q!s. | check@r. r!T. r!t.
+       ; ['List S]   -> check@q. q!S. q!s. | check@r. r!['List S]. r!t.
+       ; otherwise   -> #"wrong type for Cons"
+       }
+    ; ['Emb e] -> -- change of direction
+                  synth@q. q!e. -- infer the type
+                  q?S. S ~ ty  -- receive the answer and check we agree
+    }
+
+synth@p = p?tm . case/subject tm -- named case: we can extend this rule by using that name (cf. 'Lam)
+   { ['Rad t ty] -> (type@r. r!ty. | check@q. q!ty. q!t. | p!ty.)
+   ; ['Fst e]    -> ?S. ?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!S.)
+   ; ['Snd e]    -> ?S. ?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!T.)
+   ; ['ListElim ty e n (\x. \xs. \ih. c)] ->
+     	p!ty. | type@r. r!ty. | check@q. q!ty. q!n. |
+	?X. (synth@u. u!e. u?V. V ~ ['List X] |
+	     \y. synth/subject { y -> p!X. }.
+	     \ys. synth/subject { ys -> p!['List X]. }.
+	     \jh. synth/subject { jh -> p!ty. }.
+                  check@v. v!ty. v!{ih=jh, xs=ys, x=y}c.
+	    )
+   ; ['App f s]  -> ?U. ?V.
+        ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
+        | check@r. r!U. r!s.
+        | p!V.)
+   }
+-}
+checkEval@p = p?ty. p?tm. case tm
+  { ['Lam \x.body] -> case ty
+    { ['Arr s t] -> \y. evalSynth/subject { y -> p!y. p!s. }.
+                        checkEval@q. q!t. q!{x=y}body.
+                        q?nf. BREAK "Hi". p!['Lam \z.{z=z,y=z}nf].
+    ; otherwise -> #"Expected a function type"
+    }
+  ; ['Emb e] -> p!['Emb e].
+  }
+
+evalSynth@p = p?tm. case/subject tm
+  { whatever ->
+  }
+
+exec checkEval@p. p!['Arr ['One] ['One]]. p!['Lam \x. ['Emb x]].

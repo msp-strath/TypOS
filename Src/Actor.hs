@@ -54,7 +54,6 @@ weakenEnv i rho = rho *^ (ones (scopeEnv rho) <> none i)
 type PatActor = PatF PatVar
 
 infixr 3 :|:
--- We expect all the terms to be closed
 data Actor
  = Actor :|: Actor
  | Closure Env Actor
@@ -88,62 +87,62 @@ instance Thable Actor where
     Win -> Win
     Break str a -> Break str (a *^ th)
 
+
+-- | When we encounter a term with actor variables inside and want to send
+--   or match on it, we need to first substitute all of the terms the actor
+--   variables map to.
+--  e.g. when considering
+--       `case tm { ['Lam \x.body] -> ... }`
+--       in the environment (tm := ['Lam \x.['Emb x]])
+--  we need to instantiate tm to ['Lam \x.['Emb x]] before
+-- trying to find the clause that matches
 mangleActors :: Env                {- Env ga -}
-                                   {- ga ~ ga0 <<< de -}
-             -> CdB (Tm ActorMeta) {- Src de -}
+             -> CdB (Tm ActorMeta) {- Src ga -}
              -> Maybe Term         {- Trg ga -}
-mangleActors env@(Env ga _) initm = go initm
+mangleActors rho tm = case expand tm of
+  VX i ga -> pure (var i ga)
+  AX a ga -> pure (atom a ga)
+  a :%: b -> (%) <$> mangleActors rho a <*> mangleActors rho b
+  x :.: t -> (x \\) <$> mangleActors (weakenEnv 1 rho) t
+  m :$: sg -> do
+    (xs, t) <- noisyLookupVar m
+    let xi = B0 <>< xs
+    sg <- goSbst xi sg
+    pure (t //^ sg)
 
- where
-  ga0 :: Int
-  ga0 = ga - scope initm
+  where
 
-  go :: CdB (Tm ActorMeta) {- Src (de <<< de') -}
-     -> Maybe Term         {- Trg (ga <<< de') -}
-  go tm = let gade' = ga0 + scope tm in case expand tm of
-    VX i _ -> pure $ var i gade'
-    AX s _ -> pure $ atom s gade'
-    a :%: b -> (%) <$> go a <*> go b
-    x :.: t -> (x \\) <$> go t
-    m :$: sbst -> do
-      (xs, t) <- noisyLookupVar m
-      let xi = B0 <>< xs
-      sg <- goSbst xi sbst
-      pure (t //^ sg)
+    goSbst :: Bwd String {- xi -}
+           -> CdB (Sbst ActorMeta) {-        xi =>Src ga -}
+           -> Maybe Subst          {- ga <<< xi =>Trg ga -}
+    goSbst B0 (S0 :^^ 0, th) = pure (sbstI (bigEnd th))
+    goSbst nz (ST rp :^^ 0, th) =
+      splirp (rp, th) $ \ s (x := tm, ph) -> do
+        nz <- nz `covers` x
+        s <- goSbst nz s
+        tm <- mangleActors rho (tm, ph)
+        pure (sbstT s ((x :=) $^ tm))
+    goSbst nz@(_ :< n) (sg :^^ w, th) = do
+      let x = (Hide n :=) $^ (var 0 (weeEnd th) *^ th)
+      goSbst nz (sbstT (sg :^^ (w-1), pop th) x)
 
-  goSbst :: Bwd String           {- xi -}
-         -> CdB (Sbst ActorMeta) {-        xi =>Src de <<< de' -}
-         -> Maybe Subst          {- ga <<< xi =>Trg ga <<< de' -}
-  goSbst B0 (S0 :^^ 0, th)
-    = pure (S0 :^^ ga, ones ga <> none (bigEnd th - scope initm))
-                                 -- ^ |de <<< de'| - |de| = |de'|
-  goSbst nz (ST rp :^^ 0, th) =
-    splirp (rp, th) $ \ s (x := tm, ph) -> do
-      nz <- nz `covers` x
-      s <- goSbst nz s
-      tm <- go (tm, ph)
-      pure $ sbstT s ((x :=) $^ tm)
-  goSbst nz (sbst :^^ w, th) = do
-    let (thw, ps) = chopTh w th
-    sg <- goSbst (dropz nz w) (sbst :^^ 0, thw)
-    pure $ sbstW sg ps
+    -- Return the term associated to an actor var, together with the
+    -- local scope extension it was bound in. We expect that the
+    -- substitution acting upon the term will cover all of these local
+    -- variables.
+    lookupVar :: Env -> ActorMeta -> Maybe ([String], Term)
+    lookupVar (Env sc avs) av = Map.lookup av avs
 
-  -- Return the term associated to an actor var, together with the
-  -- local scope extension it was bound in. We expect that the
-  -- substitution acting upon the term will cover all of these local
-  -- variables.
-  lookupVar :: Env -> ActorMeta -> Maybe ([String], Term)
-  lookupVar (Env sc avs) av = Map.lookup av avs
+    -- `covers nz x` ensures that `x` is at the most local end of `nz`.
+    covers :: Bwd String -> Hide String -> Maybe (Bwd String)
+    covers (nz :< n) (Hide x)
+      | n == x = pure nz
+      | otherwise = let msg = "Subst mismatch: expected " ++ n ++ " got " ++ x in
+                    alarm msg (pure nz)
+    covers nz _ = pure nz
 
-  -- `covers nz x` ensures that `x` is at the most local end of `nz`.
-  covers :: Bwd String -> Hide String -> Maybe (Bwd String)
-  covers (nz :< n) (Hide x)
-    | n == x = pure nz
-    | otherwise = let msg = "Subst mismatch: expected " ++ n ++ " got " ++ x in
-                  alarm msg (pure nz)
-  covers nz _ = pure nz
-
-  noisyLookupVar :: ActorMeta -> Maybe ([String], Term)
-  noisyLookupVar av = case lookupVar env av of
-    Just xst -> Just xst
-    Nothing -> alarm ("couldn't find " ++ show av ++ " in " ++ show env) Nothing
+    noisyLookupVar :: ActorMeta -> Maybe ([String], Term)
+    noisyLookupVar av = case lookupVar rho av of
+      Just xst -> Just xst
+      Nothing -> alarm ("couldn't find " ++ show av ++ " in " ++ show rho)
+                       Nothing

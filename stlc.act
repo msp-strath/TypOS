@@ -15,7 +15,7 @@ synth : ?'Synth. !'Type.
 check@p = p?ty. p?tm. case tm
     { ['Lam \x. body] -> ?S. ?T.
          (ty ~ ['Arr S T]
-         | \x. synth/subject { x -> p!S. }. check@q. q!T. q!{x=x}body.)
+         | \x. synth/subject { x -> p!S. }. check@q. q!T. q!body.)
     ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
     }
 synth@p = p?tm . case/subject tm
@@ -26,21 +26,19 @@ synth@p = p?tm . case/subject tm
         | p!V.)
    }
 
--- this is a comment
-
-{- this a
-multiline
-comment
-  {- with some nesting too!
--}
--}
+{-
 exec  check@p. p! ['Arr ['Nat] ['Arr ['One] ['Nat]]].
               p! ['Lam \z. ['Lam \y. ['Emb z]]].
+-}
 {-
 exec  check@p. p! ['Arr ['Nat] ['Nat]].
               p! ['Lam \z. ['Emb z]].
+
 -}
-{-
-exec  check@p. p! ['Arr ['Nat] ['Nat]].
-              p! ['Lam \z. ['Emb ['App ['Rad ['Lam \w. ['Emb w]] ['Arr ['Nat] ['Nat]]] ['Emb z]]]].
--}
+
+-- \z. (\w.w : Nat -> Nat) z
+exec  check@p.
+   p! ['Arr ['Nat] ['Nat]].
+   p! ['Lam \z. ['Emb
+         ['App ['Rad ['Lam \w. ['Emb w]] ['Arr ['Nat] ['Nat]]]
+         ['Emb z]]]].
