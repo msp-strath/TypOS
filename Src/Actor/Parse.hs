@@ -68,7 +68,7 @@ pact = id <$ pch (== '\\') <* pspc <*> (do
        <* pspc <* pch (== '}')
   <|> id <$ pch (== '(') <* pspc <*> pACT <* pspc <* pch (== ')')
   <|> Break <$ plit "BREAK" <* pspc <*> pstring <* punc "." <*> pact
-  <|> Print <$ plit "PRINT" <* pspc <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
+  <|> Print <$ plit "PRINT" <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
   <|> Print <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Fail <$ pch (== '#') <* pspc <*> pstring
   <|> Extend <$> pextension <* punc "." <*> pact
