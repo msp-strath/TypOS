@@ -2,7 +2,6 @@
 
 module Actor.Display where
 
-
 import qualified Data.Map as Map
 
 import Actor
@@ -44,8 +43,28 @@ instance Display Actor where
              , pdisplay na b]
     Fail gr -> unwords ["#\"", gr, "\""]
     Win -> "Win"
-    Print tm a -> unwords ["PRINT", pdisplay na tm, ". ", pdisplay na a]
+    Print [TermPart Instantiate tm] a -> unwords ["PRINT", pdisplay na tm, ". ", pdisplay na a]
+    Print fmt a -> unwords ["PRINTF", rawDisplayFormat na fmt, ". ", pdisplay na a]
     Break str a -> display na a
 
 instance Display t => Display (PatF t, Actor) where
   display na (p, a) = display na p ++ " -> " ++ display na a
+
+rawDisplayFormat :: Display t => Naming -> [FormatF Directive t] -> String
+rawDisplayFormat na = go B0 B0 where
+
+    go fmt args [] = unwords (('"' : concat fmt ++ ['"']) : args <>> [])
+    go fmt args (f:fs) = case f of
+      TermPart Raw t -> go (fmt :< "%r") (args :< pdisplay na t) fs
+      TermPart Instantiate t -> go (fmt :< "%i") (args :< pdisplay na t) fs
+      StringPart str -> go (fmt :< concatMap escape str) args fs
+
+    escape :: Char -> String
+    escape '\n' = "\\n"
+    escape '\t' = "\\t"
+    escape c = [c]
+
+instance Display t => Display (FormatF () t) where
+  display na = \case
+    TermPart () t -> pdisplay na t
+    StringPart str -> str

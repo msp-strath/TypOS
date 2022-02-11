@@ -70,9 +70,20 @@ data Actor
  | Extend (JudgementForm, MatchLabel, PatVar, Actor) Actor
  | Fail Gripe
  | Win
- | Print (CdB (Tm ActorMeta)) Actor
+ | Print [FormatF Directive (CdB (Tm ActorMeta))] Actor
  | Break String Actor
  deriving (Show, Eq)
+
+-- | dir is a directive
+data FormatF dir t
+  = TermPart dir t
+  | StringPart String
+  deriving (Show, Eq, Functor, Foldable, Traversable)
+
+data Directive = Instantiate | Raw
+ deriving (Show, Eq)
+
+type Format = FormatF () (CdB Term)
 
 instance Thable Actor where
   a *^ th = case a of
@@ -88,7 +99,7 @@ instance Thable Actor where
     Extend (jd, ml, pv, a) b -> Extend (jd, ml, pv *^ th, a *^ th) (b *^ th)
     Fail gr -> Fail gr
     Win -> Win
-    Print tm a -> Print (tm *^ th) (a *^ th)
+    Print fmt a -> Print (map (fmap (*^ th)) fmt) (a *^ th)
     Break str a -> Break str (a *^ th)
 
 

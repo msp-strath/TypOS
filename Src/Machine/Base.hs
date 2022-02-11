@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, StandaloneDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, StandaloneDeriving, TypeFamilies #-}
 
 module Machine.Base where
 
@@ -31,15 +31,31 @@ headUp store term
   = headUp store (t //^ sg)
   | otherwise = term
 
-instantiate :: StoreF i -> Term -> Term
-instantiate store term = case expand term of
-  VX{}     -> term
-  AX{}     -> term
-  s :%: t  -> instantiate store s % instantiate store t
-  x :.: b  -> x \\ instantiate store b
-  m :$: sg -> case Map.lookup m (solutions store) of
-    Nothing -> m $: sg
-    Just (_, tm) -> instantiate store (tm //^ sg)
+class Instantiable t where
+  type Instantiated t
+  instantiate :: StoreF i -> t -> Instantiated t
+
+instance Instantiable Term where
+  type Instantiated Term = Term
+  instantiate store term = case expand term of
+    VX{}     -> term
+    AX{}     -> term
+    s :%: t  -> instantiate store s % instantiate store t
+    x :.: b  -> x \\ instantiate store b
+    m :$: sg -> case Map.lookup m (solutions store) of
+      Nothing -> m $: sg
+      Just (_, tm) -> instantiate store (tm //^ sg)
+
+instance (Instantiable t, Instantiated t ~ t) => Instantiable (FormatF Directive t) where
+  type Instantiated (FormatF Directive t) = FormatF () t
+  instantiate store = \case
+    TermPart Instantiate t -> TermPart () (instantiate store t)
+    TermPart Raw t -> TermPart () t
+    StringPart str -> StringPart str
+
+instance Instantiable t => Instantiable [t] where
+  type Instantiated [t] = [Instantiated t]
+  instantiate store = map (instantiate store)
 
 data Hole = Hole deriving Show
 

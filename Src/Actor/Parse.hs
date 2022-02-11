@@ -68,10 +68,37 @@ pact = id <$ pch (== '\\') <* pspc <*> (do
        <* pspc <* pch (== '}')
   <|> id <$ pch (== '(') <* pspc <*> pACT <* pspc <* pch (== ')')
   <|> Break <$ plit "BREAK" <* pspc <*> pstring <* punc "." <*> pact
-  <|> Print <$ plit "PRINT" <* pspc <*> pactm <* punc "." <*> pact
+  <|> Print <$ plit "PRINT" <* pspc <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
+  <|> Print <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Fail <$ pch (== '#') <* pspc <*> pstring
   <|> Extend <$> pextension <* punc "." <*> pact
   <|> pure Win
+
+pformat :: Parser [FormatF Directive ()]
+pformat = Parser $ \ env str -> case str of
+  '"':str -> [go str B0]
+  _ -> []
+
+  where
+
+  snoc :: String -> Bwd (FormatF Directive ()) -> Bwd (FormatF Directive ())
+  snoc "" acc = acc
+  -- hopefully there aren't too many of these
+  snoc str (acc :< StringPart strl) = acc :< StringPart (strl ++ str)
+  snoc str acc = acc :< StringPart str
+
+  go :: String -> Bwd (FormatF Directive ()) -> ([FormatF Directive ()], String)
+  go str acc = case span (`notElem` "%\"\\") str of
+    (str, '%':'r':end) -> go end (snoc str acc :< TermPart Raw ())
+    (str, '%':'i':end) -> go end (snoc str acc :< TermPart Instantiate ())
+    (str, '\\':'n':end) -> go end (snoc (str ++ "\n") acc)
+    (str, '\\':'t':end) -> go end (snoc (str ++ "\t") acc)
+    (str, '\\':c:end) -> go end (snoc (str ++ [c]) acc)
+    (str, '"':end)     -> (snoc str acc <>> [], end)
+    (_, _) -> error "Unclosed format string"
+
+pargs :: [FormatF Directive ()] -> Parser [FormatF Directive (CdB (Tm ActorMeta))]
+pargs = traverse $ traverse (\ () -> id <$ pspc <*> pactm)
 
 pactpat :: Parser PatActor
 pactpat = fmap VarP <$> ppat

@@ -137,12 +137,12 @@ exec p@Process { actor = Extend (jd, ml, i, a) b, ..}
   = let stack' = stack :< RulePatch jd ml i env a in
     exec (p { stack = stack', actor = b })
 
-exec p@Process { actor = Print tm a, ..}
-  | Just term <- mangleActors env tm
+exec p@Process { actor = Print fmt a, ..}
+  | Just format <- traverse (traverse $ mangleActors env) fmt
   =  unsafePerformIO $ do
       putStrLn $ withANSI [SetColour Background Magenta]
-               $ display (frnaming stack)
-               $ instantiate store term
+               $ foldMap (display (frnaming stack))
+               $ instantiate store format
       _ <- getLine
       pure (exec (p { actor = a }))
 

@@ -161,7 +161,7 @@ exec evalSynth@p.
        ['Rad ['Cons ['Nil] ['Nil]] ['List ['One]]] -- [()] :: [()]
        ['Cons ['Nil] ['Nil]]                       -- nil: [()]
        (\x.\xs.\ih.['Cons x ih])].                 -- cons(x,xs,ih) = x : xs
-  p?nf. p?ty. PRINT nf.
+  p?nf. p?ty. PRINTF "Raw result:\n  Term: %r\n  Type: %r\nInstantiated result:\n  Term: %i\n  Type: %i" nf ty nf ty.
 
 {-
 exec evalSynth@p.
