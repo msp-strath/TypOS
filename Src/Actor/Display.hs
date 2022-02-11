@@ -22,21 +22,29 @@ instance Display Env where
     collapse $
     map (\ (av, (xs, t)) -> concat (show av : map (" " ++) xs ++ [" = ", display (foldl nameOn na xs) t])) (Map.toList avs)
 
+
+instance Display MatchLabel where
+  display _ (MatchLabel str) = maybe "" ('/' :) str
+
 instance Display Actor where
   display na = \case
-    a :|: b -> pdisplay na a ++ " :|: " ++ pdisplay na b
+    a :|: b -> pdisplay na a ++ " | " ++ pdisplay na b
     Closure env a -> unwords ["Closure", display na env, pdisplay na a]
-    Spawn jd ch a -> unwords ["Spawn", jd, show ch, pdisplay na a]
-    Send ch tm a -> unwords ["Send", show ch, pdisplay na tm, pdisplay na a]
-    Recv ch av a -> unwords ["Recv", show ch, show av, pdisplay na a]
-    FreshMeta av a -> unwords ["FreshMeta", show av, pdisplay na a]
-    Under (Scope (Hide x) a) -> unwords ["Under", x, pdisplay (na `nameOn` x) a]
-    Match lbl tm pts -> unwords ["Match", lbl, pdisplay na tm, collapse (display na <$> pts)]
-    Constrain s t -> unwords ["Constrain", pdisplay na s, pdisplay na t]
+    Spawn jd ch a -> concat [jd, "@", show ch, ". ", display na a]
+    Send ch tm a ->  concat [show ch, "!", pdisplay na tm, ". ", display na a]
+    Recv ch av a -> concat [show ch, "?", show av, ". ", display na a]
+    FreshMeta av a -> concat ["?", show av, ". ", pdisplay na a]
+    Under (Scope (Hide x) a) -> concat ["\\", x, ". ", display (na `nameOn` x) a]
+    Match lbl tm pts -> concat ["case", display initNaming lbl, " ", display na tm, " "
+                               , collapse (BracesList (display na <$> pts))
+                               ]
+    Constrain s t -> unwords [pdisplay na s, "~", pdisplay na t]
     Extend (jd, ml, i, a) b ->
-      unwords ["Extend", jd, ml, pdisplay na i, pdisplay na a, pdisplay na b]
-    Fail gr -> unwords ["Fail", gr]
+      concat [jd, display initNaming ml, " { ", pdisplay na i, " -> ", pdisplay na a, " }. "
+             , pdisplay na b]
+    Fail gr -> unwords ["#\"", gr, "\""]
     Win -> "Win"
+    Print tm a -> unwords ["PRINT", pdisplay na tm, ". ", pdisplay na a]
     Break str a -> display na a
 
 instance Display t => Display (PatF t, Actor) where

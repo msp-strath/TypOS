@@ -20,7 +20,26 @@ initStore :: StoreF i
 initStore = Store Map.empty 0
 
 updateStore :: Meta -> i -> Term -> StoreF i -> StoreF i
-updateStore m i t (Store{..}) = Store { solutions = Map.insert m (i, t) solutions, today = today + 1 }
+updateStore m i t (Store{..}) = Store
+  { solutions = Map.insert m (i, t) solutions
+  , today = today + 1 }
+
+headUp :: StoreF i -> Term -> Term
+headUp store term
+  | m :$: sg <- expand term
+  , Just (_, t) <- Map.lookup m (solutions store)
+  = headUp store (t //^ sg)
+  | otherwise = term
+
+instantiate :: StoreF i -> Term -> Term
+instantiate store term = case expand term of
+  VX{}     -> term
+  AX{}     -> term
+  s :%: t  -> instantiate store s % instantiate store t
+  x :.: b  -> x \\ instantiate store b
+  m :$: sg -> case Map.lookup m (solutions store) of
+    Nothing -> m $: sg
+    Just (_, tm) -> instantiate store (tm //^ sg)
 
 data Hole = Hole deriving Show
 

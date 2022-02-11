@@ -18,8 +18,10 @@ syntax
 type  : ?'Type.
 check : ?'Type. ?'Check.
 synth : ?'Synth. !'Type.
+
 checkEval : ?'Type. ?'Check. !'Check.
 evalSynth : ?'Synth. !'Synth. !'Type.
+listElimSynth : ?'Type. ?'Synth. ?'Type. ?'Check. ?'Check. !'Synth. !'Type.
 
 {-
 type@p = p?ty. case/subject ty
@@ -73,14 +75,102 @@ checkEval@p = p?ty. p?tm. case tm
   { ['Lam \x.body] -> case ty
     { ['Arr s t] -> \y. evalSynth/subject { y -> p!y. p!s. }.
                         checkEval@q. q!t. q!{x=y}body.
-                        q?nf. BREAK "Hi". p!['Lam \z.{z=z,y=z}nf].
+                        q?nf. BREAK "Hi". p!['Lam \z.{y=z}nf].
     ; otherwise -> #"Expected a function type"
     }
-  ; ['Emb e] -> p!['Emb e].
+  ; ['Nil] -> {- do we check ty here? -} p!['Nil]. {- or here? or not? -}
+  ; ['Cons s t] -> ?A. ?B. ?VS. ?VT. (case ty
+    { ['List a]   -> (A ~ a | B ~ ['List a])
+    ; ['Pair a b] -> (A ~ a | B ~ b)
+--    ; otherwise -> #"Expected a type compatible with a cons-cell"
+    }
+    | checkEval@q. q!A. q!s. q?vs. VS ~ vs
+    | checkEval@r. r!B. r!t. r?vt. VT ~ vt
+    | p!['Cons VS VT].)
+  ; ['Emb e] -> evalSynth@q. q!e. q?ve. q?vty.
+                ( {- vty ~ ty -}
+                | case ve { ['Rad nf w] -> p!nf.; ve -> p!['Emb ve]. }
+                )
   }
 
 evalSynth@p = p?tm. case/subject tm
-  { whatever ->
+  { ['Rad tm ty] -> checkEval@q. q!ty. q!tm. q?nf. p!['Rad nf ty]. p!ty.
+  ; ['App f t] -> evalSynth@q. q!f. q?fnf. q?nfty. case fnf
+    { ['Rad ['Lam \x.body] ['Arr a b]] ->
+            checkEval@r. r!b. r!{x=t}body. r?nf.
+            p!['Rad nf b]. p!b.
+    ; whatever -> case nfty
+      { ['Arr a b] -> checkEval@r. r!a. r!t. r?tnf. p!['App fnf tnf]. p!b.
+      ; otherwise -> #"Failed to evaluate App: Expected a function type"
+      }
+    }
+  ; ['Fst ptm] -> evalSynth@q. q!ptm. q?pnf. q?nfty. case pnf
+    { ['Rad ['Cons s t] ['Pair a b]] -> p!['Rad s a]. p!a.
+    ; otherwise -> case nfty
+      { ['Pair a b] -> p!['Fst pnf]. p!a.
+      ; otherwise -> #"Failed to evaluate Fst: Expected a pair type"
+      }
+    }
+  ; ['Snd ptm] -> evalSynth@q. q!ptm. q?pnf. q?nfty. case pnf
+    { ['Rad ['Cons s t] ['Pair a b]] -> p!['Rad t b]. p!b.
+    ; otherwise -> case nfty
+      { ['Pair a b] -> p!['Snd pnf]. p!b.
+      ; otherwise -> #"Failed to evaluate Snd: Expected a pair type"
+      }
+    }
+  ; ['ListElim rty ltm nil cons] ->
+       -- BREAK "evaluating list" .
+       evalSynth@q. q!ltm. q?lnf. q?lty.
+       -- BREAK "evaluating listElim" .
+       listElimSynth@r. r!rty. r!lnf. r!lty. r!nil. r!cons.
+       -- BREAK "returning from listElim" .
+       r?v. p!v. r?vty. p!vty.
   }
 
-exec checkEval@p. p!['Arr ['One] ['One]]. p!['Lam \x. ['Emb x]].
+listElimSynth@p = p?rty. p?lnf. p?lty. p?nil. p?cons. case lnf
+  { ['Rad ['Nil] ['List a]] -> checkEval@q. q!rty. q!nil. q?nilnf. p!nilnf. p!rty.
+  ; ['Rad ['Cons x xs] ['List a]] ->
+    listElimSynth@q. q!rty. q!['Rad xs ['List a]]. q!lty. q!nil. q!cons. q?ihnf. q?vty.
+    checkEval@r. r!rty.
+      -- BREAK "inspecting cons" .
+      case cons
+      { (\y.\ys.\ih. c) ->
+        -- BREAK "evaluating cons".
+        r!{ih=ihnf,ys=xs,y=x}c.
+        -- BREAK "returning from cons".
+        r?res. p!res. p!rty.
+      ; otherwise -> #"Internal Error: the IMPOSSIBLE has happened"
+      }
+  ; otherwise -> BREAK "oops". checkEval@q. q!rty. q!nil. q?nilnf. case lty
+      { ['List a] -> case cons
+        { (\x.\xs.\ih. c) ->
+          \y. evalSynth/subject { y -> p!y. p!a. }.
+          \ys. evalSynth/subject { ys -> p!ys. p!['List a]. }.
+          \jh. evalSynth/subject { jh -> p!jh. p!rty. }.
+          checkEval@r. r!rty. r!{ih=jh,xs=ys,x=y}c. r?cnf.
+          p!['ListElim rty lnf nilnf (\x.\xs.\ih. {jh=ih,ys=xs,y=x}cnf)]. p!rty.
+       ; otherwise -> #"Internal Error: the IMPOSSIBLE has happened"
+       }
+     ; otherwise -> #"Failed to evaluate ListElim: Expected a list type"
+     }
+  }
+
+-- exec checkEval@p. p!['Arr ['One] ['One]]. p!['Lam \x. ['Emb x]].
+exec evalSynth@p.
+  p!['ListElim ['List ['One]]
+       ['Rad ['Cons ['Nil] ['Nil]] ['List ['One]]] -- [()] :: [()]
+       ['Cons ['Nil] ['Nil]]                       -- nil: [()]
+       (\x.\xs.\ih.['Cons x ih])].                 -- cons(x,xs,ih) = x : xs
+  p?nf. p?ty. PRINT nf.
+
+{-
+exec evalSynth@p.
+  p!['ListElim ['List ['List ['One]]]
+       ['Rad ['Cons ['Nil]
+             ['Cons ['Cons ['Nil] ['Nil]]
+             ['Nil]]]
+             ['List ['List ['One]]]] -- [0,1] :: [Nat]
+       ['Cons ['Cons ['Nil] ['Cons ['Nil] ['Nil]]] ['Nil]] -- nil: 2 :: [Nat]
+       (\x.\xs.\ih.['Cons x ih])].                 -- cons(x,xs,ih) = x : xs
+  p?nf. p?ty. PRINT nf. PRINT ty.
+-}

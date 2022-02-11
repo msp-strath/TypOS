@@ -56,6 +56,11 @@ instance Display () where
 class Collapse t where
   collapse :: t String -> String
 
+newtype BracesList t = BracesList { unBracesList :: [t] }
+
+instance Collapse BracesList where
+  collapse (BracesList strs) = "{" ++ intercalate "; " strs ++ "}"
+
 instance Collapse Bwd where
   collapse strs = "[<" ++ intercalate ", " (strs <>> []) ++ "]"
 

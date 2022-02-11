@@ -24,7 +24,7 @@ pactorvar p = do
   pmetasbind (Map.singleton x B0) $ p (ActorMeta x)
 
 pmatchlabel :: Parser MatchLabel
-pmatchlabel = id <$ pch ('/' ==) <*> pnom <|> pure ""
+pmatchlabel = MatchLabel <$> poptional (id <$ pch ('/' ==) <*> pnom)
 
 pactm :: Parser (CdB (Tm ActorMeta))
 pactm = (fmap ActorMeta $^) <$> ptm
@@ -34,7 +34,7 @@ pjudge = pnom
 
 pextension :: Parser (JudgementForm, MatchLabel, PatVar, Actor)
 pextension =
-  (,,,) <$> pjudge <* pch (== '/') <*> pnom
+  (,,,) <$> pjudge <*> (MatchLabel . Just <$ pch (== '/') <*> pnom)
         <* punc "{" <*> pvar error (pure . VarP)
         <* punc "->" <*> pACT
         <* pspc <* pch (== '}')
@@ -68,6 +68,7 @@ pact = id <$ pch (== '\\') <* pspc <*> (do
        <* pspc <* pch (== '}')
   <|> id <$ pch (== '(') <* pspc <*> pACT <* pspc <* pch (== ')')
   <|> Break <$ plit "BREAK" <* pspc <*> pstring <* punc "." <*> pact
+  <|> Print <$ plit "PRINT" <* pspc <*> pactm <* punc "." <*> pact
   <|> Fail <$ pch (== '#') <* pspc <*> pstring
   <|> Extend <$> pextension <* punc "." <*> pact
   <|> pure Win

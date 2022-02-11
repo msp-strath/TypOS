@@ -61,4 +61,5 @@ main = do
   let cs = parse pfile txt
   let p = Process B0 initRoot (initEnv 0) initStore Win
   let res@(Process fs _ env sto Win) = run p cs
-  debug "" res `seq` pure ()
+  -- putStrLn $ display initNaming res
+  dmesg "" res `seq` pure ()

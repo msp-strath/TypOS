@@ -27,7 +27,9 @@ instance Thable PatVar where
 data Channel = Channel String deriving (Eq)
 instance Show Channel  where show (Channel str)  = str
 
-type MatchLabel = String
+data MatchLabel = MatchLabel (Maybe String)
+  deriving (Show, Eq, Ord)
+
 type JudgementForm = String
 type Gripe = String
 
@@ -68,6 +70,7 @@ data Actor
  | Extend (JudgementForm, MatchLabel, PatVar, Actor) Actor
  | Fail Gripe
  | Win
+ | Print (CdB (Tm ActorMeta)) Actor
  | Break String Actor
  deriving (Show, Eq)
 
@@ -85,6 +88,7 @@ instance Thable Actor where
     Extend (jd, ml, pv, a) b -> Extend (jd, ml, pv *^ th, a *^ th) (b *^ th)
     Fail gr -> Fail gr
     Win -> Win
+    Print tm a -> Print (tm *^ th) (a *^ th)
     Break str a -> Break str (a *^ th)
 
 

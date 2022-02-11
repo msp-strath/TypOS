@@ -12,6 +12,9 @@ import Bwd
 -- parsers, by convention, do not consume either leading
 -- or trailing space
 
+poptional :: Parser a -> Parser (Maybe a)
+poptional p = Just <$> p <|> pure Nothing
+
 plit :: String -> Parser ()
 plit = mapM_ (pch . (==))
 

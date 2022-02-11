@@ -82,7 +82,15 @@ exec p@Process { actor = m@(Match lbl s cls), ..}
  where
 
   switch :: Term -> [(PatActor, Actor)] -> Process Store []
-  switch t [] = alarm ("No matching clause for " ++ display (frnaming stack) t ++ " in " ++ display initNaming m) $ move (p { stack = stack :<+>: [] })
+  switch t [] =
+    let na = frnaming stack
+        msg = unlines $
+                [ "No matching clause for: " ++ display na (instantiate store t)
+                , "(raw term: " ++ display na t ++ ")"
+                , "in: case" ++ display initNaming lbl ++ " " ++ display na s
+                ] ++ zipWith (\ cs cl -> "  " ++ cs ++ display na cl) ("{ ":repeat "; ") cls
+                  ++ ["  }"]
+    in alarm msg $ move (p { stack = stack :<+>: [] })
   switch t ((pat, a):cs) = case match env [(B0, pat,t)] of
     Left True -> switch t cs
     Left False -> move (p { stack = stack :<+>: [] })
@@ -129,11 +137,23 @@ exec p@Process { actor = Extend (jd, ml, i, a) b, ..}
   = let stack' = stack :< RulePatch jd ml i env a in
     exec (p { stack = stack', actor = b })
 
+exec p@Process { actor = Print tm a, ..}
+  | Just term <- mangleActors env tm
+  =  unsafePerformIO $ do
+      putStrLn $ withANSI [SetColour Background Magenta]
+               $ display (frnaming stack)
+               $ instantiate store term
+      _ <- getLine
+      pure (exec (p { actor = a }))
+
 exec p@Process { actor = Break str a }
   = unsafePerformIO $ do
       putStrLn $ withANSI [SetColour Background Red] str
       _ <- getLine
       pure (exec (p { actor = a }))
+
+exec p@Process { actor = Fail str, ..}
+  = alarm str $ move (p  { stack = stack :<+>: [] })
 
 exec p@Process {..} = move (p { stack = stack :<+>: [] })
 
@@ -165,9 +185,9 @@ solveMeta m (S0 :^^ _, ph) (tm, th) p@Process{..} = do
 send :: Channel -> (CdB (Tm ActorMeta), Term) -> Process Store Cursor -> Process Store []
 --send ch (tm, term) (Process zfs@(zf :<+>: fs) _ _ _ a)
 --  | dmesg ("\nsend " ++ show ch ++ " " ++ show term ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
-send ch (tm, term) p
-  | debug ("send "  ++ show ch ++ " " ++ display (frnaming (stack p)) term) p
-  = undefined
+-- send ch (tm, term) p
+--   | debug ("send "  ++ show ch ++ " " ++ display (frnaming (stack p)) term) p
+--   = undefined
 
 send ch (tm, term) (p@Process { stack = B0 :<+>: fs, ..})
   = move (p { stack = B0 <>< fs :<+>: [], actor = Send ch tm actor })
@@ -226,11 +246,6 @@ move p@Process { stack = zf :< UnificationProblem date s t :<+>: fs, .. }
   = unify (p { stack = zf :<+>: UnificationProblem (today store) s t : fs })
 move p@Process { stack = (zf :< f) :<+>: fs }
   = move (p { stack = zf :<+>: (f : fs) })
-
-headUp :: Store -> Term -> Term
-headUp store term
-  | m :$: sg <- expand term, Just (_, t) <- Map.lookup m (solutions store) = headUp store (t //^ sg)
-  | otherwise = term
 
 debug :: (Traversable t, Collapse t, Display s)
       => String -> Process s t -> Bool
