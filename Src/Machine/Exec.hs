@@ -141,7 +141,7 @@ exec p@Process { actor = Print fmt a, ..}
   | Just format <- traverse (traverse $ mangleActors env) fmt
   =  unsafePerformIO $ do
       putStrLn $ withANSI [SetColour Background Magenta]
-               $ foldMap (display (frnaming stack))
+               $ display (frnaming stack)
                $ instantiate store format
       _ <- getLine
       pure (exec (p { actor = a }))

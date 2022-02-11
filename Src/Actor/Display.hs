@@ -44,14 +44,14 @@ instance Display Actor where
     Fail gr -> unwords ["#\"", gr, "\""]
     Win -> "Win"
     Print [TermPart Instantiate tm] a -> unwords ["PRINT", pdisplay na tm, ". ", pdisplay na a]
-    Print fmt a -> unwords ["PRINTF", rawDisplayFormat na fmt, ". ", pdisplay na a]
+    Print fmt a -> unwords ["PRINTF", display na fmt, ". ", pdisplay na a]
     Break str a -> display na a
 
 instance Display t => Display (PatF t, Actor) where
   display na (p, a) = display na p ++ " -> " ++ display na a
 
-rawDisplayFormat :: Display t => Naming -> [FormatF Directive t] -> String
-rawDisplayFormat na = go B0 B0 where
+instance Display t => Display [FormatF Directive t] where
+  display na = go B0 B0 where
 
     go fmt args [] = unwords (('"' : concat fmt ++ ['"']) : args <>> [])
     go fmt args (f:fs) = case f of
@@ -64,7 +64,7 @@ rawDisplayFormat na = go B0 B0 where
     escape '\t' = "\\t"
     escape c = [c]
 
-instance Display t => Display (FormatF () t) where
-  display na = \case
+instance Display t => Display [FormatF () t] where
+  display na = foldMap $ \case
     TermPart () t -> pdisplay na t
     StringPart str -> str
