@@ -70,20 +70,23 @@ data Actor
  | Extend (JudgementForm, MatchLabel, PatVar, Actor) Actor
  | Fail Gripe
  | Win
- | Print [FormatF Directive (CdB (Tm ActorMeta))] Actor
+ | Print [Format Directive Debug (CdB (Tm ActorMeta))] Actor
  | Break String Actor
  deriving (Show, Eq)
 
--- | dir is a directive
-data FormatF dir t
+-- | dir is a directive controlling the printing of terms
+--   dbg is the type of debugging info available
+data Format dir dbg t
   = TermPart dir t
+  | DebugPart dbg
   | StringPart String
   deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data Directive = Instantiate | Raw
  deriving (Show, Eq)
 
-type Format = FormatF () (CdB Term)
+data Debug = ShowStack | ShowStore | ShowEnv
+  deriving (Show, Eq)
 
 instance Thable Actor where
   a *^ th = case a of

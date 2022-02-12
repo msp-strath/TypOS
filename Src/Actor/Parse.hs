@@ -74,30 +74,38 @@ pact = id <$ pch (== '\\') <* pspc <*> (do
   <|> Extend <$> pextension <* punc "." <*> pact
   <|> pure Win
 
-pformat :: Parser [FormatF Directive ()]
+pformat :: Parser [Format Directive Debug ()]
 pformat = Parser $ \ env str -> case str of
   '"':str -> [go str B0]
   _ -> []
 
   where
 
-  snoc :: String -> Bwd (FormatF Directive ()) -> Bwd (FormatF Directive ())
+  snoc :: String -> Bwd (Format Directive Debug ()) -> Bwd (Format Directive Debug ())
   snoc "" acc = acc
   -- hopefully there aren't too many of these
   snoc str (acc :< StringPart strl) = acc :< StringPart (strl ++ str)
   snoc str acc = acc :< StringPart str
 
-  go :: String -> Bwd (FormatF Directive ()) -> ([FormatF Directive ()], String)
+  go :: String -> Bwd (Format Directive Debug ()) -> ([Format Directive Debug ()], String)
   go str acc = case span (`notElem` "%\"\\") str of
+    -- formatting expressions
     (str, '%':'r':end) -> go end (snoc str acc :< TermPart Raw ())
     (str, '%':'i':end) -> go end (snoc str acc :< TermPart Instantiate ())
+    (str, '%':'e':end) -> go end (snoc str acc :< DebugPart ShowEnv)
+    (str, '%':'s':end) -> go end (snoc str acc :< DebugPart ShowStack)
+    (str, '%':'m':end) -> go end (snoc str acc :< DebugPart ShowStore)
+    -- special characters
     (str, '\\':'n':end) -> go end (snoc (str ++ "\n") acc)
     (str, '\\':'t':end) -> go end (snoc (str ++ "\t") acc)
+    -- escaped characters
     (str, '\\':c:end) -> go end (snoc (str ++ [c]) acc)
+    -- closing double quote
     (str, '"':end)     -> (snoc str acc <>> [], end)
+    -- error
     (_, _) -> error "Unclosed format string"
 
-pargs :: [FormatF Directive ()] -> Parser [FormatF Directive (CdB (Tm ActorMeta))]
+pargs :: [Format Directive Debug ()] -> Parser [Format Directive Debug (CdB (Tm ActorMeta))]
 pargs = traverse $ traverse (\ () -> id <$ pspc <*> pactm)
 
 pactpat :: Parser PatActor

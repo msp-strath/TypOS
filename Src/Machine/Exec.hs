@@ -142,6 +142,7 @@ exec p@Process { actor = Print fmt a, ..}
   =  unsafePerformIO $ do
       putStrLn $ withANSI [SetColour Background Magenta]
                $ display (frnaming stack)
+               $ insertDebug p
                $ instantiate store format
       _ <- getLine
       pure (exec (p { actor = a }))

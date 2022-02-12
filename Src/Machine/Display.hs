@@ -69,3 +69,16 @@ frnaming zf = (zv, ones (length zv), zv)
   zv = flip foldMap zf $ \case
     Binding x -> B0 :< x
     _ -> B0
+
+insertDebug :: (Traversable t, Collapse t, Display s)
+            => Process s t -> [Format dir Debug a] -> [Format dir String a]
+insertDebug p fmt = map go fmt where
+
+  (fs, st, en, _) = displayProcess' initNaming p
+  go = \case
+    TermPart d t -> TermPart d t
+    StringPart str -> StringPart str
+    DebugPart dbg -> DebugPart $ case dbg of
+      ShowEnv -> en
+      ShowStack -> collapse fs
+      ShowStore -> st
