@@ -1,14 +1,16 @@
 syntax
-  { 'Check = ['Tag '[ ['Lam | '[['Bind 'Synth ['Rec 'Check]]]]
-                      ['Emb | '[ ['Rec 'Synth]]]]]
-  ; 'Synth = ['Tag '[ ['Rad | '[ ['Rec 'Check] ['Rec 'Type]]]
-                      ['App | '[ ['Rec 'Synth] ['Rec 'Check]]]]]
-  ; 'Type = ['Tag '[ ['Base | '[]]
-                     ['Nat  | '[]]
-                     ['Bool | '[]]
-                     ['Arr  | '[ ['Rec 'Type] ['Rec 'Type]]]]]
+  { 'Check = ['Tag  [ ['Lam ['Bind 'Synth ['Rec 'Check]]]
+                      ['Emb ['Rec 'Synth]]
+             ]]
+  ; 'Synth = ['Tag  [ ['Rad ['Rec 'Check] ['Rec 'Type]]
+                      ['App ['Rec 'Synth] ['Rec 'Check]]
+             ]]
+  ; 'Type = ['Tag  [ ['Base]
+                     ['Nat ]
+                     ['Bool]
+                     ['Arr  ['Rec 'Type] ['Rec 'Type]]
+            ]]
   }
-
 check : ?'Type. ?'Check.
 synth : ?'Synth. !'Type.
 

@@ -32,17 +32,8 @@ instance Show m => Display (Tm m) where
     _ -> pdisplayDFT na t
 
 instance Show m => Display (CdB (Tm m)) where
-  display na@(_, ph, _) t@(t', th) = case asList Just t of
-    Just ts -> "'[" ++ intercalate " " (map (display na) ts) ++ "]"
-    Nothing
-      | bigEnd th /= weeEnd ph -> alarm ("Crashing on " ++ show (na, t)) ""
-      | otherwise -> display (nameSel th na) t'
-
-  pdisplay na@(_, ph, _) t@(t', th) = case asList Just t of
-    Just ts -> "'[" ++ intercalate " " (map (display na) ts) ++ "]"
-    Nothing
-      | bigEnd th /= weeEnd ph -> alarm ("Crashing on " ++ show (na, t)) ""
-      | otherwise -> pdisplay (nameSel th na) t'
+  display na@(_, ph, _) t@(t', th) = display (nameSel th na) t'
+  pdisplay na@(_, ph, _) t@(t', th) = pdisplay (nameSel th na) t'
 
 displayCdr :: Show m => Naming -> Tm m -> String
 displayCdr (B0, _, _) (A "") = ""
@@ -50,9 +41,9 @@ displayCdr na (P (s :<>: t)) = " " ++ pdisplay na s ++ displayCdr' na t
 displayCdr na t = "|" ++ display na t
 
 displayCdr' :: Show m => Naming -> CdB (Tm m) -> String
-displayCdr' na t@(t', th) = case asList Just t of
+displayCdr' na t@(t', th) = {- case asList Just t of
   Just ts -> "| '[" ++ intercalate " " (map (display na) ts) ++ "]"
-  Nothing -> displayCdr (nameSel th na) t'
+  Nothing -> -} displayCdr (nameSel th na) t'
 
 
 instance Show m => Display (Sbst m) where

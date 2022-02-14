@@ -200,11 +200,14 @@ asListOf asY f = asList $ \ts -> case traverse asY ts of
                                    Just ys -> f ys
                                    Nothing -> bust
 
-asList :: OrBust x => ([CdB (Tm m)] -> x) -> CdB (Tm m) -> x
-asList f = asTagged $ \case
-  ("Cons",_) -> asPair $ \ a -> asPair $ asList $ \ xs -> asNil $ f (a:xs)
-  ("Nil",_) ->  asNil $ f []
+asNilOrCons :: OrBust x => x -> (CdB (Tm m) -> CdB (Tm m) -> x) -> CdB (Tm m) -> x
+asNilOrCons nil cons t = t ?: \case
+  x :%: xs -> cons x xs
+  AX "" _ -> nil
   _ -> bust
+
+asList :: OrBust x => ([CdB (Tm m)] -> x) -> CdB (Tm m) -> x
+asList f = asNilOrCons (f []) (\ x -> asList (f . (x:)))
 
 infixr 3 \\
 (\\) :: String -> CdB (Tm m) -> CdB (Tm m)

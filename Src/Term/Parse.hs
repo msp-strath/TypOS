@@ -19,11 +19,8 @@ ptm = pvar ptmmeta (\ i -> var i <$> plen)
   <|> atom <$> patom <*> plen
   <|> id <$ pch (== '\\') <* pspc <*> (do
     x <- pnom
-    pspc
-    pch (== '.')
-    pspc
+    punc "."
     (x \\) <$> (pbind x ptm))
-  <|> glomQlist <$> plen <* pch (== '\'') <* pch (== '[') <* pspc <*> many (ptm <* pspc) <* pch (== ']')
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> id <$ pch (== '(') <* pspc <*> ptm <* pspc <* pch (== ')')
   <|> id <$ pch (== '{') <* pspc <*> do
@@ -37,10 +34,6 @@ ptm = pvar ptmmeta (\ i -> var i <$> plen)
       case findSub xz sc of
         Just th -> pure (str $: sbstW (sbst0 0) th)
         Nothing -> empty
-
-    glomQlist l = foldr qc qn where
-      qc a d = ("Cons",l) #% [a, d]
-      qn = ("Nil",l) #% []
 
 psbst :: Parser (CdB (Sbst String), Bwd String)
 psbst = (,) <$ pspc <* pch (== '}') <*> (sbstI <$> plen) <*> pscope
