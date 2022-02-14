@@ -7,6 +7,7 @@ import qualified Data.Map as Map
 import Actor
 import Bwd
 import Display
+import Format
 import Hide
 import Pattern
 import Scope
@@ -49,30 +50,3 @@ instance Display Actor where
 
 instance Display t => Display (PatF t, Actor) where
   display na (p, a) = display na p ++ " -> " ++ display na a
-
-instance Display Debug where
-  display _ = \case
-    ShowEnv -> "%e"
-    ShowStack -> "%s"
-    ShowStore -> "%m"
-
-instance Display t => Display [Format Directive Debug t] where
-  display na = go B0 B0 where
-
-    go fmt args [] = unwords (('"' : concat fmt ++ ['"']) : args <>> [])
-    go fmt args (f:fs) = case f of
-      TermPart Raw t -> go (fmt :< "%r") (args :< pdisplay na t) fs
-      TermPart Instantiate t -> go (fmt :< "%i") (args :< pdisplay na t) fs
-      DebugPart dbg -> go (fmt :< pdisplay initNaming dbg) args fs
-      StringPart str -> go (fmt :< concatMap escape str) args fs
-
-    escape :: Char -> String
-    escape '\n' = "\\n"
-    escape '\t' = "\\t"
-    escape c = [c]
-
-instance Display t => Display [Format () String t] where
-  display na = foldMap $ \case
-    TermPart () t -> pdisplay na t
-    DebugPart str -> str
-    StringPart str -> str

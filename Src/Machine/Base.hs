@@ -4,8 +4,9 @@ module Machine.Base where
 
 import qualified Data.Map as Map
 
-import Term
 import Actor
+import Format
+import Term
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)

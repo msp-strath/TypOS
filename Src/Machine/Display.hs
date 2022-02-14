@@ -4,14 +4,15 @@ import Control.Monad.State
 
 import qualified Data.Map as Map
 
-import Bwd
-import Display
-import Term
-import Thin
 import ANSI
 import Actor
 import Actor.Display()
+import Bwd
+import Display
+import Format
 import Machine.Base
+import Term
+import Thin
 
 instance Display Date where
   display na (Date i) = show i

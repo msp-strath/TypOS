@@ -2,13 +2,14 @@ module Actor where
 
 import qualified Data.Map as Map
 
-import Hide
-import Scope
-import Bwd
-import Term
-import Pattern
-import Thin
 import ANSI
+import Bwd
+import Format
+import Hide
+import Pattern
+import Scope
+import Term
+import Thin
 
 type ActorVar = String
 
@@ -73,20 +74,6 @@ data Actor
  | Print [Format Directive Debug (CdB (Tm ActorMeta))] Actor
  | Break String Actor
  deriving (Show, Eq)
-
--- | dir is a directive controlling the printing of terms
---   dbg is the type of debugging info available
-data Format dir dbg t
-  = TermPart dir t
-  | DebugPart dbg
-  | StringPart String
-  deriving (Show, Eq, Functor, Foldable, Traversable)
-
-data Directive = Instantiate | Raw
- deriving (Show, Eq)
-
-data Debug = ShowStack | ShowStore | ShowEnv
-  deriving (Show, Eq)
 
 instance Thable Actor where
   a *^ th = case a of
