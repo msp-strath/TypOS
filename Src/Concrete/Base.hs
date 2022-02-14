@@ -1,5 +1,6 @@
 module Concrete.Base where
 
+import Bwd
 import Format
 import Scope
 
@@ -11,7 +12,7 @@ data Raw
   | At Atom
   | Cons Raw Raw
   | Lam (Scope Raw)
-  | Sbst [SbstC] Raw
+  | Sbst (Bwd SbstC) Raw
   deriving (Show)
 
 data SbstC
@@ -25,12 +26,10 @@ data RawP
   | AtP Atom
   | ConsP RawP RawP
   | LamP (Scope RawP)
-  | ThP [ThC] RawP
+  | ThP (Bwd Variable, ThDirective) RawP
   deriving (Show)
 
-data ThC
-  = KeepP Variable
-  | DropP Variable
+data ThDirective = ThKeep | ThDrop
   deriving (Show)
 
 data Actor

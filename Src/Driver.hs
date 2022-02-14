@@ -1,6 +1,7 @@
 module Main where
 
 import Bwd
+import Elaboration
 import Thin
 import Parse
 import Actor
@@ -13,12 +14,6 @@ import Display
 import System.Environment
 import Control.Applicative
 import qualified Data.Map as Map
-
-
-data Mode = Input | {- Subject | -} Output
-  deriving (Show)
-
-type Category = String
 
 data Command
   = DeclJ JudgementForm [(Mode, Category)]

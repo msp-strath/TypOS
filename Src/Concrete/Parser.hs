@@ -2,6 +2,7 @@ module Concrete.Parser where
 
 import Control.Applicative
 
+import Bwd
 import Concrete.Base
 import Format
 import Hide
@@ -22,7 +23,7 @@ ptm = Var <$> pnom
   <|> Lam <$> pscoped ptm
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> id <$ pch (== '(') <* pspc <*> ptm <* pspc <* pch (== ')')
-  <|> Sbst <$ pch (== '{') <* pspc <*> psep (punc ",") psbstC <* punc "}" <*> ptm
+  <|> Sbst <$ pch (== '{') <* pspc <*> ppes (punc ",") psbstC <* punc "}" <*> ptm
 
 psbstC :: Parser SbstC
 psbstC = pnom >>= \ x ->
@@ -41,10 +42,11 @@ ppat = VarP <$> pnom
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pch (== ')')
   <|> LamP <$> pscoped ppat
-  <|> ThP <$ pch (== '{') <* pspc <*> psep (punc ",") pthC <* punc "}" <*> ppat
+  <|> ThP <$ pch (== '{') <* pspc <*> pth <* punc "}" <*> ppat
 
-pthC :: Parser ThC
-pthC = flip ($) <$> pnom <*> (DropP <$ pch (== '*') <|> pure KeepP)
+pth :: Parser (Bwd Variable, ThDirective)
+pth = (,) <$> ppes pspc pnom
+          <*> (ThDrop <$ pspc <* pch ('*' ==) <|> pure ThKeep)
 
 pmatchlabel :: Parser (Maybe String)
 pmatchlabel = poptional (id <$ pch ('/' ==) <*> pnom)

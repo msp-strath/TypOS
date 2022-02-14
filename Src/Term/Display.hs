@@ -4,7 +4,6 @@ module Term.Display where
 
 import Data.List
 
-import ANSI
 import Bwd
 import Thin
 import Hide

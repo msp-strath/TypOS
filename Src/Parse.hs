@@ -87,6 +87,9 @@ psep :: Parser () -> Parser a -> Parser [a]
 psep s p = (:) <$> p <*> many (id <$ s <*> p)
  <|> pure []
 
+ppes :: Parser () -> Parser a -> Parser (Bwd a)
+ppes s p = (B0 <><) <$> psep s p
+
 data ParserEnv
   = ParserEnv
   { objScope :: Bwd String

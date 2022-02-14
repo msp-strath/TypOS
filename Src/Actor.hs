@@ -19,12 +19,6 @@ data ActorMeta = ActorMeta ActorVar
 instance Show ActorMeta where
   show (ActorMeta str) = str
 
-data PatVar = VarP Int
-  deriving (Show, Eq)
-
-instance Thable PatVar where
-  VarP i *^ th = VarP (i *^ th)
-
 data Channel = Channel String deriving (Eq)
 instance Show Channel  where show (Channel str)  = str
 

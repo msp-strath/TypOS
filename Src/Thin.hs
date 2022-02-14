@@ -110,6 +110,13 @@ lsb th = case thun th of
 thinx :: Int -> Th -> Int
 thinx = (*^)
 
+thickx :: Th -> Int -> Maybe Int
+thickx (Th th i) v | i <= 0 = error $ "thickx with i = " ++ show i
+thickx th v = case thun th of
+  (th, False) -> guard (v > 0) >> thickx th (v-1)
+  (th, True) | v == 0 -> pure 0
+             | otherwise -> (1+) <$> thickx th v
+
 -- invert selection
 comp :: Th -> Th
 comp (Th th i) = Th (xor th (full i)) i

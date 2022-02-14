@@ -7,6 +7,7 @@ import qualified Data.Map as Map
 import Actor
 import Format
 import Term
+import Pattern
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)

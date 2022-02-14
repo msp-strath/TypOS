@@ -20,9 +20,16 @@ data PatF v
   | PP (PatF v) (PatF v)
   | BP (Hide String) (PatF v)
   | MP String Th
+  | GP
   deriving (Show, Functor, Eq)
 
 type Pat = PatF Int
+
+data PatVar = VarP Int
+  deriving (Show, Eq)
+
+instance Thable PatVar where
+  VarP i *^ th = VarP (i *^ th)
 
 bound :: Bwd String -> PatF v -> MetaScopes
 bound xz (PP l r) = bound xz l <> bound xz r
@@ -36,6 +43,15 @@ instance Thable v => Thable (PatF v) where
   PP p q *^ th = PP (p *^ th) (q *^ th)
   BP x b *^ th = BP x (b *^ (th -? True))
   MP m ph *^ th = MP m (ph *^ th)
+  GP *^ th = GP
+
+instance Selable (PatF PatVar) where
+  th ^? VP (VarP v) = maybe GP (VP . VarP) (thickx th v)
+  th ^? AP a = AP a
+  th ^? PP p q = PP (th ^? p) (th ^? q)
+  th ^? BP x b = BP x ((th -? True) ^? b)
+  th ^? MP m ph = MP m (let (tph, _, _) = pullback th ph in tph)
+  th ^? GP = GP
 
 (#?) :: String -> [PatF v] -> PatF v
 a #? ts = foldr PP (AP "") (AP a : ts)
@@ -78,7 +94,7 @@ ppat = pvar (\ str -> MP str . ones <$> plen) (pure . VP)
     pch (== '.')
     pspc
     BP (Hide x) <$> pbind x ppat)
-  <|> id <$ pch (== '{') <* pspc <*> do
+  <|> id <$ pch (== '{') <*> do
     (th, xz) <- pth
     pspc
     (*^ th) <$> plocal xz ppat
@@ -95,8 +111,8 @@ pth = do
 
   raw :: Parser ([(String, Int)], Bool)
   raw = (,) <$> many (id <$ pspc <*> pvar') <* pspc
-            <*> (True <$ pch (== '*') <|> pure False)
-            <* pspc <* pch (== '}')
+            <*> (True <$ pch (== '*') <* pspc <|> pure False)
+            <* pch (== '}')
 
 -- Displaying
 
