@@ -178,10 +178,10 @@ solveMeta :: Meta   -- The meta (m) we're solving
           -> Term   -- The term (t) that must be equal to m :$ sg and depends on ms
           -> Process Store Cursor
           -> Maybe (Process Store Cursor)
-solveMeta m (CdB (S0 :^^ _, ph)) (CdB (tm, th)) p@Process{..} = do
-  ps <- thicken ph th
+solveMeta m (CdB (S0 :^^ _, ph)) tm p@Process{..} = do
+  tm <- thickenCdB ph tm
   -- FIXME: do a deep occurs check here to avoid the bug from match
-  return (p { store = updateStore m (frnaming stack) (CdB (tm, ps)) store })
+  return (p { store = updateStore m (frnaming stack) tm store })
 
 send :: Channel -> (CdB (Tm ActorMeta), Term) -> Process Store Cursor -> Process Store []
 --send ch (tm, term) (Process zfs@(zf :<+>: fs) _ _ _ a)
