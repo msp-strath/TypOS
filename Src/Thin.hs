@@ -247,12 +247,24 @@ which :: (a -> Bool) -> Bwd a -> Th
 which p B0 = none 0
 which p (xz :< x) = which p xz -? p x
 
+-- This is left-biased (we prioritise fitting the left's daeh)
+-- [<0,1,2]   `intersection` [<0,1,2,0] === [<0,1,2]
+-- [<0,1,2,0] `intersection` [<0,1,2]   === [<0]
+lintersection :: Eq a => Bwd a -> Bwd a -> (Th, Bwd a, Th)
+lintersection xzx@(xz :< x) yzy@(yz :< y)
+  | x == y      = let (thx, xyz, thy) = lintersection xz yz in
+                  (thx -? True, xyz :< x, thy -? True)
+  | x `elem` yz = let (thx, xyz, thy) = lintersection xzx yz in
+                  (thx, xyz, thy -? False)
+  | otherwise   = let (thx, xyz, thy) = lintersection xz yzy in
+                  (thx -? False, xyz, thy)
+lintersection xz yz = (none (length xz), B0, none (length yz))
+
 findSub :: Eq a => Bwd a -> Bwd a -> Maybe Th
-findSub aza@(az :< a) (bz :< b)
-  | a == b    = (-? True)  <$> findSub az  bz
-  | otherwise = (-? False) <$> findSub aza bz
-findSub B0 bz = pure $ none (length bz)
-findSub _ _ = Nothing
+findSub xz yz = do
+  let (thx, xyz, thy) = lintersection xz yz
+  guard (is1s thx)
+  pure thy
 
 -- | Replace the most local 1 in a thinning with 0
 ---     th = 0000110[1]00000

@@ -53,6 +53,17 @@ dropz (xz :< x) w = dropz xz (w-1)
 only :: Bwd x -> x
 only (B0 :< x) = x
 
+focusBy :: (x -> Maybe y) -> Bwd x -> Maybe (Bwd x, y, [x])
+focusBy p xz = go xz [] where
+
+  go B0        xs = Nothing
+  go (xz :< x) xs
+    | Just y <- p x = pure (xz, y, xs)
+    | otherwise     = go xz (x : xs)
+
+focus :: Eq x => x -> Bwd x -> Maybe (Bwd x, x, [x])
+focus x = focusBy (\ y -> y <$ guard (x == y))
+
 curl :: Int -> (Bwd x, [x]) -> (Bwd x, [x])
 curl 0 xzs = xzs
 curl n (xz :< x, xs) = curl (n-1) (xz, x : xs)
