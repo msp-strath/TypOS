@@ -19,7 +19,7 @@ data ActorMeta = ActorMeta ActorVar
 instance Show ActorMeta where
   show (ActorMeta str) = str
 
-data Channel = Channel String deriving (Eq)
+data Channel = Channel String deriving (Eq, Ord)
 instance Show Channel  where show (Channel str)  = str
 
 data MatchLabel = MatchLabel (Maybe String)
