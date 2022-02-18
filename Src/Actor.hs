@@ -43,7 +43,7 @@ instance Thable Env where
   Env sc avs *^ th = Env (bigEnd th) (fmap thinDefn avs) where
 
     thinDefn :: ([String], Term) -> ([String], Term)
-    thinDefn (xs, (t, ph)) = (xs, (t, ph <^> (th <> ones (length xs))))
+    thinDefn (xs, CdB (t, ph)) = (xs, CdB (t, ph <^> (th <> ones (length xs))))
 
 weakenEnv :: Int -> Env -> Env
 weakenEnv i rho = rho *^ (ones (scopeEnv rho) <> none i)
@@ -114,16 +114,16 @@ mangleActors rho tm = case expand tm of
     goSbst :: Bwd String {- xi -}
            -> CdB (Sbst ActorMeta) {-        xi =>Src ga -}
            -> Maybe Subst          {- ga <<< xi =>Trg ga -}
-    goSbst B0 (S0 :^^ 0, th) = pure (sbstI (bigEnd th))
-    goSbst nz (ST rp :^^ 0, th) =
-      splirp (rp, th) $ \ s (x := tm, ph) -> do
+    goSbst B0 (CdB (S0 :^^ 0, th)) = pure (sbstI (bigEnd th))
+    goSbst nz (CdB (ST rp :^^ 0, th)) =
+      splirp (CdB (rp, th)) $ \ s (CdB (x := tm, ph)) -> do
         nz <- nz `covers` x
         s <- goSbst nz s
-        tm <- mangleActors rho (tm, ph)
+        tm <- mangleActors rho (CdB (tm, ph))
         pure (sbstT s ((x :=) $^ tm))
-    goSbst nz@(_ :< n) (sg :^^ w, th) = do
+    goSbst nz@(_ :< n) (CdB (sg :^^ w, th)) = do
       let x = (Hide n :=) $^ (var 0 (weeEnd th) *^ th)
-      goSbst nz (sbstT (sg :^^ (w-1), pop th) x)
+      goSbst nz (sbstT (CdB (sg :^^ (w-1), pop th)) x)
 
     -- Return the term associated to an actor var, together with the
     -- local scope extension it was bound in. We expect that the

@@ -31,8 +31,8 @@ instance Show m => Display (Tm m) where
     _ -> pdisplayDFT na t
 
 instance Show m => Display (CdB (Tm m)) where
-  display na@(_, ph, _) t@(t', th) = display (nameSel th na) t'
-  pdisplay na@(_, ph, _) t@(t', th) = pdisplay (nameSel th na) t'
+  display  na@(_, ph, _) (CdB (t', th)) = display  (nameSel th na) t'
+  pdisplay na@(_, ph, _) (CdB (t', th)) = pdisplay (nameSel th na) t'
 
 displayCdr :: Show m => Naming -> Tm m -> String
 displayCdr (B0, _, _) (A "") = ""
@@ -40,10 +40,7 @@ displayCdr na (P (s :<>: t)) = " " ++ pdisplay na s ++ displayCdr' na t
 displayCdr na t = "|" ++ display na t
 
 displayCdr' :: Show m => Naming -> CdB (Tm m) -> String
-displayCdr' na t@(t', th) = {- case asList Just t of
-  Just ts -> "| '[" ++ intercalate " " (map (display na) ts) ++ "]"
-  Nothing -> -} displayCdr (nameSel th na) t'
-
+displayCdr' na t@(CdB (t', th)) = displayCdr (nameSel th na) t'
 
 instance Show m => Display (Sbst m) where
   display na@(_, th, _) sg = case displaySg na sg of
@@ -55,8 +52,8 @@ instance Show m => Display (Sbst m) where
      displaySg :: Show m => Naming -> Sbst m -> [String]
      displaySg (_, th, _) (S0 :^^ _)
        | th == ones (bigEnd th) = []
-     displaySg na (ST ((sg, th) :<>: ((Hide x := t), ph)) :^^ 0) =
-       (x ++ "=" ++ display na (t, ph)) :
+     displaySg na (ST (CdB (sg, th) :<>: CdB ((Hide x := t), ph)) :^^ 0) =
+       (x ++ "=" ++ display na (CdB (t, ph))) :
        displaySg (nameSel th na) sg
      displaySg (xz, th, yz :< y) (sg :^^ w) = case thun th of
        (th, False) ->

@@ -11,14 +11,16 @@ import Term
 import Term.Parse
 import Display
 
+import Syntax
+
 import System.Environment
 import Control.Applicative
 import qualified Data.Map as Map
 
 data Command
-  = DeclJ JudgementForm [(Mode, Category)]
+  = DeclJ JudgementForm [(Mode, SyntaxCat)]
   | DefnJ JudgementForm (Channel, Actor)
-  | DeclS [(Category, CdB (Tm String))]
+  | DeclS [(SyntaxCat, CdB (Tm String))]
   | Go Actor
   deriving (Show)
 

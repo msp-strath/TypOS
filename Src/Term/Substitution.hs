@@ -19,23 +19,24 @@ euclid x y = let d = x - y in case d < 0 of
   False -> GeBy d
 
 (//^) :: Show m => CdB (Tm m) -> CdB (Sbst m) -> CdB (Tm m)
-tth@(t, th) //^ sgph@(sg, ph) =
+tth@(CdB (t, th)) //^ sgph@(CdB (sg, ph)) =
    track "\n" $
    track ("Term: " ++ show tth) $
    track ("Subst: " ++ show sgph) $
    case sbstSel th sg of
-     (sg, ps) -> let res = (t // sg, ps <^> ph) in
-                 track ("Result: " ++ show res) $
-                 track "\n" $
-                 res
+     CdB (sg, ps) ->
+       let res = CdB (t // sg, ps <^> ph) in
+       track ("Result: " ++ show res) $
+       track "\n" $
+       res
 
 (//) :: Tm m -> Sbst m -> Tm m
 t // (S0 :^^ _) = t
-V // (ST (_ :<>: ((_ := t), _)) :^^ 0) = t
-P ((tl, thl) :<>: (tr, thr)) // sg =
-  P ((tl // sgl, phl) :<>: (tr // sgr, phr)) where
-  (sgl, phl) = sbstSel thl sg
-  (sgr, phr) = sbstSel thr sg
+V // (ST (_ :<>: CdB ((_ := t), _)) :^^ 0) = t
+P (CdB (tl, thl) :<>: CdB (tr, thr)) // sg =
+  P (CdB (tl // sgl, phl) :<>: CdB (tr // sgr, phr)) where
+  CdB (sgl, phl) = sbstSel thl sg
+  CdB (sgr, phr) = sbstSel thr sg
 ((x := b) :. t) // (sg :^^ w) = (x := b) :. (t // (sg :^^ if b then w+1 else w))
 (m :$ rh) // sg = m :$ (rh /// sg)
 
@@ -45,8 +46,8 @@ rh /// (S0 :^^ _) = rh
 (rh :^^ v) /// (sg :^^ w) =
   case euclid w v of
     LtBy d -> case sg of
-      ST ((sg, phl) :<>: t) ->
-        (ST (((rh :^^ (d-1)) /// sg, phl) :<>: t) :^^ w)
+      ST (CdB (sg, phl) :<>: t) ->
+        (ST (CdB ((rh :^^ (d-1)) /// sg, phl) :<>: t) :^^ w)
       {-
           -------  ;  -------
              w           w
@@ -57,10 +58,10 @@ rh /// (S0 :^^ _) = rh
              rh
       -}
     GeBy d -> case rh of
-      ST ((rh, thl) :<>: ((x := s), thr)) -> let
-        (sgl, phl) = sbstSel thl (sg :^^ d)
-        (sgr, phr) = sbstSel thr (sg :^^ d)
-        in (ST ((rh /// sgl, phl) :<>: (x := (s // sgr), phr)) :^^ v)
+      ST (CdB (rh, thl) :<>: CdB ((x := s), thr)) -> let
+        CdB (sgl, phl) = sbstSel thl (sg :^^ d)
+        CdB (sgr, phr) = sbstSel thr (sg :^^ d)
+        in (ST (CdB (rh /// sgl, phl) :<>: CdB (x := (s // sgr), phr)) :^^ v)
       {-
         -------  ;  -------
            v           v

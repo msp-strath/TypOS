@@ -101,11 +101,11 @@ exec p@Process { actor = m@(Match lbl s cls), ..}
             , PatActor
             , Term)] -> Either Bool Env -- Bool: should we keep trying other clauses?
   match env [] = pure env
-  match env ((zx, MP x ph, (t, th)):xs) = do
+  match env ((zx, MP x ph, CdB (t, th)):xs) = do
     let g = bigEnd th - bigEnd ph
     -- we can do better: t may not depend on disallowed things until definitions are expanded
     ps <- maybe (Left True) Right $ thicken (ones g <> ph) th
-    env <- pure $ newActorVar (ActorMeta x) ((ph ?< zx) <>> [], (t, ps)) env
+    env <- pure $ newActorVar (ActorMeta x) ((ph ?< zx) <>> [], CdB (t, ps)) env
     match env xs
   match env ((zx, pat, tm):xs) = case (pat, expand (headUp store tm)) of
     (_, (_ :$: _)) -> Left False
@@ -178,10 +178,10 @@ solveMeta :: Meta   -- The meta (m) we're solving
           -> Term   -- The term (t) that must be equal to m :$ sg and depends on ms
           -> Process Store Cursor
           -> Maybe (Process Store Cursor)
-solveMeta m (S0 :^^ _, ph) (tm, th) p@Process{..} = do
+solveMeta m (CdB (S0 :^^ _, ph)) (CdB (tm, th)) p@Process{..} = do
   ps <- thicken ph th
   -- FIXME: do a deep occurs check here to avoid the bug from match
-  return (p { store = updateStore m (frnaming stack) (tm, ps) store })
+  return (p { store = updateStore m (frnaming stack) (CdB (tm, ps)) store })
 
 send :: Channel -> (CdB (Tm ActorMeta), Term) -> Process Store Cursor -> Process Store []
 --send ch (tm, term) (Process zfs@(zf :<+>: fs) _ _ _ a)

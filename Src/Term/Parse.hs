@@ -45,6 +45,6 @@ psbst = (,) <$ pspc <* pch (== '}') <*> (sbstI <$> plen) <*> pscope
   <|> do
     x <- pnom
     pspc ; pch (== '=') ; pspc
-    (t, th) <- ptm
+    CdB (t, th) <- ptm
     (sg, xz) <- psbst
-    return (sbstT sg ((Hide x := t), th), xz :< x)
+    return (sbstT sg (CdB ((Hide x := t), th)), xz :< x)
