@@ -232,6 +232,14 @@ channelScope (Channel ch) = do
   case fromJust (focus ch ds) of
     (xz, AChannel sc _, xs) -> pure sc
 
+steppingChannel :: Channel -> (Protocol -> Elab Protocol) -> Elab ()
+steppingChannel ch step = do
+  nm <- getName
+  (pnm, p) <- gets (fromJust . Map.lookup ch)
+  unless (pnm `isPrefixOf` nm) $ throwError (NonLinearChannelUse ch)
+  p <- step p
+  modify (Map.insert ch (nm, p))
+
 sact :: C.Actor -> Elab A.Actor
 sact = \case
   a C.:|: b -> do
@@ -265,11 +273,8 @@ sact = \case
   C.Send ch tm a -> do
     -- Check the channel is in sending mode & step it
     ch <- pure (Channel ch)
-    nm <- getName
-    (pnm, p) <- gets (fromJust . Map.lookup ch)
-    unless (pnm `isPrefixOf` nm) $ throwError (NonLinearChannelUse ch)
-    case p of
-      (Output, cat) : p -> modify (Map.insert ch (nm, p))
+    steppingChannel ch $ \case
+      (Output, cat) : p -> pure p
       _ -> throwError (InvalidSend ch)
 
     -- Send
@@ -281,11 +286,8 @@ sact = \case
     isFresh av
     -- Check the channel is in receiving mode & step it
     ch <- pure (Channel ch)
-    nm <- getName
-    (pnm, p) <- gets (fromJust . Map.lookup ch)
-    unless (pnm `isPrefixOf` nm) $ throwError (NonLinearChannelUse ch)
-    case p of
-      (Input, cat) : p -> modify (Map.insert ch (nm, p))
+    steppingChannel ch $ \case
+      (Input, cat) : p -> pure p
       _ -> throwError (InvalidRecv ch)
 
     -- Receive
