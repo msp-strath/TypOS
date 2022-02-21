@@ -12,8 +12,8 @@ syntax
             ]]
   }
 
-check : ?'Type. ?'Check.
-synth : ?'Synth. !'Type.
+check@p : ?'Type. ?'Check.
+synth@p : ?'Synth. !'Type.
 
 check@p = p?ty. p?tm. case tm
     { ['Lam \x. body] -> ?S. ?T.
@@ -45,3 +45,5 @@ exec  check@p.
    p! ['Lam \z. ['Emb
          ['App ['Rad ['Lam \w. ['Emb w]] ['Arr ['Nat] ['Nat]]]
          ['Emb z]]]].
+
+trace { exec }

@@ -34,21 +34,25 @@ data Mode = Input | {- Subject | -} Output
 type ObjVars = Bwd String
 type Protocol = [(Mode, SyntaxCat)]
 
+dual :: Protocol -> Protocol
+dual = map $ \case
+  (Input, c) -> (Output, c)
+  (Output, c) -> (Input, c)
+
 data Kind
   = ActVar ObjVars
-  | AChannel ObjVars Protocol
-  | AJudgement Protocol
+  | AChannel ObjVars
+  | AJudgement Channel Protocol
   deriving (Show)
-
-isAJudgement :: Kind -> Maybe (Protocol)
-isAJudgement (AJudgement p) = pure p
-isAJudgement _ = Nothing
 
 data Context = Context
   { objVars      :: ObjVars
   , declarations :: Decls
   , location     :: Bwd Turn
   } deriving (Show)
+
+initContext :: Context
+initContext = Context B0 B0 B0
 
 data Turn = West | East
   deriving (Show, Eq)
@@ -106,8 +110,11 @@ data Complaint
   | NotAValidChannel Variable
   | NonLinearChannelUse Channel
   | UnfinishedProtocol Channel Protocol
+  | UnfinishedProtocolInExtension Variable Channel Protocol
   | InconsistentCommunication
   | DoomedBranchCommunicated RawP
+  | ExpectedAProtocol String Kind
+  | MismatchDeclDefn Variable Channel Channel
   deriving (Show)
 
 type ElabState = Map Channel ([Turn], Protocol)
@@ -123,6 +130,13 @@ newtype Elab a = Elab
            , MonadReader Context
            , MonadState ElabState
            , MonadWriter All)
+
+evalElab :: Elab a -> Either Complaint a
+evalElab = fmap fst
+         . runWriterT
+         . (`runReaderT` initContext)
+         . (`evalStateT` Map.empty)
+         . runElab
 
 type ACTm = CdB (Tm ActorMeta)
 type ACTSbst = CdB (Sbst ActorMeta)
@@ -222,7 +236,7 @@ channelScope :: Channel -> Elab ObjVars
 channelScope (Channel ch) = do
   ds <- asks declarations
   case fromJust (focusBy (\ (y, k) -> k <$ guard (ch == y)) ds) of
-    (_, AChannel sc _, _) -> pure sc
+    (_, AChannel sc, _) -> pure sc
 
 steppingChannel :: Channel -> (Protocol -> Elab Protocol) -> Elab ()
 steppingChannel ch step = do
@@ -231,6 +245,29 @@ steppingChannel ch step = do
   unless (pnm `isPrefixOf` nm) $ throwError (NonLinearChannelUse ch)
   p <- step p
   modify (Map.insert ch (nm, p))
+
+open :: Channel -> Protocol -> Elab ()
+open ch p = do
+  nm <- getName
+  modify (Map.insert ch (nm, p))
+
+close :: Channel -> Elab ()
+close ch = do
+  -- make sure the protocol was run all the way
+  mp <- gets (Map.lookup ch)
+  case snd (fromJust mp) of
+    [] -> pure ()
+    p -> throwError (UnfinishedProtocol ch p)
+  modify (Map.delete ch)
+
+withChannel :: Channel -> Protocol -> Elab a -> Elab a
+withChannel ch@(Channel rch) p ma = do
+  open ch p
+  -- run the actor in the extended context
+  ovs <- asks objVars
+  a <- local (declare rch (AChannel ovs)) $ ma
+  close ch
+  pure a
 
 sact :: C.Actor -> Elab A.Actor
 sact = \case
@@ -243,26 +280,15 @@ sact = \case
     b <- local (turn East) $ sact b
     pure (a A.:|: b)
 
-  C.Spawn jd rch a -> do
+  C.Spawn jd ch a -> do
     -- check the channel name is fresh & initialise it
-    isFresh rch
-    ch <- pure (Channel rch)
-    nm <- getName
+    isFresh ch
+    ch <- pure (Channel ch)
     p <- resolve jd >>= \case
-      Just (Left (AJudgement p)) -> pure p
+      Just (Left (AJudgement ch p)) -> pure p
       _ -> throwError (NotAValidJudgement jd)
-    modify (Map.insert ch (nm, p))
 
-    -- run the actor in the extended context
-    ovs <- asks objVars
-    a <- local (declare rch (AChannel ovs p)) $ sact a
-
-    -- make sure the protocol was run all the way
-    mp <- gets (Map.lookup ch)
-    case snd (fromJust mp) of
-      [] -> pure ()
-      p -> throwError (UnfinishedProtocol ch p)
-    modify (Map.delete ch)
+    a <- withChannel ch (dual p) $ sact a
 
     pure $ A.Spawn jd ch a
 
@@ -319,16 +345,35 @@ sact = \case
     pure $ A.Match ml tm cls
 
   C.Extend (jd, ml, y, a) b -> do
+    ml <- pure (MatchLabel (Just ml))
     y <- resolve y >>= \case
            Just (Right i) -> pure (P.VarP i)
            _ -> throwError (OutOfScope y)
-    a <- sact a -- a should communicate in a manner compatible with jd/ml
-                -- protocol inference?
+    a <- sextension jd a
     b <- sact b
-    pure $ A.Extend (jd, MatchLabel (Just ml), y, a) b
+    pure $ A.Extend (jd, ml, y, a) b
 
   C.Print fmt a -> A.Print <$> traverse (traverse stm) fmt <*> sact a
   C.Break str a -> A.Break str <$> sact a
+
+sextension :: Variable -> C.Actor -> Elab A.Actor
+sextension jd a = do
+  ds <- asks declarations
+  (ch, p) <- case focusBy (\ (nm, k) -> k <$ guard (nm == jd)) ds of
+    Just (_, AJudgement ch p,_) -> pure (ch, dropWhile ((Input ==) . fst) p)
+    Just (_, k, _) -> throwError (ExpectedAProtocol jd k)
+    Nothing -> throwError (OutOfScope jd)
+  nm <- getName
+  chs <- get
+   -- todo: in practice it should be everything available at the match being patched
+  put (Map.singleton ch (nm, p))
+  a <- sact a
+  p <- gets (snd . fromJust . Map.lookup ch)
+  case p of
+    [] -> pure ()
+    p -> throwError (UnfinishedProtocolInExtension jd ch p)
+  put chs
+  pure a
 
 sclause :: (RawP, C.Actor) -> Elab ((PatActor, A.Actor), Maybe ElabState)
 sclause (rp, a) = do

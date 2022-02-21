@@ -21,6 +21,9 @@ plit = mapM_ (pch . (==))
 punc :: String -> Parser ()
 punc cs = () <$ pspc <* plit cs <* pspc
 
+pcurlies :: Parser a -> Parser a
+pcurlies p = id <$ punc "{" <*> p <* pspc <* pch (== '}')
+
 pstring :: Parser String
 pstring = Parser $ \ env str -> case str of
   '"' : str -> case span ('"' /=) str of
