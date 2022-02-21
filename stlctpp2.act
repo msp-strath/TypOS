@@ -79,7 +79,7 @@ checkEval@p = p?ty. p?tm. case tm
     { ['Arr s t] -> \yy. evalSynth/subject { yy -> p!yy. p!s. }.
                         checkEval@q. q!t. q!{x=yy}body.
                         q?nf. BREAK "Hi". p!['Lam \z.{yy=z}nf].
-    ; otherwise -> #"Expected a function type"
+    ; _ -> #"Expected a function type"
     }
   ; ['Nil] -> {- do we check ty here? -} p!['Nil]. {- or here? or not? -}
   ; ['Cons s t] -> ?A. ?B. ?VS. ?VT. (case ty
@@ -102,23 +102,23 @@ evalSynth@p = p?tm. case/subject tm
     { ['Rad ['Lam \x.body] ['Arr a b]] ->
             checkEval@r. r!b. r!{x=t}body. r?nf.
             p!['Rad nf b]. p!b.
-    ; whatever -> case nfty
+    ; _ -> case nfty
       { ['Arr a b] -> checkEval@r. r!a. r!t. r?tnf. p!['App fnf tnf]. p!b.
-      ; otherwise -> #"Failed to evaluate App: Expected a function type"
+      ; _ -> #"Failed to evaluate App: Expected a function type"
       }
     }
   ; ['Fst ptm] -> evalSynth@q. q!ptm. q?pnf. q?nfty. case pnf
     { ['Rad ['Cons s t] ['Pair a b]] -> p!['Rad s a]. p!a.
-    ; otherwise -> case nfty
+    ; _ -> case nfty
       { ['Pair a b] -> p!['Fst pnf]. p!a.
-      ; otherwise2 -> #"Failed to evaluate Fst: Expected a pair type"
+      ; _ -> #"Failed to evaluate Fst: Expected a pair type"
       }
     }
   ; ['Snd ptm] -> evalSynth@q. q!ptm. q?pnf. q?nfty. case pnf
     { ['Rad ['Cons s t] ['Pair a b]] -> p!['Rad t b]. p!b.
-    ; otherwise -> case nfty
+    ; _ -> case nfty
       { ['Pair a b] -> p!['Snd pnf]. p!b.
-      ; otherwise2 -> #"Failed to evaluate Snd: Expected a pair type"
+      ; _ -> #"Failed to evaluate Snd: Expected a pair type"
       }
     }
   ; ['ListElim rty ltm nil cons] ->
@@ -142,9 +142,9 @@ listElimSynth@p = p?rty. p?lnf. p?lty. p?nil. p?cons. case lnf
         r!{y=x,ys=xs,ih=ihnf}c.
         -- BREAK "returning from cons".
         r?res. p!res. p!rty.
-      ; otherwise -> #"Internal Error: the IMPOSSIBLE has happened"
+      ; _ -> #"Internal Error: the IMPOSSIBLE has happened"
       }
-  ; otherwise -> BREAK "oops". checkEval@q. q!rty. q!nil. q?nilnf. case lty
+  ; _ -> BREAK "oops". checkEval@q. q!rty. q!nil. q?nilnf. case lty
       { ['List a] -> case cons
         { (\x.\xs.\ih. c) ->
           \y. evalSynth/subject { y -> p!y. p!a. }.
@@ -152,9 +152,9 @@ listElimSynth@p = p?rty. p?lnf. p?lty. p?nil. p?cons. case lnf
           \jh. evalSynth/subject { jh -> p!jh. p!rty. }.
           checkEval@r. r!rty. r!{x=y,xs=ys,ih=jh}c. r?cnf.
           p!['ListElim rty lnf nilnf (\x.\xs.\ih. {y=x,ys=xs,jh=ih}cnf)]. p!rty.
-       ; otherwise2 -> #"Internal Error: the IMPOSSIBLE has happened"
+       ; _ -> #"Internal Error: the IMPOSSIBLE has happened"
        }
-     ; otherwise3 -> #"Failed to evaluate ListElim: Expected a list type"
+     ; _ -> #"Failed to evaluate ListElim: Expected a list type"
      }
   }
 

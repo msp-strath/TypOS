@@ -43,6 +43,7 @@ ppat = VarP <$> pnom
   <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pch (== ')')
   <|> LamP <$> pscoped ppat
   <|> ThP <$ pch (== '{') <* pspc <*> pth <* punc "}" <*> ppat
+  <|> UnderscoreP <$ pch (== '_')
 
 pth :: Parser (Bwd Variable, ThDirective)
 pth = (,) <$> ppes pspc pnom

@@ -231,6 +231,7 @@ spat = \case
     th <- sth th
     (p, ds) <- spat p
     pure (th ^? p, ds)
+  UnderscoreP -> (HP,) <$> asks declarations
 
 channelScope :: Channel -> Elab ObjVars
 channelScope (Channel ch) = do

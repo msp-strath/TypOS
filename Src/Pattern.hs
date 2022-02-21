@@ -22,7 +22,8 @@ data PatF v
   | PP (PatF v) (PatF v)
   | BP (Hide String) (PatF v)
   | MP String Th
-  | GP
+  | GP -- grumpy pattern
+  | HP -- happy pattern
   deriving (Show, Functor, Eq)
 
 type Pat = PatF Int
@@ -46,6 +47,7 @@ instance Thable v => Thable (PatF v) where
   BP x b *^ th = BP x (b *^ (th -? True))
   MP m ph *^ th = MP m (ph *^ th)
   GP *^ th = GP
+  HP *^ th = HP
 
 instance Selable (PatF PatVar) where
   th ^? VP (VarP v) = maybe GP (VP . VarP) (thickx th v)
@@ -54,6 +56,7 @@ instance Selable (PatF PatVar) where
   th ^? BP x b = BP x ((th -? True) ^? b)
   th ^? MP m ph = MP m (let (tph, _, _) = pullback th ph in tph)
   th ^? GP = GP
+  th ^? HP = HP
 
 (#?) :: String -> [PatF v] -> PatF v
 a #? ts = foldr PP (AP "") (AP a : ts)
@@ -71,6 +74,7 @@ match r (MP x ph) (CdB (t, th)) = do
 match r p t = case (p, expand t) of
   (VP i, VX j _) | i == j -> return (r, (Map.empty, Map.empty))
   (AP a, AX b _) | a == b -> return (r, (Map.empty, Map.empty))
+  (HP, _) -> return (r, (Map.empty, Map.empty))
   (PP p q, s :%: t) -> do
     (r, m) <- match r p s
     (r, n) <- match r q t
@@ -100,6 +104,7 @@ ppat = pvar (\ str -> MP str . ones <$> plen) (pure . VP)
     (th, xz) <- pth
     pspc
     (*^ th) <$> plocal xz ppat
+  <|> HP <$ pch (== '_')
 
 pth :: Parser (Th, Bwd String)
 pth = do
@@ -131,6 +136,7 @@ instance Display t => Display (PatF t) where
       p <- local (`nameOn` x) $ display p
       pure $ "\\" ++ x ++ "." ++ p
     MP m th -> pure m
+    HP -> pure "_"
 
   pdisplay p = case p of
     AP{} -> display p

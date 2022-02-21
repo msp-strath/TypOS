@@ -27,6 +27,7 @@ data RawP
   | ConsP RawP RawP
   | LamP (Scope RawP)
   | ThP (Bwd Variable, ThDirective) RawP
+  | UnderscoreP
   deriving (Show)
 
 data ThDirective = ThKeep | ThDrop
