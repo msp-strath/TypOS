@@ -22,6 +22,8 @@ instance Display Env where
     collapse $
     map (\ (av, (xs, t)) -> concat (show av : map (" " ++) xs ++ [" = ", display (foldl nameOn na xs) t])) (Map.toList avs)
 
+instance Display Channel where
+  display _ (Channel str)  = str
 
 instance Display MatchLabel where
   display _ (MatchLabel str) = maybe "" ('/' :) str
@@ -30,9 +32,9 @@ instance Display Actor where
   display na = \case
     a :|: b -> pdisplay na a ++ " | " ++ pdisplay na b
     Closure env a -> unwords ["Closure", display na env, pdisplay na a]
-    Spawn jd ch a -> concat [jd, "@", show ch, ". ", display na a]
-    Send ch tm a ->  concat [show ch, "!", pdisplay na tm, ". ", display na a]
-    Recv ch av a -> concat [show ch, "?", show av, ". ", display na a]
+    Spawn jd ch a -> concat [jd, "@", display initNaming ch, ". ", display na a]
+    Send ch tm a ->  concat [display initNaming ch, "!", pdisplay na tm, ". ", display na a]
+    Recv ch av a -> concat [display initNaming ch, "?", show av, ". ", display na a]
     FreshMeta av a -> concat ["?", show av, ". ", pdisplay na a]
     Under (Scope (Hide x) a) -> concat ["\\", x, ". ", display (na `nameOn` x) a]
     Match lbl tm pts -> concat ["case", display initNaming lbl, " ", display na tm, " "

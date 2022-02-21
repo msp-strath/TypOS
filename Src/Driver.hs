@@ -4,6 +4,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 
+
 import Bwd
 import Elaboration
 import Thin
@@ -35,6 +36,25 @@ data CommandF jd ch t a
 
 type CCommand = CommandF C.Variable C.Variable C.Raw C.Actor
 type ACommand = CommandF A.JudgementForm A.Channel ACTm A.Actor
+
+instance Display Mode where
+  display _ Input = "?"
+  display _ Output = "!"
+
+instance Display Protocol where
+  display na = concatMap $ \ (m, c) -> display na m ++ c ++ ". "
+
+instance Display String where
+  display _ str = str
+
+instance (Display jd, Display ch, Display t, Display a) =>
+         Display (CommandF jd ch t a) where
+  display na = \case
+    DeclJ (jd, ch) p -> unwords [ display na jd, "@", display na ch, ":", display na p]
+    d@(DefnJ (jd, ch) a) -> unwords [ display na jd, "@", display na ch, "=", display na a]
+    DeclS _ -> ""
+    Go a -> display na a
+    Trace ts -> ""
 
 pmachinestep :: Parser MachineStep
 pmachinestep =
