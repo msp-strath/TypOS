@@ -363,15 +363,9 @@ sextension jd a = do
     Just (_, AJudgement ch p,_) -> pure (ch, dropWhile ((Input ==) . fst) p)
     Just (_, k, _) -> throwError (ExpectedAProtocol jd k)
     Nothing -> throwError (OutOfScope jd)
-  nm <- getName
   chs <- get
    -- todo: in practice it should be everything available at the match being patched
-  put (Map.singleton ch (nm, p))
-  a <- sact a
-  p <- gets (snd . fromJust . Map.lookup ch)
-  case p of
-    [] -> pure ()
-    p -> throwError (UnfinishedProtocolInExtension jd ch p)
+  a <- withChannel ch p $ sact a
   put chs
   pure a
 

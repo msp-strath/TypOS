@@ -18,13 +18,13 @@ syntax
             ]]
   }
 
-type  : ?'Type.
-check : ?'Type. ?'Check.
-synth : ?'Synth. !'Type.
+type@p  : ?'Type.
+check@p : ?'Type. ?'Check.
+synth@p : ?'Synth. !'Type.
 
-checkEval : ?'Type. ?'Check. !'Check.
-evalSynth : ?'Synth. !'Synth. !'Type.
-listElimSynth : ?'Type. ?'Synth. ?'Type. ?'Check. ?'Check. !'Synth. !'Type.
+checkEval@p : ?'Type. ?'Check. !'Check.
+evalSynth@p : ?'Synth. !'Synth. !'Type.
+listElimSynth@p : ?'Type. ?'Synth. ?'Type. ?'Check. ?'Check. !'Synth. !'Type.
 
 {-
 type@p = p?ty. case/subject ty
@@ -76,9 +76,9 @@ synth@p = p?tm . case/subject tm -- named case: we can extend this rule by using
 -}
 checkEval@p = p?ty. p?tm. case tm
   { ['Lam \x.body] -> case ty
-    { ['Arr s t] -> \y. evalSynth/subject { y -> p!y. p!s. }.
-                        checkEval@q. q!t. q!{x=y}body.
-                        q?nf. BREAK "Hi". p!['Lam \z.{y=z}nf].
+    { ['Arr s t] -> \yy. evalSynth/subject { yy -> p!yy. p!s. }.
+                        checkEval@q. q!t. q!{x=yy}body.
+                        q?nf. BREAK "Hi". p!['Lam \z.{yy=z}nf].
     ; otherwise -> #"Expected a function type"
     }
   ; ['Nil] -> {- do we check ty here? -} p!['Nil]. {- or here? or not? -}
@@ -92,12 +92,12 @@ checkEval@p = p?ty. p?tm. case tm
     | p!['Cons VS VT].)
   ; ['Emb e] -> evalSynth@q. q!e. q?ve. q?vty.
                 ( {- vty ~ ty -}
-                | case ve { ['Rad nf w] -> p!nf.; ve -> p!['Emb ve]. }
+                | case ve { ['Rad nf w] -> p!nf.; otherwise -> p!['Emb ve]. }
                 )
   }
 
 evalSynth@p = p?tm. case/subject tm
-  { ['Rad tm ty] -> checkEval@q. q!ty. q!tm. q?nf. p!['Rad nf ty]. p!ty.
+  { ['Rad rtm ty] -> checkEval@q. q!ty. q!rtm. q?nf. p!['Rad nf ty]. p!ty.
   ; ['App f t] -> evalSynth@q. q!f. q?fnf. q?nfty. case fnf
     { ['Rad ['Lam \x.body] ['Arr a b]] ->
             checkEval@r. r!b. r!{x=t}body. r?nf.
@@ -111,14 +111,14 @@ evalSynth@p = p?tm. case/subject tm
     { ['Rad ['Cons s t] ['Pair a b]] -> p!['Rad s a]. p!a.
     ; otherwise -> case nfty
       { ['Pair a b] -> p!['Fst pnf]. p!a.
-      ; otherwise -> #"Failed to evaluate Fst: Expected a pair type"
+      ; otherwise2 -> #"Failed to evaluate Fst: Expected a pair type"
       }
     }
   ; ['Snd ptm] -> evalSynth@q. q!ptm. q?pnf. q?nfty. case pnf
     { ['Rad ['Cons s t] ['Pair a b]] -> p!['Rad t b]. p!b.
     ; otherwise -> case nfty
       { ['Pair a b] -> p!['Snd pnf]. p!b.
-      ; otherwise -> #"Failed to evaluate Snd: Expected a pair type"
+      ; otherwise2 -> #"Failed to evaluate Snd: Expected a pair type"
       }
     }
   ; ['ListElim rty ltm nil cons] ->
@@ -139,7 +139,7 @@ listElimSynth@p = p?rty. p?lnf. p?lty. p?nil. p?cons. case lnf
       case cons
       { (\y.\ys.\ih. c) ->
         -- BREAK "evaluating cons".
-        r!{ih=ihnf,ys=xs,y=x}c.
+        r!{y=x,ys=xs,ih=ihnf}c.
         -- BREAK "returning from cons".
         r?res. p!res. p!rty.
       ; otherwise -> #"Internal Error: the IMPOSSIBLE has happened"
@@ -150,13 +150,15 @@ listElimSynth@p = p?rty. p?lnf. p?lty. p?nil. p?cons. case lnf
           \y. evalSynth/subject { y -> p!y. p!a. }.
           \ys. evalSynth/subject { ys -> p!ys. p!['List a]. }.
           \jh. evalSynth/subject { jh -> p!jh. p!rty. }.
-          checkEval@r. r!rty. r!{ih=jh,xs=ys,x=y}c. r?cnf.
-          p!['ListElim rty lnf nilnf (\x.\xs.\ih. {jh=ih,ys=xs,y=x}cnf)]. p!rty.
-       ; otherwise -> #"Internal Error: the IMPOSSIBLE has happened"
+          checkEval@r. r!rty. r!{x=y,xs=ys,ih=jh}c. r?cnf.
+          p!['ListElim rty lnf nilnf (\x.\xs.\ih. {y=x,ys=xs,jh=ih}cnf)]. p!rty.
+       ; otherwise2 -> #"Internal Error: the IMPOSSIBLE has happened"
        }
-     ; otherwise -> #"Failed to evaluate ListElim: Expected a list type"
+     ; otherwise3 -> #"Failed to evaluate ListElim: Expected a list type"
      }
   }
+
+trace { exec }
 
 -- exec checkEval@p. p!['Arr ['One] ['One]]. p!['Lam \x. ['Emb x]].
 exec evalSynth@p.
