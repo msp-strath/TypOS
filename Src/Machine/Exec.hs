@@ -66,7 +66,7 @@ exec p@Process { actor = Closure env' a, ..} =
 --                , actor = spawnedActor })
 exec p@Process { actor = Spawn jd spawnerCh actor, ..}
   | Just (spawnedCh, spawnedActor) <- lookupRules (ones (scopeEnv env)) jd stack
-  , dmesg (show spawnedActor) True
+--  , dmesg (show spawnedActor) True
   = let (subRoot, newRoot) = splitRoot root jd
         spawnee = Process tracing [] subRoot (initEnv $ scopeEnv env) (today store) spawnedActor
     in exec (p { stack = stack :< Spawner (spawnee, spawnedCh) (spawnerCh, Hole)
@@ -85,8 +85,8 @@ exec p@Process { actor = m@(Match lbl s cls), ..}
 
   switch :: Term -> [(PatActor, Actor)] -> Process Store []
   switch t [] =
-    let na = frnaming stack
-        msg = unsafeEvalDisplay $ local (setNaming na) $ do
+    let de = frDisplayEnv stack
+        msg = unsafeEvalDisplay $ local (const de) $ do
           it <- display (instantiate store t)
           t <- display t
           lbl <- display0 lbl
@@ -149,7 +149,7 @@ exec p@Process { actor = Print fmt a, ..}
   | Just format <- traverse (traverse $ mangleActors env) fmt
   =  unsafePerformIO $ do
       putStrLn $ withANSI [SetColour Background Magenta]
-               $ unsafeEvalDisplay $ local (setNaming (frnaming stack)) $ display
+               $ unsafeEvalDisplay $ local (const (frDisplayEnv stack)) $ display
                $ insertDebug p
                $ instantiate store format
       _ <- getLine
@@ -189,7 +189,7 @@ solveMeta :: Meta   -- The meta (m) we're solving
 solveMeta m (CdB (S0 :^^ _, ph)) tm p@Process{..} = do
   tm <- thickenCdB ph tm
   -- FIXME: do a deep occurs check here to avoid the bug from match
-  return (p { store = updateStore m (frnaming stack) tm store })
+  return (p { store = updateStore m (naming $ frDisplayEnv stack) tm store })
 
 send :: Channel -> (CdB (Tm ActorMeta), Term) -> Process Store Cursor -> Process Store []
 --send ch (tm, term) (Process zfs@(zf :<+>: fs) _ _ _ a)
@@ -256,9 +256,9 @@ move p@Process { stack = zf :< UnificationProblem date s t :<+>: fs, .. }
 move p@Process { stack = (zf :< f) :<+>: fs }
   = move (p { stack = zf :<+>: (f : fs) })
 
-debug :: (Traversable t, Collapse t, Display s)
+debug :: (Show (t Frame), Traversable t, Collapse t, Display s)
       => MachineStep -> String -> Process s t -> Bool
-debug step str p | step `elem` tracing p =
+debug step str p | step `elem` tracing p = -- dmesg (show step ++ ": " ++ show p) $
   let (fs', store', env', a') = unsafeEvalDisplay $ displayProcess' p
       p' = unlines $ map ("  " ++) [collapse fs', store', env', a']
   in dmesg ("\n" ++ (unsafeEvalDisplay $ display0 step) ++ " " ++ str ++ "\n" ++ p') False

@@ -3,6 +3,8 @@ module Thin where
 import Data.Bits
 import Control.Monad
 
+import GHC.Stack
+
 import Bwd
 
 data Th = Th
@@ -11,7 +13,7 @@ data Th = Th
   }
 
 class Thable t where
-  (*^) :: t -> Th -> t
+  (*^) :: HasCallStack => t -> Th -> t
 
 class Selable t where
   (^?) :: Th -> t -> t
@@ -78,7 +80,7 @@ Th th i -? b = Th (go b) (i+1) where
   go False = th'
 
 -- inverts snoc
-thun :: Th -> (Th, Bool)
+thun :: HasCallStack => Th -> (Th, Bool)
 thun (Th th i) | i <= 0 = error $ "thun with i = " ++ show i
 thun (Th th i) = (Th (shiftR th 1) (i-1), testBit th 0)
 

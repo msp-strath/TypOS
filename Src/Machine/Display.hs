@@ -20,9 +20,9 @@ instance Display Date where
 
 instance Display Frame where
   display = \case
-    Rules jd (ch, a) -> do
+    Rules jd (ch@(Channel rch), a) -> do
       ch <- display ch
-      -- a <- pdisplay a
+      -- a <- local (declareChannel rch) pdisplay a
       pure $ jd ++ " |-@" ++ ch ++ " {}" -- ++ a
     RulePatch jd ml i env a -> do
       ml <- display0 ml
@@ -35,19 +35,19 @@ instance Display Frame where
     RightBranch p Hole -> do
       p <- display p
       pure $ p ++ " | <>"
-    Spawnee (Hole, lch) (rch, p) -> do
+    Spawnee (Hole, lch) (rch@(Channel ch), p) -> do
       lch <- display lch
       rch <- display rch
-      p <- display p
+      p <- local (declareChannel ch) $ display p
       pure $ "<> @ " ++ lch ++ " | " ++ rch ++ " @ " ++ p
-    Spawner (p, lch) (rch, Hole) -> do
-      p <- display p
+    Spawner (p, lch@(Channel ch)) (rch, Hole) -> do
+      p <- local (declareChannel ch . nukeChannels) $ display p
       lch <- display lch
       rch <- display rch
       pure $ p ++ " @ " ++ lch ++ " | " ++ rch ++ " @ <>"
-    Sent ch t -> do
+    Sent ch@(Channel rch) t -> do
       ch <- display ch
-      t <- display t
+      t <- inChannel rch $ pdisplay t
       pure $ withANSI [SetColour Foreground Blue, SetWeight Bold] $ "!" ++ ch ++ ". " ++ t
     Binding x ->
       pure $ withANSI [SetColour Foreground Yellow, SetWeight Bold] $ "\\" ++ x ++ ". "
@@ -79,9 +79,7 @@ displayProcess' Process{..} = do
     go f = do
       de <- get
       dis <- local (const de) $ lift $ display f
-      case f of
-        Binding x -> put (de `nameOn` x)
-        _ -> pure ()
+      put (de `frameOn` f)
       pure dis
 
 type Store = StoreF Naming
@@ -109,12 +107,15 @@ instance Display MachineStep where
     MachineMove -> pure "move"
     MachineUnify -> pure "unify"
 
-frnaming :: Foldable t => t Frame -> Naming
-frnaming zf = (zv, ones (length zv), zv)
- where
-  zv = flip foldMap zf $ \case
-    Binding x -> B0 :< x
-    _ -> B0
+frameOn :: DisplayEnv -> Frame -> DisplayEnv
+frameOn de = \case
+  Binding x -> de `nameOn` x
+  Spawnee (Hole, Channel ch) _ -> declareChannel ch $ nukeChannels de
+  Spawner _ (Channel ch, Hole) -> declareChannel ch $ de
+  _ -> de
+
+frDisplayEnv :: Foldable t => t Frame -> DisplayEnv
+frDisplayEnv = foldl frameOn initDisplay
 
 insertDebug :: (Traversable t, Collapse t, Display s)
             => Process s t -> [Format dir Debug a] -> [Format dir String a]

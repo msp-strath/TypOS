@@ -3,6 +3,7 @@
 module Actor.Display where
 
 import qualified Data.Map as Map
+import Data.Maybe
 
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -54,9 +55,9 @@ instance Display Actor where
       ch <- display0 ch
       a <- local (declareChannel rch) $ display a
       pure $ concat [jd, "@", ch, ". ", a]
-    Send ch tm a -> do
+    Send ch@(Channel rch) tm a -> do
       ch <- display0 ch
-      tm <- pdisplay tm
+      tm <- inChannel rch $ pdisplay tm
       a <- display a
       pure $ concat [ch, "!", tm, ". ", a]
     Recv ch av a -> do

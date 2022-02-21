@@ -73,7 +73,7 @@ instance Thable Actor where
     a :|: b -> a *^ th :|: b *^ th
     Closure rho a -> Closure (rho *^ th) (a *^ th)
     Spawn jd ch a -> Spawn jd ch (a *^ th)
-    Send ch t a -> Send ch (t *^ th) (a *^ th)
+    Send ch t a -> Send ch t (a *^ th) -- this is fishy
     Recv ch av a -> Recv ch av (a *^ th)
     FreshMeta av a -> FreshMeta av (a *^ th)
     Under sc -> Under (sc *^ th)

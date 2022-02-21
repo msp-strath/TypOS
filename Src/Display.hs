@@ -33,6 +33,7 @@ type Naming =
 data DisplayComplaint = UnexpectedEmptyThinning Naming
                       | VarOutOfScope Naming
                       | InvalidNaming Naming
+                      | UnknownChannel String
   deriving (Show)
 
 newtype DisplayM a = Display
@@ -64,6 +65,15 @@ setNaming na (DEnv _ chs) = DEnv na chs
 
 declareChannel :: String -> DisplayEnv -> DisplayEnv
 declareChannel ch (DEnv na chs) = DEnv na (Map.insert ch na chs)
+
+nukeChannels :: DisplayEnv -> DisplayEnv
+nukeChannels (DEnv na chs) = (DEnv na Map.empty)
+
+inChannel :: String -> DisplayM a -> DisplayM a
+inChannel ch ma = do
+  asks (Map.lookup ch . chNaming) >>= \case
+    Nothing -> throwError $ UnknownChannel ch
+    Just na -> local (setNaming na) $ ma
 
 nameSel :: Th -> DisplayEnv -> DisplayEnv
 nameSel th (DEnv (xz, ph, yz) chs) = DEnv (th ?< xz, th <^> ph, yz) chs

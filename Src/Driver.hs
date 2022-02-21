@@ -4,6 +4,8 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 
+import Data.Foldable
+import Data.Traversable
 
 import Bwd
 import Elaboration
@@ -38,23 +40,34 @@ type CCommand = CommandF C.Variable C.Variable C.Raw C.Actor
 type ACommand = CommandF A.JudgementForm A.Channel ACTm A.Actor
 
 instance Display Mode where
-  display _ Input = "?"
-  display _ Output = "!"
+  display Input = pure "?"
+  display Output = pure "!"
 
 instance Display Protocol where
-  display na = concatMap $ \ (m, c) -> display na m ++ c ++ ". "
+  display p = (fold <$>) $ for p $ \ (m, c) -> do
+    m <- display m
+    pure $ m ++ c ++ ". "
 
 instance Display String where
-  display _ str = str
+  display str = pure str
 
 instance (Display jd, Display ch, Display t, Display a) =>
          Display (CommandF jd ch t a) where
-  display na = \case
-    DeclJ (jd, ch) p -> unwords [ display na jd, "@", display na ch, ":", display na p]
-    d@(DefnJ (jd, ch) a) -> unwords [ display na jd, "@", display na ch, "=", display na a]
-    DeclS _ -> ""
-    Go a -> display na a
-    Trace ts -> ""
+  display = \case
+    DeclJ (jd, ch) p -> do
+      jd <- display jd
+      ch <- display ch
+      p <- display p
+      pure $ unwords [ jd, "@", ch, ":", p]
+    d@(DefnJ (jd, ch) a) -> do
+      jd <- display jd
+      ch <- display ch
+      -- hack: the above happens to convert ch into a string, ready to be declared
+      a <- local (declareChannel ch) $ display a
+      pure $ unwords [ jd, "@", ch, "=", a]
+    DeclS _ -> pure ""
+    Go a -> display a
+    Trace ts -> pure ""
 
 pmachinestep :: Parser MachineStep
 pmachinestep =
@@ -116,7 +129,7 @@ run :: Process Store Bwd -> [ACommand] -> Process Store []
 run p [] = exec p
 run p@Process{..} (c : cs) = case c of
   DefnJ (jd, ch) a -> run (p { stack = stack :< Rules jd (ch, a) }) cs
-  Go a -> dmesg (show a) $
+  Go a -> -- dmesg (show a) $
           let (lroot, rroot) = splitRoot root ""
               rbranch = Process tracing [] rroot env (today store) a
           in run (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
@@ -132,6 +145,7 @@ main = do
   acs <- case elaborate ccs of
            Left err -> error (show err)
            Right acs -> pure acs
+  -- putStrLn $ unsafeEvalDisplay $ collapse <$> traverse display acs
   let p = Process [] B0 initRoot (A.initEnv 0) initStore A.Win
   let res@(Process _ fs _ env sto A.Win) = run p acs
   -- putStrLn $ display initNaming res
