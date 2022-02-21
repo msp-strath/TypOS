@@ -75,13 +75,22 @@ data Frame
   | UnificationProblem Date Term Term
   deriving (Show)
 
+data MachineStep
+  = MachineRecv
+  | MachineSend
+  | MachineExec
+  | MachineMove
+  | MachineUnify
+  deriving (Eq, Show)
+
 data Process s t
   = Process
-  { stack :: t Frame -- Stack frames ahead of or behind us
-  , root  :: Root    -- Name supply
-  , env   :: Env     -- definitions in scope
-  , store :: s       -- Definitions we know for metas (or not)
-  , actor :: Actor   -- The thing we are
+  { tracing :: [MachineStep]
+  , stack   :: t Frame -- Stack frames ahead of or behind us
+  , root    :: Root    -- Name supply
+  , env     :: Env     -- definitions in scope
+  , store   :: s       -- Definitions we know for metas (or not)
+  , actor   :: Actor   -- The thing we are
   }
 
 deriving instance (Show s, Show (t Frame)) => Show (Process s t)

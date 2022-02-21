@@ -22,7 +22,16 @@ data Command
   | DefnJ JudgementForm (Channel, Actor)
   | DeclS [(SyntaxCat, CdB (Tm String))]
   | Go Actor
+  | Trace [MachineStep]
   deriving (Show)
+
+pmachinestep :: Parser MachineStep
+pmachinestep =
+  MachineRecv <$ plit "recv"
+  <|> MachineSend <$ plit "send"
+  <|> MachineExec <$ plit "exec"
+  <|> MachineMove <$ plit "move"
+  <|> MachineUnify <$ plit "unify"
 
 pmode :: Parser Mode
 pmode = Input <$ pch (== '?') <|> Output <$ pch (== '!')
@@ -36,6 +45,7 @@ pcommand
        <*> psep (punc ";") ((,) <$> patom <* punc "=" <*> plocal B0 ptm)
        <* pspc <* pch (== '}')
   <|> Go <$ plit "exec" <* pspc <*> pACT
+  <|> Trace <$ plit "trace" <* pspc <*> psep (punc ",") pmachinestep
 
 pfile :: Parser [Command]
 pfile = id <$ pspc <*> psep pspc pcommand <* pspc
@@ -46,8 +56,9 @@ run p@Process{..} (c : cs) = case c of
   DefnJ jd cha -> run (p { stack = stack :< Rules jd cha }) cs
   Go a -> dmesg (show a) $
           let (lroot, rroot) = splitRoot root ""
-              rbranch = Process [] rroot env (today store) a
+              rbranch = Process tracing [] rroot env (today store) a
           in run (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
+  Trace xs -> run (p { tracing = xs ++ tracing }) cs
   _ -> run p cs
 
 main :: IO ()
@@ -56,7 +67,7 @@ main = do
   let fp = case args of {(fp :_) -> fp; _ -> "stlc.act"}
   txt <- readFile fp
   let cs = parse pfile txt
-  let p = Process B0 initRoot (initEnv 0) initStore Win
-  let res@(Process fs _ env sto Win) = run p cs
+  let p = Process [] B0 initRoot (initEnv 0) initStore Win
+  let res@(Process _ fs _ env sto Win) = run p cs
   -- putStrLn $ display initNaming res
   dmesg "" res `seq` pure ()

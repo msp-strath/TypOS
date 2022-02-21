@@ -48,10 +48,10 @@ exec :: Process Store Bwd -> Process Store []
 -- exec (Process zf _ env store a)
 --   | dmesg ("\nexec\n  " ++ unlines (map ("  " ++) [show a])) False
 --   = undefined
-exec p | debug "exec" p = undefined
+exec p | debug MachineExec "" p = undefined
 exec p@Process { actor = a :|: b, ..} =
   let (lroot, rroot) = splitRoot root ""
-      rbranch = Process [] rroot env (today store) b
+      rbranch = Process tracing [] rroot env (today store) b
   in exec (p { stack = stack :< LeftBranch Hole rbranch, root = lroot, actor = a})
 exec p@Process { actor = Closure env' a, ..} =
   exec (p { env = env', actor = a })
@@ -66,7 +66,7 @@ exec p@Process { actor = Spawn jd spawnerCh actor, ..}
   | Just (spawnedCh, spawnedActor) <- lookupRules (ones (scopeEnv env)) jd stack
   , dmesg (show spawnedActor) True
   = let (subRoot, newRoot) = splitRoot root jd
-        spawnee = Process [] subRoot (initEnv $ scopeEnv env) (today store) spawnedActor
+        spawnee = Process tracing [] subRoot (initEnv $ scopeEnv env) (today store) spawnedActor
     in exec (p { stack = stack :< Spawner (spawnee, spawnedCh) (spawnerCh, Hole)
                , root = newRoot
                , actor })
@@ -162,7 +162,7 @@ unify :: Process Store Cursor -> Process Store []
 -- unify p | dmesg ("\nunify\n  " ++ show p) False = undefined
 --unify (Process zf'@(zf :<+>: up@(UnificationProblem s t) : fs) _ _ store a)
 --  | dmesg ("\nunify\n  " ++ show t ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
-unify p | debug "unify" p = undefined
+unify p | debug MachineUnify "" p = undefined
 unify p@Process { stack = zf :<+>: UnificationProblem date s t : fs, ..} =
   case (expand (headUp store s), expand (headUp store t)) of
     (s, t) | s == t      -> unify (p { stack = zf :<+>: fs })
@@ -186,9 +186,9 @@ solveMeta m (CdB (S0 :^^ _, ph)) tm p@Process{..} = do
 send :: Channel -> (CdB (Tm ActorMeta), Term) -> Process Store Cursor -> Process Store []
 --send ch (tm, term) (Process zfs@(zf :<+>: fs) _ _ _ a)
 --  | dmesg ("\nsend " ++ show ch ++ " " ++ show term ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
--- send ch (tm, term) p
---   | debug ("send "  ++ show ch ++ " " ++ display (frnaming (stack p)) term) p
---   = undefined
+send ch (tm, term) p
+   | debug MachineSend (show ch ++ " " ++ display (frnaming (stack p)) term) p
+   = undefined
 
 send ch (tm, term) (p@Process { stack = B0 :<+>: fs, ..})
   = move (p { stack = B0 <>< fs :<+>: [], actor = Send ch tm actor })
@@ -204,7 +204,7 @@ send ch (tm, term) p@Process { stack = (zf :< f) :<+>: fs }
   = send ch (tm, term) (p { stack = zf :<+>: (f:fs) })
 
 recv :: Channel -> ActorMeta -> Process Store Cursor -> Process Store []
--- recv ch v p | debug ("recv " ++ show ch ++ " " ++ show v) p = undefined
+recv ch v p | debug MachineRecv (show ch ++ " " ++ show v) p = undefined
 -- recv ch v (zfs, _, _, _, a)
  -- | dmesg ("\nrecv " ++ show ch ++ " " ++ show v ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
 recv ch x p@Process { stack = B0 :<+>: fs, ..}
@@ -222,7 +222,7 @@ recv ch x p@Process { stack = zf :< f :<+>: fs }
 move :: Process Store Cursor -> Process Store []
 -- move (Process zfs _ _ store a)
 -- | dmesg ("\nmove\n  " ++ show zfs ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
--- move p | debug "move" p = undefined
+move p | debug MachineMove "" p = undefined
 
 move p@Process { stack = B0 :<+>: fs } = p { stack = fs }
 move p@Process { stack = zf :< LeftBranch Hole rp :<+>: fs, ..}
@@ -249,8 +249,9 @@ move p@Process { stack = (zf :< f) :<+>: fs }
   = move (p { stack = zf :<+>: (f : fs) })
 
 debug :: (Traversable t, Collapse t, Display s)
-      => String -> Process s t -> Bool
-debug str p =
+      => MachineStep -> String -> Process s t -> Bool
+debug step str p | step `elem` tracing p =
   let (fs', store', env', a') = displayProcess' initNaming p
       p' = unlines $ map ("  " ++) [collapse fs', store', env', a']
-  in dmesg ("\n" ++ str ++ "\n" ++ p') False
+  in dmesg ("\n" ++ display initNaming step ++ " " ++ str ++ "\n" ++ p') False
+debug step _ p = False

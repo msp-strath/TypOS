@@ -64,6 +64,14 @@ instance Display Store where
     go :: (Meta, (Naming, Term)) -> String
     go (k, (na, t)) = "?" ++ show k ++ " := " ++ display na t
 
+instance Display MachineStep where
+  display _ = \case
+    MachineRecv -> "recv"
+    MachineSend -> "send"
+    MachineExec -> "exec"
+    MachineMove -> "move"
+    MachineUnify -> "unify"
+
 frnaming :: Foldable t => t Frame -> Naming
 frnaming zf = (zv, ones (length zv), zv)
  where
