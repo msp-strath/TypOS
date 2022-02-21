@@ -3,6 +3,8 @@ module Machine.Exec where
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 
+import Control.Monad.Reader
+
 import ANSI
 import Bwd
 import Display
@@ -84,11 +86,17 @@ exec p@Process { actor = m@(Match lbl s cls), ..}
   switch :: Term -> [(PatActor, Actor)] -> Process Store []
   switch t [] =
     let na = frnaming stack
-        msg = unlines $
-                [ "No matching clause for: " ++ display na (instantiate store t)
-                , "(raw term: " ++ display na t ++ ")"
-                , "in: case" ++ display initNaming lbl ++ " " ++ display na s
-                ] ++ zipWith (\ cs cl -> "  " ++ cs ++ display na cl) ("{ ":repeat "; ") cls
+        msg = unsafeEvalDisplay $ local (setNaming na) $ do
+          it <- display (instantiate store t)
+          t <- display t
+          lbl <- display0 lbl
+          cls <- traverse display cls
+          s <- display s
+          pure $ unlines $
+                [ "No matching clause for: " ++ it
+                , "(raw term: " ++ t ++ ")"
+                , "in: case" ++ lbl ++ " " ++ s
+                ] ++ zipWith (\ cs cl -> "  " ++ cs ++ cl) ("{ ":repeat "; ") cls
                   ++ ["  }"]
     in alarm msg $ move (p { stack = stack :<+>: [] })
   switch t ((pat, a):cs) = case match env [(B0, pat,t)] of
@@ -141,7 +149,7 @@ exec p@Process { actor = Print fmt a, ..}
   | Just format <- traverse (traverse $ mangleActors env) fmt
   =  unsafePerformIO $ do
       putStrLn $ withANSI [SetColour Background Magenta]
-               $ display (frnaming stack)
+               $ unsafeEvalDisplay $ local (setNaming (frnaming stack)) $ display
                $ insertDebug p
                $ instantiate store format
       _ <- getLine
@@ -187,7 +195,7 @@ send :: Channel -> (CdB (Tm ActorMeta), Term) -> Process Store Cursor -> Process
 --send ch (tm, term) (Process zfs@(zf :<+>: fs) _ _ _ a)
 --  | dmesg ("\nsend " ++ show ch ++ " " ++ show term ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
 send ch (tm, term) p
-   | debug MachineSend (show ch ++ " " ++ display (frnaming (stack p)) term) p
+   | debug MachineSend (show ch ++ " "{- ++ display (frnaming (stack p)) term-}) p
    = undefined
 
 send ch (tm, term) (p@Process { stack = B0 :<+>: fs, ..})
@@ -251,7 +259,7 @@ move p@Process { stack = (zf :< f) :<+>: fs }
 debug :: (Traversable t, Collapse t, Display s)
       => MachineStep -> String -> Process s t -> Bool
 debug step str p | step `elem` tracing p =
-  let (fs', store', env', a') = displayProcess' initNaming p
+  let (fs', store', env', a') = unsafeEvalDisplay $ displayProcess' p
       p' = unlines $ map ("  " ++) [collapse fs', store', env', a']
-  in dmesg ("\n" ++ display initNaming step ++ " " ++ str ++ "\n" ++ p') False
+  in dmesg ("\n" ++ (unsafeEvalDisplay $ display0 step) ++ " " ++ str ++ "\n" ++ p') False
 debug step _ p = False

@@ -1,5 +1,8 @@
 module Format where
 
+import Data.Foldable
+import Data.Traversable
+
 import Bwd
 import Display
 import Parse
@@ -52,19 +55,28 @@ pformat = Parser $ \ env str -> case str of
 
 
 instance Display Debug where
-  display _ = \case
-    ShowEnv -> "%e"
-    ShowStack -> "%s"
-    ShowStore -> "%m"
+  display = \case
+    ShowEnv -> pure "%e"
+    ShowStack -> pure "%s"
+    ShowStore -> pure "%m"
+
+instance Display Directive where
+  display = \case
+    Raw -> pure "%r"
+    Instantiate -> pure "%i"
 
 instance Display t => Display [Format Directive Debug t] where
-  display na = go B0 B0 where
+  display = go B0 B0 where
 
-    go fmt args [] = unwords (('"' : concat fmt ++ ['"']) : args <>> [])
+    go fmt args [] = pure $ unwords (('"' : concat fmt ++ ['"']) : args <>> [])
     go fmt args (f:fs) = case f of
-      TermPart Raw t -> go (fmt :< "%r") (args :< pdisplay na t) fs
-      TermPart Instantiate t -> go (fmt :< "%i") (args :< pdisplay na t) fs
-      DebugPart dbg -> go (fmt :< pdisplay initNaming dbg) args fs
+      TermPart d t -> do
+        t <- pdisplay t
+        d <- display d
+        go (fmt :< d) (args :< t) fs
+      DebugPart dbg -> do
+        dbg <-pdisplay dbg
+        go (fmt :< dbg) args fs
       StringPart str -> go (fmt :< concatMap escape str) args fs
 
     escape :: Char -> String
@@ -73,7 +85,7 @@ instance Display t => Display [Format Directive Debug t] where
     escape c = [c]
 
 instance Display t => Display [Format () String t] where
-  display na = foldMap $ \case
-    TermPart () t -> pdisplay na t
-    DebugPart str -> str
-    StringPart str -> str
+  display f = (fold <$>) $ for f $ \case
+    TermPart () t -> pdisplay t
+    DebugPart str -> pure str
+    StringPart str -> pure str

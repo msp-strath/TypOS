@@ -4,6 +4,9 @@ module Actor.Display where
 
 import qualified Data.Map as Map
 
+import Control.Monad.Except
+import Control.Monad.Reader
+
 import Actor
 import Bwd
 import Display
@@ -14,41 +17,87 @@ import Scope
 import Term.Display()
 
 instance Display PatVar where
-  display na@(ns, _, _) = \case
-    VarP n -> ns <! n
+  display (VarP n) = do
+    na@(ns, _, _) <- asks naming
+    when (n >= length ns) $ throwError (InvalidNaming na)
+    pure (ns <! n)
 
 instance Display Env where
-  display na (Env sc avs) =
+  display (Env sc avs) = pure "ENV"
+  {-
+  display (Env sc avs) =
     collapse $
     map (\ (av, (xs, t)) -> concat (show av : map (" " ++) xs ++ [" = ", display (foldl nameOn na xs) t])) (Map.toList avs)
+-}
+
+instance Display ActorMeta where
+  display (ActorMeta str) = pure str
 
 instance Display Channel where
-  display _ (Channel str)  = str
+  display (Channel str)  = pure str
 
 instance Display MatchLabel where
-  display _ (MatchLabel str) = maybe "" ('/' :) str
+  display (MatchLabel str) = pure $ maybe "" ('/' :) str
 
 instance Display Actor where
-  display na = \case
-    a :|: b -> pdisplay na a ++ " | " ++ pdisplay na b
-    Closure env a -> unwords ["Closure", display na env, pdisplay na a]
-    Spawn jd ch a -> concat [jd, "@", display initNaming ch, ". ", display na a]
-    Send ch tm a ->  concat [display initNaming ch, "!", pdisplay na tm, ". ", display na a]
-    Recv ch av a -> concat [display initNaming ch, "?", show av, ". ", display na a]
-    FreshMeta av a -> concat ["?", show av, ". ", pdisplay na a]
-    Under (Scope (Hide x) a) -> concat ["\\", x, ". ", display (na `nameOn` x) a]
-    Match lbl tm pts -> concat ["case", display initNaming lbl, " ", display na tm, " "
-                               , collapse (BracesList (display na <$> pts))
-                               ]
-    Constrain s t -> unwords [pdisplay na s, "~", pdisplay na t]
-    Extend (jd, ml, i, a) b ->
-      concat [jd, display initNaming ml, " { ", pdisplay na i, " -> ", pdisplay na a, " }. "
-             , pdisplay na b]
-    Fail gr -> unwords ["#\"", gr, "\""]
-    Win -> "Win"
-    Print [TermPart Instantiate tm] a -> unwords ["PRINT", pdisplay na tm, ". ", pdisplay na a]
-    Print fmt a -> unwords ["PRINTF", display na fmt, ". ", pdisplay na a]
-    Break str a -> display na a
+  display = \case
+    a :|: b -> do
+      a <- pdisplay a
+      b <- pdisplay b
+      pure $ a ++ " | " ++ b
+    Closure env a -> do
+      env <- display env
+      a <- pdisplay a
+      pure $ unwords ["Closure", env, a]
+    Spawn jd ch@(Channel rch) a -> do
+      na <- asks naming
+      ch <- display0 ch
+      a <- local (declareChannel rch) $ display a
+      pure $ concat [jd, "@", ch, ". ", a]
+    Send ch tm a -> do
+      ch <- display0 ch
+      tm <- pdisplay tm
+      a <- display a
+      pure $ concat [ch, "!", tm, ". ", a]
+    Recv ch av a -> do
+      ch <- display0 ch
+      a <- display a
+      pure $ concat [ch, "?", show av, ". ", a]
+    FreshMeta av a -> do
+      a <- display a
+      pure $ concat ["?", show av, ". ", a]
+    Under (Scope (Hide x) a) -> do
+      a <- local (`nameOn` x) $ display a
+      pure $ concat ["\\", x, ". ", a]
+    Match lbl tm pts -> do
+      lbl <- display0 lbl
+      tm <- display tm
+      pts <- traverse display pts
+      pure $ concat ["case", lbl, " ", tm , " " , collapse (BracesList pts) ]
+    Constrain s t -> do
+      s <- pdisplay s
+      t <- pdisplay t
+      pure $ unwords [s, "~", t]
+    Extend (jd, ml, i, a) b -> do
+      ml <- display0 ml
+      i <- pdisplay i
+      a <- pdisplay a
+      b <- pdisplay b
+      pure $ concat [jd, ml, " { ",  i, " -> ",  a, " }. ", b]
+    Fail gr -> pure $ unwords ["#\"", gr, "\""]
+    Win -> pure $ "Win"
+    Print [TermPart Instantiate tm] a -> do
+      tm <- pdisplay tm
+      a <- pdisplay a
+      pure $ unwords ["PRINT", tm, ". ", a]
+    Print fmt a -> do
+      fmt <- pdisplay fmt
+      a <- pdisplay a
+      pure $ unwords ["PRINTF", fmt, ". ", a]
+    Break str a -> display a
 
 instance Display t => Display (PatF t, Actor) where
-  display na (p, a) = display na p ++ " -> " ++ display na a
+  display (p, a) = do
+    p <- display p
+    a <- display a
+    pure $ p ++ " -> " ++ a

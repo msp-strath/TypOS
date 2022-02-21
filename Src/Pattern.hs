@@ -5,6 +5,8 @@ import qualified Data.Map as Map
 
 import Control.Applicative
 
+import Control.Monad.Reader
+
 import Bwd
 import Thin
 import Hide
@@ -117,20 +119,30 @@ pth = do
 -- Displaying
 
 instance Display t => Display (PatF t) where
-  display na = \case
-    VP n -> display na n
-    AP ""  -> "[]"
-    AP str -> "'" ++ str
-    PP p q -> "[" ++ pdisplay na p ++ displayPatCdr na q ++ "]"
-    BP (Hide x) p -> "\\" ++ x ++ "." ++ display (na `nameOn` x) p
-    MP m th -> m
+  display = \case
+    VP n -> display n
+    AP ""  -> pure "[]"
+    AP str -> pure $ "'" ++ str
+    PP p q -> do
+      p <- pdisplay p
+      q <- displayPatCdr q
+      pure $ "[" ++ p ++ q ++ "]"
+    BP (Hide x) p -> do
+      p <- local (`nameOn` x) $ display p
+      pure $ "\\" ++ x ++ "." ++ p
+    MP m th -> pure m
 
-  pdisplay na p = case p of
-    AP{} -> display na p
-    PP{} -> display na p
-    _ -> pdisplayDFT na p
+  pdisplay p = case p of
+    AP{} -> display p
+    PP{} -> display p
+    _ -> pdisplayDFT p
 
-displayPatCdr :: Display t => Naming -> PatF t -> String
-displayPatCdr na (AP "") = ""
-displayPatCdr na (PP p q) = " " ++ pdisplay na p ++ displayPatCdr na q
-displayPatCdr na t = "|" ++ display na t
+displayPatCdr :: Display t => PatF t -> DisplayM String
+displayPatCdr (AP "") = pure ""
+displayPatCdr (PP p q) = do
+  p <- pdisplay p
+  q <- displayPatCdr q
+  pure $ " " ++ p ++ q
+displayPatCdr t = do
+  t <- display t
+  pure $ "|" ++ t

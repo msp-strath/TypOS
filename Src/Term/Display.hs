@@ -4,6 +4,9 @@ module Term.Display where
 
 import Data.List
 
+import Control.Monad.Except
+import Control.Monad.Reader
+
 import Bwd
 import Thin
 import Hide
@@ -11,54 +14,84 @@ import Term
 
 import Display
 
-instance Show m => Display (Tm m) where
-  display (B0 :< x, _, _) V = x
-  display (B0, _, _)    (A a) = case a of
-    "" -> "[]"
-    _  -> '\'' : a
-  display na (P (s :<>: t)) =
-    "[" ++ pdisplay na s ++ displayCdr' na t ++ "]"
-  display na ((Hide x := b) :. t) = "\\" ++ case b of
-    False -> "_." ++ display na t
-    True  -> let y = freshen x na in
-      y ++ "." ++ display (nameOn na y) t
-  display na (m :$ sg) = display na sg ++ "?" ++ show m
-  display na tm = error $ show na ++ "\n" ++ show tm
+instance Display m => Display (Tm m) where
+  display = \case
+    V -> asks naming >>= \case
+           (B0 :< x, _, _) -> pure x
+           na                -> throwError (VarOutOfScope na)
+    A a -> case a of
+             "" -> pure "[]"
+             _  -> pure $ '\'' : a
+    P (s :<>: t) -> do
+      s <- pdisplay s
+      t <- displayCdr' t
+      pure ("[" ++ s ++ t ++ "]")
+    (Hide x := b) :. t -> case b of
+            False -> do
+              t <- display t
+              pure ("\\_." ++ t)
+            True -> do
+              na <- asks naming
+              let y = freshen x na
+              t <- local (`nameOn` y) $ display t
+              pure ("\\" ++ y ++ "." ++ t)
+    m :$ sg -> do
+      -- the current naming is not for the right scope after subsituting, so we require m to be closed for now
+      m  <- local (setNaming initNaming) $ display m
+      sg <- display sg
+      pure (sg ++ m)
 
-  pdisplay na t = case t of
-    A{} -> display na t
-    P{} -> display na t
-    _ -> pdisplayDFT na t
+  pdisplay t = case t of
+    A{} -> display t
+    P{} -> display t
+    _ -> pdisplayDFT t
 
-instance Show m => Display (CdB (Tm m)) where
-  display  na@(_, ph, _) (CdB (t', th)) = display  (nameSel th na) t'
-  pdisplay na@(_, ph, _) (CdB (t', th)) = pdisplay (nameSel th na) t'
+instance Display Meta where
+  display (Meta ns) = pure $ show ns -- TODO: do better
 
-displayCdr :: Show m => Naming -> Tm m -> String
-displayCdr (B0, _, _) (A "") = ""
-displayCdr na (P (s :<>: t)) = " " ++ pdisplay na s ++ displayCdr' na t
-displayCdr na t = "|" ++ display na t
+instance Display m => Display (CdB (Tm m)) where
+  display  (CdB (t', th)) = local (nameSel th) $ display t'
+  pdisplay (CdB (t', th)) = local (nameSel th) $ pdisplay t'
 
-displayCdr' :: Show m => Naming -> CdB (Tm m) -> String
-displayCdr' na t@(CdB (t', th)) = displayCdr (nameSel th na) t'
+displayCdr :: Display m => Tm m -> DisplayM String
+displayCdr (A "") = pure ""
+displayCdr (P (s :<>: t)) = do
+  s <- pdisplay s
+  t <- displayCdr' t
+  pure (" " ++ s ++ t)
+displayCdr t = do
+  t <- display t
+  pure ("|" ++ t)
 
-instance Show m => Display (Sbst m) where
-  display na@(_, th, _) sg = case displaySg na sg of
-    [] -> []
-    sg' -> "{" ++ intercalate "," sg' ++ "}"
+displayCdr' :: Display m => CdB (Tm m) -> DisplayM  String
+displayCdr' (CdB (t', th)) = local (nameSel th) $ displayCdr t'
+
+instance Display m => Display (Sbst m) where
+  display sg = displaySg sg >>= \case
+    [] -> pure []
+    sg' -> pure $ "{" ++ intercalate "," sg' ++ "}"
 
    where
 
-     displaySg :: Show m => Naming -> Sbst m -> [String]
-     displaySg (_, th, _) (S0 :^^ _)
-       | th == ones (bigEnd th) = []
-     displaySg na (ST (CdB (sg, th) :<>: CdB ((Hide x := t), ph)) :^^ 0) =
-       (x ++ "=" ++ display na (CdB (t, ph))) :
-       displaySg (nameSel th na) sg
-     displaySg (xz, th, yz :< y) (sg :^^ w) = case thun th of
-       (th, False) ->
-         (y ++ "*") : displaySg (xz, th, yz) (sg :^^ w)
-       (th, True) ->
-         case xz of
-           xz :< x ->
-             x : displaySg (xz, th, yz) (sg :^^ (w - 1))
+     displaySg :: Display m => Sbst m -> DisplayM [String]
+     displaySg sg = do
+       na@(_, th, _) <- asks naming
+       case sg of
+         (S0 :^^ _) | th == ones (bigEnd th) -> pure []
+         (ST (CdB (sg, th) :<>: CdB ((Hide x := t), ph)) :^^ 0) -> do
+           t <- display (CdB (t, ph))
+           sg <- local (nameSel th) $ displaySg sg
+           pure ((x ++ "=" ++ t) : sg)
+         (sg :^^ w) -> case na of
+           (_, th, _) | bigEnd th <= 0 -> throwError (UnexpectedEmptyThinning na)
+           (xz, th, yz :< y) -> case thun th of
+            (th, False) -> do
+              sg <- local (setNaming (xz, th, yz)) $ displaySg (sg :^^ w)
+              pure ((y ++ "*") : sg)
+            (th, True) ->
+              case xz of
+                xz :< x -> do
+                  sg <- local (setNaming (xz, th, yz)) $ displaySg (sg :^^ (w - 1))
+                  pure (x : sg)
+                _ -> throwError $ InvalidNaming na
+           _ -> throwError $ InvalidNaming na
