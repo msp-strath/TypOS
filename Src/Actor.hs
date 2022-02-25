@@ -25,31 +25,26 @@ type JudgementForm = String
 type Gripe = String
 
 data Env = Env
-  { scopeEnv  :: Int
-  , actorVars :: Map.Map ActorMeta ([String], Term)
+  { globalScope  :: Bwd String -- free vars ga actor does *not* know about
+  , actorVars :: Map.Map ActorMeta ([String] -- bound vars xi actorVar does know about
+                                   , Term) -- in scope ga <>< xi
+  , localScope :: Bwd String -- vars de actor has bound
   } deriving (Show, Eq)
 
-initEnv :: Int -> Env
-initEnv gamma = Env gamma Map.empty
+initEnv :: Bwd String -> Env
+initEnv gamma = Env gamma Map.empty B0
+
+childEnv :: Env -> Env
+childEnv parentEnv = initEnv (globalScope parentEnv <> localScope parentEnv)
 
 newActorVar :: ActorMeta -> ([String], Term) -> Env -> Env
-newActorVar x defn env@(Env _ avs) = env { actorVars = Map.insert x defn avs }
-
-instance Thable Env where
-  Env sc avs *^ th = Env (bigEnd th) (fmap thinDefn avs) where
-
-    thinDefn :: ([String], Term) -> ([String], Term)
-    thinDefn (xs, CdB (t, ph)) = (xs, CdB (t, ph <^> (th <> ones (length xs))))
-
-weakenEnv :: Int -> Env -> Env
-weakenEnv i rho = rho *^ (ones (scopeEnv rho) <> none i)
+newActorVar x defn env@(Env _ avs _) = env { actorVars = Map.insert x defn avs }
 
 type PatActor = PatF PatVar
 
 infixr 3 :|:
 data Actor
  = Actor :|: Actor
- | Closure Env Actor
  | Spawn JudgementForm Channel Actor
  | Send Channel (CdB (Tm ActorMeta)) Actor
  | Recv Channel (ActorMeta, Actor)
@@ -66,25 +61,6 @@ data Actor
  | Break String Actor
  deriving (Show, Eq)
 
-{-
-instance Thable Actor where
-  a *^ th = case a of
-    a :|: b -> a *^ th :|: b *^ th
-    Closure rho a -> Closure (rho *^ th) (a *^ th)
-    Spawn jd ch a -> Spawn jd ch (a *^ th)
-    Send ch t a -> Send ch t (a *^ th) -- this is fishy
-    Recv ch av a -> Recv ch av (a *^ th)
-    FreshMeta av a -> FreshMeta av (a *^ th)
-    Under sc -> Under (sc *^ th)
-    Match t pas -> Match (t *^ th) (map (fmap (*^ th)) pas)
-    Constrain s t -> Constrain (s *^ th) (t *^ th)
-    Push jd ext a -> Push jd Extend (ext *^ th) (a *^ th)
-    Fail gr -> Fail gr
-    Win -> Win
-    Print fmt a -> Print (map (fmap (*^ th)) fmt) (a *^ th)
-    Break str a -> Break str (a *^ th)
--}
-
 -- | When we encounter a term with actor variables inside and want to send
 --   or match on it, we need to first substitute all of the terms the actor
 --   variables map to.
@@ -94,52 +70,46 @@ instance Thable Actor where
 --  we need to instantiate tm to ['Lam \x.['Emb x]] before
 -- trying to find the clause that matches
 mangleActors :: Env                {- Env ga -}
-             -> CdB (Tm ActorMeta) {- Src ga -}
-             -> Maybe Term         {- Trg ga -}
-mangleActors rho tm = case expand tm of
-  VX i ga -> pure (var i ga)
-  AX a ga -> pure (atom a ga)
-  a :%: b -> (%) <$> mangleActors rho a <*> mangleActors rho b
-  x :.: t -> (x \\) <$> mangleActors (weakenEnv 1 rho) t
-  m :$: sg -> do
-    (xs, t) <- noisyLookupVar m
-    let xi = B0 <>< xs
-    sg <- goSbst xi sg
-    pure (t //^ sg)
+             -> CdB (Tm ActorMeta) {- Src de -}
+             -> Maybe Term         {- Trg (ga <<< de) -}
+mangleActors rho tm = go tm where
+  ga = length (globalScope rho)
 
-  where
+  go :: CdB (Tm ActorMeta) {- Src de -}
+     -> Maybe Term         {- Trg (ga <<< de) -}
+  go tm = case expand tm of
+    VX i de -> pure (var i (ga + de))
+    AX a de -> pure (atom a (ga + de))
+    a :%: b -> (%) <$> go a <*> go b
+    x :.: t -> (x \\) <$> go t
+    m :$: sg -> do
+      t <- noisyLookupVar m
+      sg <- goSbst sg
+      pure (t //^ sg)
 
-    goSbst :: Bwd String {- xi -}
-           -> CdB (Sbst ActorMeta) {-        xi =>Src ga -}
-           -> Maybe Subst          {- ga <<< xi =>Trg ga -}
-    goSbst B0 (CdB (S0 :^^ 0, th)) = pure (sbstI (bigEnd th))
-    goSbst nz (CdB (ST rp :^^ 0, th)) =
-      splirp (CdB (rp, th)) $ \ s (CdB (x := tm, ph)) -> do
-        nz <- nz `covers` x
-        s <- goSbst nz s
-        tm <- mangleActors rho (CdB (tm, ph))
-        pure (sbstT s ((x :=) $^ tm))
-    goSbst nz@(_ :< n) (CdB (sg :^^ w, th)) = do
-      let x = (Hide n :=) $^ (var 0 (weeEnd th) *^ th)
-      goSbst nz (sbstT (CdB (sg :^^ (w-1), pop th)) x)
 
-    -- Return the term associated to an actor var, together with the
-    -- local scope extension it was bound in. We expect that the
-    -- substitution acting upon the term will cover all of these local
-    -- variables.
-    lookupVar :: Env -> ActorMeta -> Maybe ([String], Term)
-    lookupVar (Env sc avs) av = Map.lookup av avs
+  goSbst :: CdB (Sbst ActorMeta) {-        xi =>Src de -}
+         -> Maybe Subst          {- ga <<< xi =>Trg ga <<< de -}
+  goSbst (CdB (S0 :^^ 0, th)) = pure $ sbstI ga *^ (ones ga <> th)
+  goSbst (CdB (ST rp :^^ 0, th)) =
+    splirp (CdB (rp, th)) $ \ s (CdB (x := tm, ph)) -> do
+      s <- goSbst s
+      tm <- go (CdB (tm, ph))
+      pure (sbstT s ((x :=) $^ tm))
+  goSbst (CdB (sg :^^ w, th)) = do
+    let (thl, thr) = chopTh w th
+    sg <- goSbst (CdB (sg :^^ 0, thl))
+    pure $ sbstW sg thr
 
-    -- `covers nz x` ensures that `x` is at the most local end of `nz`.
-    covers :: Bwd String -> Hide String -> Maybe (Bwd String)
-    covers (nz :< n) (Hide x)
-      | n == x = pure nz
-      | otherwise = let msg = "Subst mismatch: expected " ++ n ++ " got " ++ x in
-                    alarm msg (pure nz)
-    covers nz _ = pure nz
+  -- Return the term associated to an actor var, together with the
+  -- local scope extension it was bound in. We expect that the
+  -- substitution acting upon the term will cover all of these local
+  -- variables.
+  lookupVar :: Env -> ActorMeta -> Maybe ([String], Term)
+  lookupVar rh av = Map.lookup av (actorVars rh)
 
-    noisyLookupVar :: ActorMeta -> Maybe ([String], Term)
-    noisyLookupVar av = case lookupVar rho av of
-      Just xst -> Just xst
-      Nothing -> alarm ("couldn't find " ++ show av ++ " in " ++ show rho)
+  noisyLookupVar :: ActorMeta -> Maybe Term
+  noisyLookupVar av = case lookupVar rho av of
+    Just (_, t) -> Just t
+    Nothing -> alarm ("couldn't find " ++ show av ++ " in " ++ show rho)
                        Nothing

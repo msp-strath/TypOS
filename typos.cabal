@@ -24,7 +24,7 @@ library
   import:              haskell
   exposed-modules:     Actor,
                        Actor.Display,
-                       Actor.Parse,
+                       -- Actor.Parse,
                        ANSI,
                        Bwd,
                        Command,
@@ -47,7 +47,7 @@ library
                        Term.Base,
                        Term.Display,
                        Term.Mangler,
-                       Term.Parse,
+                       -- Term.Parse,
                        Term.Substitution,
                        Thin
 

@@ -65,12 +65,12 @@ data Hole = Hole deriving Show
 
 data Frame
   = Rules JudgementForm (Channel, Actor)
-  | RulePatch JudgementForm MatchLabel PatVar Env Actor
   | LeftBranch Hole (Process Date [])
   | RightBranch (Process Date []) Hole
   | Spawnee (Hole, Channel) (Channel, Process Date [])
   | Spawner (Process Date [], Channel) (Channel, Hole)
   | Sent Channel Term
+  | Pushed JudgementForm (PatVar, Term)
   | Binding String
   | UnificationProblem Date Term Term
   deriving (Show)
@@ -91,6 +91,7 @@ data Process s t
   , env     :: Env     -- definitions in scope
   , store   :: s       -- Definitions we know for metas (or not)
   , actor   :: Actor   -- The thing we are
+  , judgementform :: JudgementForm -- who we are
   }
 
 deriving instance (Show s, Show (t Frame)) => Show (Process s t)

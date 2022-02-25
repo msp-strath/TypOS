@@ -42,7 +42,7 @@ dual = map $ \case
 data Kind
   = ActVar ObjVars
   | AChannel ObjVars
-  | AJudgement Channel Protocol
+  | AJudgement Protocol
   deriving (Show)
 
 data Context = Context
@@ -108,11 +108,12 @@ data Complaint
   | InvalidSend Channel
   | InvalidRecv Channel
   | NotAValidChannel Variable
+  | NotAValidBoundVar Variable
   | NonLinearChannelUse Channel
   | UnfinishedProtocol Channel Protocol
   | UnfinishedProtocolInExtension Variable Channel Protocol
   | InconsistentCommunication
-  | DoomedBranchCommunicated RawP
+  | DoomedBranchCommunicated C.Actor
   | ExpectedAProtocol String Kind
   | MismatchDeclDefn Variable Channel Channel
   deriving (Show)
@@ -286,7 +287,7 @@ sact = \case
     isFresh ch
     ch <- pure (Channel ch)
     p <- resolve jd >>= \case
-      Just (Left (AJudgement ch p)) -> pure p
+      Just (Left (AJudgement p)) -> pure p
       _ -> throwError (NotAValidJudgement jd)
 
     a <- withChannel ch (dual p) $ sact a
@@ -338,35 +339,54 @@ sact = \case
     chs <- get
     clsts <- traverse sclause cls
     let (cls, sts) = unzip clsts
-    case groupBy ((==) `on` fmap snd) [ p | Just p <- sts ] of
-      [] -> tell (All False) -- all branches are doomed, we don't care
-      [(c:_)] -> put c
-      _ -> throwError InconsistentCommunication
+    consistentCommunication sts
     pure $ A.Match tm cls
+
+  C.Push jd (p, t) a -> do
+    resolve jd >>= \case
+      Just (Left (AJudgement _)) -> pure ()
+      Just _ -> throwError $ NotAValidJudgement jd
+      _ -> throwError $ OutOfScope jd
+
+    p <- resolve p >>= \case
+      Just (Right i) -> pure (P.VarP i)
+      Just (Left k) -> throwError $ InvalidPatternVariable p k
+      _ -> throwError $ OutOfScope p
+    t <- stm t
+    a <- sact a
+    pure $ A.Push jd (p, t) a
+
+  C.Lookup t (av, a) b -> do
+    t <- stm t
+    isFresh av
+    ovs <- asks objVars
+    (a, mcha) <- local (declare av (ActVar ovs)) $ sbranch a
+    (b, mchb) <- sbranch b
+    consistentCommunication [mcha, mchb]
+    pure $ A.Lookup t (ActorMeta av, a) b
 
   C.Print fmt a -> A.Print <$> traverse (traverse stm) fmt <*> sact a
   C.Break str a -> A.Break str <$> sact a
 
-sextension :: Variable -> C.Actor -> Elab A.Actor
-sextension jd a = do
-  ds <- asks declarations
-  (ch, p) <- case focusBy (\ (nm, k) -> k <$ guard (nm == jd)) ds of
-    -- hack assuming that the match will be after the receives
-    Just (_, AJudgement ch p,_) -> pure (ch, dropWhile ((Input ==) . fst) p)
-    Just (_, k, _) -> throwError (ExpectedAProtocol jd k)
-    Nothing -> throwError (OutOfScope jd)
+consistentCommunication :: [Maybe ElabState] -> Elab ()
+consistentCommunication sts = do
+ case groupBy ((==) `on` fmap snd) [ p | Just p <- sts ] of
+   [] -> tell (All False) -- all branches are doomed, we don't care
+   [(c:_)] -> put c
+   _ -> throwError InconsistentCommunication
+
+sbranch :: C.Actor -> Elab (A.Actor, Maybe ElabState)
+sbranch ra = do
   chs <- get
-   -- todo: in practice it should be everything available at the match being patched
-  a <- withChannel ch p $ sact a
+  (a, All b) <- censor (const (All True)) $ listen $ sact ra
+  chs' <- get
+  unless b $ unless (chs == chs') $ throwError (DoomedBranchCommunicated ra)
   put chs
-  pure a
+  pure (a, chs' <$ guard b)
+
 
 sclause :: (RawP, C.Actor) -> Elab ((PatActor, A.Actor), Maybe ElabState)
 sclause (rp, a) = do
-  chs <- get
   (p, ds) <- spat rp
-  (a, All b) <- local (setDecls ds) $ censor (const (All True)) $ listen $ sact a
-  chs' <- get
-  unless b $ unless (chs == chs') $ throwError (DoomedBranchCommunicated rp)
-  put chs
-  pure ((p, a), chs' <$ guard b)
+  (a, me) <- local (setDecls ds) $ sbranch a
+  pure ((p, a), me)

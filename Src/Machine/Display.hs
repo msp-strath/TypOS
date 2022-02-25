@@ -24,11 +24,6 @@ instance Display Frame where
       ch <- display ch
       -- a <- local (declareChannel rch) pdisplay a
       pure $ jd ++ " |-@" ++ ch ++ " {}" -- ++ a
-    RulePatch jd ml i env a -> do
-      ml <- display0 ml
-      -- env <- display env
-      -- a <- display a
-      pure $ jd ++ ml ++ " |- +" ++ " " ++ show i ++ " -> {}"{- ++ env ++ " " ++ a -}
     LeftBranch Hole p -> do
       p <- display p
       pure $ "<> | " ++ p
@@ -49,6 +44,10 @@ instance Display Frame where
       ch <- display ch
       t <- inChannel rch $ pdisplay t
       pure $ withANSI [SetColour Foreground Blue, SetWeight Bold] $ "!" ++ ch ++ ". " ++ t
+    Pushed jd (p, t) -> do
+      p <- display p
+      t <- display t
+      pure $ unwords [jd, "{", p, "->", t, "}. "]
     Binding x ->
       pure $ withANSI [SetColour Foreground Yellow, SetWeight Bold] $ "\\" ++ x ++ ". "
     UnificationProblem date s t -> do

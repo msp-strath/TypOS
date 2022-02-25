@@ -24,7 +24,7 @@ instance Display PatVar where
     pure (ns <! n)
 
 instance Display Env where
-  display (Env sc avs) = pure "ENV"
+  display rho = pure "ENV"
   {-
   display (Env sc avs) =
     collapse $
@@ -37,19 +37,12 @@ instance Display ActorMeta where
 instance Display Channel where
   display (Channel str)  = pure str
 
-instance Display MatchLabel where
-  display (MatchLabel str) = pure $ maybe "" ('/' :) str
-
 instance Display Actor where
   display = \case
     a :|: b -> do
       a <- pdisplay a
       b <- pdisplay b
       pure $ a ++ " | " ++ b
-    Closure env a -> do
-      env <- display env
-      a <- pdisplay a
-      pure $ unwords ["Closure", env, a]
     Spawn jd ch@(Channel rch) a -> do
       na <- asks naming
       ch <- display0 ch
@@ -70,6 +63,16 @@ instance Display Actor where
     Under (Scope (Hide x) a) -> do
       a <- local (`nameOn` x) $ display a
       pure $ concat ["\\", x, ". ", a]
+    Push jd (p, t) a -> do
+      p <- display p
+      t <- display t
+      a <- display a
+      pure $ unwords [jd, "{", p, "->", t, "}.", a]
+    Lookup t (av, a) b -> do
+      t <- display t
+      a <- display a
+      b <- display b
+      pure $ unwords ["lookup", t, "{", show av, "->", a, "}", "else", b]
     Match tm pts -> do
       tm <- display tm
       pts <- traverse display pts

@@ -49,6 +49,7 @@ thEnv rho th av = rho av |^ (th +^+ io)
 module T {M} = TERM M ATOM
 open T
 
+{-
 ma : forall
      {ga0 -- support of source term
       ga {- how many vars are really in scope -}
@@ -83,19 +84,8 @@ ma rh (mm (x & sg)) th = rh x //^ masu rh sg th where
   masu rh ((sg </ u \> t) -/ x) th =
     (masu rh sg (luth u -& th) /,\ ma rh t (ruth u -& th))
     -/^ x
-
-{-
-  masu : forall
-       {xi  -- scope of actor var
-        de0 -- support of source term
-        de  -- how many binders in source term we're under
-       }
-    -> xi S> de0
-    -> de0 <= de
-    -> (ga <<< xi) T>^ (ga <<< de)
 -}
 
-{-
 module _
   {ga {- how many vars are really in scope -}}
   (rh : Env ga) where
@@ -126,13 +116,12 @@ module _
   ma (mm (x & sg)) th = rh x //^ masu sg th
 
   masu [] th = is {- ga -} & io{-ga-} +^+ th {- 0<=de -}
+  masu ((sg </ u \> t) -/ x) th =
+    (masu sg (luth u -& th) /,\ ma t (ruth u -& th))
+    -/^ x
   masu (sg -, x) (th -^ y)
     with ta & ph <- masu (sg -, x) th
        = ta & ph -^ y
   masu (sg -, x) (th -, .x)
     with ta & ph <- masu sg th
        = ta -, x & ph -, x
-  masu ((sg </ u \> t) -/ x) th =
-    (masu sg (luth u -& th) /,\ ma t (ruth u -& th))
-    -/^ x
--}

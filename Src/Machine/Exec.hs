@@ -23,27 +23,12 @@ import System.IO.Unsafe
 import Debug.Trace
 dmesg = trace
 
-lookupRules :: Th -> JudgementForm -> Bwd Frame -> Maybe (Channel, Actor)
-lookupRules th jd = go th Map.empty where
-
-  go :: Th -> -- how to transport the local scope in the stack into the target one
-        Map.Map MatchLabel [(PatActor, Actor)] -> -- accumulated patches
-        Bwd Frame -> Maybe (Channel, Actor)
-  go th acc B0 = Nothing
-  go th acc (zf :< f) = case f of
-    Binding _  -> go (pop th) acc zf
-    RulePatch jd' ml v env a | jd == jd' -> do
-      let acc' = Map.insertWith (++) ml [(VP (v *^ th), ((Closure env a) *^ th))] acc
-      go th acc' zf
-    Rules jd' (ch, a) | jd == jd' -> Just (ch, patch acc (a *^ th))
-    _ -> go th acc zf
-
-  patch :: Map.Map MatchLabel [(PatActor, Actor)] -> Actor -> Actor
-  patch ps (Match ml tm pts) =
-    let pts' = fmap (fmap (patch ps)) pts in
-    Match ml tm (fromMaybe [] (Map.lookup ml ps) ++ pts')
-  patch ps (Recv ch av a) = Recv ch av (patch ps a)
-  patch ps a = a
+lookupRules :: JudgementForm -> Bwd Frame -> Maybe (Channel, Actor)
+lookupRules jd zf = do
+  (_, cha, _) <- (`focusBy` zf) $ \case
+    Rules jd' cha | jd == jd' -> Just cha
+    _ -> Nothing
+  pure cha
 
 -- run an actor
 exec :: Process Store Bwd -> Process Store []
@@ -53,22 +38,13 @@ exec :: Process Store Bwd -> Process Store []
 exec p | debug MachineExec "" p = undefined
 exec p@Process { actor = a :|: b, ..} =
   let (lroot, rroot) = splitRoot root ""
-      rbranch = Process tracing [] rroot env (today store) b
+      rbranch = Process tracing [] rroot env (today store) b judgementform
   in exec (p { stack = stack :< LeftBranch Hole rbranch, root = lroot, actor = a})
-exec p@Process { actor = Closure env' a, ..} =
-  exec (p { env = env', actor = a })
--- exec p@Process { actor = Spawn jd spawnerCh actor, ..}
---   | Just (spawnedCh, spawnedActor) <- lookup jd judgementForms
---   = let (subRoot, newRoot) = splitRoot root jd
---         spawner = Process [] newRoot gamma () actor
---     in exec (p { stack = stack :< Spawnee (Hole, spawnedCh) (spawnerCh, spawner)
---                , root = subRoot
---                , actor = spawnedActor })
 exec p@Process { actor = Spawn jd spawnerCh actor, ..}
-  | Just (spawnedCh, spawnedActor) <- lookupRules (ones (scopeEnv env)) jd stack
+  | Just (spawnedCh, spawnedActor) <- lookupRules jd stack
 --  , dmesg (show spawnedActor) True
   = let (subRoot, newRoot) = splitRoot root jd
-        spawnee = Process tracing [] subRoot (initEnv $ scopeEnv env) (today store) spawnedActor
+        spawnee = Process tracing [] subRoot (childEnv env) (today store) spawnedActor jd
     in exec (p { stack = stack :< Spawner (spawnee, spawnedCh) (spawnerCh, Hole)
                , root = newRoot
                , actor })
@@ -76,9 +52,9 @@ exec p@Process { actor = Send ch tm a, ..}
   | Just term <- mangleActors env tm
   = let (subRoot, newRoot) = splitRoot root ""
     in send ch (tm, term) (p { stack = stack :<+>: [], root = newRoot, actor = a })
-exec p@Process { actor = Recv ch x a, ..}
+exec p@Process { actor = Recv ch (x, a), ..}
   = recv ch x (p { stack = stack :<+>: [], actor = a })
-exec p@Process { actor = m@(Match lbl s cls), ..}
+exec p@Process { actor = m@(Match s cls), ..}
   | Just term <- mangleActors env s
   = switch term cls
  where
@@ -89,17 +65,16 @@ exec p@Process { actor = m@(Match lbl s cls), ..}
         msg = unsafeEvalDisplay $ local (const de) $ do
           it <- display (instantiate store t)
           t <- display t
-          lbl <- display0 lbl
           cls <- traverse display cls
           s <- display s
           pure $ unlines $
                 [ "No matching clause for: " ++ it
                 , "(raw term: " ++ t ++ ")"
-                , "in: case" ++ lbl ++ " " ++ s
+                , "in: case " ++ s
                 ] ++ zipWith (\ cs cl -> "  " ++ cs ++ cl) ("{ ":repeat "; ") cls
                   ++ ["  }"]
     in alarm msg $ move (p { stack = stack :<+>: [] })
-  switch t ((pat, a):cs) = case match env [(B0, pat,t)] of
+  switch t ((pat, a):cs) = case match env [(localScope env, pat,t)] of
     Left True -> switch t cs
     Left False -> move (p { stack = stack :<+>: [] })
     Right env -> exec (p { env = env, actor = a } )
@@ -116,6 +91,8 @@ exec p@Process { actor = m@(Match lbl s cls), ..}
     env <- pure $ newActorVar (ActorMeta x) ((ph ?< zx) <>> [], CdB (t, ps)) env
     match env xs
   match env ((zx, pat, tm):xs) = case (pat, expand (headUp store tm)) of
+    (HP, _) -> match env xs
+    (GP, _) -> Left True
     (_, (_ :$: _)) -> Left False
     (VP (VarP i), VX j _) | i == j -> match env xs
     (AP a, AX b _) | a == b -> match env xs
@@ -123,10 +100,10 @@ exec p@Process { actor = m@(Match lbl s cls), ..}
     (BP (Hide x) p, _ :.: t) -> match env ((zx :< x,p,t):xs)
     _ -> Left True
 
-exec p@Process { actor = FreshMeta av@(ActorMeta x) a, ..} =
+exec p@Process { actor = FreshMeta (av@(ActorMeta x), a), ..} =
   let (xm, root') = meta root x
-      xt = xm $: sbstI (scopeEnv env)
-      env' = newActorVar av ([], xt) env
+      xt = xm $: sbstI (length (globalScope env) + length (localScope env))
+      env' = newActorVar av (localScope env <>> [], xt) env
   in exec (p { env = env', root = root', actor = a })
 exec p@Process { actor = Constrain s t, ..}
   | Just s' <- mangleActors env s
@@ -137,13 +114,32 @@ exec p@Process { actor = Constrain s t, ..}
   -- , dmesg (show t ++ " ----> " ++ show t') True
   = unify (p { stack = stack :<+>: [UnificationProblem (today store) s' t'], actor = Win })
 exec p@Process { actor = Under (Scope (Hide x) a), ..}
-  = let stack' = stack :< Binding (x ++ show (scopeEnv env))
-        env'   = weakenEnv 1 env
+  = let stack' = stack :< Binding x
+        env'   = env { localScope = localScope env :< x }
         actor' = a
     in exec (p { stack = stack', env = env', actor = actor' })
-exec p@Process { actor = Extend (jd, ml, i, a) b, ..}
-  = let stack' = stack :< RulePatch jd ml i env a in
-    exec (p { stack = stack', actor = b })
+
+exec p@Process { actor = Push jd (pv, t) a, ..}
+  | Just t' <- mangleActors env t
+  = let stack' = stack :< Pushed jd (pv, t')
+    in exec (p { stack = stack', actor = a })
+
+exec p@Process { actor = Lookup t (av, a) b, ..}
+  | Just t' <- mangleActors env t
+  = case expand t' of
+      VX i _ | Just t' <- search stack i judgementform 0 ->
+        let env' = newActorVar av (localScope env <>> [], t') env
+        in exec (p {actor = a, env = env'})
+      _ -> exec (p {actor = b})
+  where
+
+    search :: Bwd Frame -> Int -> JudgementForm -> Int -> Maybe Term
+    search B0 i jd bd = Nothing
+    search (zf :< f) i jd bd = case f of
+      Binding x | i <= 0 -> Nothing
+                | otherwise -> search zf (i-1) jd (bd + 1)
+      Pushed jd' (VarP i', t) | jd == jd' && i == i' -> Just (weaks bd t)
+      _ -> search zf i jd bd
 
 exec p@Process { actor = Print fmt a, ..}
   | Just format <- traverse (traverse $ mangleActors env) fmt
@@ -216,13 +212,13 @@ recv ch v p | debug MachineRecv (show ch ++ " " ++ show v) p = undefined
 -- recv ch v (zfs, _, _, _, a)
  -- | dmesg ("\nrecv " ++ show ch ++ " " ++ show v ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
 recv ch x p@Process { stack = B0 :<+>: fs, ..}
-  = move (p { stack = B0 <>< fs :<+>: [], actor = Recv ch x actor })
+  = move (p { stack = B0 <>< fs :<+>: [], actor = Recv ch (x, actor) })
 recv ch x p@Process { stack = zf :< Sent q y :<+>: fs, ..}
   | ch == q
-  = let env' = newActorVar x ([], y) env in
+  = let env' = newActorVar x ([], y) env in -- TODO: is this right?
     exec (p { stack = zf <>< fs, env = env' })
 recv ch x p@Process { stack = zf'@(zf :< Spawnee (Hole, q) (r, parentP)) :<+>: fs, ..}
-  = move (p { stack = zf' <>< fs :<+>: [], actor = Recv ch x actor })
+  = move (p { stack = zf' <>< fs :<+>: [], actor = Recv ch (x, actor) })
 recv ch x p@Process { stack = zf :< f :<+>: fs }
   = recv ch x (p { stack = zf :<+>: (f:fs) })
 
