@@ -25,7 +25,7 @@ import qualified Concrete.Base as C
 import Term.Base
 import Term.Substitution
 import Pattern as P
-import Actor (ActorMeta(..), Channel(..), PatActor(..), MatchLabel(..))
+import Actor (ActorMeta(..), Channel(..), PatActor(..))
 import qualified Actor as A
 
 data Mode = Input | {- Subject | -} Output
@@ -309,7 +309,7 @@ sact = \case
     a <- sact a
     pure $ A.Send ch tm a
 
-  C.Recv ch av a -> do
+  C.Recv ch (av, a) -> do
     isFresh av
     -- Check the channel is in receiving mode & step it
     ch <- pure (Channel ch)
@@ -320,21 +320,20 @@ sact = \case
     -- Receive
     sc <- channelScope ch
     a <- local (declare av (ActVar sc)) $ sact a
-    pure $ A.Recv ch (ActorMeta av) a
+    pure $ A.Recv ch (ActorMeta av, a)
 
-  C.FreshMeta av a -> do
+  C.FreshMeta (av, a) -> do
     isFresh av
     ovs <- asks objVars
     a <- local (declare av (ActVar ovs)) $ sact a
-    pure $ A.FreshMeta (ActorMeta av) a
+    pure $ A.FreshMeta (ActorMeta av, a)
 
   C.Under (Scope v@(Hide x) a) -> do
     isFresh x
     a <- local (declareObjVar x) $ sact a
     pure $ A.Under (Scope v a)
 
-  C.Match ml tm cls -> do
-    ml <- pure (MatchLabel ml)
+  C.Match tm cls -> do
     tm <- stm tm
     chs <- get
     clsts <- traverse sclause cls
@@ -343,16 +342,7 @@ sact = \case
       [] -> tell (All False) -- all branches are doomed, we don't care
       [(c:_)] -> put c
       _ -> throwError InconsistentCommunication
-    pure $ A.Match ml tm cls
-
-  C.Extend (jd, ml, y, a) b -> do
-    ml <- pure (MatchLabel (Just ml))
-    y <- resolve y >>= \case
-           Just (Right i) -> pure (P.VarP i)
-           _ -> throwError (OutOfScope y)
-    a <- sextension jd a
-    b <- sact b
-    pure $ A.Extend (jd, ml, y, a) b
+    pure $ A.Match tm cls
 
   C.Print fmt a -> A.Print <$> traverse (traverse stm) fmt <*> sact a
   C.Break str a -> A.Break str <$> sact a
@@ -361,6 +351,7 @@ sextension :: Variable -> C.Actor -> Elab A.Actor
 sextension jd a = do
   ds <- asks declarations
   (ch, p) <- case focusBy (\ (nm, k) -> k <$ guard (nm == jd)) ds of
+    -- hack assuming that the match will be after the receives
     Just (_, AJudgement ch p,_) -> pure (ch, dropWhile ((Input ==) . fst) p)
     Just (_, k, _) -> throwError (ExpectedAProtocol jd k)
     Nothing -> throwError (OutOfScope jd)

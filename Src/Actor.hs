@@ -21,9 +21,6 @@ instance Show ActorMeta where
 
 data Channel = Channel String deriving (Show, Eq, Ord)
 
-data MatchLabel = MatchLabel (Maybe String)
-  deriving (Show, Eq, Ord)
-
 type JudgementForm = String
 type Gripe = String
 
@@ -55,19 +52,21 @@ data Actor
  | Closure Env Actor
  | Spawn JudgementForm Channel Actor
  | Send Channel (CdB (Tm ActorMeta)) Actor
- | Recv Channel ActorMeta Actor
- | FreshMeta ActorMeta Actor
+ | Recv Channel (ActorMeta, Actor)
+ | FreshMeta (ActorMeta, Actor)
  | Under (Scope Actor)
- | Match MatchLabel (CdB (Tm ActorMeta)) [(PatActor, Actor)]
+ | Match (CdB (Tm ActorMeta)) [(PatActor, Actor)]
  -- This is going to bite us when it comes to dependent types
  | Constrain (CdB (Tm ActorMeta)) (CdB (Tm ActorMeta))
- | Extend (JudgementForm, MatchLabel, PatVar, Actor) Actor
+ | Push JudgementForm (PatVar, CdB (Tm ActorMeta)) Actor
+ | Lookup (CdB (Tm ActorMeta)) (ActorMeta, Actor) Actor
  | Fail Gripe
  | Win
  | Print [Format Directive Debug (CdB (Tm ActorMeta))] Actor
  | Break String Actor
  deriving (Show, Eq)
 
+{-
 instance Thable Actor where
   a *^ th = case a of
     a :|: b -> a *^ th :|: b *^ th
@@ -77,14 +76,14 @@ instance Thable Actor where
     Recv ch av a -> Recv ch av (a *^ th)
     FreshMeta av a -> FreshMeta av (a *^ th)
     Under sc -> Under (sc *^ th)
-    Match ml t pas -> Match ml (t *^ th) (map (fmap (*^ th)) pas)
+    Match t pas -> Match (t *^ th) (map (fmap (*^ th)) pas)
     Constrain s t -> Constrain (s *^ th) (t *^ th)
-    Extend (jd, ml, pv, a) b -> Extend (jd, ml, pv *^ th, a *^ th) (b *^ th)
+    Push jd ext a -> Push jd Extend (ext *^ th) (a *^ th)
     Fail gr -> Fail gr
     Win -> Win
     Print fmt a -> Print (map (fmap (*^ th)) fmt) (a *^ th)
     Break str a -> Break str (a *^ th)
-
+-}
 
 -- | When we encounter a term with actor variables inside and want to send
 --   or match on it, we need to first substitute all of the terms the actor

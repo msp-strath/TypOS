@@ -49,9 +49,6 @@ pth :: Parser (Bwd Variable, ThDirective)
 pth = (,) <$> ppes pspc pnom
           <*> (ThDrop <$ pspc <* pch ('*' ==) <|> pure ThKeep)
 
-pmatchlabel :: Parser (Maybe String)
-pmatchlabel = poptional (id <$ pch ('/' ==) <*> pnom)
-
 pACT :: Parser Actor
 pACT = pact >>= more where
 
@@ -59,21 +56,17 @@ pACT = pact >>= more where
   more act = (act :|:) <$ punc "|" <*> pACT
     <|> pure act
 
-pextension :: Parser (Variable, String, Variable, Actor)
-pextension =
-  (,,,) <$> pnom <* pch (== '/') <*> pnom
-        <* punc "{" <*> pnom
-        <* punc "->" <*> pACT
-        <* pspc <* pch (== '}')
+withVar :: String -> Parser a -> Parser (Variable, a)
+withVar str p = (,) <$> pnom <* punc str <*> p
 
 pact :: Parser Actor
 pact = Under <$> pscoped pact
   <|> Send <$> pnom <* punc "!" <*> ptm <* punc "." <*> pact
-  <|> Recv <$> pnom <* punc "?" <*> pnom <* punc "." <*> pact
-  <|> FreshMeta <$ pch (== '?') <* pspc <*> pnom <* punc "." <*> pact
+  <|> Recv <$> pnom <* punc "?" <*> withVar "." pact
+  <|> FreshMeta <$ pch (== '?') <* pspc <*> withVar "." pact
   <|> Spawn <$> pnom <* punc "@" <*> pnom <* punc "." <*> pact
   <|> Constrain <$> ptm <* punc "~" <*> ptm
-  <|> Match <$ plit "case" <*> pmatchlabel <* pspc <*> ptm <* punc "{"
+  <|> Match <$ plit "case" <* pspc <*> ptm <* punc "{"
        <*> psep (punc ";") ((,) <$> ppat <* punc "->" <*> pACT)
        <* pspc <* pch (== '}')
   <|> id <$ pch (== '(') <* pspc <*> pACT <* pspc <* pch (== ')')
@@ -81,7 +74,7 @@ pact = Under <$> pscoped pact
   <|> Print <$ plit "PRINT" <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
   <|> Print <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Fail <$ pch (== '#') <* pspc <*> pstring
-  <|> Extend <$> pextension <* punc "." <*> pact
+  <|> Push <$> pnom <*> pcurlies (withVar "->" ptm) <* punc "." <*> pact
   <|> pure Win
 
 pargs :: [Format dir dbg ()] -> Parser [Format dir dbg Raw]

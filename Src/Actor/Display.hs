@@ -60,31 +60,24 @@ instance Display Actor where
       tm <- inChannel rch $ pdisplay tm
       a <- display a
       pure $ concat [ch, "!", tm, ". ", a]
-    Recv ch av a -> do
+    Recv ch (av, a) -> do
       ch <- display0 ch
       a <- display a
       pure $ concat [ch, "?", show av, ". ", a]
-    FreshMeta av a -> do
+    FreshMeta (av, a) -> do
       a <- display a
       pure $ concat ["?", show av, ". ", a]
     Under (Scope (Hide x) a) -> do
       a <- local (`nameOn` x) $ display a
       pure $ concat ["\\", x, ". ", a]
-    Match lbl tm pts -> do
-      lbl <- display0 lbl
+    Match tm pts -> do
       tm <- display tm
       pts <- traverse display pts
-      pure $ concat ["case", lbl, " ", tm , " " , collapse (BracesList pts) ]
+      pure $ concat ["case ", tm , " " , collapse (BracesList pts) ]
     Constrain s t -> do
       s <- pdisplay s
       t <- pdisplay t
       pure $ unwords [s, "~", t]
-    Extend (jd, ml, i, a) b -> do
-      ml <- display0 ml
-      i <- pdisplay i
-      a <- pdisplay a
-      b <- pdisplay b
-      pure $ concat [jd, ml, " { ",  i, " -> ",  a, " }. ", b]
     Fail gr -> pure $ unwords ["#\"", gr, "\""]
     Win -> pure $ "Win"
     Print [TermPart Instantiate tm] a -> do

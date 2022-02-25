@@ -24,9 +24,6 @@ pactorvar p = do
   x <- pnom
   pmetasbind (Map.singleton x B0) $ p (ActorMeta x)
 
-pmatchlabel :: Parser MatchLabel
-pmatchlabel = MatchLabel <$> poptional (id <$ pch ('/' ==) <*> pnom)
-
 pactm :: Parser (CdB (Tm ActorMeta))
 pactm = (fmap ActorMeta $^) <$> ptm
 
@@ -64,7 +61,7 @@ pact = id <$ pch (== '\\') <* pspc <*> (do
   <|> uncurry FreshMeta <$ pch (== '?') <* pspc <*> pactorvar (\ x -> (x,) <$ punc "." <*> pact)
   <|> Spawn <$> pjudge <* punc "@" <*> pchan <* punc "." <*> pact
   <|> Constrain <$> pactm <* punc "~" <*> pactm
-  <|> Match <$ plit "case" <*> pmatchlabel <* pspc <*> pactm <* punc "{"
+  <|> Match <$ plit "case" <* pspc <*> pactm <* punc "{"
        <*> psep (punc ";") pclause
        <* pspc <* pch (== '}')
   <|> id <$ pch (== '(') <* pspc <*> pACT <* pspc <* pch (== ')')
@@ -72,7 +69,6 @@ pact = id <$ pch (== '\\') <* pspc <*> (do
   <|> Print <$ plit "PRINT" <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
   <|> Print <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Fail <$ pch (== '#') <* pspc <*> pstring
-  <|> Extend <$> pextension <* punc "." <*> pact
   <|> pure Win
 
 pargs :: [Format dir dbg ()] -> Parser [Format dir dbg (CdB (Tm ActorMeta))]

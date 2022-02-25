@@ -37,13 +37,14 @@ data Actor
  = Actor :|: Actor
  | Spawn Variable Variable Actor
  | Send Variable Raw Actor
- | Recv Variable Variable Actor
- | FreshMeta Variable Actor
+ | Recv Variable (Variable, Actor)
+ | FreshMeta (Variable, Actor)
  | Under (Scope Actor)
- | Match (Maybe String) Raw [(RawP, Actor)]
+ | Match Raw [(RawP, Actor)]
  -- This is going to bite us when it comes to dependent types
  | Constrain Raw Raw
- | Extend (Variable, String, Variable, Actor) Actor
+ | Push Variable (Variable, Raw) Actor
+ | Lookup Raw (Variable, Actor) Actor
  | Fail String
  | Win
  | Print [Format Directive Debug Raw] Actor
