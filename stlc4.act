@@ -1,3 +1,5 @@
+trace { exec }
+
 syntax
   { 'Check = ['Tag  [ ['Lam ['Bind 'Synth ['Rec 'Check]]]
                       ['Emb ['Rec 'Synth]]
@@ -17,10 +19,10 @@ synth : ?'Synth. !'Type.
 check@p = p?ty. p?tm. case tm
     { ['Lam \x. body] -> ?S. ?T.
          (ty ~ ['Arr S T]
-         | \x. synth/subject { x -> p!S. }. check@q. q!T. q!body.)
+         | \x. synth { x -> S }. check@q. q!T. q!body.)
     ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
     }
-synth@p = p?tm . case/subject tm
+synth@p = p?tm . lookup tm { S -> p!S. } else case tm
    { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)
    ; ['App f s] -> ?U. ?V.
         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]

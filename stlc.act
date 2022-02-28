@@ -22,7 +22,7 @@ check@p = p?ty. p?tm. case tm
     { ['Lam \x. body] -> ?S. ?T.
          (ty ~ ['Arr S T]
          | \x. synth { x -> S }. check@q. q!T. q!body.)
-    ; ['Emb e] -> synth@q. BREAK "hi". q!e. BREAK "sent". q?S. S ~ ty
+    ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
     }
 
 synth@p = p?tm . lookup tm { S -> p!S. } else case tm

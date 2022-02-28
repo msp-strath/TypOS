@@ -76,7 +76,7 @@ type Decls = Bwd (String, Kind)
 type Slced = [(String, Kind)]
 type Focus a = (Decls, a, Slced)
 
-whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
+whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
 whenJust Nothing k = pure ()
 whenJust (Just a) k = k a
 

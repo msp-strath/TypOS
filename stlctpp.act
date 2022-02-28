@@ -1,3 +1,5 @@
+trace { exec }
+
 syntax
   { 'Check = ['Tag  [ ['Lam  ['Bind 'Synth ['Rec 'Check]]]
     	     	      ['Nil]
@@ -22,7 +24,7 @@ type  : ?'Type.
 check : ?'Type. ?'Check.
 synth : ?'Synth. !'Type.
 
-type@p = p?ty. case/subject ty
+type@p = p?ty. lookup ty { S -> } else case ty
     { ['One]   	  -> -- winning is silent
     ; ['Pair S T] -> type@q. q!S. | type@r. r!T.
     ; ['List S]   -> type@q. q!S.
@@ -34,7 +36,7 @@ check@p = p?ty. p?tm. case tm
     { ['Lam \x. body] -> ?S. ?T. -- fresh metas for S(ource) and T(arget) of function type
          (ty ~ ['Arr S T]        -- ensure ty is (S -> T)
          | \y.                              -- bind the fresh variable y
-               synth/subject { y -> p!S. }. -- extend the synth rule for fresh variable y : S
+               synth { y -> S }.            -- extend the synth rule for fresh variable y : S
                check@q. q!T. q!{x=y}body.)  -- check the body with x=y
     ; ['Nil]   -> case ty -- Nil is overloaded, type-directed disambiguation now
        { ['One]    ->
@@ -51,17 +53,19 @@ check@p = p?ty. p?tm. case tm
                   q?S. S ~ ty  -- receive the answer and check we agree
     }
 
-synth@p = p?tm . case/subject tm -- named case: we can extend this rule by using that name (cf. 'Lam)
+synth@p = p?tm .
+  -- lookup: in case tm is a free variable and a type has been pushed for it
+  lookup tm { S -> p!S. } else case tm
    { ['Rad t ty] -> (type@r. r!ty. | check@q. q!ty. q!t. | p!ty.)
    ; ['Fst e]    -> ?S. ?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!S.)
    ; ['Snd e]    -> ?S. ?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!T.)
    ; ['ListElim ty e n (\x. \xs. \ih. c)] ->
      	p!ty. | type@r. r!ty. | check@q. q!ty. q!n. |
 	?X. (synth@u. u!e. u?V. V ~ ['List X] |
-	     \y. synth/subject { y -> p!X. }.
-	     \ys. synth/subject { ys -> p!['List X]. }.
-	     \jh. synth/subject { jh -> p!ty. }.
-                  check@v. v!ty. v!{ih=jh, xs=ys, x=y}c.
+	     \y.  synth { y  -> X }.
+	     \ys. synth { ys -> ['List X] }.
+	     \jh. synth { jh -> ty }.
+                  check@v. v!ty. v!{x=y,xs=ys,ih=jh}c.
 	    )
    ; ['App f s]  -> ?U. ?V.
         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
@@ -69,8 +73,8 @@ synth@p = p?tm . case/subject tm -- named case: we can extend this rule by using
         | p!V.)
    }
 
-exec \A. type/subject {A -> }. check@p. p!['Arr ['List A] ['Arr ['List A] ['List A]]].
-        p!['Lam \xs. ['Lam \ys.
-		['Emb ['ListElim ['List A] xs
-                      ['Emb ys]                                       -- [] ++ ys = ys
+exec \A. type {A -> [] }. check@p. p!['Arr ['List A] ['Arr ['List A] ['List A]]].
+        p!['Lam \as. ['Lam \bs.
+		['Emb ['ListElim ['List A] as
+                      ['Emb bs]                                       -- [] ++ ys = ys
                       (\x. \xs. \ih. ['Cons ['Emb x] ['Emb ih]])]]]]. -- (x :: xs) ++ ys = x :: (xs ++ ys)
