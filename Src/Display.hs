@@ -1,7 +1,5 @@
 {-# LANGUAGE
-  TypeSynonymInstances,
   PatternGuards,
-  FlexibleContexts,
   GeneralizedNewtypeDeriving,
   ConstraintKinds #-}
 

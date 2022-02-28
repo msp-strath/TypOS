@@ -30,7 +30,7 @@ library
                        -- Actor.Parse,
                        ANSI,
                        Bwd,
-                       Command,
+                       -- Command,
                        Concrete.Base,
                        Concrete.Parse,
                        Display,
