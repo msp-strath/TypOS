@@ -115,6 +115,15 @@ data Complaint
   | InconsistentCommunication
   | DoomedBranchCommunicated C.Actor
   | ExpectedAProtocol String Kind
+  -- contextual info
+  | SendTermElaboration Channel Raw Complaint
+  | MatchTermElaboration Raw Complaint
+  | ConstrainTermElaboration Raw Complaint
+  | FreshMetaElaboration Complaint
+  | UnderElaboration Complaint
+  | RecvMetaElaboration Complaint
+  | PushTermElaboration Raw Complaint
+  | LookupTermElaboration Raw Complaint
   deriving (Show)
 
 type ElabState = Map Channel ([Turn], Protocol)
@@ -130,6 +139,9 @@ newtype Elab a = Elab
            , MonadReader Context
            , MonadState ElabState
            , MonadWriter All)
+
+during :: (Complaint -> Complaint) -> Elab a -> Elab a
+during f ma = ma `catchError` (throwError . f)
 
 evalElab :: Elab a -> Either Complaint a
 evalElab = fmap fst
@@ -274,7 +286,10 @@ sact :: C.Actor -> Elab A.Actor
 sact = \case
   C.Win -> pure A.Win
   C.Fail err -> A.Fail err <$ tell (All False)
-  C.Constrain s t -> A.Constrain <$> stm s <*> stm t
+  C.Constrain s t -> do
+    s <- during (ConstrainTermElaboration s) $ stm s
+    t <- during (ConstrainTermElaboration t) $ stm t
+    pure $ A.Constrain s t
 
   a C.:|: b -> do
     a <- local (turn West) $ sact a
@@ -301,16 +316,17 @@ sact = \case
       _ -> throwError (InvalidSend ch)
 
     -- Send
-    sc <- channelScope ch
-    ovs <- asks objVars
-    let (thx, xyz, thy) = lintersection sc ovs
-    tm <- (*^ thx) <$> local (setObjVars xyz) (stm tm)
+    tm <- during (SendTermElaboration ch tm) $ do
+      sc <- channelScope ch
+      ovs <- asks objVars
+      let (thx, xyz, thy) = lintersection sc ovs
+      (*^ thx) <$> local (setObjVars xyz) (stm tm)
 
     a <- sact a
     pure $ A.Send ch tm a
 
   C.Recv ch (av, a) -> do
-    isFresh av
+    during RecvMetaElaboration $ isFresh av
     -- Check the channel is in receiving mode & step it
     ch <- pure (Channel ch)
     steppingChannel ch $ \case
@@ -323,18 +339,18 @@ sact = \case
     pure $ A.Recv ch (ActorMeta av, a)
 
   C.FreshMeta (av, a) -> do
-    isFresh av
+    during FreshMetaElaboration $ isFresh av
     ovs <- asks objVars
     a <- local (declare av (ActVar ovs)) $ sact a
     pure $ A.FreshMeta (ActorMeta av, a)
 
   C.Under (Scope v@(Hide x) a) -> do
-    isFresh x
+    during UnderElaboration $ isFresh x
     a <- local (declareObjVar x) $ sact a
     pure $ A.Under (Scope v a)
 
   C.Match tm cls -> do
-    tm <- stm tm
+    tm <- during (MatchTermElaboration tm) $ stm tm
     chs <- get
     clsts <- traverse sclause cls
     let (cls, sts) = unzip clsts
@@ -351,12 +367,12 @@ sact = \case
       Just (Right i) -> pure i
       Just (Left k) -> throwError $ InvalidPatternVariable p k
       _ -> throwError $ OutOfScope p
-    t <- stm t
+    t <- during (PushTermElaboration t) $ stm t
     a <- sact a
     pure $ A.Push jd (p, t) a
 
   C.Lookup t (av, a) b -> do
-    t <- stm t
+    t <- during (LookupTermElaboration t) $ stm t
     isFresh av
     ovs <- asks objVars
     (a, mcha) <- local (declare av (ActVar ovs)) $ sbranch a
@@ -382,7 +398,6 @@ sbranch ra = do
   unless b $ unless (chs == chs') $ throwError (DoomedBranchCommunicated ra)
   put chs
   pure (a, chs' <$ guard b)
-
 
 sclause :: (RawP, C.Actor) -> Elab ((Pat, A.Actor), Maybe ElabState)
 sclause (rp, a) = do
