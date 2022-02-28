@@ -1,14 +1,13 @@
 {-# LANGUAGE
   TypeSynonymInstances,
   PatternGuards,
-  GeneralizedNewtypeDeriving
-  #-}
+  FlexibleContexts,
+  GeneralizedNewtypeDeriving,
+  ConstraintKinds #-}
 
 module Display where
 
 import Data.List
-import Data.Map (Map)
-import qualified Data.Map as Map
 
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -16,13 +15,11 @@ import Control.Monad.Reader
 import Bwd
 import Thin
 import ANSI
+import Forget
 
+import GHC.Stack
 
 -- uglyprinting
-
-data DisplayEnv = DEnv { naming :: Naming
-                       , chNaming :: (Map String Naming)
-                       }
 
 type Naming =
   ( Bwd String  -- what's in the support
@@ -36,70 +33,48 @@ data DisplayComplaint = UnexpectedEmptyThinning Naming
                       | UnknownChannel String
   deriving (Show)
 
-newtype DisplayM a = Display
-  { runDisplay :: (ReaderT DisplayEnv
+newtype DisplayM e a = Display
+  { runDisplay :: (ReaderT e
                   (Either DisplayComplaint))
                   a }
   deriving ( Functor, Applicative, Monad
            , MonadError DisplayComplaint
-           , MonadReader DisplayEnv)
+           , MonadReader e)
 
-evalDisplay :: DisplayM a -> Either DisplayComplaint a
-evalDisplay = (`runReaderT` initDisplay)
-            . runDisplay
+withEnv :: e' -> DisplayM e' a -> DisplayM e a
+withEnv rh (Display md) = Display (withReaderT (const rh) md)
 
-unsafeEvalDisplay :: DisplayM a -> a
-unsafeEvalDisplay = either (error . show) id . evalDisplay
+withForget :: Forget e e' => DisplayM e' a -> DisplayM e a
+withForget (Display md) = Display (withReaderT forget md)
 
-initNaming :: Naming
-initNaming = (B0, ones 0, B0)
+evalDisplay :: e -> DisplayM e a -> Either DisplayComplaint a
+evalDisplay e = (`runReaderT` e)
+              . runDisplay
 
-initDisplay :: DisplayEnv
-initDisplay = DEnv initNaming Map.empty
+unsafeEvalDisplay :: e -> DisplayM e a -> a
+unsafeEvalDisplay e = either (error . show) id . evalDisplay e
 
--- The point is that when we reach a metavariable,
--- we have to document its permitted dependencies.
-
-setNaming :: Naming -> DisplayEnv -> DisplayEnv
-setNaming na (DEnv _ chs) = DEnv na chs
-
-declareChannel :: String -> DisplayEnv -> DisplayEnv
-declareChannel ch (DEnv na chs) = DEnv na (Map.insert ch na chs)
-
-nukeChannels :: DisplayEnv -> DisplayEnv
-nukeChannels (DEnv na chs) = (DEnv na Map.empty)
-
-inChannel :: String -> DisplayM a -> DisplayM a
-inChannel ch ma = do
-  asks (Map.lookup ch . chNaming) >>= \case
-    Nothing -> throwError $ UnknownChannel ch
-    Just na -> local (setNaming na) $ ma
-
-nameSel :: Th -> DisplayEnv -> DisplayEnv
-nameSel th (DEnv (xz, ph, yz) chs) = DEnv (th ?< xz, th <^> ph, yz) chs
-
-nameOn :: DisplayEnv -> String -> DisplayEnv
-nameOn (DEnv (xz, th, yz) chs) x = DEnv (xz :< x, th -? True, yz :< x) chs
-
-freshen :: String -> Naming -> String
-freshen x (xz, _, _) = head [y | y <- ys, all (y /=) xz] where
-  ys = x : [x ++ show (i :: Integer) | i <- [0..]]
-
-pdisplayDFT :: Display t => t -> DisplayM String
+pdisplayDFT :: HasCallStack => Display t => t -> DisplayM (DisplayEnv t) String
 pdisplayDFT t = do
   t' <- display t
   pure $ if ' ' `elem` t' then concat ["(", t', ")"] else t'
 
+type Display0 m = (Display m, DisplayEnv m ~ ())
 class Show t => Display t where
-  display :: t -> DisplayM String
+  type DisplayEnv t
+  display :: HasCallStack => t -> DisplayM (DisplayEnv t) String
 
-  pdisplay :: t -> DisplayM String
+  pdisplay :: HasCallStack => t -> DisplayM (DisplayEnv t) String
   pdisplay = pdisplayDFT
 
-display0 :: Display t => t -> DisplayM String
-display0 t = local (setNaming initNaming) $ display t
+subdisplay :: (Display t, Forget e (DisplayEnv t)) => t -> DisplayM e String
+subdisplay = withForget . display
+
+subpdisplay :: (Display t, Forget e (DisplayEnv t)) => t -> DisplayM e String
+subpdisplay = withForget . pdisplay
 
 instance Display () where
+  type DisplayEnv () = ()
   display _ = pure "()"
 
 class Collapse t where

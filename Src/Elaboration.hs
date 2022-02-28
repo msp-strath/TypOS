@@ -25,7 +25,7 @@ import qualified Concrete.Base as C
 import Term.Base
 import Term.Substitution
 import Pattern as P
-import Actor (ActorMeta(..), Channel(..), PatActor(..))
+import Actor (ActorMeta(..), Channel(..))
 import qualified Actor as A
 
 data Mode = Input | {- Subject | -} Output
@@ -80,7 +80,7 @@ whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
 whenJust Nothing k = pure ()
 whenJust (Just a) k = k a
 
-resolve :: Variable -> Elab (Maybe (Either Kind Int))
+resolve :: Variable -> Elab (Maybe (Either Kind DB))
 resolve x = do
   ctx <- ask
   let ds  = declarations ctx
@@ -88,7 +88,7 @@ resolve x = do
   case focusBy (\ (y, k) -> k <$ guard (x == y)) ds of
     Just (_, k, _) -> pure (Just $ Left k)
     _ -> case focus x ovs of
-      Just (xz, _, xs) -> pure (Just $ Right (length xs))
+      Just (xz, _, xs) -> pure (Just $ Right (DB $ length xs))
       Nothing -> pure Nothing
 
 isFresh :: String -> Elab ()
@@ -115,7 +115,6 @@ data Complaint
   | InconsistentCommunication
   | DoomedBranchCommunicated C.Actor
   | ExpectedAProtocol String Kind
-  | MismatchDeclDefn Variable Channel Channel
   deriving (Show)
 
 type ElabState = Map Channel ([Turn], Protocol)
@@ -209,14 +208,14 @@ stm = \case
     t <- local (setObjVars ovs) (stm t)
     pure (t //^ sg)
 
-spat :: RawP -> Elab (PatF PatVar, Decls)
+spat :: RawP -> Elab (Pat, Decls)
 spat = \case
   C.VarP v -> do
     ds <- asks declarations
     res <- resolve v
     case res of
       Just (Left k)  -> throwError (InvalidPatternVariable v k)
-      Just (Right i) -> pure (VP (P.VarP i), ds)
+      Just (Right i) -> pure (VP i, ds)
       Nothing        -> do ovs <- asks objVars
                            pure (MP v (ones (length ovs)), ds :< (v, ActVar ovs))
   AtP at -> (AP at,) <$> asks declarations
@@ -349,7 +348,7 @@ sact = \case
       _ -> throwError $ OutOfScope jd
 
     p <- resolve p >>= \case
-      Just (Right i) -> pure (P.VarP i)
+      Just (Right i) -> pure i
       Just (Left k) -> throwError $ InvalidPatternVariable p k
       _ -> throwError $ OutOfScope p
     t <- stm t
@@ -385,7 +384,7 @@ sbranch ra = do
   pure (a, chs' <$ guard b)
 
 
-sclause :: (RawP, C.Actor) -> Elab ((PatActor, A.Actor), Maybe ElabState)
+sclause :: (RawP, C.Actor) -> Elab ((Pat, A.Actor), Maybe ElabState)
 sclause (rp, a) = do
   (p, ds) <- spat rp
   (a, me) <- local (setDecls ds) $ sbranch a

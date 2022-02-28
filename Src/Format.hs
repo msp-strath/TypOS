@@ -55,27 +55,30 @@ pformat = Parser $ \ env str -> case str of
 
 
 instance Display Debug where
+  type DisplayEnv Debug = ()
   display = \case
     ShowEnv -> pure "%e"
     ShowStack -> pure "%s"
     ShowStore -> pure "%m"
 
 instance Display Directive where
+  type DisplayEnv Directive = ()
   display = \case
     Raw -> pure "%r"
     Instantiate -> pure "%i"
 
 instance Display t => Display [Format Directive Debug t] where
+  type DisplayEnv [Format Directive Debug t] = DisplayEnv t
   display = go B0 B0 where
 
     go fmt args [] = pure $ unwords (('"' : concat fmt ++ ['"']) : args <>> [])
     go fmt args (f:fs) = case f of
       TermPart d t -> do
         t <- pdisplay t
-        d <- display d
+        d <- subdisplay d
         go (fmt :< d) (args :< t) fs
       DebugPart dbg -> do
-        dbg <-pdisplay dbg
+        dbg <- subpdisplay dbg
         go (fmt :< dbg) args fs
       StringPart str -> go (fmt :< concatMap escape str) args fs
 
@@ -85,6 +88,7 @@ instance Display t => Display [Format Directive Debug t] where
     escape c = [c]
 
 instance Display t => Display [Format () String t] where
+  type DisplayEnv [Format () String t] = DisplayEnv t
   display f = (fold <$>) $ for f $ \case
     TermPart () t -> pdisplay t
     DebugPart str -> pure str

@@ -1,4 +1,4 @@
-module Concrete.Parser where
+module Concrete.Parse where
 
 import Control.Applicative
 
@@ -75,6 +75,8 @@ pact = Under <$> pscoped pact
   <|> Print <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Fail <$ pch (== '#') <* pspc <*> pstring
   <|> Push <$> pnom <*> pcurlies (withVar "->" ptm) <* punc "." <*> pact
+  <|> Lookup <$ plit "lookup" <* pspc <*> ptm <* pspc <*> pcurlies (withVar "->" pACT)
+             <* pspc <* plit "else" <* pspc <*> pact
   <|> pure Win
 
 pargs :: [Format dir dbg ()] -> Parser [Format dir dbg Raw]

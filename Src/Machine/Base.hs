@@ -7,7 +7,7 @@ import qualified Data.Map as Map
 import Actor
 import Format
 import Term
-import Pattern
+import Thin
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
@@ -63,14 +63,19 @@ instance Instantiable t => Instantiable [t] where
 
 data Hole = Hole deriving Show
 
+data Interface c p = Interface
+  { spawnee :: (c, Channel)
+  , spawner :: ((Channel, [String]), p)
+  } deriving (Show)
+
 data Frame
   = Rules JudgementForm (Channel, Actor)
   | LeftBranch Hole (Process Date [])
   | RightBranch (Process Date []) Hole
-  | Spawnee (Hole, Channel) (Channel, Process Date [])
-  | Spawner (Process Date [], Channel) (Channel, Hole)
-  | Sent Channel Term
-  | Pushed JudgementForm (PatVar, Term)
+  | Spawnee (Interface Hole (Process Date []))
+  | Spawner (Interface (Process Date []) Hole)
+  | Sent Channel ([String], Term)
+  | Pushed JudgementForm (DB, Term)
   | Binding String
   | UnificationProblem Date Term Term
   deriving (Show)

@@ -13,10 +13,13 @@ extra-source-files:  README.md
 
 common haskell
   default-extensions:  DeriveTraversable,
+                       FlexibleContexts,
                        FlexibleInstances,
+                       MultiParamTypeClasses,
                        NamedFieldPuns,
                        RecordWildCards,
                        TupleSections,
+                       TypeFamilies,
                        TypeSynonymInstances,
                        LambdaCase
 
@@ -29,10 +32,11 @@ library
                        Bwd,
                        Command,
                        Concrete.Base,
-                       Concrete.Parser,
+                       Concrete.Parse,
                        Display,
 --                       Driver,
                        Elaboration,
+                       Forget,
                        Format,
                        Hide,
                        Machine,

@@ -19,13 +19,14 @@ data ActorMeta = ActorMeta ActorVar
 instance Show ActorMeta where
   show (ActorMeta str) = str
 
-data Channel = Channel String deriving (Show, Eq, Ord)
+newtype Channel = Channel { rawChannel :: String }
+  deriving (Show, Eq, Ord)
 
 type JudgementForm = String
 type Gripe = String
 
 data Env = Env
-  { globalScope  :: Bwd String -- free vars ga actor does *not* know about
+  { globalScope :: Bwd String -- free vars ga actor does *not* know about
   , actorVars :: Map.Map ActorMeta ([String] -- bound vars xi actorVar does know about
                                    , Term) -- in scope ga <>< xi
   , localScope :: Bwd String -- vars de actor has bound
@@ -40,8 +41,6 @@ childEnv parentEnv = initEnv (globalScope parentEnv <> localScope parentEnv)
 newActorVar :: ActorMeta -> ([String], Term) -> Env -> Env
 newActorVar x defn env@(Env _ avs _) = env { actorVars = Map.insert x defn avs }
 
-type PatActor = PatF PatVar
-
 infixr 3 :|:
 data Actor
  = Actor :|: Actor
@@ -50,10 +49,10 @@ data Actor
  | Recv Channel (ActorMeta, Actor)
  | FreshMeta (ActorMeta, Actor)
  | Under (Scope Actor)
- | Match (CdB (Tm ActorMeta)) [(PatActor, Actor)]
+ | Match (CdB (Tm ActorMeta)) [(Pat, Actor)]
  -- This is going to bite us when it comes to dependent types
  | Constrain (CdB (Tm ActorMeta)) (CdB (Tm ActorMeta))
- | Push JudgementForm (PatVar, CdB (Tm ActorMeta)) Actor
+ | Push JudgementForm (DB, CdB (Tm ActorMeta)) Actor
  | Lookup (CdB (Tm ActorMeta)) (ActorMeta, Actor) Actor
  | Fail Gripe
  | Win

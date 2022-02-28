@@ -2,28 +2,51 @@
 
 module Actor.Display where
 
-import qualified Data.Map as Map
-import Data.Maybe
-
 import Control.Monad.Except
 import Control.Monad.Reader
 
+import Data.Map (Map)
+import qualified Data.Map as Map
+
 import Actor
-import Bwd
 import Display
+import Forget
 import Format
 import Hide
 import Pattern
 import Scope
-import Term.Display()
+import Term.Display (nameOn, initNaming)
 
-instance Display PatVar where
-  display (VarP n) = do
-    na@(ns, _, _) <- asks naming
-    when (n >= length ns) $ throwError (InvalidNaming na)
-    pure (ns <! n)
+data DAEnv = DAEnv
+  { daActorNaming :: Naming
+  , daChannelNaming :: Map Channel Naming
+  }
+
+initDAEnv :: DAEnv
+initDAEnv = DAEnv initNaming Map.empty
+
+declareChannel :: Channel -> DAEnv -> DAEnv
+declareChannel ch rh@DAEnv{..} =
+  let update = Map.insert ch daActorNaming in
+  rh { daChannelNaming = update daChannelNaming }
+
+updateNaming :: (Naming -> Naming) -> DAEnv -> DAEnv
+updateNaming f rh@DAEnv{..} = rh { daActorNaming = f daActorNaming }
+
+setNaming :: Naming -> DAEnv -> DAEnv
+setNaming = updateNaming . const
+
+inChannel :: Channel -> DisplayM DAEnv a -> DisplayM DAEnv a
+inChannel ch ma = do
+  asks (Map.lookup ch . daChannelNaming) >>= \case
+    Nothing -> throwError $ UnknownChannel (rawChannel ch)
+    Just na -> local (setNaming na) $ ma
+
+instance Forget DAEnv Naming where
+  forget = daActorNaming
 
 instance Display Env where
+  type DisplayEnv Env = ()
   display rho = pure "ENV"
   {-
   display (Env sc avs) =
@@ -32,69 +55,72 @@ instance Display Env where
 -}
 
 instance Display ActorMeta where
+  type DisplayEnv ActorMeta = ()
   display (ActorMeta str) = pure str
 
 instance Display Channel where
+  type DisplayEnv Channel = ()
   display (Channel str)  = pure str
 
 instance Display Actor where
+  type DisplayEnv Actor = DAEnv
   display = \case
     a :|: b -> do
       a <- pdisplay a
       b <- pdisplay b
       pure $ a ++ " | " ++ b
-    Spawn jd ch@(Channel rch) a -> do
-      na <- asks naming
-      ch <- display0 ch
-      a <- local (declareChannel rch) $ display a
-      pure $ concat [jd, "@", ch, ". ", a]
-    Send ch@(Channel rch) tm a -> do
-      ch <- display0 ch
-      tm <- inChannel rch $ pdisplay tm
+    Spawn jd ch a -> do
+      ch' <- subdisplay ch
+      a' <- local (declareChannel ch) $ display a
+      pure $ concat [jd, "@", ch', ". ", a']
+    Send ch tm a -> do
+      ch' <- subdisplay ch
+      tm' <- inChannel ch $ subpdisplay tm
       a <- display a
-      pure $ concat [ch, "!", tm, ". ", a]
+      pure $ concat [ch', "!", tm', ". ", a]
     Recv ch (av, a) -> do
-      ch <- display0 ch
+      ch <- subdisplay ch
       a <- display a
       pure $ concat [ch, "?", show av, ". ", a]
     FreshMeta (av, a) -> do
       a <- display a
       pure $ concat ["?", show av, ". ", a]
     Under (Scope (Hide x) a) -> do
-      a <- local (`nameOn` x) $ display a
+      a <- local (updateNaming (`nameOn` x)) $ display a
       pure $ concat ["\\", x, ". ", a]
     Push jd (p, t) a -> do
-      p <- display p
-      t <- display t
+      p <- subdisplay p
+      t <- subdisplay t
       a <- display a
       pure $ unwords [jd, "{", p, "->", t, "}.", a]
     Lookup t (av, a) b -> do
-      t <- display t
+      t <- subdisplay t
       a <- display a
       b <- display b
       pure $ unwords ["lookup", t, "{", show av, "->", a, "}", "else", b]
     Match tm pts -> do
-      tm <- display tm
+      tm <- subdisplay tm
       pts <- traverse display pts
       pure $ concat ["case ", tm , " " , collapse (BracesList pts) ]
     Constrain s t -> do
-      s <- pdisplay s
-      t <- pdisplay t
+      s <- subpdisplay s
+      t <- subpdisplay t
       pure $ unwords [s, "~", t]
     Fail gr -> pure $ unwords ["#\"", gr, "\""]
     Win -> pure $ "Win"
     Print [TermPart Instantiate tm] a -> do
-      tm <- pdisplay tm
+      tm <- subpdisplay tm
       a <- pdisplay a
       pure $ unwords ["PRINT", tm, ". ", a]
     Print fmt a -> do
-      fmt <- pdisplay fmt
+      fmt <- subpdisplay fmt
       a <- pdisplay a
       pure $ unwords ["PRINTF", fmt, ". ", a]
     Break str a -> display a
 
-instance Display t => Display (PatF t, Actor) where
+instance Display (Pat, Actor) where
+  type DisplayEnv (Pat, Actor) = DAEnv
   display (p, a) = do
-    p <- display p
+    p <- subdisplay p
     a <- display a
     pure $ p ++ " -> " ++ a

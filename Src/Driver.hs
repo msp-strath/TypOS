@@ -12,15 +12,15 @@ import Elaboration
 import Thin
 import Parse
 import qualified Actor as A
--- import Actor.Parse
-import Machine
+import Actor.Display (DAEnv, initDAEnv, declareChannel)
+import Machine hiding (declareChannel)
 import Term
 import Display
 
 import Elaboration
 
 import qualified Concrete.Base as C
-import Concrete.Parser
+import Concrete.Parse
 
 import Syntax
 
@@ -29,7 +29,7 @@ import Control.Applicative
 import qualified Data.Map as Map
 
 data CommandF jd ch t a
-  = DeclJ (jd, ch) [(Mode, SyntaxCat)]
+  = DeclJ jd [(Mode, SyntaxCat)]
   | DefnJ (jd, ch) a
   | DeclS [(SyntaxCat, t)]
   | Go a
@@ -40,33 +40,38 @@ type CCommand = CommandF C.Variable C.Variable C.Raw C.Actor
 type ACommand = CommandF A.JudgementForm A.Channel ACTm A.Actor
 
 instance Display Mode where
+  type DisplayEnv Mode = ()
   display Input = pure "?"
   display Output = pure "!"
 
 instance Display Protocol where
+  type DisplayEnv Protocol = ()
   display p = (fold <$>) $ for p $ \ (m, c) -> do
     m <- display m
     pure $ m ++ c ++ ". "
 
 instance Display String where
+  type DisplayEnv String = ()
   display str = pure str
 
-instance (Display jd, Display ch, Display t, Display a) =>
+instance ( Display0 jd, Display0 ch
+         , Show t -- , Display t, Forget Naming (DisplayEnv t)
+         , Display a, DisplayEnv a ~ DAEnv) =>
          Display (CommandF jd ch t a) where
+  type DisplayEnv (CommandF jd ch t a) = ()
   display = \case
-    DeclJ (jd, ch) p -> do
+    DeclJ jd p -> do
       jd <- display jd
-      ch <- display ch
       p <- display p
-      pure $ unwords [ jd, "@", ch, ":", p]
+      pure $ unwords [ jd, ":", p]
     d@(DefnJ (jd, ch) a) -> do
       jd <- display jd
       ch <- display ch
       -- hack: the above happens to convert ch into a string, ready to be declared
-      a <- local (declareChannel ch) $ display a
+      a <- withEnv (declareChannel (A.Channel ch) initDAEnv) $ display a
       pure $ unwords [ jd, "@", ch, "=", a]
     DeclS _ -> pure ""
-    Go a -> display a
+    Go a -> withEnv initDAEnv $ display a
     Trace ts -> pure ""
 
 pmachinestep :: Parser MachineStep
@@ -91,7 +96,7 @@ psyntax = (,) <$> patom <* punc "=" <*> plocal B0 ptm
 
 pcommand :: Parser CCommand
 pcommand
-    = DeclJ <$> pjudgeat <* punc ":" <*> pprotocol
+    = DeclJ <$> pnom <* punc ":" <*> pprotocol
   <|> DefnJ <$> pjudgeat <* punc "=" <*> pACT
   <|> DeclS <$ plit "syntax" <*> pcurlies (psep (punc ";") psyntax)
   <|> Go <$ plit "exec" <* pspc <*> pACT
@@ -102,21 +107,20 @@ pfile = id <$ pspc <*> psep pspc pcommand <* pspc
 
 collectDecls :: [CCommand] -> Elab Decls
 collectDecls [] = asks declarations
-collectDecls (DeclJ (jd, ch) p : ccs) = do
+collectDecls (DeclJ jd p : ccs) = do
   isFresh jd
-  local (declare jd (AJudgement (A.Channel ch) p)) $ collectDecls ccs
+  local (declare jd (AJudgement p)) $ collectDecls ccs
 collectDecls (_ : ccs) = collectDecls ccs
 
 elaborate :: [CCommand] -> Either Complaint [ACommand]
 elaborate ccs = evalElab $ do
   ds <- collectDecls ccs
   local (setDecls ds) $ forM ccs $ \case
-    DeclJ (jd, ch) p -> pure (DeclJ (jd, A.Channel ch) p)
+    DeclJ jd p -> pure (DeclJ jd p)
     DefnJ (jd, ch) a -> do
       ch <- pure (A.Channel ch)
       resolve jd >>= \case
-        Just (Left (AJudgement ch' p)) -> do
-          when (ch /= ch') $ throwError (MismatchDeclDefn jd ch ch')
+        Just (Left (AJudgement p)) -> do
           withChannel ch p $ DefnJ (jd, ch) <$> sact a
         Just _ -> throwError (NotAValidJudgement jd)
         _ -> throwError (OutOfScope jd)
@@ -131,7 +135,7 @@ run p@Process{..} (c : cs) = case c of
   DefnJ (jd, ch) a -> run (p { stack = stack :< Rules jd (ch, a) }) cs
   Go a -> -- dmesg (show a) $
           let (lroot, rroot) = splitRoot root ""
-              rbranch = Process tracing [] rroot env (today store) a
+              rbranch = Process tracing [] rroot env (today store) a ""
           in run (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
   Trace xs -> run (p { tracing = xs ++ tracing }) cs
   _ -> run p cs
@@ -146,7 +150,7 @@ main = do
            Left err -> error (show err)
            Right acs -> pure acs
   -- putStrLn $ unsafeEvalDisplay $ collapse <$> traverse display acs
-  let p = Process [] B0 initRoot (A.initEnv 0) initStore A.Win
-  let res@(Process _ fs _ env sto A.Win) = run p acs
+  let p = Process [] B0 initRoot (A.initEnv B0) initStore A.Win ""
+  let res@(Process _ fs _ env sto A.Win _) = run p acs
   -- putStrLn $ display initNaming res
   dmesg "" res `seq` pure ()

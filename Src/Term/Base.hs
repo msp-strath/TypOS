@@ -112,7 +112,7 @@ sbstSel th (ST (CdB (sg, phl{- del <= de -}) :<>: t) :^^ w) =
 -- toplevel expansions and contractions of co-deBruijn terms
 
 data Xn m
-  = VX Int Int    -- which free variable out of how many?
+  = VX DB Int    -- which free variable out of how many?
   | AX String Int -- how many free variables?
   | CdB (Tm m) :%: CdB (Tm m)
   | String :.: CdB (Tm m)
@@ -141,7 +141,7 @@ contract t = case t of
 
 -- smart constructors for the codeBruijn terms; bigEnds must agree
 
-var :: Int -> Int -> CdB (Tm m)
+var :: DB -> Int -> CdB (Tm m)
 var x ga = contract (VX x ga)
 
 atom :: String -> Int -> CdB (Tm m)

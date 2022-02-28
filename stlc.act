@@ -1,3 +1,6 @@
+
+trace { exec, send, recv, move, unify }
+
 syntax
   { 'Check = ['Tag  [ ['Lam ['Bind 'Synth ['Rec 'Check]]]
                       ['Emb ['Rec 'Synth]]
@@ -19,9 +22,8 @@ check@p = p?ty. p?tm. case tm
     { ['Lam \x. body] -> ?S. ?T.
          (ty ~ ['Arr S T]
          | \x. synth { x -> S }. check@q. q!T. q!body.)
-    ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
+    ; ['Emb e] -> synth@q. BREAK "hi". q!e. BREAK "sent". q?S. S ~ ty
     }
-
 
 synth@p = p?tm . lookup tm { S -> p!S. } else case tm
    { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)
@@ -46,5 +48,3 @@ exec  check@p.
    p! ['Lam \z. ['Emb
          ['App ['Rad ['Lam \w. ['Emb w]] ['Arr ['Nat] ['Nat]]]
          ['Emb z]]]].
-
-trace { exec, send, recv, move, unify }

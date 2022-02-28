@@ -4,8 +4,8 @@ module Pattern where
 import qualified Data.Map as Map
 
 import Control.Applicative
-
 import Control.Monad.Reader
+import Control.Monad.Except
 
 import Bwd
 import Thin
@@ -14,33 +14,33 @@ import Display
 import Parse
 
 import Term.Base
+import Term.Display
 
 -- patterns are de Bruijn
-data PatF v
-  = VP v
+data Pat
+  = VP DB
   | AP String
-  | PP (PatF v) (PatF v)
-  | BP (Hide String) (PatF v)
+  | PP Pat Pat
+  | BP (Hide String) Pat
   | MP String Th
   | GP -- grumpy pattern
   | HP -- happy pattern
-  deriving (Show, Functor, Eq)
-
-type Pat = PatF Int
-
-data PatVar = VarP Int
   deriving (Show, Eq)
 
-instance Thable PatVar where
-  VarP i *^ th = VarP (i *^ th)
-
-bound :: Bwd String -> PatF v -> MetaScopes
+bound :: Bwd String -> Pat -> MetaScopes
 bound xz (PP l r) = bound xz l <> bound xz r
 bound xz (BP (Hide x) b) = bound (xz :< x) b
 bound xz (MP m th) = Map.singleton m (th ^? xz)
 bound _ _ = mempty
 
-instance Thable v => Thable (PatF v) where
+instance Display DB where
+  type DisplayEnv DB = Naming
+  display (DB n) = do
+    na@(ns, _, _) <- ask
+    when (n >= length ns) $ throwError (InvalidNaming na)
+    pure (ns <! n)
+
+instance Thable Pat where
   VP v *^ th = VP (v *^ th)
   AP a *^ th = AP a
   PP p q *^ th = PP (p *^ th) (q *^ th)
@@ -49,8 +49,8 @@ instance Thable v => Thable (PatF v) where
   GP *^ th = GP
   HP *^ th = HP
 
-instance Selable (PatF PatVar) where
-  th ^? VP (VarP v) = maybe GP (VP . VarP) (thickx th v)
+instance Selable Pat where
+  th ^? VP v = maybe GP VP (thickx th v)
   th ^? AP a = AP a
   th ^? PP p q = PP (th ^? p) (th ^? q)
   th ^? BP x b = BP x ((th -? True) ^? b)
@@ -58,7 +58,7 @@ instance Selable (PatF PatVar) where
   th ^? GP = GP
   th ^? HP = HP
 
-(#?) :: String -> [PatF v] -> PatF v
+(#?) :: String -> [Pat] -> Pat
 a #? ts = foldr PP (AP "") (AP a : ts)
 
 -- match assumes that p's vars are the local end of t's
@@ -123,7 +123,8 @@ pth = do
 
 -- Displaying
 
-instance Display t => Display (PatF t) where
+instance Display Pat where
+  type DisplayEnv Pat = Naming
   display = \case
     VP n -> display n
     AP ""  -> pure "[]"
@@ -143,7 +144,7 @@ instance Display t => Display (PatF t) where
     PP{} -> display p
     _ -> pdisplayDFT p
 
-displayPatCdr :: Display t => PatF t -> DisplayM String
+displayPatCdr :: Pat -> DisplayM Naming String
 displayPatCdr (AP "") = pure ""
 displayPatCdr (PP p q) = do
   p <- pdisplay p

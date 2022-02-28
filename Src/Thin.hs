@@ -7,6 +7,16 @@ import GHC.Stack
 
 import Bwd
 
+newtype DB = DB { dbIndex :: Int }
+  deriving (Show, Eq, Ord)
+
+prd :: HasCallStack => DB -> DB
+prd (DB i) | i <= 0 = error ("Took the prdecessor of DB index " ++ show i)
+prd (DB i) = DB (i - 1)
+
+scc :: DB -> DB
+scc (DB i) = DB (i + 1)
+
 data Th = Th
   { thinning :: Integer
   , bigEnd   :: Int  -- must be non-negative
@@ -43,13 +53,13 @@ instance Thable Th where
 instance Selable Th where
   (^?) = (*^)
 
-instance Thable Int where
-  i *^ th | i >= bigEnd th = error $ "Failed thinning " ++ show i ++ " by " ++ show th
+instance Thable DB where
+  DB i *^ th | i >= bigEnd th = error $ "Failed thinning " ++ show i ++ " by " ++ show th
   i *^ th = case thun th of
-    (th, False) -> 1 + (i *^ th)
+    (th, False) -> scc (i *^ th)
     (th, True) -> case i of
-      0 -> 0
-      i -> 1 + ((i - 1) *^ th)
+      DB 0 -> DB 0
+      i -> scc (prd i *^ th)
 
 -- 2^(i-1), which is a remarkably well behaved thing
 full :: Bits a => Int -> a
@@ -90,34 +100,28 @@ instance Show Th where
     go i th = go (i-1) th' . ((if b then '1' else '0'):) where
       (th', b) = thun th
 
-(<^>) :: Th -> Th -> Th
+(<^>) :: HasCallStack => Th -> Th -> Th
 (<^>) = (*^)
 
 -- de Bruijn index is 2^
-inx :: ( Int  -- var is non-negative and strictly less than
+inx :: ( DB  -- var is non-negative and strictly less than
        , Int  -- this
        )
     -> Th
-inx (i, j) {- | 0 <= i && i < j -} = Th (bit i) j
+inx (DB i, j) {- | 0 <= i && i < j -} = Th (bit i) j
 
 -- th must not be 0
-lsb :: Th -> Int
+lsb :: Th -> DB
 lsb th = case thun th of
-  (_, True) -> 0
-  (th, False) -> 1 + lsb th
+  (_, True) -> DB 0
+  (th, False) -> scc (lsb th)
 
--- thin a deBruijn index represented as a bounded number,
--- not as a singleton Thinning
--- saves us inx-ing, composing, then lsb-ing
-thinx :: Int -> Th -> Int
-thinx = (*^)
-
-thickx :: Th -> Int -> Maybe Int
+thickx :: Th -> DB -> Maybe DB
 thickx (Th th i) v | i <= 0 = error $ "thickx with i = " ++ show i
 thickx th v = case thun th of
-  (th, False) -> guard (v > 0) >> thickx th (v-1)
-  (th, True) | v == 0 -> pure 0
-             | otherwise -> (1+) <$> thickx th v
+  (th, False) -> guard (v > DB 0) >> thickx th (prd v)
+  (th, True) | v == DB 0 -> pure (DB 0)
+             | otherwise -> scc <$> thickx th v
 
 -- invert selection
 comp :: Th -> Th

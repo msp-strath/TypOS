@@ -8,6 +8,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Bwd
+import Thin
 
 -- parsers, by convention, do not consume either leading
 -- or trailing space
@@ -47,7 +48,7 @@ pnom = Parser $
 pvar' :: Parser (String, Int)
 pvar' = (,) <$> pnom <*> ((id <$ pch (== '^') <*> pnat) <|> pure 0)
 
-pvar :: (String -> Parser a) -> (Int -> Parser a) -> Parser a
+pvar :: (String -> Parser a) -> (DB -> Parser a) -> Parser a
 pvar str int = (either str int <=< pseek) =<< pvar'
 
 patom :: Parser String
@@ -157,12 +158,12 @@ pmeta m = do
     Just xz -> pure xz
     Nothing -> empty
 
-pseek :: (String, Int) -> Parser (Either String Int)
+pseek :: (String, Int) -> Parser (Either String DB)
 pseek (x, n) = Parser $ \ env s -> let
   chug B0 n = [Left x]
   chug (xz :< y) n
-    | y == x = if n == 0 then [Right 0] else fmap (1+) <$> chug xz (n - 1)
-    | otherwise = fmap (1+) <$> chug xz n
+    | y == x = if n == 0 then [Right (DB 0)] else fmap scc <$> chug xz (n - 1)
+    | otherwise = fmap scc <$> chug xz n
   in (, s) <$> chug (objScope env) n
 
 pch :: (Char -> Bool) -> Parser Char

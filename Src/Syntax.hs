@@ -15,7 +15,7 @@ validate :: SyntaxTable -> Bwd SyntaxCat -> SyntaxDesc -> Term -> Bool
 validate table env s t
   = ($ s) $ asTagged $ (. fst) $ \case
   "Rec" -> asTagged $ \ (a,_) _ -> t ?: \case
-    VX x _ -> a == bwdProj env x
+    VX x _ -> a == bwdProj env (dbIndex x)
     _   -> case Map.lookup a table of
       Nothing -> False
       Just s -> validate table env s t
@@ -54,7 +54,7 @@ infixr 5 %:
 
 listOf :: SyntaxDesc -> SyntaxDesc
 listOf d = let ga = scope d + 1 in
-  "Fix" #%+ ["list" \\ (atom "NilOrCons" ga % (weak d %: var 0 ga %: nul ga))]
+  "Fix" #%+ ["list" \\ (atom "NilOrCons" ga % (weak d %: var (DB 0) ga %: nul ga))]
 
 rec :: String -> SyntaxDesc
 rec a = "Rec" #%+ [atom a 0]
