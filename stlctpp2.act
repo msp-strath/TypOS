@@ -81,7 +81,7 @@ checkEval@p = p?ty. p?tm. case tm
   { ['Lam \x.body] -> case ty
     { ['Arr s t] -> \yy. evalSynth { yy -> [yy | s] }.
                         checkEval@q. q!t. q!{x=yy}body.
-                        q?nf. BREAK "Hi". p!['Lam \z.{yy=z}nf].
+                        q?nf. p!['Lam \z.{yy=z}nf].
     ; _ -> #"Expected a function type"
     }
   ; ['Nil] -> {- do we check ty here? -} p!['Nil]. {- or here? or not? -}
@@ -163,7 +163,15 @@ listElimSynth@p = p?rty. p?lnf. p?lty. p?nil. p?cons. case lnf
      }
   }
 
--- exec checkEval@p. p!['Arr ['One] ['One]]. p!['Lam \x. ['Emb x]].
+
+exec checkEval@p. ?ty. ?tm.
+  ( ty ~ ['Arr ['One] ['One]]
+  | tm ~ ['Lam \x. ['Emb x]]
+  | PRINTF "Evaluating %i at type %i." tm ty.
+    p!ty. p!tm. p?v.
+    PRINTF "Got back: %i." v.)
+
+{-
 exec evalSynth@p.
   PRINTF "%s" .
   p!['ListElim ['List ['One]]
@@ -184,3 +192,4 @@ exec evalSynth@p.
        ['Cons ['Cons ['Nil] ['Cons ['Nil] ['Nil]]] ['Nil]] -- nil = [2] :: [Nat]
        (\x.\xs.\ih.['Cons x ih])].                         -- cons(x,xs,ih) = x : xs
   p?nf. p?ty. PRINTF "Result:\n[0,1] ++ [2]\n  : %i\n  = %i\n" ty nf.
+-}
