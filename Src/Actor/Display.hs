@@ -16,6 +16,7 @@ import Hide
 import Pattern
 import Scope
 import Term.Display (nameOn, initNaming)
+import Thin
 
 data DAEnv = DAEnv
   { daActorNaming :: Naming
@@ -47,12 +48,11 @@ instance Forget DAEnv Naming where
 
 instance Display Env where
   type DisplayEnv Env = ()
-  display rho = pure "ENV"
-  {-
-  display (Env sc avs) =
-    collapse $
-    map (\ (av, (xs, t)) -> concat (show av : map (" " ++) xs ++ [" = ", display (foldl nameOn na xs) t])) (Map.toList avs)
--}
+  display rho@Env{..} =
+    fmap collapse $ forM (Map.toList actorVars) $ \ (av, (xs, t)) -> do
+    let na = foldl nameOn (globalScope, ones (length globalScope), globalScope) xs
+    t <- withEnv na $ display t
+    pure $ concat (show av : map (" " ++) xs ++ [" = ", t])
 
 instance Display ActorMeta where
   type DisplayEnv ActorMeta = ()
