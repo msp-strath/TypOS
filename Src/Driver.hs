@@ -108,7 +108,7 @@ pfile = id <$ pspc <*> psep pspc pcommand <* pspc
 collectDecls :: [CCommand] -> Elab Decls
 collectDecls [] = asks declarations
 collectDecls (DeclJ jd p : ccs) = do
-  isFresh jd
+  during (DeclJElaboration jd) $ isFresh jd
   local (declare jd (AJudgement p)) $ collectDecls ccs
 collectDecls (_ : ccs) = collectDecls ccs
 
@@ -117,7 +117,7 @@ elaborate ccs = evalElab $ do
   ds <- collectDecls ccs
   local (setDecls ds) $ forM ccs $ \case
     DeclJ jd p -> pure (DeclJ jd p)
-    DefnJ (jd, ch) a -> do
+    DefnJ (jd, ch) a -> during (DefnJElaboration jd) $ do
       ch <- pure (A.Channel ch)
       resolve jd >>= \case
         Just (Left (AJudgement p)) -> do

@@ -124,6 +124,8 @@ data Complaint
   | RecvMetaElaboration Complaint
   | PushTermElaboration Raw Complaint
   | LookupTermElaboration Raw Complaint
+  | DeclJElaboration String Complaint
+  | DefnJElaboration String Complaint
   deriving (Show)
 
 type ElabState = Map Channel ([Turn], Protocol)
