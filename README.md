@@ -346,6 +346,7 @@ You have been watching
 * pushing: *judgement* `{` *variable* `->` *term* `}.` *actor*
 * looking: `lookup` *term* `{` *variable* `->` *actor* `} else` *actor*
 * winning:
+
 and there's one more
 * losing: `#` *string*
 (should error messages be *term*s?).
