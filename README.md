@@ -209,10 +209,10 @@ type@p = p?ty. case ty
   
 This actor implements `type`, with channel `p` to its parent. Its
 first action is `p?ty.` to ask its parent for an input, which
-comes into scope as the value of the *actor variable* `ty`. I.e.,
-a *receiving* actor looks like *channel*`?`*variable*`.` *actor*, which
+comes into scope as the value of the *actor-variable* `ty`. I.e.,
+a *receiving* actor looks like *channel*`?`*actor-variable*`.` *actor*, which
 performs an input on the given *channel*, then continues as the
-*actor* with the *variable* in scope. Actor variables stand for
+*actor* with the *actor-variable* in scope. Actor variables stand for
 terms, and may be used in terms as placeholders. Our actor has
 received a type to validate. How does it proceed?
 
@@ -315,11 +315,11 @@ synth@p = p?tm . lookup tm { S -> p!S. } else case tm
   }
 ```
 We have only one new feature, which is invoked immediately we have
-received `tm`. The actor `lookup` *term* `{` *variable* `->` *actor*
+received `tm`. The actor `lookup` *term* `{` *actor-variable* `->` *actor*
 `} else` *actor* attempts to access the context for the judgement it
 is implementing, i.e. `synth`. It will succeed if `tm` stands for a
 free term variable with a context entry in scope, and in that case,
-the *variable* binds the associated value and the *actor* after `->`
+the *actor-variable* binds the associated value and the *actor* after `->`
 is executed. As you can see, `synth` interprets the contextual data
 associated with a free variable as exactly the type to send out.
 If the *term* is not a free variable, or if there is no associated
@@ -336,18 +336,82 @@ argument at our guessed source type, and output our guessed target
 type as the type of the application.
 
 You have been watching
-* guessing: `?`*variable*`.` *actor*
-* receiving: *channel* `?`*variable*`.` *actor*
+* guessing: `?`*actor-variable*`.` *actor*
+* receiving: *channel* `?`*actor-variable*`.` *actor*
 * sending: *channel*`!`*term*`.` *actor*
 * casing: `case` *term* `{` *pattern* `->` *actor* `;` ..`}`
 * forking: *actor* `|` *actor*
 * spawning: *judgement*`@`*channel*`.` *actor*
 * constraining: *term* `~` *term*
 * pushing: *judgement* `{` *variable* `->` *term* `}.` *actor*
-* looking: `lookup` *term* `{` *variable* `->` *actor* `} else` *actor*
+* looking: `lookup` *term* `{` *actor-variable* `->` *actor* `} else` *actor*
 * winning:
 
 and there's one more
 * losing: `#` *string*
 (should error messages be *term*s?).
+
+
+## Patterns
+
+The patterns you can write in a TypOS `case` actor look like
+* term variable:    *variable*
+* specific atom:    `'`*name*
+* paired patterns:  `[` *pattern* `|` *pattern* `]`
+* variable binding: `\`*variable*`.` *pattern*
+* scope selection:  `{` *selection* `}` *pattern*
+* pattern binding:  *actor-variable*
+* happy oblivion:   `_`
+where a *selection* (sometimes known dually as a *thinning*) selects a
+subset of the variables in scope as permitted dependencies. Inside the
+braces, you write either the list of variables you want to keep or the
+list of variables you want to exclude then `*`.
+
+A term variable pattern matches exactly that term variable: we can
+tell them apart from the pattern bindings of actor variables because
+we can see where the term variable has been bound, whereas the actor
+variable for a pattern binding must be fresh. E.g., we might want to
+spot eta-redexes in our lambda calculus with the pattern
+`['Lam \x. ['Emb ['App {x*}f x]]]`. The `f` is a pattern binding and
+it matches any term not depending on `x`. The `x` is a bound variable,
+and it matches only the variable bound by the `\x.`
+
+At the binding sites of actor variables, TypOS detects which term
+variables are in scope. TypOS further insists that everything which
+was in scope at an actor variable's binding site is in scope at each
+of its use sites. In the above example, we check that `f` matches a
+term in which `x` plays no part, and we gain the right to use `f` with
+no `x` in scope.
+
+
+## Substitutions
+
+When we write terms in actors, we are really talking *about* terms,
+with actor-variables standing for terms, generically. Now, we have
+insisted that every term variable in scope at an actor-variable's
+binding site must be captured at each of its use sites, and we have
+seen that one way to do that is with another `\`*variable*`.` binding
+with a matching name. However, we may also *substitute* such
+variables.
+
+We extend the syntax of terms with `{`*substitution*`}`*term*. A
+substitution is a comma-separated list of components which look like
+* definition: *variable*`=`*term*
+* exclusion: *variable*`*`
+* preservation: *variable*
+Order matters: substitutions should be read from right to left as
+actions on the scope we find them in. Definitions bring new variables
+into scope, by defining them to be terms using only variables already
+in scope. Exclusions throw variables out of scope. Preservations
+retain variables from the present scope but only as their own images:
+in `{y=t,x}`, the `t` may not depend on `x`. A leftmost prefix of
+preservations may safely be elided, so we need only say what is
+*changing* at the local end of scope.
+
+We may write substitutions anywhere in a term, but they act
+structurally on all the term constructs (acquiring an extra
+preservation at the local end wherever they go under a binder), piling
+up at the use sites of actor-variables, where their role is to
+reconcile any difference in scope with the binding sites of those
+variables.
 
