@@ -8,29 +8,42 @@ syntax
   ; 'Synth = ['Tag  [ ['Rad ['Rec 'Check] ['Rec 'Type]]
                       ['App ['Rec 'Synth] ['Rec 'Check]]
              ]]
-  ; 'Type = ['Tag  [ ['Base]
-                     ['Nat ]
-                     ['Bool]
+  ; 'Type = ['Tag  [ ['Nat ]
                      ['Arr  ['Rec 'Type] ['Rec 'Type]]
             ]]
   }
 
+type  : ?'Type.
 check : ?'Type. ?'Check.
 synth : ?'Synth. !'Type.
 
+type@p = p?ty. case ty
+  { ['Nat] ->
+  ; ['Arr S T] ->
+      ( type@q. q!S.
+      | type@r. r!T.
+      )
+  }
+
 check@p = p?ty. p?tm. case tm
-    { ['Lam \x. body] -> ?S. ?T.
-         (ty ~ ['Arr S T]
-         | \x. synth { x -> S }. check@q. q!T. q!body.)
-    ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
-    }
+  { ['Lam \x. body] -> ?S. ?T.
+      ( ty ~ ['Arr S T]
+      | \x. synth { x -> S }. check@q. q!T. q!body.
+      )
+  ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
+  }
 
 synth@p = p?tm . lookup tm { S -> p!S. } else case tm
-   { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)
+   { ['Rad t ty] ->
+        ( type@q. q!ty.
+        | check@r. r!ty. r!t.
+        | p!ty.
+        )
    ; ['App f s] -> ?U. ?V.
         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
         | check@r. r!U. r!s.
-        | p!V.)
+        | p!V.
+        )
    }
 
 {-

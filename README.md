@@ -149,3 +149,204 @@ characterize the lists which occur in the `['Tag` ..`]` and
 (Note, we should probably call it `'Syntax` instead of `'syntax`.)
 
 
+## Judgement forms and protocols
+
+Before we can implement the actors which process our terms, we must
+say which actors exist and how to communicate with them. Our version
+of Milner's judgement-form-in-a-box names is to declare
+*name* `:` *protocol*. A protocol is a sequence of *actions*. Each
+action is specified by `?` for input or `!` for output, then the
+intended syntax for that transmission, then `.` as a closing
+delimiter.
+
+For our example language, we have
+```
+type  : ?'Type.
+check : ?'Type. ?'Check.
+synth : ?'Synth. !'Type.
+```
+indicating that `type` actors receive only a `'Type` which they may
+validate; `check` actors receive a `'Type` to check and a `'Check`able
+term which we hope the type admits; `synth` actors receive a
+`'Synth`esizable term, then (we hope) transmit the `'Type` synthesized
+for that term.
+
+Our protocols are nowhere near as exciting as session types, offering
+only a rigid sequence of actions to do (or die). In the future, we
+plan to enrich the notion of protocol in two ways:
+
+1. Designate one input as the *subject* of the judgement, i.e., the
+   currently untrusted thing whose validity the judgement is intended
+   to establish. Above, the clue is in the name.
+2. For every signal which is not the subject, indicate the
+   *contract*. The actor is allowed to *rely* on properties of its
+   inputs, but it must *guarantee* properties of its outputs. For the
+   above, we should let `check` rely on receiving a `'Type` which
+   `type` accepts, but demand that `synth` always yields a `'Type`
+   which `type` accepts.
+
+That is, we plan to check the checkers: at the moment we just about
+check that actors stick to the designated interleaving of input and
+output operations. The syntax for each signal is but a good intention
+upon which we do not yet act.
+
+
+## TypOS actors
+
+An actor definition looks like *judgement*`@`*channel* `=` *actor*.
+The channel is the actor's link with its parent (so we often call it
+`p`) along which it must follow the declared protocol.
+Here is a simple example:
+```
+type@p = p?ty. case ty
+  { ['Nat] ->
+  ; ['Arr S T] ->
+      ( type@q. q!S.
+      | type@r. r!T.
+      )
+  }
+  ```
+  
+This actor implements `type`, with channel `p` to its parent. Its
+first action is `p?ty.` to ask its parent for an input, which
+comes into scope as the value of the *actor variable* `ty`. I.e.,
+a *receiving* actor looks like *channel*`?`*variable*`.` *actor*, which
+performs an input on the given *channel*, then continues as the
+*actor* with the *variable* in scope. Actor variables stand for
+terms, and may be used in terms as placeholders. Our actor has
+received a type to validate. How does it proceed?
+
+It performs a `case` analysis on the structure of the type. The
+actor construct is `case` *term* `{` *pattern* `->` *actor* `;` ..`}`.
+We shall specify patterns in more detail shortly, but let us
+continue the overview. The `['Nat]` pattern matches only if `ty`
+is exactly `['Nat]`, and the action taken in that case is nothing
+at all! The empty actor denotes glorious success! Meanwhile, the
+pattern `['Arr S T]` matches any three element list whose head is
+the atom `'Arr`: the other two elements are brought into scope as
+`S` and `T`, repsectively, then we proceed with the nonempty actor
+to the right of `->`. What have we, now?
+
+We have a *parallel* composition, *actor* `|` *actor*, and both
+components will run concurrently. The first begins by *spawning*
+a new `type` actor on fresh channel `q`. Spawning looks like
+*judgement*`@`*channel*`.` *actor*, and it is another sequential
+process, forking out a new actor for the given *judgement* and naming
+the *channel* for talking to it, before continuing as the given
+*actor* with the *channel* in scope. The channel follows the
+protocol *dual* to that declared for the judgement. Our first fork
+continues by *sending* `S` to `q`. Sending looks like
+*channel*`!`*term*`.` *actor*. That is, we have delegated the
+validation of `S` to a subprocess and hung up our boots, contented.
+The second fork similarly delegates the validation of `T` to another
+`type` actor on channel `r`.
+
+We have seen actors for receiving, sending, case analysis, parallel
+composition, and spawning. There is a little more to come. Let us
+have a further example:
+```
+check@p = p?ty. p?tm. case tm
+  { ['Lam \x. body] -> ?S. ?T.
+      ( ty ~ ['Arr S T]
+      | \x. synth { x -> S }. check@q. q!T. q!body.
+      )
+  ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
+  }
+```
+The `check` actor follows the designated protocol, asking its parent
+for a type `ty` and a checkable term `tm`. We expect `tm` to match
+one of two patterns. The second is the simpler `['Emb e]` matches an
+embedded `'Synth` term, bound to `e`, then spawns a `synth` actor
+on channel `q` to determine the type of `e`. That is, we send `e` over
+`q`, then receive type `S` in return. Our last act in this case is to
+*constrain* `S ~ ty`, i.e., we demand that the type synthesized is
+none other than the type we were asked to check. The actor form *term*
+`~` *term* performs a unification process, attempting to make the
+terms equal.
+
+The `['Lam \x. body]` case shows a richness of features. Firstly,
+the pattern indicates that the term must bind a variable, which the
+term can name however it likes, but which the actor will think of as
+`x`. The pattern variable `body` matches what is in the scope of `x`.
+As a consequence, `body` stands for a term which may mention `x` and
+thus may be used only in places where `x` is somehow captured. That
+is, the use sites of actor variables are scope-checked, to ensure that
+everything the terms they stand for might need is somehow in
+existence. We have found the body of our abstraction. What happens
+next?
+
+It looks like we are making inputs `S` and `T` from *no* channel, and
+that is exactly what we are doing! We request `S` and `T` from *thin
+air*. Operationally, TypOS generates placeholders for terms as yet
+unknown, but which may yet be solved, given subsequent constraints.
+Indeed, one of our subsequent forked actors exactly demands that `ty`
+is `['Arr S T]`, but we need not wait to proceed. In parallel, we
+*bind* a fresh variable `x`, allowing us to spawn a `check` actor on
+channel `q` and ask it to check that type `T` admits `body` (whose `x`
+has been captured by our binding). But we race ahead. A *binding*
+actor looks like `\` *variable* `.` *actor*. It brings a fresh term
+*variable* into scope, then behaves like *actor* for the duration of
+that scope.
+
+Now, before we can `check` the `body`, we must ensure that `synth`
+knows what to do whenever it is asked about `x`. We have explored
+various options about how to manage that interaction. The current
+incarnation is to equip each judgement with its own notion of
+*contextual data* for free variables. The form
+*judgement* `{` *variable* `->` *term* `}.` *actor* pushes the
+association of *term* with *variable* into the context for
+*judgement*, then continues as *actor*. In our example, we have
+`synth { x -> S }. check@q. q!T. q!body.`, so any `synth` actor
+which is a descendant of the `check` actor on channel `q` will
+be able to access the `S` associated with `x`. To see how, we must
+look at the `synth` actor's definition.
+```
+synth@p = p?tm . lookup tm { S -> p!S. } else case tm
+  { ['Rad t ty] ->
+      ( type@q. q!ty.
+      | check@r. r!ty. r!t.
+      | p!ty.
+      )
+  ; ['App f s] -> ?U. ?V.
+      ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
+      | check@r. r!U. r!s.
+      | p!V.
+      )
+  }
+```
+We have only one new feature, which is invoked immediately we have
+received `tm`. The actor `lookup` *term* `{` *variable* `->` *actor*
+`} else` *actor* attempts to access the context for the judgement it
+is implementing, i.e. `synth`. It will succeed if `tm` stands for a
+free term variable with a context entry in scope, and in that case,
+the *variable* binds the associated value and the *actor* after `->`
+is executed. As you can see, `synth` interprets the contextual data
+associated with a free variable as exactly the type to send out.
+If the *term* is not a free variable, or if there is no associated
+data in the context, the `lookup` actor falls through to its `else`
+clause.
+
+Here, we fall back on the hope that `tm` might take one of the
+two forms specified in the syntax of `'Synth` terms. For `'Rad`icals, we
+concurrently validate the type, check that it accepts the term, and
+deliver the type as our output. For `'App`lications, we guess source
+and target types for the function, then concurrently confirm our guess
+by constraining the output of `synth` on the function, check the
+argument at our guessed source type, and output our guessed target
+type as the type of the application.
+
+You have been watching
+* guessing: `?`*variable*`.` *actor*
+* receiving: *channel* `?`*variable*`.` *actor*
+* sending: *channel*`!`*term*`.` *actor*
+* casing: `case` *term* `{` *pattern* `->` *actor* `;` ..`}`
+* forking: *actor* `|` *actor*
+* spawning: *judgement*`@`*channel*`.` *actor*
+* constraining: *term* `~` *term*
+* pushing: *judgement* `{` *variable* `->` *term* `}.` *actor*
+* looking: `lookup` *term* `{` *variable* `->` *actor* `} else` *actor*
+* winning:
+and there's one more
+* losing: `#` *string*
+(should error messages be *term*s?).
+
