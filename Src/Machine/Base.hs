@@ -86,6 +86,7 @@ data MachineStep
   | MachineExec
   | MachineMove
   | MachineUnify
+  | MachineBreak
   deriving (Eq, Show)
 
 data Process s t

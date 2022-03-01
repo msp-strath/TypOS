@@ -81,6 +81,7 @@ pmachinestep =
   <|> MachineExec <$ plit "exec"
   <|> MachineMove <$ plit "move"
   <|> MachineUnify <$ plit "unify"
+  <|> MachineBreak <$ plit "break"
 
 pmode :: Parser Mode
 pmode = Input <$ pch (== '?') <|> Output <$ pch (== '!')

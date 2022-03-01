@@ -154,8 +154,9 @@ exec p@Process { actor = Print fmt a, ..}
 
 exec p@Process { actor = Break str a }
   = unsafePerformIO $ do
-      putStrLn $ withANSI [SetColour Background Red] str
-      _ <- getLine
+      when (MachineBreak `elem` tracing p) $ do
+        putStrLn $ withANSI [SetColour Background Red] str
+        () <$ getLine
       pure (exec (p { actor = a }))
 
 exec p@Process { actor = Fail str, ..}
