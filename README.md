@@ -125,7 +125,7 @@ The other permitted syntax descriptions are as follows:
   `['Tag [ ['tt] ['ff] ]`, which admits `['tt]` and `['ff]`.
 * `['Fix \`*x*`.` ..`]` takes a syntax decsription in which the bound
   *x* is treated as a syntax description, allowing local recursion.
-  * `['Term]` admits anything.
+* `['Term]` admits anything.
 
 For a more exciting example, we take
 ```
@@ -142,3 +142,10 @@ syntax { 'syntax = ['Tag [
   ['Term]
 ]]}
 ```
+as the syntax description of syntax descriptions, using `'Fix` to
+characterize the lists which occur in the `['Tag` ..`]` and
+`['Enum` .. `]` constructs.
+
+(Note, we should probably call it `'Syntax` instead of `'syntax`.)
+
+
