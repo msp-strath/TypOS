@@ -129,15 +129,15 @@ The other permitted syntax descriptions are as follows:
 
 For a more exciting example, we take
 ```
-syntax { 'syntax = ['Tag [
+syntax { 'Syntax = ['Tag [
   ['Rec ['Atom]]
   ['Atom]
   ['Nil]
-  ['Cons ['Rec 'syntax] ['Rec 'syntax]]
-  ['NilOrCons ['Rec 'syntax] ['Rec 'syntax]]
-  ['Bind ['Atom] ['Rec 'syntax]]
-  ['Tag ['Fix (\list.['NilOrCons ['Cons ['Atom] ['Fix (\list.['NilOrCons ['Rec 'syntax] list])]] list])]]
-  ['Fix ['Bind 'syntax ['Rec 'syntax]]]
+  ['Cons ['Rec 'Syntax] ['Rec 'Syntax]]
+  ['NilOrCons ['Rec 'Syntax] ['Rec 'Syntax]]
+  ['Bind ['Atom] ['Rec 'Syntax]]
+  ['Tag ['Fix (\list.['NilOrCons ['Cons ['Atom] ['Fix (\list.['NilOrCons ['Rec 'Syntax] list])]] list])]]
+  ['Fix ['Bind 'Syntax ['Rec 'Syntax]]]
   ['Enum ['Fix (\list.['NilOrCons ['Atom] list])]]
   ['Term]
 ]]}
@@ -145,8 +145,6 @@ syntax { 'syntax = ['Tag [
 as the syntax description of syntax descriptions, using `'Fix` to
 characterize the lists which occur in the `['Tag` ..`]` and
 `['Enum` .. `]` constructs.
-
-(Note, we should probably call it `'Syntax` instead of `'syntax`.)
 
 
 ## Judgement forms and protocols

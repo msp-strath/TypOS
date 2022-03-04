@@ -68,24 +68,24 @@ syntaxDesc = "Tag" #%+ [
   (atom "NilOrCons" 0 % (syntax %: syntax %: nul 0)) %:
   (atom "Bind" 0 % (atom0 %: syntax %: nul 0)) %:
   (atom "Tag" 0 % (listOf (atom "Cons" 0 % atom0 %: (listOf syntax %: nul 0)) %: nul 0)) %:
-  (atom "Fix" 0 % ("Bind" #%+ [atom "syntax" 0, syntax]) %: nul 0) %:
+  (atom "Fix" 0 % ("Bind" #%+ [atom "Syntax" 0, syntax]) %: nul 0) %:
   (atom "Enum" 0 % listOf atom0 %: nul 0) %:
   (atom "Term" 0 % nul 0) %:
   nul 0]
-  where syntax = rec "syntax"
+  where syntax = rec "Syntax"
         atom0 = ("Atom",0) #% []
 
-{- > putStrLn $ display initNaming syntaxDesc
+{- > putStrLn $ unsafeEvalDisplay initNaming $ display syntaxDesc
 
 ['Tag [
   ['Rec ['Atom]]
   ['Atom]
   ['Nil]
-  ['Cons ['Rec 'syntax] ['Rec 'syntax]]
-  ['NilOrCons ['Rec 'syntax] ['Rec 'syntax]]
-  ['Bind ['Atom] ['Rec 'syntax]]
-  ['Tag ['Fix (\list.['NilOrCons ['Cons ['Atom] ['Fix (\list.['NilOrCons ['Rec 'syntax] list])]] list])]]
-  ['Fix ['Bind 'syntax ['Rec 'syntax]]]
+  ['Cons ['Rec 'Syntax] ['Rec 'Syntax]]
+  ['NilOrCons ['Rec 'Syntax] ['Rec 'Syntax]]
+  ['Bind ['Atom] ['Rec 'Syntax]]
+  ['Tag ['Fix (\list.['NilOrCons ['Cons ['Atom] ['Fix (\list.['NilOrCons ['Rec 'Syntax] list])]] list])]]
+  ['Fix ['Bind 'Syntax ['Rec 'Syntax]]]
   ['Enum ['Fix (\list.['NilOrCons ['Atom] list])]]
   ['Term]
 ]]
