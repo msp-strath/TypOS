@@ -27,14 +27,11 @@ library
   import:              haskell
   exposed-modules:     Actor,
                        Actor.Display,
-                       -- Actor.Parse,
                        ANSI,
                        Bwd,
-                       -- Command,
                        Concrete.Base,
                        Concrete.Parse,
                        Display,
---                       Driver,
                        Elaboration,
                        Forget,
                        Format,
@@ -43,6 +40,7 @@ library
                        Machine.Base,
                        Machine.Display,
                        Machine.Exec,
+                       Main,
                        Parse,
                        Pattern,
                        Scope,
@@ -51,7 +49,6 @@ library
                        Term.Base,
                        Term.Display,
                        Term.Mangler,
-                       -- Term.Parse,
                        Term.Substitution,
                        Thin
 
@@ -62,6 +59,6 @@ library
 
 executable typos
   import:              haskell
-  main-is:             Src/Driver.hs
+  main-is:             Src/Main.hs
   build-depends:       base <5, mtl, containers, typos
   default-language:    Haskell2010
