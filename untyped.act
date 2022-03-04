@@ -13,13 +13,14 @@ eval@p = p?tm. lookup tm { v -> p!v. } else case tm
   ; ['App f s] -> ?u.
       ( eval@q. q!s. q?v. u ~ v
       | eval@r. r!f. r?g. case g
-        { ['Lam \x. t] -> eval@z. z!{x=u}t. z?w. p!w.
+        { ['Lam \y. t] -> eval@z. z!{y=u}t. z?w. p!w.
         ; _ -> p!['App g u].
         }
       )
   }
 
 exec eval@p. p!['App ['Lam \f. ['Lam \x. ['App f ['App f x]]]]
-                     ['Lam \f. ['Lam \x. ['App f ['App f x]]]]].
+                     ['Lam \g. ['Lam \y. ['App g ['App g y]]]]].
              p?v. PRINTF "%i" v .
 
+-- expected: \ x . (\ y . x (x (x (x y))))

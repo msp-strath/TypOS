@@ -49,9 +49,9 @@ instance Forget DAEnv Naming where
 instance Display Env where
   type DisplayEnv Env = ()
   display rho@Env{..} =
+    let na = (globalScope, ones (length globalScope), globalScope) in
     fmap collapse $ forM (Map.toList actorVars) $ \ (av, (xs, t)) -> do
-    let na = foldl nameOn (globalScope, ones (length globalScope), globalScope) xs
-    t <- withEnv na $ display t
+    t <- withEnv (foldl nameOn na xs) $ display t
     pure $ concat (show av : map (" " ++) xs ++ [" = ", t])
 
 instance Display ActorMeta where

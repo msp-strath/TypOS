@@ -30,16 +30,24 @@ data Env = Env
   , actorVars :: Map.Map ActorMeta ([String] -- bound vars xi actorVar does know about
                                    , Term) -- in scope ga <>< xi
   , localScope :: Bwd String -- vars de actor has bound
+  , alphaRenamings :: Map.Map String (Hide String)
   } deriving (Show, Eq)
 
+tryAlpha :: Env -> String -> String
+tryAlpha rho x = maybe x unhide (Map.lookup x (alphaRenamings rho))
+
+declareAlpha :: (String, Hide String) -> Env -> Env
+declareAlpha (x, y) rho =
+  rho { alphaRenamings = Map.insert x y (alphaRenamings rho) }
+
 initEnv :: Bwd String -> Env
-initEnv gamma = Env gamma Map.empty B0
+initEnv gamma = Env gamma Map.empty B0 Map.empty
 
 childEnv :: Env -> Env
 childEnv parentEnv = initEnv (globalScope parentEnv <> localScope parentEnv)
 
 newActorVar :: ActorMeta -> ([String], Term) -> Env -> Env
-newActorVar x defn env@(Env _ avs _) = env { actorVars = Map.insert x defn avs }
+newActorVar x defn env = env { actorVars = Map.insert x defn (actorVars env) }
 
 infixr 3 :|:
 data Actor
@@ -80,7 +88,7 @@ mangleActors rho tm = go tm where
     VX i de -> pure (var i (ga + de))
     AX a de -> pure (atom a (ga + de))
     a :%: b -> (%) <$> go a <*> go b
-    x :.: t -> (x \\) <$> go t
+    x :.: t -> (tryAlpha rho x \\) <$> go t
     m :$: sg -> do
       t <- noisyLookupVar m
       sg <- goSbst sg

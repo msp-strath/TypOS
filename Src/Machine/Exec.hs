@@ -97,7 +97,7 @@ exec p@Process { actor = m@(Match s cls), ..}
     (VP i, VX j _) | i == j -> match env xs
     (AP a, AX b _) | a == b -> match env xs
     (PP p q, s :%: t) -> match env ((zx,p,s):(zx,q,t):xs)
-    (BP (Hide x) p, _ :.: t) -> match env ((zx :< x,p,t):xs)
+    (BP (Hide x) p, y :.: t) -> match (declareAlpha (x, Hide y) env) ((zx :< x,p,t):xs)
     _ -> Left True
 
 exec p@Process { actor = FreshMeta (av@(ActorMeta x), a), ..} =
@@ -114,8 +114,8 @@ exec p@Process { actor = Constrain s t, ..}
   -- , dmesg (show t ++ " ----> " ++ show t') True
   = unify (p { stack = stack :<+>: [UnificationProblem (today store) s' t'], actor = Win })
 exec p@Process { actor = Under (Scope (Hide x) a), ..}
-  = let stack' = stack :< Binding (x ++ show (length (globalScope env <> localScope env)))
-        env'   = env { localScope = localScope env :< x }
+  = let stack' = stack :< Binding (tryAlpha env x ++ "_" ++ show (length (globalScope env <> localScope env)))
+        env'   = env { localScope = localScope env :< tryAlpha env x }
         actor' = a
     in exec (p { stack = stack', env = env', actor = actor' })
 
@@ -193,9 +193,9 @@ solveMeta m (CdB (S0 :^^ _, ph)) tm p@Process{..} = do
 send :: Channel -> (CdB (Tm ActorMeta), Term) -> Process Store Cursor -> Process Store []
 --send ch (tm, term) (Process zfs@(zf :<+>: fs) _ _ _ a)
 --  | dmesg ("\nsend " ++ show ch ++ " " ++ show term ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
-send (Channel ch) (tm, term) p
-   | debug MachineSend (unwords [ch, show (tm, term)]) p
-   = undefined
+-- send (Channel ch) (tm, term) p
+--   | debug MachineSend (unwords [ch, show (tm, term)]) p
+--   = undefined
 
 send ch (tm, term) (p@Process { stack = B0 :<+>: fs, ..})
   = move (p { stack = B0 <>< fs :<+>: [], actor = Send ch tm actor })
@@ -205,14 +205,16 @@ send ch (tm, term)
   let parentP = p { stack = fs, store = today store }
       stack' = zf :< Spawnee (Interface (Hole, q) (rxs, parentP))
                   :< Sent q ([], term) <>< stack childP
-  in exec (childP { stack = stack', store })
+      p' = childP { stack = stack', store }
+  in debug MachineSend (rawChannel ch) p' `seq` exec p'
 send ch (tm, term)
   p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs@(r, xs), parentP))) :<+>: fs
             , ..}
   | ch == q =
   let parentP' = parentP { stack = Sent r (xs, term) : stack parentP }
       stack'   = zf :< Spawnee (Interface (Hole, q) (rxs, parentP')) <>< fs
-  in exec (p { stack = stack' })
+      p' = p { stack = stack' }
+  in debug MachineSend (rawChannel ch) p' `seq` exec p'
   | otherwise = move (p { stack = zf' <>< fs :<+>: [], actor = Send ch tm actor })
 send ch (tm, term) p@Process { stack = (zf :< f) :<+>: fs }
   = send ch (tm, term) (p { stack = zf :<+>: (f:fs) })
