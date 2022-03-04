@@ -1,0 +1,24 @@
+syntax
+  { 'Term = ['Tag [
+       ['Lam ['Bind 'Term ['Rec 'Term]]]
+       ['App ['Rec 'Term] ['Rec 'Term]]
+    ]]
+  }
+
+eval : ?'Term. !'Term.
+
+eval@p = p?tm. lookup tm { v -> p!v. } else case tm
+  { ['Lam \x. t] -> \x. eval { x -> x }.
+      eval@q. q!t. q?v. p!['Lam \x. v].
+  ; ['App f s] -> ?u.
+      ( eval@q. q!s. q?v. u ~ v
+      | eval@r. r!f. r?g. case g
+        { ['Lam \x. t] -> eval@z. z!{x=u}t. z?w. p!w.
+        ; _ -> p!['App g u].
+        }
+      )
+  }
+
+exec ?a. eval@p. p!['App ['Lam \f. ['Lam \x. ['App f ['App f x]]]]
+                         ['Lam \f. ['Lam \x. ['App f ['App f x]]]]].
+                 p?v. a ~ v

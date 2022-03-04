@@ -362,6 +362,7 @@ The patterns you can write in a TypOS `case` actor look like
 * scope selection:  `{` *selection* `}` *pattern*
 * pattern binding:  *actor-variable*
 * happy oblivion:   `_`
+
 where a *selection* (sometimes known dually as a *thinning*) selects a
 subset of the variables in scope as permitted dependencies. Inside the
 braces, you write either the list of variables you want to keep or the
@@ -399,6 +400,7 @@ substitution is a comma-separated list of components which look like
 * definition: *variable*`=`*term*
 * exclusion: *variable*`*`
 * preservation: *variable*
+
 Order matters: substitutions should be read from right to left as
 actions on the scope we find them in. Definitions bring new variables
 into scope, by defining them to be terms using only variables already
@@ -415,3 +417,25 @@ up at the use sites of actor-variables, where their role is to
 reconcile any difference in scope with the binding sites of those
 variables.
 
+
+## Actors, channels, scope
+
+Each actor knows about only those variables it binds itself. When
+actors run, the terms which the actor-variables stand for will be
+in a larger scope: the term variables mentioned in the actor's source
+code will constitute the local end of that scope. Although the
+`lookup` construct enables the basic means to find out stuff about
+free variables, only the actor which binds the variable can choose
+what that stuff is. Ignorance of free variables makes it easier to
+achieve stability under substitution. In particular, the fact that
+`case` patterns can test for only those free variables protected by their
+binders from the action of substitution means that an actor's
+`case` choices cannot be changed by the action of substitution on its
+inputs. There is some sort of stability property to be proven about
+`lookup` .. `else`, characterizing the things it is safe to substitute
+for free variables.
+
+Meanwhile, channels also have a notion of scope, restricting the
+variables which may occur free in the terms which get sent along
+them. The scope of a channel is exactly the scope at its time of
+creation.
