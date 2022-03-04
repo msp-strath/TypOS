@@ -1,0 +1,35 @@
+trace { exec }
+
+syntax
+  { 'Term = ['Tag [
+       ['Lam ['Bind 'Term ['Rec 'Term]]]
+       ['App ['Rec 'Term] ['Rec 'Term]]
+    ]]
+  ; 'Stack = ['NilOrCons ['Rec 'Term] ['Rec 'Stack]]
+  }
+
+krivine : ?'Term. ?'Stack. !'Term.
+unwind : ?'Term. ?'Stack. !'Term.
+
+unwind@p = p?tm. p?stk. case stk
+  { [] -> p!tm.
+  ; [a | as] -> unwind@q. q!['App tm a]. q!as. q?res. p!res.
+  }
+
+krivine@p = p?tm. p?stk.
+  lookup tm { v -> unwind@q. q!v. q!stk. q?res. p!res. }
+  else case tm
+  { ['App f t] -> ?vt. ( krivine@q. q!t. q![]. q?res. res ~ vt
+                       | krivine@q. q!f. q![vt|stk]. q?res. p!res.
+                       )
+  ; ['Lam \x.b] -> case stk
+    { [] -> \x. krivine { x -> x }.
+                krivine@q. q!b. q![]. q?res. p!['Lam \x.res].
+    ; [a | as] -> krivine@q. q!{x=a}b. q!as. q?res. p!res.
+    }
+  }
+
+exec krivine@p.
+  p!['App ['Lam \f. ['Lam \x. ['App f ['App f x]]]]
+          ['Lam \g. ['Lam \y. ['App g ['App g y]]]]].
+  p![]. p?v. PRINTF "%i" v .
