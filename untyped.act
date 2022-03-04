@@ -19,6 +19,7 @@ eval@p = p?tm. lookup tm { v -> p!v. } else case tm
       )
   }
 
-exec ?a. eval@p. p!['App ['Lam \f. ['Lam \x. ['App f ['App f x]]]]
-                         ['Lam \f. ['Lam \x. ['App f ['App f x]]]]].
-                 p?v. a ~ v
+exec eval@p. p!['App ['Lam \f. ['Lam \x. ['App f ['App f x]]]]
+                     ['Lam \f. ['Lam \x. ['App f ['App f x]]]]].
+             p?v. PRINTF "%i" v .
+

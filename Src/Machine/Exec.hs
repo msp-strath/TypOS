@@ -126,10 +126,11 @@ exec p@Process { actor = Push jd (pv, t) a, ..}
 
 exec p@Process { actor = Lookup t (av, a) b, ..}
   | Just t' <- mangleActors env t
-  = case expand t' of
+  = case expand (headUp store t') of
       VX (DB i) _ | Just t' <- search stack i judgementform 0 ->
         let env' = newActorVar av (localScope env <>> [], t') env
         in exec (p {actor = a, env = env'})
+      _ :$: _ -> move (p { stack = stack :<+>: [] })
       _ -> exec (p {actor = b})
   where
 
