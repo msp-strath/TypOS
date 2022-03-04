@@ -6,6 +6,9 @@ import Bwd
 import Thin
 import Term
 
+import Display
+import Term.Display
+
 type SyntaxCat = String
 type SyntaxDesc = Term
 
@@ -93,6 +96,7 @@ syntaxDesc = "Tag" #%+ [
 -}
 
 validateDesc :: SyntaxDesc -> Bool
-validateDesc = validate (Map.singleton "syntax" syntaxDesc) B0 ("Rec" #%+ [atom "syntax" 0])
+validateDesc = validate (Map.singleton "Syntax" syntaxDesc) B0 ("Rec" #%+ [atom "Syntax" 0])
 
-test = validateDesc syntaxDesc
+validateIt = validateDesc syntaxDesc
+printIt = putStrLn $ unlines [show validateIt, "===", unsafeEvalDisplay initNaming $ display syntaxDesc]
