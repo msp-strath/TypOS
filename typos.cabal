@@ -32,6 +32,8 @@ library
                        Concrete.Base,
                        Concrete.Parse,
                        Display,
+                       Doc,
+                       Doc.Internal,
                        Elaboration,
                        Forget,
                        Format,
