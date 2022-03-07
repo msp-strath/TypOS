@@ -82,42 +82,74 @@
 \newcommand{\synth}{\judgement{synth}}
 \newcommand{\type}{\judgement{type}}
 
-\author{Conor McBride\inst{1}
+\author{
+  Guillaume Allais\inst{1}
   \and
-  Fredrik Nordvall Forsberg\inst{1}
+  Malin Altenm\"uller\inst{2}
   \and
-  Georgi Nakov\inst{1}
+  Fredrik Nordvall Forsberg\inst{2}
   \and
-  Malin Altenm\"uller\inst{1}
+  Conor McBride\inst{2}
   \and
-  Guillaume Allais\inst{2}
+  Georgi Nakov\inst{2}
   \and
   Craig Roy\inst{3}
 }
 
 \institute{
-University of Strathclyde,
-Glasgow, United Kingdom\\
-\email{conor.mcbride@strath.ac.uk}\\
-\email{fredrik.nordvall-forsberg@strath.ac.uk}\\
-\email{georgi.nakov.100@strath.ac.uk}\\ % TODO - is this right?
-\email{malin.altenmuller.100@strath.ac.uk} % TODO - is this right?
-\and
 University of St Andrews,
 United Kingdom \\
-\email{TODO}
+\and
+University of Strathclyde,
+Glasgow, United Kingdom\\
 \and
 Quantinuum \& Cambridge Quantum \\
-\email{craig.roy@cambridgequantum.com}
 }
 
 \authorrunning{}
 \titlerunning{}
 
-\title{\TypOS\!: An Operating System for Typechecking Processes}
+\title{\TypOS\!: An Operating System for Typechecking Actors}
 
 \begin{document}
 \maketitle
+
+% For example:
+% - untyped lambda calculus
+% - bidi stlc + evalutation
+
+\section*{Introduction} % Conor
+% this is a WIP
+% for prototyping type checkers and elaborators
+% based on problems the authors have run into?
+% haskell closures - vs first order processing
+% high level explanation of what the "OS" means
+
+\section*{The Actor Model}
+% PT I - Georgi
+% Concurrency
+% Blocking on metas
+% Communication via channels (including metas)
+% Judgement declarations and thier interaction protocols 
+
+% PT II - Guillaume
+% The different kinds of actors
+% Store of metas w/ news propagation (monotonicity)
+% Local scope of actors and terms
+% Explain the syntax of whatever example we use
+
+\section*{The Machine} % Fred
+% Managing frames and processes
+% News
+% Substitutions in term syntax
+
+\section*{Conclusion/Next steps} % Craig
+% Actual concurrency?
+% Dependent types
+% More refined models written in Agda first, then ported
+% Everything is available on github
+
+\end{document}
 
 \TypOS is an operating system for typechecking processes.
 Are the processes being typechecked? Are the processes doing the
