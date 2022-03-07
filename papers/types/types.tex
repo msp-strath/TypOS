@@ -139,8 +139,14 @@ Quantinuum \& Cambridge Quantum \\
 % Explain the syntax of whatever example we use
 
 \section*{The Machine} % Fred
-% Managing frames and processes
-% News
+
+We have implemented the execution of actors as a stack based machine,
+where we prioritise executing left branches of parallel actors, the
+spawner over the spawnee. When we can make no further progress, we
+switch over to executing right branches, and spawnees. We keep track
+of when we last made progress in order to decide if we should restart
+unfinished subactors again.
+
 % Substitutions in term syntax
 
 \section*{Conclusion/Next steps} % Craig
