@@ -48,12 +48,13 @@ instance Instantiable Term where
       Nothing -> m $: sg
       Just (_, tm) -> instantiate store (tm //^ sg)
 
-instance (Instantiable t, Instantiated t ~ t) =>
+instance (Show t, Instantiable t, Instantiated t ~ t) =>
   Instantiable (Format Directive dbg t) where
   type Instantiated (Format Directive dbg t) = Format () dbg t
   instantiate store = \case
     TermPart Instantiate t -> TermPart () (instantiate store t)
     TermPart Raw t -> TermPart () t
+    TermPart ShowT t -> StringPart (show t)
     DebugPart dbg  -> DebugPart dbg
     StringPart str -> StringPart str
 

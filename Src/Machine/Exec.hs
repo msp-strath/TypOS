@@ -84,11 +84,14 @@ exec p@Process { actor = m@(Match s cls), ..}
             , Pat
             , Term)] -> Either Bool Env -- Bool: should we keep trying other clauses?
   match env [] = pure env
-  match env ((zx, MP x ph, CdB (t, th)):xs) = do
+  match env ((zx, MP x ph, tm):xs) | is1s ph = do -- common easy special case
+    env <- pure $ newActorVar (ActorMeta x) (zx <>> [], tm) env
+    match env xs
+  match env ((zx, MP x ph, tm@(CdB (t, th))):xs) = do
     let g = bigEnd th - bigEnd ph
     -- we can do better: t may not depend on disallowed things until definitions are expanded
-    ps <- maybe (Left True) Right $ thicken (ones g <> ph) th
-    env <- pure $ newActorVar (ActorMeta x) ((ph ?< zx) <>> [], CdB (t, ps)) env
+    tm <- instThicken (ones g <> ph) tm
+    env <- pure $ newActorVar (ActorMeta x) ((ph ?< zx) <>> [], tm) env
     match env xs
   match env ((zx, pat, tm):xs) = case (pat, expand (headUp store tm)) of
     (HP, _) -> match env xs
@@ -99,6 +102,23 @@ exec p@Process { actor = m@(Match s cls), ..}
     (PP p q, s :%: t) -> match env ((zx,p,s):(zx,q,t):xs)
     (BP (Hide x) p, y :.: t) -> match (declareAlpha (x, Hide y) env) ((zx :< x,p,t):xs)
     _ -> Left True
+
+  instThicken :: Th -> Term -> Either Bool Term
+  instThicken ph t = case headUp store t of
+      v@(CdB (V, _)) -> case thickenCdB ph v of
+        Just v -> pure v
+        Nothing -> Left True
+      m@(CdB (_ :$ _,_)) -> case thickenCdB ph m of
+        Just m -> pure m
+        Nothing -> Left False
+      x -> case expand x of
+        AX a ga -> pure (atom a (weeEnd ph))
+        s :%: t -> case (instThicken ph s, instThicken ph t) of
+          (Left bs, Left bt) -> Left (bs || bt)
+          (s, t) -> (%) <$> s <*> t
+        (x :.: t) -> (x \\) <$> instThicken (ph -? True) t
+
+
 
 exec p@Process { actor = FreshMeta (av@(ActorMeta x), a), ..} =
   let (xm, root') = meta root x

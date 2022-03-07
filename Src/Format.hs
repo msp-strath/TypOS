@@ -15,7 +15,7 @@ data Format dir dbg t
   | StringPart String
   deriving (Show, Eq, Functor, Foldable, Traversable)
 
-data Directive = Instantiate | Raw
+data Directive = Instantiate | Raw | ShowT
  deriving (Show, Eq)
 
 data Debug = ShowStack | ShowStore | ShowEnv
@@ -40,8 +40,9 @@ pformat = Parser $ \ env str -> case str of
     -- formatting expressions
     (str, '%':'r':end) -> go end (snoc str acc :< TermPart Raw ())
     (str, '%':'i':end) -> go end (snoc str acc :< TermPart Instantiate ())
+    (str, '%':'s':end) -> go end (snoc str acc :< TermPart ShowT ())
     (str, '%':'e':end) -> go end (snoc str acc :< DebugPart ShowEnv)
-    (str, '%':'s':end) -> go end (snoc str acc :< DebugPart ShowStack)
+    (str, '%':'S':end) -> go end (snoc str acc :< DebugPart ShowStack)
     (str, '%':'m':end) -> go end (snoc str acc :< DebugPart ShowStore)
     -- special characters
     (str, '\\':'n':end) -> go end (snoc (str ++ "\n") acc)
@@ -58,7 +59,7 @@ instance Display Debug where
   type DisplayEnv Debug = ()
   display = \case
     ShowEnv -> pure "%e"
-    ShowStack -> pure "%s"
+    ShowStack -> pure "%S"
     ShowStore -> pure "%m"
 
 instance Display Directive where
@@ -66,6 +67,7 @@ instance Display Directive where
   display = \case
     Raw -> pure "%r"
     Instantiate -> pure "%i"
+    ShowT -> pure "%s"
 
 instance Display t => Display [Format Directive Debug t] where
   type DisplayEnv [Format Directive Debug t] = DisplayEnv t

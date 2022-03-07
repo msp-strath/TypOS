@@ -63,6 +63,9 @@ declareObjVar x ctx = ctx { objVars = objVars ctx :< x }
 setObjVars :: ObjVars -> Context -> Context
 setObjVars ovs ctx = ctx { objVars = ovs }
 
+instance Selable Context where
+  th ^? ctxt = ctxt { objVars = th ^? objVars ctxt }
+
 declare :: String -> Kind -> Context -> Context
 declare x k ctx = ctx { declarations = declarations ctx :< (x, k) }
 
@@ -243,8 +246,8 @@ spat = \case
     pure (BP v p, ds)
   ThP th p -> do
     th <- sth th
-    (p, ds) <- spat p
-    pure (th ^? p, ds)
+    (p, ds) <- local (th ^?) $ spat p
+    pure (p *^ th, ds)
   UnderscoreP -> (HP,) <$> asks declarations
 
 channelScope :: Channel -> Elab ObjVars
