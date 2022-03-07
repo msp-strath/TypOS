@@ -1,7 +1,7 @@
 ;; based on: http://ergoemacs.org/emacs/elisp_syntax_coloring.html
 
 ;; define several class of keywords
-(setq typos-keywords  '("syntax" "exec" "trace" "case" "lookup" "else" "BREAK" "PRINT" "PRINTF"))
+(setq typos-keywords  '("syntax" "exec" "trace" "break" "unify" "send" "recv" "move" "case" "lookup" "else" "BREAK" "PRINT" "PRINTF"))
 (setq typos-operators '("@" "!" "?" "~" "#" "|"))
 (setq typos-symbols   '("->" ";" "=" "{" "}"))
 
