@@ -18,6 +18,7 @@ import Hide
 import Scope
 import Syntax
 import Thin
+import Utils
 
 import Concrete.Base (Variable, Raw(..), SbstC(..), RawP(..), ThDirective(..))
 import qualified Concrete.Base as C
@@ -78,10 +79,6 @@ setDecls ds ctx = ctx { declarations = ds }
 type Decls = Bwd (String, Kind)
 type Slced = [(String, Kind)]
 type Focus a = (Decls, a, Slced)
-
-whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
-whenJust Nothing k = pure ()
-whenJust (Just a) k = k a
 
 resolve :: Variable -> Elab (Maybe (Either Kind DB))
 resolve x = do
@@ -290,7 +287,6 @@ withChannel ch@(Channel rch) p ma = do
 sact :: C.Actor -> Elab A.Actor
 sact = \case
   C.Win -> pure A.Win
-  C.Fail err -> A.Fail err <$ tell (All False)
   C.Constrain s t -> do
     s <- during (ConstrainTermElaboration s) $ stm s
     t <- during (ConstrainTermElaboration t) $ stm t
@@ -385,8 +381,9 @@ sact = \case
     consistentCommunication [mcha, mchb]
     pure $ A.Lookup t (ActorMeta av, a) b
 
+  C.Fail fmt -> A.Fail <$> traverse (traverse stm) fmt <* tell (All False)
   C.Print fmt a -> A.Print <$> traverse (traverse stm) fmt <*> sact a
-  C.Break str a -> A.Break str <$> sact a
+  C.Break fmt a -> A.Break <$> traverse (traverse stm) fmt <*> sact a
 
 consistentCommunication :: [Maybe ElabState] -> Elab ()
 consistentCommunication sts = do

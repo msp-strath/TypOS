@@ -62,10 +62,10 @@ data Actor
  | Constrain (CdB (Tm ActorMeta)) (CdB (Tm ActorMeta))
  | Push JudgementForm (DB, CdB (Tm ActorMeta)) Actor
  | Lookup (CdB (Tm ActorMeta)) (ActorMeta, Actor) Actor
- | Fail Gripe
  | Win
+ | Fail  [Format Directive Debug (CdB (Tm ActorMeta))]
  | Print [Format Directive Debug (CdB (Tm ActorMeta))] Actor
- | Break String Actor
+ | Break [Format Directive Debug (CdB (Tm ActorMeta))] Actor
  deriving (Show, Eq)
 
 -- | When we encounter a term with actor variables inside and want to send

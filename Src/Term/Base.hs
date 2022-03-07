@@ -1,7 +1,6 @@
 module Term.Base where
 
 import Data.Traversable
-import Control.Applicative
 
 import Bwd
 import Thin

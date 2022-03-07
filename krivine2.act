@@ -29,7 +29,7 @@ unwind@p = p?tm. p?stk. case stk
       \x. krivine { x -> ['Argument a] }.
       krivine@q. q!b. q!as. q?res.
       case res { {x*}rr -> p!rr.
-               ; _ -> # "This should not happen! x should not occur in res"
+               ; _ -> # "This should not happen! %r should not occur in %i" x res
                }
     ; _ -> unwind@q. q!['App tm a]. q!as. q?res. p!res.
     }

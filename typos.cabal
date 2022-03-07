@@ -52,7 +52,8 @@ library
                        Term.Display,
                        Term.Mangler,
                        Term.Substitution,
-                       Thin
+                       Thin,
+                       Utils
 
   build-depends:       base <5, mtl, containers
   hs-source-dirs:      Src

@@ -70,10 +70,10 @@ pact = Under <$> pscoped pact
        <*> psep (punc ";") ((,) <$> ppat <* punc "->" <*> pACT)
        <* pspc <* pch (== '}')
   <|> id <$ pch (== '(') <* pspc <*> pACT <* pspc <* pch (== ')')
-  <|> Break <$ plit "BREAK" <* pspc <*> pstring <* punc "." <*> pact
+  <|> Break <$ plit "BREAK" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Print <$ plit "PRINT" <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
   <|> Print <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
-  <|> Fail <$ pch (== '#') <* pspc <*> pstring
+  <|> Fail <$ pch (== '#') <* pspc <*> (pformat >>= pargs)
   <|> Push <$> pnom <*> pcurlies (withVar "->" ptm) <* punc "." <*> pact
   <|> Lookup <$ plit "lookup" <* pspc <*> ptm <* pspc <*> pcurlies (withVar "->" pACT)
              <* pspc <* plit "else" <* pspc <*> pact

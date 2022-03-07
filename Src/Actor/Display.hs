@@ -106,8 +106,10 @@ instance Display Actor where
       s <- subpdisplay s
       t <- subpdisplay t
       pure $ unwords [s, "~", t]
-    Fail gr -> pure $ unwords ["#\"", gr, "\""]
     Win -> pure $ "Win"
+    Fail fmt -> do
+      fmt <- subpdisplay fmt
+      pure $ unwords ["#", fmt]
     Print [TermPart Instantiate tm] a -> do
       tm <- subpdisplay tm
       a <- pdisplay a
@@ -116,7 +118,10 @@ instance Display Actor where
       fmt <- subpdisplay fmt
       a <- pdisplay a
       pure $ unwords ["PRINTF", fmt, ". ", a]
-    Break str a -> display a
+    Break fmt a -> do
+      fmt <- subpdisplay fmt
+      a <- pdisplay a
+      pure $ unwords ["BREAK", fmt, ". ", a]
 
 instance Display (Pat, Actor) where
   type DisplayEnv (Pat, Actor) = DAEnv

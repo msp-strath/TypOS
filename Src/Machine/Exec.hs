@@ -5,11 +5,13 @@ import Control.Monad.Reader
 import ANSI
 import Bwd
 import Display
+import Format
 import Hide
 import Pattern
 import Scope
 import Term
 import Thin
+import Utils
 
 import Actor
 import Machine.Base
@@ -163,27 +165,37 @@ exec p@Process { actor = Lookup t (av, a) b, ..}
       _ -> search zf i jd bd
 
 exec p@Process { actor = Print fmt a, ..}
-  | Just format <- traverse (traverse $ mangleActors env) fmt
+  | Just fmt <- traverse (traverse $ mangleActors env) fmt
   =  unsafePerformIO $ do
       putStrLn $ withANSI [SetColour Background Magenta]
-               $ unsafeEvalDisplay (frDisplayEnv stack)
-               $ subdisplay
-               $ insertDebug p
-               $ instantiate store format
+               $ format p fmt
       _ <- getLine
       pure (exec (p { actor = a }))
 
-exec p@Process { actor = Break str a }
+exec p@Process { actor = Break fmt a, ..}
   = unsafePerformIO $ do
-      when (MachineBreak `elem` tracing p) $ do
-        putStrLn $ withANSI [SetColour Background Red] str
-        () <$ getLine
+      when (MachineBreak `elem` tracing) $ do
+        whenJust (traverse (traverse $ mangleActors env) fmt) $ \ fmt -> do
+          putStrLn $ withANSI [SetColour Background Red] $ format p fmt
+          () <$ getLine
       pure (exec (p { actor = a }))
 
-exec p@Process { actor = Fail str, ..}
-  = alarm str $ move (p  { stack = stack :<+>: [] })
+exec p@Process { actor = Fail fmt, ..}
+  = let msg = case traverse (traverse $ mangleActors env) fmt of
+                Just fmt -> format p fmt
+                Nothing -> case evalDisplay (frDisplayEnv stack) (subdisplay fmt) of
+                  Left grp -> "Error " ++ show grp ++ " in the error " ++ show fmt
+                  Right str -> str
+    in alarm msg $ move (p { stack = stack :<+>: [] })
 
 exec p@Process {..} = move (p { stack = stack :<+>: [] })
+
+format :: Process Store Bwd -> [Format Directive Debug Term] -> String
+format p@Process{..} fmt
+  = unsafeEvalDisplay (frDisplayEnv stack)
+  $ subdisplay
+  $ insertDebug p
+  $ instantiate store fmt
 
 unify :: Process Store Cursor -> Process Store []
 -- unify p | dmesg ("\nunify\n  " ++ show p) False = undefined

@@ -45,8 +45,8 @@ data Actor
  | Constrain Raw Raw
  | Push Variable (Variable, Raw) Actor
  | Lookup Raw (Variable, Actor) Actor
- | Fail String
  | Win
+ | Fail  [Format Directive Debug Raw]
  | Print [Format Directive Debug Raw] Actor
- | Break String Actor
+ | Break [Format Directive Debug Raw] Actor
  deriving (Show)
