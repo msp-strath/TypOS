@@ -67,8 +67,8 @@ instance Display Meta where
 
 instance Display0 m => Display (CdB (Tm m)) where
   type DisplayEnv (CdB (Tm m)) = Naming
-  display  (CdB (t', th)) = local (nameSel th) $ display t'
-  pdisplay (CdB (t', th)) = local (nameSel th) $ pdisplay t'
+  display  (CdB t' th) = local (nameSel th) $ display t'
+  pdisplay (CdB t' th) = local (nameSel th) $ pdisplay t'
 
 displayCdr :: Display0 m => Tm m -> DisplayM Naming String
 displayCdr (A "") = pure ""
@@ -81,7 +81,7 @@ displayCdr t = do
   pure ("|" ++ t)
 
 displayCdr' :: Display0 m => CdB (Tm m) -> DisplayM Naming String
-displayCdr' (CdB (t', th)) = local (nameSel th) $ displayCdr t'
+displayCdr' (CdB t' th) = local (nameSel th) $ displayCdr t'
 
 instance Display0 m => Display (Sbst m) where
   type DisplayEnv (Sbst m) = Naming
@@ -96,8 +96,8 @@ instance Display0 m => Display (Sbst m) where
        na@(_, th, _) <- ask
        case sg of
          (S0 :^^ _) | th == ones (bigEnd th) -> pure []
-         (ST (CdB (sg, th) :<>: CdB ((Hide x := t), ph)) :^^ 0) -> do
-           t <- display (CdB (t, ph))
+         (ST (CdB sg th :<>: CdB (Hide x := t) ph) :^^ 0) -> do
+           t <- display (CdB t ph)
            sg <- local (nameSel th) $ displaySg sg
            pure ((x ++ "=" ++ t) : sg)
          (sg :^^ w) -> case na of

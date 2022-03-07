@@ -66,11 +66,11 @@ match :: Root
       -> Pat
       -> Term
       -> Maybe (Root, (Map.Map String Meta, Map.Map Meta Term))
-match r (MP x ph) (CdB (t, th)) = do
+match r (MP x ph) (CdB t th) = do
   let g = bigEnd th - bigEnd ph  -- how many globals?
   ps <- thicken (ones g <> ph) th
   let (m, r') = meta r x
-  return (r', (Map.singleton x m, Map.singleton m (CdB (t, ps))))
+  return (r', (Map.singleton x m, Map.singleton m (CdB t ps)))
 match r p t = case (p, expand t) of
   (VP i, VX j _) | i == j -> return (r, (Map.empty, Map.empty))
   (AP a, AX b _) | a == b -> return (r, (Map.empty, Map.empty))

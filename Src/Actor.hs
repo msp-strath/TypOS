@@ -97,15 +97,15 @@ mangleActors rho tm = go tm where
 
   goSbst :: CdB (Sbst ActorMeta) {-        xi =>Src de -}
          -> Maybe Subst          {- ga <<< xi =>Trg ga <<< de -}
-  goSbst (CdB (S0 :^^ 0, th)) = pure $ sbstI ga *^ (ones ga <> th)
-  goSbst (CdB (ST rp :^^ 0, th)) =
-    splirp (CdB (rp, th)) $ \ s (CdB (x := tm, ph)) -> do
+  goSbst (CdB (S0 :^^ 0) th) = pure $ sbstI ga *^ (ones ga <> th)
+  goSbst (CdB (ST rp :^^ 0) th) =
+    splirp (CdB rp th) $ \ s (CdB (x := tm) ph) -> do
       s <- goSbst s
-      tm <- go (CdB (tm, ph))
+      tm <- go (CdB tm ph)
       pure (sbstT s ((x :=) $^ tm))
-  goSbst (CdB (sg :^^ w, th)) = do
+  goSbst (CdB (sg :^^ w) th) = do
     let (thl, thr) = chopTh w th
-    sg <- goSbst (CdB (sg :^^ 0, thl))
+    sg <- goSbst (CdB (sg :^^ 0) thl)
     pure $ sbstW sg thr
 
   -- Return the term associated to an actor var, together with the

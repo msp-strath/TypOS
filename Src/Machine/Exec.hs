@@ -89,7 +89,7 @@ exec p@Process { actor = m@(Match s cls), ..}
   match env ((zx, MP x ph, tm):xs) | is1s ph = do -- common easy special case
     env <- pure $ newActorVar (ActorMeta x) (zx <>> [], tm) env
     match env xs
-  match env ((zx, MP x ph, tm@(CdB (t, th))):xs) = do
+  match env ((zx, MP x ph, tm@(CdB t th)):xs) = do
     let g = bigEnd th - bigEnd ph
     -- we can do better: t may not depend on disallowed things until definitions are expanded
     tm <- instThicken (ones g <> ph) tm
@@ -107,10 +107,10 @@ exec p@Process { actor = m@(Match s cls), ..}
 
   instThicken :: Th -> Term -> Either Bool Term
   instThicken ph t = case headUp store t of
-      v@(CdB (V, _)) -> case thickenCdB ph v of
+      v@(CdB V _) -> case thickenCdB ph v of
         Just v -> pure v
         Nothing -> Left True
-      m@(CdB (_ :$ _,_)) -> case thickenCdB ph m of
+      m@(CdB (_ :$ _) _) -> case thickenCdB ph m of
         Just m -> pure m
         Nothing -> Left False
       x -> case expand x of
@@ -217,7 +217,7 @@ solveMeta :: Meta   -- The meta (m) we're solving
           -> Term   -- The term (t) that must be equal to m :$ sg and depends on ms
           -> Process Store Cursor
           -> Maybe (Process Store Cursor)
-solveMeta m (CdB (S0 :^^ _, ph)) tm p@Process{..} = do
+solveMeta m (CdB (S0 :^^ _) ph) tm p@Process{..} = do
   tm <- thickenCdB ph tm
   -- FIXME: do a deep occurs check here to avoid the bug from match
   return (p { store = updateStore m (objectNaming $ frDisplayEnv stack) tm store })

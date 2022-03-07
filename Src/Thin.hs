@@ -29,7 +29,7 @@ class Selable t where
   (^?) :: Th -> t -> t
 
 instance Thable (CdB a) where
-  CdB (a, th) *^ ph = CdB (a, th *^ ph)
+  CdB a th *^ ph = CdB a (th *^ ph)
 
 {-
 thinning composition is diagrammatic
@@ -146,52 +146,52 @@ chopTh w th = case thun th of
 
 -- codeBruijn things are paired with a thinning
 -- from support to scope
-newtype CdB a = CdB (a, Th)
+data CdB a = CdB a Th
   deriving (Show, Eq, Ord)
 
 weak :: CdB a -> CdB a
-weak (CdB (t, th)) = CdB (t, th -? False)
+weak (CdB t th) = CdB t (th -? False)
 
 weaks :: Int -> CdB a -> CdB a
-weaks i (CdB (t, th)) = CdB (t, th <> none i)
+weaks i (CdB t th) = CdB t (th <> none i)
 
 ($^) :: (a -> b) -> CdB a -> CdB b
-f $^ CdB (a, th) = CdB (f a, th)
+f $^ CdB a th = CdB (f a) th
   -- f better be support-preserving
 
 scope :: CdB a -> Int
-scope (CdB (_, th)) = bigEnd th
+scope (CdB _ th) = bigEnd th
 
 support :: CdB a -> Int
-support (CdB (_, th)) = weeEnd th
+support (CdB _ th) = weeEnd th
 
 -- Invariant: bigEnd th = bigEnd ph
 -- The big ends of the outputs coincide at the union.
 cop :: Th -> Th -> CdB (Th, Th)
 cop th ph
-  | bigEnd th == 0 = CdB ((none 0, none 0), none 0)
+  | bigEnd th == 0 = CdB (none 0, none 0) (none 0)
   | otherwise = case (thun th, thun ph) of
       ((th, a), (ph, b)) -> case (cop th ph, a || b) of
-        (CdB (c, ps), False)       -> CdB (c , ps -? False)
-        (CdB ((th, ph), ps), True) -> CdB ((th -? a, ph -? b), ps -? True)
+        (CdB c ps, False)       -> CdB c (ps -? False)
+        (CdB (th, ph) ps, True) -> CdB (th -? a, ph -? b) (ps -? True)
 
 
 -- fixme: avoid quadratic
 -- Invariant: whole list's thinnings have bigEnd i
 copz :: Bwd (CdB a) -> Int -> CdB (Bwd (CdB a))
-copz B0                  i = CdB (B0, none i)
-copz (az :< CdB (a, ph)) i = case copz az i of
-  CdB (az, th) -> case cop th ph of
-    CdB ((th, ph), ps) -> CdB (fmap (*^ th) az :< CdB (a, ph), ps)
+copz B0               i = CdB B0 (none i)
+copz (az :< CdB a ph) i = case copz az i of
+  CdB az th -> case cop th ph of
+    CdB (th, ph) ps -> CdB (fmap (*^ th) az :< CdB a ph) ps
 
 -- relevant pairing
 data RP a b = CdB a :<>: CdB b deriving (Show, Eq, Ord)
 (<&>) :: CdB a -> CdB b -> CdB (RP a b)
-CdB (a, th) <&> CdB (b, ph) = CdB (CdB (a, th') :<>: CdB (b, ph'), ps) where
-  CdB ((th', ph'), ps) = cop th ph
+CdB a th <&> CdB b ph = CdB (CdB a th' :<>: CdB b ph') ps where
+  CdB (th', ph') ps = cop th ph
 splirp :: CdB (RP a b) -> (CdB a -> CdB b -> t) -> t
-splirp (CdB (CdB (a, th) :<>: CdB (b, ph), ps)) k =
-  k (CdB (a, th <^> ps)) (CdB (b, ph <^> ps))
+splirp (CdB (CdB a th :<>: CdB b ph) ps) k =
+  k (CdB a (th <^> ps)) (CdB b (ph <^> ps))
 
 instance Selable (Bwd x) where
   th ^? B0 = B0
@@ -247,7 +247,7 @@ thicken th ph = ps <$ guard (is1s th')
   (ps, _, th') = pullback th ph
 
 thickenCdB :: Th -> CdB a -> Maybe (CdB a)
-thickenCdB th (CdB (x, ph)) = CdB . (x,) <$> thicken th ph
+thickenCdB th (CdB x ph) = CdB x <$> thicken th ph
 
 which :: (a -> Bool) -> Bwd a -> Th
 which p B0 = none 0

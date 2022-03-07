@@ -34,7 +34,7 @@ stanMangler :: Int -- number of global vars xi
 stanMangler xi ga tbl = Mangler
   { mangGlo = xi
   , mangLoc = ga
-  , mangV = pure (CdB (V, none xi -? True))
+  , mangV = pure (CdB V (none xi -? True))
   , mangB = stanMangler xi (ga + 1) tbl
   , mangM = \ m sg ->
       case Map.lookup m tbl of
@@ -67,7 +67,7 @@ class Manglable t where
     Nothing -> mangle' mu t
   -}
 
-  mangleCdB mu (CdB (t, th)) = mangle mu' t where
+  mangleCdB mu (CdB t th) = mangle mu' t where
     -- we recheck for mangI after doing a selection computing m'
     mu' = mangSelFrom mu th
 
