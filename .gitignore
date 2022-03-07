@@ -24,3 +24,6 @@ cabal.project.local~
 *.agdai
 *#
 *~
+*.log
+*.out
+*.pdf
