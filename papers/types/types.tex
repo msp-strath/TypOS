@@ -247,6 +247,16 @@ is our attempt to make a virtue of that necessity.
 % Communication via channels (including metas)
 % Judgement declarations and their interaction protocols
 
+The actor model is the backbone of concurrent multiprocess communication in \TypOS. % delete/reword
+Actors may spawn other actors and establish parent-child communication via channels.
+Judgement forms then specify what constitutes a valid message exchange, de facto 
+playing the role of a simple non-branching interaction protocol. We provide
+another communication mechanism via a supply of shared metavariables. Actors may 
+define metavariables as the result of a constraint or perform match on a metavariable,
+with the execution of the actor being suspended as long as the metavariable is unsolved. 
+
+
+
 % PT II - Guillaume
 % The different kinds of actors
 % Store of metas w/ news propagation (monotonicity)
