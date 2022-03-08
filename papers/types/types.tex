@@ -461,7 +461,7 @@ syntax { 'Syntax = ['Tag [
   ['NilOrCons ['Rec 'Syntax] ['Rec 'Syntax]]
   ['Bind ['Atom] ['Rec 'Syntax]]
   ['Tag
-    ['Fix (\list.['NilOrCons 
+    ['Fix (\list.['NilOrCons
                    ['Cons ['Atom]
                    ['Fix (\list.['NilOrCons ['Rec 'Syntax] list])]
                  ] list])]]
@@ -538,7 +538,7 @@ type@p = p?ty. case ty
       )
   }
 \end{verbatim}
-  
+
 This actor implements \type, with channel \channel{p} to its parent. Its
 first action is \send{p}{\ty{ty}}\then to ask its parent for an input, which
 comes into scope as the value of the \actorvariable \ty{ty}\then I.e.,
