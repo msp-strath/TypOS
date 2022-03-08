@@ -137,7 +137,8 @@ processes for its parent and child nodes via channels. The notion of
   protocol}, specifying not only what is to be communicated but also
 in which direction. E.g., we may readily distinguish type checking
 actors, which input a type and a term then succeed or fail, from type
-Where a typing rule invokes its premises, a typing actor spawns its children.
+synthesis actors, which input a term then output a type or fail.
+Where a typing rule invokes premises, a typing actor spawns children.
 
 The notion of \emph{schematic variable} in a typing rule is recast as
 the ordinary notion of program variable within an actor. We are
