@@ -129,6 +129,10 @@ We report our work in progress on \TypOS{}, a domain-specific language
 for experimenting with typecheckers and elaborators, presented as
 concurrent actors, but sharing a store of metavariables which become
 monotonically more defined, as is typical in type inference.
+\TypOS{} supports a generic syntax for terms with LISP-style atoms (\atom{\textit{name}}) and
+pairs (\pair{\textit{s}}{\textit{t}}) and a distinct
+$\alpha$-invariant notion of term variables ($x$) and binding
+($\bind x t$).
 We tackle typing tasks not with a single process
 traversing a syntax tree, but rather by spawning a network of processes, each
 responsible for one node of the syntax tree, communicating with the
@@ -143,22 +147,33 @@ Where a typing rule invokes premises, a typing actor spawns children.
 The notion of \emph{schematic variable} in a typing rule is recast as
 the ordinary notion of program variable within an actor. We are
 careful to distinguish these `actor variables' from the `term
-variables' of the syntax being manipulated by the actors, for which we
-take generic LISP-style atoms and pairs and add a distinct
-$\alpha$-invariant notion of term variables and binding. Schematic
+variables' of the syntax being manipulated by the actors. Schematic
 variables in typing rules are usually thought of as bound by implicit
 universal quantification: by contrast, each of our actor variables has
 one explicit binding site in an actor process, either at an input
-action, or in a pattern-match, and zero or more use sites. The term
-variables in scope for each actor variable are thus determined
-precisely. Likewise, the term variables in scope at the time a channel
-is created limit what is in scope for the signals on the channel.
+action, or in a pattern-match, and zero or more use sites in
+expressions. The term variables in scope for each actor variable are
+thus determined precisely. Likewise, the term variables in scope at
+the time a channel is created limit what is in scope for the signals
+on the channel.
+
+The input/output distinction aligns with a pattern/expression
+separation seldom made explicit in typing rules, but often vital in
+practice. The expressions we may send as outputs are generous, in
+particular allowing \emph{substitution} of term variables. Patterns,
+meanwhile, analyse inputs in ways which are restricted to ensure that
+actors can access information which is realistically attainable (i.e.,
+not by inverting substitution) and to which they are entitled. By
+contrast, recall the use of substitution in typing rules, e.g. when
+constructing dependent pairs or applying depedent functions, and
+observe that their algorithmic status happens more by luck than
+judgement.
 
 The actor model principle of sharing by message rather than memory
 allows us to guarantee that each actor has direct knowledge of only
 those term variables it has bound itself. Actors have no knowledge of
-any variables which were already free when they were spawned, and can
-thus take no action which might violate stability under substitution.
+any term variables which were already free when they were spawned, and
+are thus less likely to violate stability under substitution.
 
 None the less, we do support the one form of memory that distributed
 concurrent processes may safely share --- \emph{metavariables}, framed
