@@ -104,26 +104,27 @@
   \and
   Malin Altenm\"uller\inst{2}
   \and
-  Fredrik Nordvall Forsberg\inst{2}
-  \and
   Conor McBride\inst{2}
   \and
   Georgi Nakov\inst{2}
+  \and
+  Fredrik Nordvall Forsberg\inst{2}
   \and
   Craig Roy\inst{3}
 }
 
 \institute{
 University of St Andrews,
-United Kingdom \\
+Fife, United Kingdom
 \and
 University of Strathclyde,
-Glasgow, United Kingdom\\
+Glasgow, United Kingdom
 \and
-Quantinuum \& Cambridge Quantum, United Kingdom
+Quantinuum \& Cambridge Quantum,
+Cambridge, United Kingdom
 }
 
-\authorrunning{G. Allais, M. Altenm\"uller, F. Nordvall Forsberg, C. McBride, G. Nakov, and C. Roy}
+\authorrunning{G. Allais, M. Altenm\"uller, C. McBride, G. Nakov, F. Nordvall Forsberg, and C. Roy}
 \titlerunning{\TypOS}
 
 \title{\TypOS: An Operating System for Typechecking Actors}
@@ -135,87 +136,123 @@ Quantinuum \& Cambridge Quantum, United Kingdom
 % - untyped lambda calculus
 % - bidi stlc + evalutation
 
-\section*{Introduction} % Conor
-
+\paragraph{Introduction}
 We report our work in progress on \TypOS{}, a domain-specific language
-for experimenting with typecheckers and elaborators. Presented as
-concurrent actors, they share a store of metavariables which become
-monotonically more defined as is typical in type inference.  We
-tackle typing tasks not with a single process traversing a syntax
-tree, but rather by spawning a network of processes, each responsible
-for one node of the syntax tree, communicating with the processes for
-its parent and child nodes via channels.  \TypOS{} supports a generic
-syntax for terms with LISP-style atoms (\atom{\textit{name}} or
-$\nil$) and pairs (\pair{\textit{s}}{\textit{t}}, removing every
-$\pipe\lsq$ and its matching $\rsq$) and a distinct $\alpha$-invariant
-notion of term variables ($x$) and binding ($\bind x t$). However, we
-provide means to name subsets of the generic syntax which adhere to
-formats specified by mutual recursion.
+for experimenting with typecheckers and elaborators. %Presented as
+%concurrent actors, they share a store of metavariables which become
+%monotonically more defined as is typical in type inference.
+We tackle typing tasks not with a single process traversing a syntax
+tree, but rather by spawning a network of
+actors~\cite{hewitt1973actors}, each responsible for one node of the
+syntax tree, communicating with the actors for its parent and child
+nodes via channels. Thus the problem of running the typechecker or
+elaborator becomes the problem of \emph{scheduling} the execution and
+communication of actors.
 
-The notion of \emph{judgement form} is recast as channel
-\emph{interaction protocol}, specifying not only what is to be
-communicated but also in which direction.
-We \emph{declare} an actor by
-giving it a
-\begin{wrapfigure}{r}{0.3\textwidth}
- \vspace{-.5\baselineskip}
-  \begin{align*}
-    \tt check \hab \query\atom{Type}\then \query\atom{Check}\then \\
-    \tt synth \hab \query\atom{Synth}\then \bang\atom{Type}\then
-  \end{align*}
-\end{wrapfigure}
-name, and specifying the protocol it follows E.g., we may
-readily distinguish type checking actors, which input a type and a
-checkable term then succeed or fail,
-from type synthesis actors, which input a synthesizable term then
-output a type or fail.
+\paragraph{Term syntax and judgement forms}
+\TypOS{} supports a generic syntax for terms with LISP-style atoms
+\atom{\textit{name}}, cons lists $\listof{a_1\, \ldots\, a_n}$, a
+distinct $\alpha$-invariant notion of term variables $x$ and binding
+$\bind x t$. We provide means to name subsets of the generic syntax
+which adhere to formats specified by mutual recursion.  The notion of
+\emph{judgement form} is recast as channel \emph{interaction
+  protocol}~\cite{honda1993session}, specifying not only what is to be
+communicated, but also in which direction.  We \emph{declare} an actor
+by giving it a name, and specifying the protocol it follows. For
+example, we may readily declare a type checking actor
+\[
+  \mathtt{check \hab \query\atom{Type}\then \query\atom{Check}\then}
+\]
+which input a type and a checkable term and then succeed or fail,
+and a type synthesis actor
+\[
+  \mathtt{synth \hab \query\atom{Synth}\then \bang\atom{Type}\then}
+\]
+which input a synthesizable term, then output a type or fail.
 
-
-The typing rules are then given by \emph{defining} those actors to
+\paragraph{Typing rules}
+Typing rules are then given by \emph{defining} actors to
 perform the communications corresponding to the rules' conclusions. An
 actor starts with only the channel to its parent actor, but where
 rules have premises, a typing actor spawns children, each with its own
-channel.  Each channel fixes its own required order of communication, but
-communications on different channels may be arbitrarily interleaved.
-Indeed, actors may fork into concurrent subprocesses which communicate
-independently.
+channel.  %Each channel fixes its own required order of communication, but
+%communications on different channels may be arbitrarily interleaved.
+%Indeed, actors may fork into concurrent subprocesses which communicate
+%independently.
+Actors may generate fresh metavariables, declare constraints, bind
+local variables, match on terms using a
+scope-aware pattern language, and push and look up data associated to
+local variables.
+%
+For example, here are actors for bidirectional type checking and type synthesis of the simply typed lambda calculus, following the interaction protocol above:
+%
+\begin{lstlisting}[columns=fullflexible,keepspaces=true]
+check@p = p?ty. p?tm. case tm    -- inputs type and term via p. match on tm.
+  { ['Lam \x. body] -> ?S. ?T.   -- lambda case: make fresh metavars S and T.
+      ( ty ~ ['Arr S T]          -- unify ty with arrow type. in parallel:
+      | \x.                      -- bind fresh x (now in scope for children),
+        synth { x -> S }.        -- link S with x for descending synth actors,
+        check@q. q!T. q!body. )  -- spawn a child channel q to check the body.
+  ; ['Emb e] ->                  -- embedded term e:
+      synth@q. q!e. q?S.         -- spawn a child to synthesize type S for e,
+      S ~ ty }                   -- unify S and ty.
+\end{lstlisting}
 
+\begin{lstlisting}[columns=fullflexible,keepspaces=true]
+synth@p = p?tm.                    -- input term tm via p
+	  lookup tm { S -> p!S. }  -- try to lookup tm in synth context
+	  else case tm
+   { ['Ann t ty] ->                -- type annotated term: in parallel
+        ( type@q. q!ty.            --   spawn child to validate type ty
+        | check@r. r!ty. r!t.      --   spawn child to check t has type ty
+        | p!ty. )                  --   send type ty
+   ; ['App f s] -> ?U. ?V.     -- application: make fresh metas U and V
+        ( synth@q. q!f. q?ty.  -- spawn child to synthesize a type for f
+         ty ~ ['Arr U V]       -- unify f with arrow type
+        | check@r. r!U. r!s.   -- spawn a child to check argument
+        | p!V. ) }             -- send the target type
+\end{lstlisting}
+
+
+\paragraph{Schematic variables and scope management}
 The notion of \emph{schematic variable} in a typing rule is recast as
 the ordinary notion of program variable within an actor. We are
-careful to distinguish these `actor variables' from both the `term
-variables' of the syntax being manipulated by the actors and the
-`channel variables' used in input and output actions. Schematic
-variables in typing rules are usually thought of as bound by implicit
-universal quantification: by contrast, each of our actor variables has
+careful to distinguish these `actor variables' from both `term
+variables' of the syntax being manipulated, %by the actors,
+and `channel variables' used in input and output actions. Schematic
+variables in typing rules are usually thought of as implicitly
+universally quantified: by contrast, each of our actor variables has
 one explicit binding site in an actor process, either at an input
-action, or in a pattern-match, and zero or more use sites in
-expressions. The term variables in scope for each actor variable are
-thus determined precisely. Likewise, the term variables in scope at
+action, or in a pattern-match. %, and zero or more use sites in expressions.
+The term variables in scope for each actor variable are
+thus determined precisely~\cite{codebruijn}.
+Likewise, the term variables in scope at
 the time a channel is created limit what is in scope for the signals
-on the channel. When an actor forks in two, its actor and term variables
-remain in scope for both parts, but its channel variables are partitioned
-between them.
+on the channel. When an actor forks in two, its actor and term
+variables remain in scope for both parts, but its channel variables
+are partitioned between them.
 
-The input/output distinction aligns with a pattern/expression
-separation seldom made explicit in typing rules, but often vital in
-practice. The expressions we may send as outputs are generous, in
-particular allowing \emph{substitution} of term variables. Patterns,
-meanwhile, analyse inputs in ways which are restricted to ensure that
-actors can access information which is realistically attainable (i.e.,
-not by inverting substitution) and to which they are entitled. By
-contrast, recall the use of substitution in typing rules, e.g. when
-constructing dependent pairs or applying dependent functions, and
-observe that their algorithmic feasibility happens more by luck than
-judgement.
+%The input/output distinction aligns with a pattern/expression
+%separation seldom made explicit in typing rules, but often vital in
+%practice. The expressions we may send as outputs are generous, in
+%particular allowing \emph{substitution} of term variables. Patterns,
+%meanwhile, analyse inputs in ways which are restricted to ensure that
+%actors can access information which is realistically attainable (i.e.,
+%not by inverting substitution) and to which they are entitled. By
+%contrast, recall the use of substitution in typing rules, e.g. when
+%constructing dependent pairs or applying dependent functions, and
+%observe that their algorithmic feasibility happens more by luck than
+%judgement.
 
+\paragraph{Metavariables and constraints}
 The actor model principle of sharing by message rather than memory
 allows us to guarantee that each actor has direct knowledge of only
 those term variables it has bound itself. Actors have no knowledge of
 any term variables which were already free when they were spawned, and
 are thus less likely to violate stability under substitution.
-
+%
 None the less, we do support the one form of memory that distributed
-concurrent processes may safely share --- \emph{metavariables}, framed
+concurrent processes may safely share~\cite{kuper2015theses} --- \emph{metavariables}, framed
 as inputs from a globally shared oracle, mutating only by becoming
 defined as the result of a constraint. Metavariables thus provide a
 secondary means for actors to communicate. Actors cannot detect
@@ -223,15 +260,25 @@ whether a metavariable has been solved, but they can \emph{block} when
 they match strictly on a metavariable which is currently unknown, then
 unblock subsequently, as the result of a constraint
 elsewhere. Decisions taken on the basis of less information need
-never be retracted when more arrives. However, it is
-this monotone asynchronous progress which makes elaboration
+never be retracted when more arrives.
+
+\paragraph{Executing actors}
+The monotone asynchronous progress of actors makes elaboration
 difficult to implement via shallow embedding with functional
 resumptions: the values locked in a resumption's closure may
 underapproximate what is known by the time the resumption is invoked.
 We are effectively forced to choose a first-order representation of
 suspended elaboration processes by the need to update them. \TypOS{}
 is our attempt to make a virtue of that necessity.
+%
+We currently implement running actors in sequence until they get stuck
+using a stack-based machine; the final configuration of the stack
+represents a typing derivation of the term. In the future, we hope to
+make better use of the parallelism inherent in the actor model.
 
+
+\paragraph{Try it yourself}
+\TypOS is available at \url{https://github.com/msp-strath/TypOS}, together with more examples of actors.
 
 
 % this is a WIP
@@ -240,20 +287,20 @@ is our attempt to make a virtue of that necessity.
 % haskell closures - vs first order processing
 % high level explanation of what the "OS" means
 
-\section*{The Actor Model}
-% PT I - Georgi
-% Concurrency
-% Blocking on metas
-% Communication via channels (including metas)
-% Judgement declarations and their interaction protocols
+% \section*{The Actor Model}
+% % PT I - Georgi
+% % Concurrency
+% % Blocking on metas
+% % Communication via channels (including metas)
+% % Judgement declarations and their interaction protocols
 
-The actor model is the backbone of concurrent multiprocess communication in \TypOS. % delete/reword
-Actors may spawn other actors and establish parent-child communication via channels.
-Judgement forms then specify what constitutes a valid message exchange, de facto 
-playing the role of a simple non-branching interaction protocol. We provide
-another communication mechanism via a supply of shared metavariables. Actors may 
-define metavariables as the result of a constraint or perform match on a metavariable,
-with the execution of the actor being suspended as long as the metavariable is unsolved. 
+% The actor model is the backbone of concurrent multiprocess communication in \TypOS. % delete/reword
+% Actors may spawn other actors and establish parent-child communication via channels.
+% Judgement forms then specify what constitutes a valid message exchange, de facto 
+% playing the role of a simple non-branching interaction protocol. We provide
+% another communication mechanism via a supply of shared metavariables. Actors may 
+% define metavariables as the result of a constraint or perform match on a metavariable,
+% with the execution of the actor being suspended as long as the metavariable is unsolved. 
 
 
 
@@ -263,82 +310,40 @@ with the execution of the actor being suspended as long as the metavariable is u
 % Local scope of actors and terms
 % Explain the syntax of whatever example we use
 
-The language of actors is centered around three key concepts:
-processes and communications,
-terms and pattern-matching,
-metavariables and constraint solving.
-%
-The term-manipulation fragment lets actors bind local variables to go
-under binders and match on terms using a rich scope-aware pattern language
-that can identify binders, or insist that a term does not mention a particular
-local variable.
+% The language of actors is centered around three key concepts:
+% processes and communications,
+% terms and pattern-matching,
+% metavariables and constraint solving.
+% %
+% The term-manipulation fragment lets actors bind local variables to go
+% under binders and match on terms using a rich scope-aware pattern language
+% that can identify binders, or insist that a term does not mention a particular
+% local variable.
 %
 %For instance, the pattern ($\backslash$ x.$\lbrace$x$\star\rbrace$ b)
 %corresponds to a binder-headed term ($\backslash$ x.) whose bound variable is not
 %used ($\lbrace$x$\star\rbrace$) in the body b.
 %
 
-\begin{lstlisting}[columns=fullflexible,keepspaces=true]
-check@p = p?ty. p?tm. case tm    -- inputs ty and tm via p. match on tm.
-  { ['Lam \x. body] -> ?S. ?T.   -- lambda case: fresh metavariables S and T.
-      ( ty ~ ['Arr S T]          -- unify ty with arrow type. in parallel:
-      | \x.                      -- bind fresh x (now in scope for children),
-        synth { x -> S }.        -- link S with x for descending synth actors,
-        check@q. q!T. q!body.    -- spawn a child to check the body.
-      )
-  ; ['Emb e] ->                  -- embedded term e:
-      synth@q. q!e. q?S.         -- synthesize type S for e in child,
-      S ~ ty                     -- unify S and ty.
-  }
-\end{lstlisting}
-
-\begin{lstlisting}[columns=fullflexible,keepspaces=true]
-synth@p = p?tm.                    -- input term tm via p
-	  lookup tm { S -> p!S. }  -- try to lookup tm in synth context
-	  else case tm
-   { ['Rad t ty] ->                -- radical, term t with annotation ty:
-        ( type@q. q!ty.            -- spawn child to validate type ty
-        | check@r. r!ty. r!t.      -- spawn child to check t has type ty
-        | p!ty.                    -- send type ty
-        )
-   ; ['App f s] -> ?U. ?V.     -- application: fresh metas U and V
-        ( synth@q. q!f. q?ty.  -- spawn child to synthesize a type for f
-         ty ~ ['Arr U V]       -- unify f with arrow type
-        | check@r. r!U. r!s.   -- spawn a child to check argument
-        | p!V.	               -- send the target type
-        )
-   }
-\end{lstlisting}
-
-\section*{The Machine} % Fred
-
-We have implemented the execution of actors as a stack based machine,
-where we prioritise executing left branches of parallel actors, the
-spawner over the spawnee. When we can make no further progress, we
-switch over to executing right branches, and spawnees. We keep track
-of when we last made progress in order to decide if we should restart
-unfinished subactors again.
-
 % Substitutions in term syntax
 
-\section*{Conclusion} % Craig
-% Actual concurrency
-We present a work in progress with much more to be done. Our machine neglects to exploit the parallelism inherent in the actor model, instead running each actor in sequence until they get stuck. Remedying this will enable \TypOS as a platform for writing high performance, highly parallel programming language elaborators.
+% \section*{Conclusion} % Craig
+% % Actual concurrency
+% We present a work in progress with much more to be done. Our machine neglects to exploit the parallelism inherent in the actor model, instead running each actor in sequence until they get stuck. Remedying this will enable \TypOS as a platform for writing high performance, highly parallel programming language elaborators.
 
-% Dependent types
-Our notion of constraints also needs refinement. Currently, the user can write \constrain{\ty{S}\!}{\ty{T}}, to demand that \ty{S} and \ty{T} are resolved via structural unification, but we offer no notion of definitional equality which restricts the type theories which can be expressed.
+% % Dependent types
+% Our notion of constraints also needs refinement. Currently, the user can write \constrain{\ty{S}\!}{\ty{T}}, to demand that \ty{S} and \ty{T} are resolved via structural unification, but we offer no notion of definitional equality which restricts the type theories which can be expressed.
 
-% More refined models written in Agda first, then ported
-Our formulation of terms involves different notions of scope requiring many invariants to maintain.
-We mitigate this by prototyping in Agda. Its more expressive type system allows us to offload cognitive overhead by encoding invariants at the type level, which we port to Haskell for the sake of efficient representation. Future iterations may move more work into a more expressive type system such as Agda's for the sake of ease of development and correctness of implementation.
+% % More refined models written in Agda first, then ported
+% Our formulation of terms involves different notions of scope requiring many invariants to maintain.
+% We mitigate this by prototyping in Agda. Its more expressive type system allows us to offload cognitive overhead by encoding invariants at the type level, which we port to Haskell for the sake of efficient representation. Future iterations may move more work into a more expressive type system such as Agda's for the sake of ease of development and correctness of implementation.
 
-% Everything is available on github
-\TypOS is available on Github\cite{typos}. Along with the source code, we provide a user manual and a handful of examples we have created over the course of development.
+% % Everything is available on github
+% \TypOS is available at \url{https://github.com/msp-strath/TypOS}. Along with the source code, we provide a user manual and a handful of examples we have created over the course of development.
 
+\bibliographystyle{plain}
+\bibliography{typos}
 
-\begin{thebibliography}{1}
-\bibitem{typos} \TypOS on Github: \texttt{https://github.com/msp-strath/TypOS}
-\end{thebibliography}
 \end{document}
 
 \TypOS is an operating system for typechecking processes.
