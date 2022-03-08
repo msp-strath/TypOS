@@ -1,7 +1,12 @@
 \documentclass{easychair}
 
+\usepackage{xspace}
+\usepackage{textcomp}
+\usepackage{hyperref}
+\usepackage{microtype}
+
 % Name of the project
-\newcommand{\TypOS}{TypOS\;}
+\newcommand{\TypOS}{TypOS\xspace}
 
 % TypOS helpers
 \newcommand{\syntax}{\texttt{syntax}\;}
@@ -106,10 +111,10 @@ Glasgow, United Kingdom\\
 Quantinuum \& Cambridge Quantum, United Kingdom
 }
 
-\authorrunning{}
-\titlerunning{}
+\authorrunning{G. Allais, M. Altenm\"uller, F. Nordvall Forsberg, C. McBride, G. Nakov, and C. Roy}
+\titlerunning{\TypOS}
 
-\title{\TypOS\!: An Operating System for Typechecking Actors}
+\title{\TypOS: An Operating System for Typechecking Actors}
 
 \begin{document}
 \maketitle
@@ -183,7 +188,7 @@ We mitigate this by prototyping in Agda. Its more expressive type system allows 
 \begin{thebibliography}{1}
 \bibitem{typos} \TypOS on Github: \texttt{https://github.com/msp-strath/TypOS}
 \end{thebibliography}
-\end{document}
+%\end{document}
 
 \TypOS is an operating system for typechecking processes.
 Are the processes being typechecked? Are the processes doing the
