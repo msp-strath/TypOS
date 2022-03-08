@@ -1,7 +1,12 @@
 \documentclass{easychair}
 
+\usepackage{xspace}
+\usepackage{textcomp}
+\usepackage{hyperref}
+\usepackage{microtype}
+
 % Name of the project
-\newcommand{\TypOS}{TypOS\;}
+\newcommand{\TypOS}{TypOS\xspace}
 
 % TypOS helpers
 \newcommand{\syntax}{\texttt{syntax}\;}
@@ -36,7 +41,7 @@
 \newcommand{\compose}[2]{#1 $|$ #2}
 \newcommand{\actor}[1]{\texttt{#1}\;}
 \newcommand{\spawn}[2]{\judgement{#1}\!\texttt{@}\channel{#2}}
-\newcommand{\constrain}[2]{#1 \textasciitilde #2}
+\newcommand{\constrain}[2]{#1 $\sim$ #2}
 \newcommand{\syntaxcat}[1]{\textquotesingle\texttt{#1}\;}
 \newcommand{\judgement}[1]{\texttt{#1}\;}
 
@@ -103,13 +108,13 @@ United Kingdom \\
 University of Strathclyde,
 Glasgow, United Kingdom\\
 \and
-Quantinuum \& Cambridge Quantum \\
+Quantinuum \& Cambridge Quantum, United Kingdom
 }
 
-\authorrunning{}
-\titlerunning{}
+\authorrunning{G. Allais, M. Altenm\"uller, F. Nordvall Forsberg, C. McBride, G. Nakov, and C. Roy}
+\titlerunning{\TypOS}
 
-\title{\TypOS\!: An Operating System for Typechecking Actors}
+\title{\TypOS: An Operating System for Typechecking Actors}
 
 \begin{document}
 \maketitle
@@ -220,12 +225,24 @@ unfinished subactors again.
 
 % Substitutions in term syntax
 
-\section*{Conclusion/Next steps} % Craig
-% Actual concurrency?
-% Dependent types
-% More refined models written in Agda first, then ported
-% Everything is available on github
+\section*{Conclusion} % Craig
+% Actual concurrency
+We present a work in progress with much more to be done. Our machine neglects to exploit the parallelism inherent in the actor model, instead running each actor in sequence until they get stuck. Remedying this will enable \TypOS as a platform for writing high performance, highly parallel programming language elaborators.
 
+% Dependent types
+Our notion of constraints also needs refinement. Currently, the user can write \constrain{\ty{S}\!}{\ty{T}}, to demand that \ty{S} and \ty{T} are resolved via built-in structural unification, but this design limits the expressiveness of type theories that can be implemented. For example, in dependent type systems, type checkers need to allow computation on types in order to progress. The user should be able to specify what might make two metavariables ``close enough''.
+
+% More refined models written in Agda first, then ported
+Our formulation of terms involves different notions of scope requiring many invariants to maintain.
+We mitigate this by prototyping in Agda. Its more expressive type system allows us to offload cognitive overhead by encoding invariants at the type level, which we port to Haskell for the sake of efficient representation. Future iterations may move more work into a more expressive type system such as Agda's for the sake of ease of development and correctness of implementation.
+
+% Everything is available on github
+\TypOS is available on Github\cite{typos}. Along with the source code, we provide a user manual and a handful of examples we have created over the course of development.
+
+
+\begin{thebibliography}{1}
+\bibitem{typos} \TypOS on Github: \texttt{https://github.com/msp-strath/TypOS}
+\end{thebibliography}
 \end{document}
 
 \TypOS is an operating system for typechecking processes.
