@@ -130,13 +130,29 @@ Quantinuum \& Cambridge Quantum \\
 % Concurrency
 % Blocking on metas
 % Communication via channels (including metas)
-% Judgement declarations and thier interaction protocols 
+% Judgement declarations and their interaction protocols
 
 % PT II - Guillaume
 % The different kinds of actors
 % Store of metas w/ news propagation (monotonicity)
 % Local scope of actors and terms
 % Explain the syntax of whatever example we use
+
+The language of actors is centered around three key concepts:
+processes and communications,
+terms and pattern-matching,
+metavariables and constraint solving.
+%
+The term-manipulation fragment lets actors bind local variables to go
+under binders and match on terms using a rich scope-aware pattern language
+that can identify binders, or insist that a term does not mention a particular
+local variable.
+%
+%For instance, the pattern ($\backslash$ x.$\lbrace$x$\star\rbrace$ b)
+%corresponds to a binder-headed term ($\backslash$ x.) whose bound variable is not
+%used ($\lbrace$x$\star\rbrace$) in the body b.
+%
+
 
 \section*{The Machine} % Fred
 
