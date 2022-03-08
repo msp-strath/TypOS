@@ -119,6 +119,14 @@ Quantinuum \& Cambridge Quantum \\
 % - bidi stlc + evalutation
 
 \section*{Introduction} % Conor
+
+We report our work in progress on \TypOS{}, a domain-specific language
+for experimenting with typecheckers and elaborators, presented as
+concurrent actors. We tackle these tasks not with a single process
+traversing a syntax tree, but rather as a network of processes, each
+responsible for one node of the syntax tree, communicating with the
+processes for parent and child nodes via channels.
+
 % this is a WIP
 % for prototyping type checkers and elaborators
 % based on problems the authors have run into?
