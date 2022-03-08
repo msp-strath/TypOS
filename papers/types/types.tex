@@ -13,11 +13,14 @@
 \newcommand{\exec}{\texttt{exec}}
 \newcommand{\nil}{\texttt{[]}}
 \newcommand{\lsq}{\texttt{[}}
+\newcommand{\pipe}{\texttt{|}}
 \newcommand{\rsq}{\texttt{]}}
-\newcommand{\atom}[1]{\textquotesingle#1\;}
-\newcommand{\bind}[1]{\textbackslash#1\!\texttt{.}}
+\newcommand{\atom}[1]{\texttt{\symbol{39}}#1\;}
+\newcommand{\bsl}{\texttt{\symbol{92}}}
+\newcommand{\bind}[1]{\bsl #1\!\texttt{.}}
 \newcommand{\listof}[1]{\lsq #1 \rsq}
 \newcommand{\braced}[1]{$\lbrace$ #1 $\rbrace$}
+\newcommand{\hab}{\;\texttt{:}\;}
 \newcommand{\bang}{\texttt{!}}
 \newcommand{\query}{\texttt{?}}
 \newcommand{\channel}[1]{\texttt{#1}}
@@ -29,10 +32,10 @@
 \newcommand{\substitution}[1]{\texttt{\{}#1{\}}}
 \newcommand{\subst}[2]{#1\texttt{=}#2}
 \newcommand{\tm}[1]{\texttt{#1}\;}
-\newcommand{\pair}[2]{\listof{#1 \texttt{|} #2}}
+\newcommand{\pair}[2]{\listof{#1 \pipe #2}}
 \newcommand{\wildcard}{\textunderscore}
 \newcommand{\lose}[1]{\texttt\##1}
-\newcommand{\then}{\texttt{.}}
+\newcommand{\then}{\texttt{.}\;}
 \newcommand{\send}[2]{\channel{#1}\bang#2}
 \newcommand{\recv}[2]{\channel{#1}\query#2}
 \newcommand{\many}[1]{#1$^*$}
@@ -128,26 +131,46 @@ Quantinuum \& Cambridge Quantum, United Kingdom
 We report our work in progress on \TypOS{}, a domain-specific language
 for experimenting with typecheckers and elaborators, presented as
 concurrent actors, but sharing a store of metavariables which become
-monotonically more defined, as is typical in type inference.
-\TypOS{} supports a generic syntax for terms with LISP-style atoms (\atom{\textit{name}}) and
-pairs (\pair{\textit{s}}{\textit{t}}) and a distinct
-$\alpha$-invariant notion of term variables ($x$) and binding
-($\bind x t$).
-We tackle typing tasks not with a single process
-traversing a syntax tree, but rather by spawning a network of processes, each
-responsible for one node of the syntax tree, communicating with the
-processes for its parent and child nodes via channels. The notion of
-\emph{judgement form} is recast as channel \emph{interaction
-  protocol}, specifying not only what is to be communicated but also
-in which direction. E.g., we may readily distinguish type checking
-actors, which input a type and a term then succeed or fail, from type
-synthesis actors, which input a term then output a type or fail.
-Where a typing rule invokes premises, a typing actor spawns children.
+monotonically more defined, as is typical in type inference.  We
+tackle typing tasks not with a single process traversing a syntax
+tree, but rather by spawning a network of processes, each responsible
+for one node of the syntax tree, communicating with the processes for
+its parent and child nodes via channels.  \TypOS{} supports a generic
+syntax for terms with LISP-style atoms (\atom{\textit{name}} or
+$\nil$) and pairs (\pair{\textit{s}}{\textit{t}}, removing every
+$\pipe\lsq$ and its matching $\rsq$) and a distinct $\alpha$-invariant
+notion of term variables ($x$) and binding ($\bind x t$). However, we
+provide means to name subsets of the generic syntax which adhere to
+formats specified by mutual recursion.
+
+The notion of \emph{judgement form} is recast as channel
+\emph{interaction protocol}, specifying not only what is to be
+communicated but also in which direction. We \emph{declare} an actor by
+giving it a name, and specifying the protocol it follows E.g., we may
+readily distinguish type checking actors, which input a type and a
+checkable term then succeed or fail,
+\[
+  \tt check \hab \query\atom{Type}\then \query\atom{Check}\then
+\]
+from type synthesis actors, which input a synthesizable term then
+output a type or fail.
+\[
+  \tt synth \hab \query\atom{Synth}\then \query\atom{Type}\then
+\]
+The typing rules are then given by \emph{defining} those actors to
+perform the communications correspoing to the rules' conclusions. An
+actor starts with only the channel to its parent actor, but where
+rules have premises, a typing actor spawns children, each with its own
+channel.  Each channel fixes its own required order of communication, but
+communications on different channels may be arbitrarily interleaved.
+Indeed, actors may fork into concurrent subprocesses which communicate
+independently.
 
 The notion of \emph{schematic variable} in a typing rule is recast as
 the ordinary notion of program variable within an actor. We are
-careful to distinguish these `actor variables' from the `term
-variables' of the syntax being manipulated by the actors. Schematic
+careful to distinguish these `actor variables' from both the `term
+variables' of the syntax being manipulated by the actors and the
+`channel variables' used in input and output actions. Schematic
 variables in typing rules are usually thought of as bound by implicit
 universal quantification: by contrast, each of our actor variables has
 one explicit binding site in an actor process, either at an input
@@ -155,7 +178,9 @@ action, or in a pattern-match, and zero or more use sites in
 expressions. The term variables in scope for each actor variable are
 thus determined precisely. Likewise, the term variables in scope at
 the time a channel is created limit what is in scope for the signals
-on the channel.
+on the channel. When an actor forks in two, its actor and term variables
+remain in scope for both parts, but its channel variables are partitioned
+between them.
 
 The input/output distinction aligns with a pattern/expression
 separation seldom made explicit in typing rules, but often vital in
@@ -166,7 +191,7 @@ actors can access information which is realistically attainable (i.e.,
 not by inverting substitution) and to which they are entitled. By
 contrast, recall the use of substitution in typing rules, e.g. when
 constructing dependent pairs or applying depedent functions, and
-observe that their algorithmic status happens more by luck than
+observe that their algorithmic feasibility happens more by luck than
 judgement.
 
 The actor model principle of sharing by message rather than memory
