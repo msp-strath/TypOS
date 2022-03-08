@@ -138,7 +138,7 @@ processes for parent and child nodes via channels.
 % Concurrency
 % Blocking on metas
 % Communication via channels (including metas)
-% Judgement declarations and thier interaction protocols 
+% Judgement declarations and their interaction protocols
 
 % PT II - Guillaume
 % The different kinds of actors
@@ -146,9 +146,31 @@ processes for parent and child nodes via channels.
 % Local scope of actors and terms
 % Explain the syntax of whatever example we use
 
+The language of actors is centered around three key concepts:
+processes and communications,
+terms and pattern-matching,
+metavariables and constraint solving.
+%
+The term-manipulation fragment lets actors bind local variables to go
+under binders and match on terms using a rich scope-aware pattern language
+that can identify binders, or insist that a term does not mention a particular
+local variable.
+%
+%For instance, the pattern ($\backslash$ x.$\lbrace$x$\star\rbrace$ b)
+%corresponds to a binder-headed term ($\backslash$ x.) whose bound variable is not
+%used ($\lbrace$x$\star\rbrace$) in the body b.
+%
+
+
 \section*{The Machine} % Fred
-% Managing frames and processes
-% News
+
+We have implemented the execution of actors as a stack based machine,
+where we prioritise executing left branches of parallel actors, the
+spawner over the spawnee. When we can make no further progress, we
+switch over to executing right branches, and spawnees. We keep track
+of when we last made progress in order to decide if we should restart
+unfinished subactors again.
+
 % Substitutions in term syntax
 
 \section*{Conclusion/Next steps} % Craig
