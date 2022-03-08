@@ -179,7 +179,7 @@ channel.  %Each channel fixes its own required order of communication, but
 %communications on different channels may be arbitrarily interleaved.
 %Indeed, actors may fork into concurrent subprocesses which communicate
 %independently.
-Actors may generate fresh metavariables, declare constraints, bind
+Actors may fork, generate fresh metavariables, declare constraints, bind
 local variables, match on terms using a
 scope-aware pattern language, and push and look up data associated to
 local variables.
