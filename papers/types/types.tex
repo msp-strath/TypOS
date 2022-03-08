@@ -163,12 +163,12 @@ example, we may readily declare a type checking actor
 \[
   \mathtt{check \hab \query\atom{Type}\then \query\atom{Check}\then}
 \]
-which input a type and a checkable term and then succeed or fail,
+which receives a type and a checkable term and then succeeds or fails,
 and a type synthesis actor
 \[
   \mathtt{synth \hab \query\atom{Synth}\then \bang\atom{Type}\then}
 \]
-which input a synthesizable term, then output a type or fail.
+which receives a synthesizable term, then outputs a type or fails.
 
 \paragraph{Typing rules}
 Typing rules are then given by \emph{defining} actors to
