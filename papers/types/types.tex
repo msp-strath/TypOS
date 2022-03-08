@@ -145,9 +145,9 @@ We tackle typing tasks not with a single process traversing a syntax
 tree, but rather by spawning a network of
 actors~\cite{hewitt1973actors}, each responsible for one node of the
 syntax tree, communicating with the actors for its parent and child
-nodes via channels. Thus the problem of running the typechecker or
-elaborator becomes the problem of \emph{scheduling} the execution and
-communication of actors.
+nodes via channels. Our goals are similar to those of other
+domain-specific languages such as Andromeda~\cite{andromeda}, PLT
+Redex~\cite{redex}, or Turnstyle+~\cite{turnstyleplus}.
 
 \paragraph{Term syntax and judgement forms}
 \TypOS{} supports a generic syntax for terms with LISP-style atoms
