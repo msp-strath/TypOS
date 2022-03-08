@@ -6,7 +6,7 @@ DEPS:=easychair.cls
 all: $(TEX) $(DEPS)
 	mkdir -p _build
 	cp $(DEPS) $(TEX) _build
-	cd _build && latexmk -pdflatex $(TEX)
+	cd _build && latexmk -pdf $(TEX)
 	ln -sf _build/$(PDF) $(PDF)
 
 clean:

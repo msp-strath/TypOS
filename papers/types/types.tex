@@ -5,6 +5,10 @@
 \usepackage{hyperref}
 \usepackage{microtype}
 
+\lstset{basicstyle=\tt}
+\lstset{
+    literate={~} {\fontfamily{ptm}\selectfont\texttildelow}{1}
+}
 % Name of the project
 \newcommand{\TypOS}{TypOS\xspace}
 
@@ -229,7 +233,7 @@ local variable.
 %used ($\lbrace$x$\star\rbrace$) in the body b.
 %
 
-\begin{verbatim}
+\begin{lstlisting}[columns=fullflexible,keepspaces=true]
 check@p = p?ty. p?tm. case tm    -- inputs ty and tm via p. match on tm.
   { ['Lam \x. body] -> ?S. ?T.   -- lambda case: ask for inputs S and T.
       ( ty ~ ['Arr S T]          -- unify ty with arrow type. in parallel:
@@ -237,11 +241,11 @@ check@p = p?ty. p?tm. case tm    -- inputs ty and tm via p. match on tm.
         synth { x -> S }.        -- link S with x for descending synth actors,
         check@q. q!T. q!body.    -- spawn a child to check the body.
       )
-  ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty -- embedded term e:
-                                          -- synthesize type S for e in child,
-                                          -- unify S and ty.
+  ; ['Emb e] ->                  -- embedded term e:
+      synth@q. q!e. q?S.         -- synthesize type S for e in child,
+      S ~ ty                     -- unify S and ty.
   }
-\end{verbatim}
+\end{lstlisting}
 
 \section*{The Machine} % Fred
 
