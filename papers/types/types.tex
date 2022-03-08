@@ -165,12 +165,27 @@ unfinished subactors again.
 
 % Substitutions in term syntax
 
-\section*{Conclusion/Next steps} % Craig
-% Actual concurrency?
-% Dependent types
-% More refined models written in Agda first, then ported
-% Everything is available on github
+\section*{Conclusion} % Craig
+% Actual concurrency
+What we present here is a work in progress and there is much further to be done. The scheduler, which manages a running program's tree of typechecking actors, neglects to exploit the parallelism inherent in our actor model, instead implementing a single-threaded multitasking algorithm wherein each process is run until it is stuck (either matching on a metavariable or waiting to be sent information) at which point the scheduler will look for another process on which progress can be made. This should remedied to enable the use of \TypOS as a platform for writing high performance, highly parallel programming language elaborators.
 
+% Dependent types
+More work also needs to be done on the introduction of unification constraints. Our current formulation merely allows the user to write \constrain{\ty{S}\!}{\ty{T}}, where metavariables \ty{S} and \ty{T} should be resolved with built in unification machinery, only when they can be deemed structurally equal. This design limits the expressiveness of type theories that users can implement. For example, in dependent type systems, elaborators need to allow for the notion of computing types in order to compare equality. The user should be offered the option of specifying what might make two metavariables ``close enough''.
+
+% More refined models written in Agda first, then ported
+% Our internal representation of terms is formulated with explicit substitutions and a co-de Bruijn representation of captured variables in each node of the syntax tree. In addition to this, seperate scopes for actor variables and term variables have to be maintained which introduces a significant amount of cognitive complexity when writing the system.
+
+Our formulation of terms involves a number of different notions of scope. Actors and terms have seperate scopes, channels have their own scopes. Managing this requires maintaining a number of invariants which introduces a significant cognitive overhead when trying to make improvements to \TypOS\!.
+
+We mitigate this by prototyping in dependently typed programming language, Agda. Using its more expressive type system, we could offload some of the cognitive overhead by encoding more invariants at the type level, which we then port to Haskell for the sake of efficient representation. Future iterations of this project may move even more of the work into a dependently-typed language.
+
+% Everything is available on github
+\TypOS is available on Github\cite{typos}. Along with the source code, we provide a user manual and a number of examples which we have created over the course of \TypOS's development.
+
+
+\begin{thebibliography}{1}
+\bibitem{typos} \TypOS on Github: \texttt{https://github.com/msp-strath/TypOS}
+\end{thebibliography}
 \end{document}
 
 \TypOS is an operating system for typechecking processes.
