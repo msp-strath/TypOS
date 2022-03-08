@@ -141,13 +141,20 @@ We report our work in progress on \TypOS{}, a domain-specific language
 for experimenting with typecheckers and elaborators. %Presented as
 %concurrent actors, they share a store of metavariables which become
 %monotonically more defined as is typical in type inference.
-We tackle typing tasks not with a single process traversing a syntax
-tree, but rather by spawning a network of
+We tackle typing tasks by spawning a network of
 actors~\cite{hewitt1973actors}, each responsible for one node of the
-syntax tree, communicating with the actors for its parent and child
+syntax tree, communicating with its parent and child
 nodes via channels. Our goals are similar to those of other
 domain-specific languages such as Andromeda~\cite{andromeda}, PLT
 Redex~\cite{redex}, or Turnstyle+~\cite{turnstyleplus}.
+
+This work is originally motivated by difficulties implementing
+elaborators via shallow embedding with opaque continuations, wherein
+the values locked in a resumption's closure may
+underapproximate what is known by the time it is invoked.
+We are effectively forced to choose a first-order representation of
+suspended elaboration processes by the need to update them. \TypOS{}
+is our attempt to make a virtue of that necessity.
 
 \paragraph{Term syntax and judgement forms}
 \TypOS{} supports a generic syntax for terms with LISP-style atoms
@@ -263,14 +270,6 @@ elsewhere. Decisions taken on the basis of less information need
 never be retracted when more arrives.
 
 \paragraph{Executing actors}
-The monotone asynchronous progress of actors makes elaboration
-difficult to implement via shallow embedding with functional
-resumptions: the values locked in a resumption's closure may
-underapproximate what is known by the time the resumption is invoked.
-We are effectively forced to choose a first-order representation of
-suspended elaboration processes by the need to update them. \TypOS{}
-is our attempt to make a virtue of that necessity.
-%
 We currently implement running actors in sequence until they get stuck
 using a stack-based machine; the final configuration of the stack
 represents a typing derivation of the term. In the future, we hope to
