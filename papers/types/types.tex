@@ -298,7 +298,7 @@ unfinished subactors again.
 We present a work in progress with much more to be done. Our machine neglects to exploit the parallelism inherent in the actor model, instead running each actor in sequence until they get stuck. Remedying this will enable \TypOS as a platform for writing high performance, highly parallel programming language elaborators.
 
 % Dependent types
-Our notion of constraints also needs refinement. Currently, the user can write \constrain{\ty{S}\!}{\ty{T}}, to demand that \ty{S} and \ty{T} are resolved via built-in structural unification, but this design limits the expressiveness of type theories that can be implemented. For example, in dependent type systems, type checkers need to allow computation on types in order to progress. The user should be able to specify what might make two metavariables ``close enough''.
+Our notion of constraints also needs refinement. Currently, the user can write \constrain{\ty{S}\!}{\ty{T}}, to demand that \ty{S} and \ty{T} are resolved via structural unification, but we offer no notion of definitional equality which restricts the type theories which can be expressed.
 
 % More refined models written in Agda first, then ported
 Our formulation of terms involves different notions of scope requiring many invariants to maintain.
