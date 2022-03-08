@@ -122,10 +122,57 @@ Quantinuum \& Cambridge Quantum \\
 
 We report our work in progress on \TypOS{}, a domain-specific language
 for experimenting with typecheckers and elaborators, presented as
-concurrent actors. We tackle these tasks not with a single process
-traversing a syntax tree, but rather as a network of processes, each
+concurrent actors, but sharing a store of metavariables which become
+monotonically more defined, as is typical in type inference.
+We tackle typing tasks not with a single process
+traversing a syntax tree, but rather by spawning a network of processes, each
 responsible for one node of the syntax tree, communicating with the
-processes for parent and child nodes via channels.
+processes for its parent and child nodes via channels. The notion of
+\emph{judgement form} is recast as channel \emph{interaction
+  protocol}, specifying not only what is to be communicated but also
+in which direction. E.g., we may readily distinguish type checking
+actors, which input a type and a term then succeed or fail, from type
+Where a typing rule invokes its premises, a typing actor spawns its children.
+
+The notion of \emph{schematic variable} in a typing rule is recast as
+the ordinary notion of program variable within an actor. We are
+careful to distinguish these `actor variables' from the `term
+variables' of the syntax being manipulated by the actors, for which we
+take generic LISP-style atoms and pairs and add a distinct
+$\alpha$-invariant notion of term variables and binding. Schematic
+variables in typing rules are usually thought of as bound by implicit
+universal quantification: by contrast, each of our actor variables has
+one explicit binding site in an actor process, either at an input
+action, or in a pattern-match, and zero or more use sites. The term
+variables in scope for each actor variable are thus determined
+precisely. Likewise, the term variables in scope at the time a channel
+is created limit what is in scope for the signals on the channel.
+
+The actor model principle of sharing by message rather than memory
+allows us to guarantee that each actor has direct knowledge of only
+those term variables it has bound itself. Actors have no knowledge of
+any variables which were already free when they were spawned, and can
+thus take no action which might violate stability under substitution.
+
+None the less, we do support the one form of memory that distributed
+concurrent processes may safely share --- \emph{metavariables}, framed
+as inputs from a globally shared oracle, mutating only by becoming
+defined as the result of a constraint. Metavariables thus provide a
+secondary means for actors to communicate. Actors cannot detect
+whether a metavariable has been solved, but they can \emph{block} when
+they match strictly on a metavariable which is currently unknown, then
+unblock subsequently, as the result of a constraint
+elsewhere. Decisions taken on the basis of less information need
+never be retracted when more arrives. However, it is
+this monotone asynchronous progress which makes elaboration
+difficult to implement via shallow embedding with functional
+resumptions: the values locked in a resumption's closure may
+underapproximate what is known by the time the resumption is invoked.
+We are effectively forced to choose a first-order representation of
+suspended elaboration processes by the need to update them. \TypOS{}
+is our attempt to make a virtue of that necessity.
+
+
 
 % this is a WIP
 % for prototyping type checkers and elaborators
