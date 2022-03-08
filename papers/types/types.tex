@@ -270,7 +270,7 @@ local variable.
 
 \begin{lstlisting}[columns=fullflexible,keepspaces=true]
 check@p = p?ty. p?tm. case tm    -- inputs ty and tm via p. match on tm.
-  { ['Lam \x. body] -> ?S. ?T.   -- lambda case: ask for inputs S and T.
+  { ['Lam \x. body] -> ?S. ?T.   -- lambda case: fresh metavariables S and T.
       ( ty ~ ['Arr S T]          -- unify ty with arrow type. in parallel:
       | \x.                      -- bind fresh x (now in scope for children),
         synth { x -> S }.        -- link S with x for descending synth actors,
@@ -280,6 +280,24 @@ check@p = p?ty. p?tm. case tm    -- inputs ty and tm via p. match on tm.
       synth@q. q!e. q?S.         -- synthesize type S for e in child,
       S ~ ty                     -- unify S and ty.
   }
+\end{lstlisting}
+
+\begin{lstlisting}[columns=fullflexible,keepspaces=true]
+synth@p = p?tm.                    -- input term tm via p
+	  lookup tm { S -> p!S. }  -- try to lookup tm in synth context
+	  else case tm
+   { ['Rad t ty] ->                -- radical, term t with annotation ty:
+        ( type@q. q!ty.            -- spawn child to validate type ty
+        | check@r. r!ty. r!t.      -- spawn child to check t has type ty
+        | p!ty.                    -- send type ty
+        )
+   ; ['App f s] -> ?U. ?V.     -- application: fresh metas U and V
+        ( synth@q. q!f. q?ty.  -- spawn child to synthesize a type for f
+         ty ~ ['Arr U V]       -- unify f with arrow type
+        | check@r. r!U. r!s.   -- spawn a child to check argument
+        | p!V.	               -- send the target type
+        )
+   }
 \end{lstlisting}
 
 \section*{The Machine} % Fred
