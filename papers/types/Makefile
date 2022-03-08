@@ -1,12 +1,13 @@
 TARGET:=types
+BIB:=typos.bib
 TEX:=$(TARGET).tex
 PDF:=$(TARGET).pdf
 DEPS:=easychair.cls
 
 all: $(TEX) $(DEPS)
 	mkdir -p _build
-	cp $(DEPS) $(TEX) _build
-	cd _build && latexmk -pdf $(TEX)
+	cp $(BIB) $(DEPS) $(TEX) _build
+	cd _build && latexmk -bibtex -pdf $(TEX)
 	ln -sf _build/$(PDF) $(PDF)
 
 clean:
