@@ -4,6 +4,11 @@
 \usepackage{textcomp}
 \usepackage{hyperref}
 \usepackage{microtype}
+\usepackage{wrapfig}
+\setlength{\intextsep}{0pt}%
+% \setlength{\columnsep}{2pt}%
+\setlength{\abovedisplayshortskip}{1.5pt}
+\setlength{\belowdisplayshortskip}{1.5pt}
 
 \lstset{basicstyle=\tt}
 \lstset{
@@ -133,9 +138,9 @@ Quantinuum \& Cambridge Quantum, United Kingdom
 \section*{Introduction} % Conor
 
 We report our work in progress on \TypOS{}, a domain-specific language
-for experimenting with typecheckers and elaborators, presented as
-concurrent actors, but sharing a store of metavariables which become
-monotonically more defined, as is typical in type inference.  We
+for experimenting with typecheckers and elaborators. Presented as
+concurrent actors, they share a store of metavariables which become
+monotonically more defined as is typical in type inference.  We
 tackle typing tasks not with a single process traversing a syntax
 tree, but rather by spawning a network of processes, each responsible
 for one node of the syntax tree, communicating with the processes for
@@ -149,18 +154,23 @@ formats specified by mutual recursion.
 
 The notion of \emph{judgement form} is recast as channel
 \emph{interaction protocol}, specifying not only what is to be
-communicated but also in which direction. We \emph{declare} an actor by
-giving it a name, and specifying the protocol it follows E.g., we may
+communicated but also in which direction.
+We \emph{declare} an actor by
+giving it a
+\begin{wrapfigure}{r}{0.3\textwidth}
+ \vspace{-.5\baselineskip}
+  \begin{align*}
+    \tt check \hab \query\atom{Type}\then \query\atom{Check}\then \\
+    \tt synth \hab \query\atom{Synth}\then \bang\atom{Type}\then
+  \end{align*}
+\end{wrapfigure}
+name, and specifying the protocol it follows E.g., we may
 readily distinguish type checking actors, which input a type and a
 checkable term then succeed or fail,
-\[
-  \tt check \hab \query\atom{Type}\then \query\atom{Check}\then
-\]
 from type synthesis actors, which input a synthesizable term then
 output a type or fail.
-\[
-  \tt synth \hab \query\atom{Synth}\then \query\atom{Type}\then
-\]
+
+
 The typing rules are then given by \emph{defining} those actors to
 perform the communications corresponding to the rules' conclusions. An
 actor starts with only the channel to its parent actor, but where
