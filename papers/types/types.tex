@@ -270,10 +270,11 @@ elsewhere. Decisions taken on the basis of less information need
 never be retracted when more arrives.
 
 \paragraph{Executing actors}
-We currently implement running actors in sequence until they get stuck
-using a stack-based machine; the final configuration of the stack
-represents a typing derivation of the term. In the future, we hope to
-make better use of the parallelism inherent in the actor model.
+We implement a stack-based VM, which runs each actor until it gets stuck,
+then looks for the next actor where progress can be made.
+Actors can get unstuck by updating their metavariables via substitutions from the
+global unification state, where information increases monotonically.
+The final configuration of the stack represents a typing derivation of the term.
 
 
 \paragraph{Try it yourself}
