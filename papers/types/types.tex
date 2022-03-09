@@ -217,10 +217,10 @@ synth@p = p?tm.                  -- input term tm via p
        | check@r. r!ty. r!t.     --   spawn child to check t has type ty
        | p!ty. )                 --   send type ty
    ; ['App f s] -> ?U. ?V.       -- application: fresh metavars U and V
-       ( synth@q. q!f. q?ty.     -- spawn child to synthesise a type for f
-         ty ~ ['Arr U V]         -- unify f with arrow type
-       | check@r. r!U. r!s.      -- spawn a child to check argument
-       | p!V. ) }                -- send the target type
+       ( synth@q. q!f. q?ty.     -- spawn child to synthesise a type ty for f
+         ty ~ ['Arr U V]         -- unify ty with arrow type
+       | check@r. r!U. r!s.      -- spawn child to check argument
+       | p!V. ) }                -- send the target type back
 \end{lstlisting}
 
 
