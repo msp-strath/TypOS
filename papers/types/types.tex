@@ -24,7 +24,8 @@
 \newcommand{\lsq}{\texttt{[}}
 \newcommand{\pipe}{\texttt{|}}
 \newcommand{\rsq}{\texttt{]}}
-\newcommand{\atom}[1]{\texttt{\symbol{39}}#1\;}
+\newcommand{\atquote}{\symbol{39}}
+\newcommand{\atom}[1]{\texttt{\atquote}#1\;}
 \newcommand{\bsl}{\texttt{\symbol{92}}}
 \newcommand{\bind}[1]{\bsl #1\!\texttt{.}}
 \newcommand{\listof}[1]{\lsq #1 \rsq}
@@ -154,22 +155,31 @@ Redex~\cite{redex}, or Turnstyle+~\cite{turnstyleplus}.
 This work is originally motivated by difficulties implementing
 elaborators via shallow embedding with opaque continuations, wherein
 the values locked in a resumption's closure may
-underapproximate what is known by the time it is invoked.
-We are effectively forced to choose a first-order representation of
+underapproximate what is known by the time it is invoked:
+we are effectively forced to choose a first-order representation of
 suspended elaboration processes by the need to update them. \TypOS{}
 is our attempt to make a virtue of that necessity.
 
 \paragraph{Term syntax and judgement forms}
-\TypOS{} supports a generic LISP-style syntax for terms, including atoms
-and cons lists, and a
-distinct $\alpha$-invariant notion of term variables $x$ and binding
-$\bind x t$. We provide means to name subsets of the generic syntax
-which adhere to formats specified by mutual recursion.  The notion of
+\TypOS{} supports a generic LISP-style syntax for terms,
+including atoms (\atquote{}a),
+cons lists (\lsq $a$ $b$ $c$\rsq),
+and an $\alpha$-invariant notion of term variables ($x$)
+and binding ($\bind x t$).
+%
+Users can restrict the shape of such terms using context-free
+grammars, for example defining the syntactic categories of
+simple types (\atquote\texttt{Type}),
+synthesisable (\atquote\texttt{Synth}),
+and checkable terms (\atquote\texttt{Check}).
+%
+The notion of
 \emph{judgement form} is recast as channel \emph{interaction
-  protocol}~\cite{honda1993session}, specifying not only what is to be
-communicated, but also in which direction.  We \remph{declare} an actor
-by naming it and specifying the protocol it follows. For
-example, we may declare a type checking actor
+protocol}~\cite{honda1993session},
+specifying what to communicate, and in which direction.
+%
+We \remph{declare} an actor by giving its name and protocol.
+For example, we may declare a type checking actor
 \[
   \mathtt{check \hab \query\atom{Type}\then \query\atom{Check}\then}
 \]
@@ -197,15 +207,15 @@ local variables.
 For example, here are actors for bidirectional type checking and type synthesis of the simply typed lambda calculus, following the interaction protocol above:
 %
 \begin{lstlisting}[columns=fullflexible,keepspaces=true]
-check@p = p?ty. p?tm. case tm    -- inputs type and term via p. match on tm.
-  { ['Lam \x. body] -> ?S. ?T.   -- lambda case: make fresh metavars S and T.
-      ( ty ~ ['Arr S T]          -- unify ty with arrow type. in parallel:
-      | \x.                      -- bind fresh x (now in scope for children),
-        synth { x -> S }.        -- link S with x for descending synth actors,
-        check@q. q!T. q!body. )  -- spawn a child channel q to check the body.
+check@p = p?ty. p?tm. case tm    -- inputs type and term via p. match on tm
+  { ['Lam \x. body] -> ?S. ?T.   -- lambda case: make fresh metavars S and T
+      ( ty ~ ['Arr S T]          --   unify ty with arrow type, in parallel:
+      | \x.                      --   bind fresh x (now in scope for children)
+        synth { x -> S }.        --   link S with x for descending synth actors
+        check@q. q!T. q!body. )  --   spawn child on channel q to check body
   ; ['Emb e] ->                  -- embedded synthesisable term e:
-      synth@q. q!e. q?S.         -- spawn a child to synthesise type S for e,
-      S ~ ty }                   -- unify S and ty.
+      synth@q. q!e. q?S.         --   spawn child to synthesise type S for e
+      S ~ ty }                   --   unify S and ty
 \end{lstlisting}
 %
 \begin{lstlisting}[columns=fullflexible,keepspaces=true]
@@ -216,11 +226,11 @@ synth@p = p?tm.                  -- input term tm via p
        ( type@q. q!ty.           --   spawn child to validate type ty
        | check@r. r!ty. r!t.     --   spawn child to check t has type ty
        | p!ty. )                 --   send type ty
-   ; ['App f s] -> ?U. ?V.       -- application: fresh metavars U and V
-       ( synth@q. q!f. q?ty.     -- spawn child to synthesise a type ty for f
-         ty ~ ['Arr U V]         -- unify ty with arrow type
-       | check@r. r!U. r!s.      -- spawn child to check argument
-       | p!V. ) }                -- send the target type back
+   ; ['App f s] -> ?U. ?V.       -- application: make fresh metavars U and V
+       ( synth@q. q!f. q?ty.     --   spawn child to synthesise a type ty for f
+         ty ~ ['Arr U V]         --   unify ty with arrow type
+       | check@r. r!U. r!s.      --   spawn child to check argument
+       | p!V. ) }                --   send the target type back
 \end{lstlisting}
 
 
@@ -263,20 +273,22 @@ are thus less likely to violate stability under substitution.
 %
 None the less, we do support the one form of memory that distributed
 concurrent processes may safely share~\cite{kuper2015theses}: actors may create and share \emph{metavariables}, which mutate only by becoming
-defined as the result of a constraint. Metavariables thus provide a
+defined as the result of a constraint.
+%
+Metavariables thus provide a
 secondary means for actors to communicate. Actors cannot detect
-whether a metavariable has been solved, but they can \remph{block} when
-they match strictly on a metavariable which is currently unknown, then
-unblock subsequently, as the result of a constraint
-elsewhere. Decisions taken on the basis of less information need
+whether a metavariable has been solved, but they \remph{block} when
+they match strictly on a metavariable which is currently unknown.
+Decisions taken on the basis of less information need
 never be retracted when more arrives.
 
 \paragraph{Executing actors}
 We implement a stack-based VM, which runs each actor until it gets stuck,
 then looks for the next actor where progress can be made.
-Actors can get unstuck by updating their metavariables via substitutions from the
+Actors can restart upon the update of blocking metavariables in the
 global unification state, where information increases monotonically.
-The final configuration of the stack represents a typing derivation of the term.
+The final configuration of the stack represents a typing derivation
+of the term.
 
 
 \paragraph{Try it yourself}
