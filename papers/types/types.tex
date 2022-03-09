@@ -204,20 +204,20 @@ check@p = p?ty. p?tm. case tm    -- inputs type and term via p. match on tm.
       synth@q. q!e. q?S.         -- spawn a child to synthesize type S for e,
       S ~ ty }                   -- unify S and ty.
 \end{lstlisting}
-
+%
 \begin{lstlisting}[columns=fullflexible,keepspaces=true]
-synth@p = p?tm.                    -- input term tm via p
-	  lookup tm { S -> p!S. }  -- try to lookup tm in synth context
-	  else case tm
-   { ['Ann t ty] ->                -- type annotated term: in parallel
-        ( type@q. q!ty.            --   spawn child to validate type ty
-        | check@r. r!ty. r!t.      --   spawn child to check t has type ty
-        | p!ty. )                  --   send type ty
-   ; ['App f s] -> ?U. ?V.     -- application: make fresh metas U and V
-        ( synth@q. q!f. q?ty.  -- spawn child to synthesize a type for f
-         ty ~ ['Arr U V]       -- unify f with arrow type
-        | check@r. r!U. r!s.   -- spawn a child to check argument
-        | p!V. ) }             -- send the target type
+synth@p = p?tm.                  -- input term tm via p
+  lookup tm { S -> p!S. }        -- try to lookup tm in synth context
+   else case tm                  -- otherwise match on tm
+   { ['Ann t ty] ->              -- type annotated term: in parallel
+       ( type@q. q!ty.           --   spawn child to validate type ty
+       | check@r. r!ty. r!t.     --   spawn child to check t has type ty
+       | p!ty. )                 --   send type ty
+   ; ['App f s] -> ?U. ?V.       -- application: fresh metavars U and V
+       ( synth@q. q!f. q?ty.     -- spawn child to synthesize a type for f
+         ty ~ ['Arr U V]         -- unify f with arrow type
+       | check@r. r!U. r!s.      -- spawn a child to check argument
+       | p!V. ) }                -- send the target type
 \end{lstlisting}
 
 
