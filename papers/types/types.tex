@@ -99,6 +99,9 @@
 \newcommand{\synth}{\judgement{synth}}
 \newcommand{\type}{\judgement{type}}
 
+% typesetting commands
+\newcommand{\remph}{}
+
 \author{
   Guillaume Allais\inst{1}
   \and
@@ -164,7 +167,7 @@ $\bind x t$. We provide means to name subsets of the generic syntax
 which adhere to formats specified by mutual recursion.  The notion of
 \emph{judgement form} is recast as channel \emph{interaction
   protocol}~\cite{honda1993session}, specifying not only what is to be
-communicated, but also in which direction.  We \emph{declare} an actor
+communicated, but also in which direction.  We \remph{declare} an actor
 by naming it and specifying the protocol it follows. For
 example, we may declare a type checking actor
 \[
@@ -175,10 +178,10 @@ and a type synthesis actor
 \[
   \mathtt{synth \hab \query\atom{Synth}\then \bang\atom{Type}\then}
 \]
-which receives a synthesizable term, then outputs a type or fails.
+which receives a synthesisable term, then outputs a type or fails.
 
 \paragraph{Typing rules}
-Typing rules are then given by \emph{defining} actors to
+Typing rules are then given by \remph{defining} actors to
 perform the communications corresponding to the rules' conclusions. An
 actor starts with only the channel to its parent actor, but where
 rules have premises, a typing actor spawns children, each with its own
@@ -200,8 +203,8 @@ check@p = p?ty. p?tm. case tm    -- inputs type and term via p. match on tm.
       | \x.                      -- bind fresh x (now in scope for children),
         synth { x -> S }.        -- link S with x for descending synth actors,
         check@q. q!T. q!body. )  -- spawn a child channel q to check the body.
-  ; ['Emb e] ->                  -- embedded term e:
-      synth@q. q!e. q?S.         -- spawn a child to synthesize type S for e,
+  ; ['Emb e] ->                  -- embedded synthesisable term e:
+      synth@q. q!e. q?S.         -- spawn a child to synthesise type S for e,
       S ~ ty }                   -- unify S and ty.
 \end{lstlisting}
 %
@@ -214,7 +217,7 @@ synth@p = p?tm.                  -- input term tm via p
        | check@r. r!ty. r!t.     --   spawn child to check t has type ty
        | p!ty. )                 --   send type ty
    ; ['App f s] -> ?U. ?V.       -- application: fresh metavars U and V
-       ( synth@q. q!f. q?ty.     -- spawn child to synthesize a type for f
+       ( synth@q. q!f. q?ty.     -- spawn child to synthesise a type for f
          ty ~ ['Arr U V]         -- unify f with arrow type
        | check@r. r!U. r!s.      -- spawn a child to check argument
        | p!V. ) }                -- send the target type
@@ -259,11 +262,10 @@ any term variables which were already free when they were spawned, and
 are thus less likely to violate stability under substitution.
 %
 None the less, we do support the one form of memory that distributed
-concurrent processes may safely share~\cite{kuper2015theses} --- \emph{metavariables}, framed
-as inputs from a globally shared oracle, mutating only by becoming
+concurrent processes may safely share~\cite{kuper2015theses}: actors may create and share \emph{metavariables}, which mutate only by becoming
 defined as the result of a constraint. Metavariables thus provide a
 secondary means for actors to communicate. Actors cannot detect
-whether a metavariable has been solved, but they can \emph{block} when
+whether a metavariable has been solved, but they can \remph{block} when
 they match strictly on a metavariable which is currently unknown, then
 unblock subsequently, as the result of a constraint
 elsewhere. Decisions taken on the basis of less information need
