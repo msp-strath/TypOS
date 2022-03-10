@@ -88,7 +88,7 @@ data MachineStep
   | MachineMove
   | MachineUnify
   | MachineBreak
-  deriving (Eq, Show)
+  deriving (Eq, Show, Enum, Bounded)
 
 data Process s t
   = Process

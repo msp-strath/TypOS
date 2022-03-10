@@ -2,9 +2,13 @@ module Main where
 
 import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Applicative
 
 import Data.Foldable
+import Data.Maybe
 import Data.Traversable
+
+import qualified Options.Applicative as Opt
 
 import Bwd
 import Elaboration
@@ -20,9 +24,6 @@ import qualified Concrete.Base as C
 import Concrete.Parse
 
 import Syntax
-
-import System.Environment
-import Control.Applicative
 
 data CommandF jd ch t a
   = DeclJ jd [(Mode, SyntaxCat)]
@@ -126,28 +127,53 @@ elaborate ccs = evalElab $ do
     Trace ts -> pure (Trace ts)
 
 
-run :: Process Store Bwd -> [ACommand] -> Process Store []
-run p [] = exec p
-run p@Process{..} (c : cs) = case c of
-  DefnJ (jd, ch) a -> run (p { stack = stack :< Rules jd (ch, a) }) cs
+run :: Options -> Process Store Bwd -> [ACommand] -> Process Store []
+run opts p [] = exec p
+run opts p@Process{..} (c : cs) = case c of
+  DefnJ (jd, ch) a -> run opts (p { stack = stack :< Rules jd (ch, a) }) cs
   Go a -> -- dmesg (show a) $
           let (lroot, rroot) = splitRoot root ""
               rbranch = Process tracing [] rroot env (today store) a ""
-          in run (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
-  Trace xs -> run (p { tracing = xs ++ tracing }) cs
-  _ -> run p cs
+          in run opts (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
+  Trace xs -> let tr = fromMaybe (xs ++ tracing) (tracingOption opts)
+              in run opts (p { tracing = tr }) cs
+  _ -> run opts p cs
+
+data Options = Options
+  { filename :: String
+  , tracingOption :: Maybe [MachineStep]
+  }
+
+options :: Opt.Parser Options
+options = Options <$> Opt.argument Opt.str (Opt.metavar "FILE" <> Opt.showDefault <> Opt.value "stlc.act" <> Opt.help "Actor file")
+                  <*> (optional $ Opt.option (Opt.str >>= (readSteps . words))
+                                             (Opt.long "tracing" <> Opt.metavar "LEVELS" <> Opt.help tracingHelp))
+ where
+   readSteps :: [String] -> Opt.ReadM [MachineStep]
+   readSteps = mapM $ \case
+     "recv" -> pure MachineRecv
+     "send" -> pure MachineSend
+     "exec" -> pure MachineExec
+     "move" -> pure MachineMove
+     "unify" -> pure MachineUnify
+     "break" -> pure MachineBreak
+     x -> Opt.readerError $ "Unknown tracing level '" ++ x ++ "'. Accepted levels: " ++ levels
+   tracingHelp = "Override tracing level (combinations of {" ++ levels ++ "} in quotes, separated by spaces, e.g. " ++ exampleLevels ++ ")"
+   levels = unwords $ map (unsafeEvalDisplay () . display) [(minBound::MachineStep)..]
+   exampleLevels = "\"" ++ (unwords $ map (unsafeEvalDisplay () . display) [minBound::MachineStep, maxBound]) ++ "\""
 
 main :: IO ()
 main = do
-  args <- getArgs
-  let fp = case args of {(fp :_) -> fp; _ -> "stlc.act"}
-  txt <- readFile fp
+  opts <- Opt.execParser (Opt.info (options <**> Opt.helper)
+                         (Opt.fullDesc <> Opt.progDesc "Execute actors in FILE"
+                                       <> Opt.header "typOS - an operating system for typechecking processes"))
+  txt <- readFile (filename opts)
   let ccs = parse pfile txt
   acs <- case elaborate ccs of
            Left err -> error (show err)
            Right acs -> pure acs
   -- putStrLn $ unsafeEvalDisplay $ collapse <$> traverse display acs
   let p = Process [] B0 initRoot (A.initEnv B0) initStore A.Win ""
-  let res@(Process _ fs _ env sto A.Win _) = run p acs
+  let res@(Process _ fs _ env sto A.Win _) = run opts p acs
   -- putStrLn $ display initNaming res
   dmesg "" res `seq` pure ()

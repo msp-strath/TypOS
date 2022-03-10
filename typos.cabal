@@ -55,7 +55,7 @@ library
                        Thin,
                        Utils
 
-  build-depends:       base <5, mtl, containers
+  build-depends:       base <5, containers, mtl, optparse-applicative
   hs-source-dirs:      Src
   default-language:    Haskell2010
   ghc-options:         -Wunused-imports
@@ -63,5 +63,5 @@ library
 executable typos
   import:              haskell
   main-is:             Src/Main.hs
-  build-depends:       base <5, mtl, containers, typos
+  build-depends:       base <5, mtl, containers, optparse-applicative, typos
   default-language:    Haskell2010

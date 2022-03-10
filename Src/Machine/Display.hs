@@ -143,6 +143,7 @@ instance Display MachineStep where
     MachineExec -> pure "exec"
     MachineMove -> pure "move"
     MachineUnify -> pure "unify"
+    MachineBreak -> pure "break"
 
 frameOn :: DEnv -> Frame -> DEnv
 frameOn de@DEnv{..} = \case
