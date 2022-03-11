@@ -126,6 +126,8 @@ data Complaint
   | LookupTermElaboration Raw Complaint
   | DeclJElaboration String Complaint
   | DefnJElaboration String Complaint
+  | SyntaxContainsMeta SyntaxCat
+  | InvalidSyntax SyntaxCat
   deriving (Show)
 
 type ElabState = Map Channel ([Turn], Protocol)

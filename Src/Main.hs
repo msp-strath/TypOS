@@ -18,6 +18,7 @@ import Actor.Display (DAEnv, initDAEnv, declareChannel)
 import Machine hiding (declareChannel)
 import Term
 import Display
+import Utils
 
 import qualified Concrete.Base as C
 import Concrete.Parse
@@ -123,7 +124,14 @@ elaborate ccs = evalElab $ do
           withChannel ch p $ DefnJ (jd, ch) <$> sact a
         Just _ -> throwError (NotAValidJudgement jd)
         _ -> throwError (OutOfScope jd)
-    DeclS syns -> DeclS <$> traverse (traverse stm) syns
+    DeclS syns -> do
+      syns <- traverse (traverse stm) syns
+      syns0 <- case isAllJustBy syns (traverse isMetaFree) of
+                Left a -> throwError (SyntaxContainsMeta (fst a))
+                Right syns -> pure syns
+      whenLeft (isAll (validateDesc . snd) syns0) $ \ a ->
+        throwError (InvalidSyntax (fst a))
+      pure (DeclS syns)
     Go a -> Go <$> sact a
     Trace ts -> pure (Trace ts)
 

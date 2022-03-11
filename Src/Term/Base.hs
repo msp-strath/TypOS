@@ -1,6 +1,7 @@
 module Term.Base where
 
 import Data.Traversable
+import Data.Void
 
 import Bwd
 import Thin
@@ -25,6 +26,9 @@ instance Traversable Tm where
     (:$) <$> f m <*> ((:^^ w) <$> traverse f sg)
 instance Functor Tm where fmap = fmapDefault
 instance Foldable Tm where foldMap = foldMapDefault
+
+isMetaFree :: CdB (Tm m) -> Maybe (CdB (Tm Void))
+isMetaFree (CdB t th) = (`CdB` th) <$> traverse (const Nothing) t
 
 newtype Meta = Meta [(String, Int)]
   deriving (Show, Ord, Eq)

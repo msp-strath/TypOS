@@ -6,6 +6,7 @@
 module Display where
 
 import Data.List
+import Data.Void
 
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -74,6 +75,10 @@ subpdisplay = withForget . pdisplay
 instance Display () where
   type DisplayEnv () = ()
   display _ = pure "()"
+
+instance Display Void where
+  type DisplayEnv Void = ()
+  display = absurd
 
 class Collapse t where
   collapse :: t String -> String

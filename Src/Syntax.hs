@@ -1,5 +1,7 @@
 module Syntax where
 
+import Data.Void
+import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Bwd
@@ -10,11 +12,11 @@ import Display
 import Term.Display
 
 type SyntaxCat = String
-type SyntaxDesc = Term
+type SyntaxDesc = CdB (Tm Void)
 
-type SyntaxTable = Map.Map SyntaxCat SyntaxDesc
+type SyntaxTable = Map SyntaxCat SyntaxDesc
 
-validate :: SyntaxTable -> Bwd SyntaxCat -> SyntaxDesc -> Term -> Bool
+validate :: SyntaxTable -> Bwd SyntaxCat -> SyntaxDesc -> CdB (Tm m) -> Bool
 validate table env s t
   = ($ s) $ asTagged $ (. fst) $ \case
   "Rec" -> asTagged $ \ (a,_) _ -> t ?: \case
@@ -38,43 +40,34 @@ validate table env s t
   "Enum" -> asPair $ asListOf (asAtom $ Just . fst) $ \es -> asNil $ ($ t) $ asAtom $ \ (e,_) -> e `elem` es
   "Term" -> \ _ -> True
   where
-   ourLookup  :: String -> Term -> Maybe Term
+   ourLookup  :: String -> CdB (Tm m) -> Maybe (CdB (Tm m))
    ourLookup a = asListOf (asTagged $ \ (a, _) b -> Just (a, b)) $ lookup a
 
-
-validates :: SyntaxTable -> Bwd SyntaxCat -> [SyntaxDesc] -> Term -> Bool
+validates :: SyntaxTable -> Bwd SyntaxCat -> [SyntaxDesc] -> CdB (Tm m) -> Bool
 validates table env [] = asNil True
 validates table env (s:ss) = asPair $ \ t0 t1 ->
   validate table env s t0 && validates table env ss t1
 
-(%:) :: Term -> Term -> Term
-s %: t = s % t
-
-nul :: Int -> Term
-nul = nil
-
-infixr 5 %:
-
 listOf :: SyntaxDesc -> SyntaxDesc
 listOf d = let ga = scope d + 1 in
-  "Fix" #%+ ["list" \\ (atom "NilOrCons" ga % (weak d %: var (DB 0) ga %: nul ga))]
+  "Fix" #%+ ["list" \\ (atom "NilOrCons" ga % (weak d % var (DB 0) ga % nil ga))]
 
 rec :: String -> SyntaxDesc
 rec a = "Rec" #%+ [atom a 0]
 
 syntaxDesc :: SyntaxDesc
 syntaxDesc = "Tag" #%+ [
-  (atom "Rec" 0 % (atom0 %: nul 0)) %:
-  (atom "Atom" 0 % nul 0) %:
-  (atom "Nil" 0 % nul 0) %:
-  (atom "Cons" 0 % (syntax %: syntax %: nul 0)) %:
-  (atom "NilOrCons" 0 % (syntax %: syntax %: nul 0)) %:
-  (atom "Bind" 0 % (atom0 %: syntax %: nul 0)) %:
-  (atom "Tag" 0 % (listOf (atom "Cons" 0 % atom0 %: (listOf syntax %: nul 0)) %: nul 0)) %:
-  (atom "Fix" 0 % ("Bind" #%+ [atom "Syntax" 0, syntax]) %: nul 0) %:
-  (atom "Enum" 0 % listOf atom0 %: nul 0) %:
-  (atom "Term" 0 % nul 0) %:
-  nul 0]
+  (atom "Rec" 0 % (atom0 % nil 0)) %
+  (atom "Atom" 0 % nil 0) %
+  (atom "Nil" 0 % nil 0) %
+  (atom "Cons" 0 % (syntax % syntax % nil 0)) %
+  (atom "NilOrCons" 0 % (syntax % syntax % nil 0)) %
+  (atom "Bind" 0 % (atom0 % syntax % nil 0)) %
+  (atom "Tag" 0 % (listOf (atom "Cons" 0 % atom0 % (listOf syntax % nil 0)) % nil 0)) %
+  (atom "Fix" 0 % ("Bind" #%+ [atom "Syntax" 0, syntax]) % nil 0) %
+  (atom "Enum" 0 % listOf atom0 % nil 0) %
+  (atom "Term" 0 % nil 0) %
+  nil 0]
   where syntax = rec "Syntax"
         atom0 = ("Atom",0) #% []
 
