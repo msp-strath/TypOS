@@ -19,7 +19,6 @@ import Machine hiding (declareChannel)
 import Term
 import Display
 
-
 import qualified Concrete.Base as C
 import Concrete.Parse
 
@@ -52,22 +51,24 @@ instance Display String where
   display str = pure str
 
 instance ( Display0 jd, Display0 ch
-         , Show t -- , Display t, Forget Naming (DisplayEnv t)
+         , Display t, DisplayEnv t ~ Naming
          , Display a, DisplayEnv a ~ DAEnv) =>
          Display (CommandF jd ch t a) where
-  type DisplayEnv (CommandF jd ch t a) = ()
+  type DisplayEnv (CommandF jd ch t a) = Naming
   display = \case
     DeclJ jd p -> do
-      jd <- display jd
-      p <- display p
+      jd <- subdisplay jd
+      p <- subdisplay p
       pure $ unwords [ jd, ":", p]
     d@(DefnJ (jd, ch) a) -> do
-      jd <- display jd
-      ch <- display ch
+      jd <- subdisplay jd
+      ch <- subdisplay ch
       -- hack: the above happens to convert ch into a string, ready to be declared
       a <- withEnv (declareChannel (A.Channel ch) initDAEnv) $ display a
       pure $ unwords [ jd, "@", ch, "=", a]
-    DeclS _ -> pure ""
+    DeclS s -> do
+      s <- traverse (\ (c, t) -> display t >>= \ t -> pure $ unwords ["'" ++ c, "=", t]) s
+      pure $ "syntax " ++ collapse (BracesList s)
     Go a -> withEnv initDAEnv $ display a
     Trace ts -> pure ""
 
@@ -172,7 +173,7 @@ main = do
   acs <- case elaborate ccs of
            Left err -> error (show err)
            Right acs -> pure acs
-  -- putStrLn $ unsafeEvalDisplay $ collapse <$> traverse display acs
+  -- putStrLn $ unsafeEvalDisplay initNaming $ collapse <$> traverse display acs
   let p = Process [] B0 initRoot (A.initEnv B0) initStore A.Win ""
   let res@(Process _ fs _ env sto A.Win _) = run opts p acs
   -- putStrLn $ display initNaming res
