@@ -3,8 +3,10 @@ module Command where
 import Control.Applicative
 import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Monad.State
 
 import Data.Foldable (fold)
+import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
 
@@ -116,7 +118,12 @@ elaborate :: [CCommand] -> Either Complaint [ACommand]
 elaborate ccs = evalElab $ do
   ds <- collectDecls ccs
   local (setDecls ds) $ forM ccs $ \case
-    DeclJ jd p -> pure (DeclJ jd p)
+    DeclJ jd p -> do
+      st <- get
+      forM_ (snd <$> p) $ \ cat -> do
+         whenNothing (Map.lookup cat (syntaxCats st)) $
+           throwError (DeclJElaboration jd $ NotAValidSyntaxCat cat)
+      pure (DeclJ jd p)
     DefnJ (jd, ch) a -> during (DefnJElaboration jd) $ do
       ch <- pure (A.Channel ch)
       resolve jd >>= \case
@@ -125,13 +132,16 @@ elaborate ccs = evalElab $ do
         Just _ -> throwError (NotAValidJudgement jd)
         _ -> throwError (OutOfScope jd)
     DeclS syns -> do
-      syns <- traverse (traverse stm) syns
-      let syndecls = map fst syns
+      oldsyndecls <- gets (Map.keys . syntaxCats)
+      let newsyndecls = map fst syns
+      syns <- for syns $ \ syn@(cat, _) ->
+                during (DeclaringSyntaxCat cat) $ traverse stm syn
       syns0 <- case isAllJustBy syns (traverse isMetaFree) of
                 Left a -> throwError (SyntaxContainsMeta (fst a))
                 Right syns -> pure syns
-      whenLeft (isAll (validateDesc syndecls . snd) syns0) $ \ a ->
+      whenLeft (isAll (validateDesc (newsyndecls ++ oldsyndecls) . snd) syns0) $ \ a ->
         throwError (InvalidSyntax (fst a))
+      forM_ syns0 (uncurry declareSyntax)
       pure (DeclS syns)
     Go a -> Go <$> sact a
     Trace ts -> pure (Trace ts)

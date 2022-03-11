@@ -109,12 +109,14 @@ data Complaint
   | InvalidRecv Channel
   | NotAValidChannel Variable
   | NotAValidBoundVar Variable
+  | NotAValidSyntaxCat Variable
   | NonLinearChannelUse Channel
   | UnfinishedProtocol Channel Protocol
   | UnfinishedProtocolInExtension Variable Channel Protocol
   | InconsistentCommunication
   | DoomedBranchCommunicated C.Actor
   | ExpectedAProtocol String Kind
+  | AlreadyDeclaredSyntaxCat SyntaxCat
   -- contextual info
   | SendTermElaboration Channel Raw Complaint
   | MatchTermElaboration Raw Complaint
@@ -128,9 +130,32 @@ data Complaint
   | DefnJElaboration String Complaint
   | SyntaxContainsMeta SyntaxCat
   | InvalidSyntax SyntaxCat
+  | DeclaringSyntaxCat SyntaxCat Complaint
   deriving (Show)
 
-type ElabState = Map Channel ([Turn], Protocol)
+data ElabState = ElabState
+  { channelStates :: Map Channel ([Turn], Protocol)
+  , syntaxCats    :: Map SyntaxCat SyntaxDesc
+  } deriving (Eq)
+
+declareSyntax :: SyntaxCat -> SyntaxDesc -> Elab ()
+declareSyntax cat desc = do
+  st <- get
+  whenJust (Map.lookup cat (syntaxCats st)) $ \ _ ->
+    throwError (AlreadyDeclaredSyntaxCat cat)
+  put (st { syntaxCats = Map.insert cat desc (syntaxCats st) })
+
+channelLookup :: Channel -> ElabState -> Maybe ([Turn], Protocol)
+channelLookup ch = Map.lookup ch . channelStates
+
+channelInsert :: Channel -> ([Turn], Protocol) -> ElabState -> ElabState
+channelInsert ch x st = st { channelStates = Map.insert ch x (channelStates st) }
+
+channelDelete :: Channel -> ElabState -> ElabState
+channelDelete ch st = st { channelStates = Map.delete ch (channelStates st) }
+
+initElabState :: ElabState
+initElabState = ElabState Map.empty Map.empty
 
 newtype Elab a = Elab
   { runElab :: StateT ElabState
@@ -151,7 +176,7 @@ evalElab :: Elab a -> Either Complaint a
 evalElab = fmap fst
          . runWriterT
          . (`runReaderT` initContext)
-         . (`evalStateT` Map.empty)
+         . (`evalStateT` initElabState)
          . runElab
 
 type ACTm = CdB (Tm ActorMeta)
@@ -258,24 +283,24 @@ channelScope (Channel ch) = do
 steppingChannel :: Channel -> (Protocol -> Elab Protocol) -> Elab ()
 steppingChannel ch step = do
   nm <- getName
-  (pnm, p) <- gets (fromJust . Map.lookup ch)
+  (pnm, p) <- gets (fromJust . channelLookup ch)
   unless (pnm `isPrefixOf` nm) $ throwError (NonLinearChannelUse ch)
   p <- step p
-  modify (Map.insert ch (nm, p))
+  modify (channelInsert ch (nm, p))
 
 open :: Channel -> Protocol -> Elab ()
 open ch p = do
   nm <- getName
-  modify (Map.insert ch (nm, p))
+  modify (channelInsert ch (nm, p))
 
 close :: Channel -> Elab ()
 close ch = do
   -- make sure the protocol was run all the way
-  mp <- gets (Map.lookup ch)
+  mp <- gets (channelLookup ch)
   case snd (fromJust mp) of
     [] -> pure ()
     p -> throwError (UnfinishedProtocol ch p)
-  modify (Map.delete ch)
+  modify (channelDelete ch)
 
 withChannel :: Channel -> Protocol -> Elab a -> Elab a
 withChannel ch@(Channel rch) p ma = do
@@ -389,7 +414,7 @@ sact = \case
 
 consistentCommunication :: [Maybe ElabState] -> Elab ()
 consistentCommunication sts = do
- case groupBy ((==) `on` fmap snd) [ p | Just p <- sts ] of
+ case groupBy ((==) `on` fmap snd . channelStates) [ p | Just p <- sts ] of
    [] -> tell (All False) -- all branches are doomed, we don't care
    [(c:_)] -> put c
    _ -> throwError InconsistentCommunication

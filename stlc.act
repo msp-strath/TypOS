@@ -1,5 +1,16 @@
 -- trace { exec, send, recv, move, unify }
 
+------------------------------------------------------------------------------
+-- Interface
+
+syntax
+  { 'Type = ['Tag  [ ['Nat ]
+                     ['Arr  ['Rec 'Type] ['Rec 'Type]]
+            ]]
+  }
+
+type  : ?'Type.
+
 syntax
   { 'Check = ['Tag  [ ['Lam ['Bind 'Synth ['Rec 'Check]]]
                       ['Emb ['Rec 'Synth]]
@@ -7,14 +18,13 @@ syntax
   ; 'Synth = ['Tag  [ ['Rad ['Rec 'Check] ['Rec 'Type]]
                       ['App ['Rec 'Synth] ['Rec 'Check]]
              ]]
-  ; 'Type = ['Tag  [ ['Nat ]
-                     ['Arr  ['Rec 'Type] ['Rec 'Type]]
-            ]]
   }
 
-type  : ?'Type.
 check : ?'Type. ?'Check.
 synth : ?'Synth. !'Type.
+
+------------------------------------------------------------------------------
+-- Implementation
 
 type@p = p?ty. case ty
   { ['Nat] ->
@@ -44,6 +54,9 @@ synth@p = p?tm . lookup tm { S -> p!S. } else case tm
         | p!V.
         )
    }
+
+------------------------------------------------------------------------------
+-- Examples
 
 {-
 exec  check@p. p! ['Arr ['Nat] ['Arr ['One] ['Nat]]].
