@@ -1,5 +1,4 @@
-
-trace { exec, send, recv, move, unify }
+-- trace { exec, send, recv, move, unify }
 
 syntax
   { 'Check = ['Tag  [ ['Lam ['Bind 'Synth ['Rec 'Check]]]

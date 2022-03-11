@@ -126,10 +126,11 @@ elaborate ccs = evalElab $ do
         _ -> throwError (OutOfScope jd)
     DeclS syns -> do
       syns <- traverse (traverse stm) syns
+      let syndecls = map fst syns
       syns0 <- case isAllJustBy syns (traverse isMetaFree) of
                 Left a -> throwError (SyntaxContainsMeta (fst a))
                 Right syns -> pure syns
-      whenLeft (isAll (validateDesc . snd) syns0) $ \ a ->
+      whenLeft (isAll (validateDesc syndecls . snd) syns0) $ \ a ->
         throwError (InvalidSyntax (fst a))
       pure (DeclS syns)
     Go a -> Go <$> sact a

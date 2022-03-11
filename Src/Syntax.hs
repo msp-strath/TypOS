@@ -55,14 +55,14 @@ listOf d = let ga = scope d + 1 in
 rec :: String -> SyntaxDesc
 rec a = "Rec" #%+ [atom a 0]
 
-syntaxDesc :: SyntaxDesc
-syntaxDesc = "Tag" #%+ [
-  (atom "Rec" 0 % (atom0 % nil 0)) %
+syntaxDesc :: [SyntaxCat] -> SyntaxDesc
+syntaxDesc syns = "Tag" #%+ [
+  (atom "Rec" 0 % (scats % nil 0)) %
   (atom "Atom" 0 % nil 0) %
   (atom "Nil" 0 % nil 0) %
   (atom "Cons" 0 % (syntax % syntax % nil 0)) %
   (atom "NilOrCons" 0 % (syntax % syntax % nil 0)) %
-  (atom "Bind" 0 % (atom0 % syntax % nil 0)) %
+  (atom "Bind" 0 % (scats % syntax % nil 0)) %
   (atom "Tag" 0 % (listOf (atom "Cons" 0 % atom0 % (listOf syntax % nil 0)) % nil 0)) %
   (atom "Fix" 0 % ("Bind" #%+ [atom "Syntax" 0, syntax]) % nil 0) %
   (atom "Enum" 0 % listOf atom0 % nil 0) %
@@ -70,6 +70,7 @@ syntaxDesc = "Tag" #%+ [
   nil 0]
   where syntax = rec "Syntax"
         atom0 = ("Atom",0) #% []
+        scats = "Enum" #%+ [foldr (%) (nil 0) $ map (\ s -> atom s 0) syns]
 
 {- > putStrLn $ unsafeEvalDisplay initNaming $ display syntaxDesc
 
@@ -88,8 +89,12 @@ syntaxDesc = "Tag" #%+ [
 
 -}
 
-validateDesc :: SyntaxDesc -> Bool
-validateDesc = validate (Map.singleton "Syntax" syntaxDesc) B0 ("Rec" #%+ [atom "Syntax" 0])
+validateDesc :: [SyntaxCat] -> SyntaxDesc -> Bool
+validateDesc syns =
+    validate (Map.singleton "Syntax" (syntaxDesc syns)) B0 ("Rec" #%+ [atom "Syntax" 0])
 
-validateIt = validateDesc syntaxDesc
-printIt = putStrLn $ unlines [show validateIt, "===", unsafeEvalDisplay initNaming $ display syntaxDesc]
+validateIt = validateDesc ["Syntax"] (syntaxDesc ["Syntax"])
+printIt = putStrLn $ unlines
+  [ show validateIt
+  , "==="
+  , unsafeEvalDisplay initNaming $ display (syntaxDesc ["Syntax"])]
