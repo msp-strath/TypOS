@@ -50,6 +50,9 @@ dropz :: Bwd x -> Int -> Bwd x
 dropz xz 0 = xz
 dropz (xz :< x) w = dropz xz (w-1)
 
+singleton :: x -> Bwd x
+singleton x = B0 :< x
+
 only :: Bwd x -> x
 only (B0 :< x) = x
 

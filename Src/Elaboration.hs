@@ -32,13 +32,21 @@ import qualified Actor as A
 data Mode = Input | {- Subject | -} Output
   deriving (Show, Eq)
 
-type ObjVars = Bwd String
 type Protocol = [(Mode, SyntaxCat)]
 
 dual :: Protocol -> Protocol
 dual = map $ \case
   (Input, c) -> (Output, c)
   (Output, c) -> (Input, c)
+
+prettyMode :: Mode -> String
+prettyMode Input = "?"
+prettyMode Output = "!"
+
+prettyProtocol :: Protocol -> String
+prettyProtocol = foldMap $ \ (m, c) -> prettyMode m ++ c ++ ". "
+
+type ObjVars = Bwd String
 
 data Kind
   = ActVar ObjVars
@@ -97,41 +105,101 @@ isFresh x = do
   whenJust res $ \ _ -> throwError (VariableShadowing x)
 
 data Complaint
+  -- scope
   = OutOfScope Variable
-  | InvalidTermVariable Variable Kind
   | MetaScopeTooBig Variable ObjVars ObjVars
   | VariableShadowing Variable
   | EmptyContext
   | NotTopVariable Variable Variable
-  | InvalidPatternVariable Variable Kind
+  -- kinding
+  | NotAValidTermVariable Variable Kind
+  | NotAValidPatternVariable Variable Kind
   | NotAValidJudgement Variable
-  | InvalidSend Channel
-  | InvalidRecv Channel
   | NotAValidChannel Variable
   | NotAValidBoundVar Variable
-  | NotAValidSyntaxCat Variable
+  -- protocol
+  | InvalidSend Channel
+  | InvalidRecv Channel
   | NonLinearChannelUse Channel
   | UnfinishedProtocol Channel Protocol
-  | UnfinishedProtocolInExtension Variable Channel Protocol
   | InconsistentCommunication
   | DoomedBranchCommunicated C.Actor
-  | ExpectedAProtocol String Kind
+  -- syntaxes
+  | NotAValidSyntaxCat Variable
   | AlreadyDeclaredSyntaxCat SyntaxCat
+  | SyntaxContainsMeta SyntaxCat
+  | InvalidSyntax SyntaxCat
   -- contextual info
   | SendTermElaboration Channel Raw Complaint
   | MatchTermElaboration Raw Complaint
   | ConstrainTermElaboration Raw Complaint
   | FreshMetaElaboration Complaint
   | UnderElaboration Complaint
-  | RecvMetaElaboration Complaint
+  | RecvMetaElaboration Channel Complaint
   | PushTermElaboration Raw Complaint
   | LookupTermElaboration Raw Complaint
+  | LookupHandlersElaboration Raw Complaint
   | DeclJElaboration String Complaint
   | DefnJElaboration String Complaint
-  | SyntaxContainsMeta SyntaxCat
-  | InvalidSyntax SyntaxCat
   | DeclaringSyntaxCat SyntaxCat Complaint
+  | SubstitutionElaboration (Bwd SbstC) Complaint
   deriving (Show)
+
+prettyKind :: Kind -> String
+prettyKind = \case
+  ActVar{} -> "an object variable"
+  AChannel{} -> "a channel"
+  AJudgement{} -> "a judgement"
+
+prettyComplaint :: Complaint -> String
+prettyComplaint = unlines . (<>> []) . go where
+
+   go :: Complaint -> Bwd String
+   go = \case
+    -- scope
+    OutOfScope x -> singleton $ unwords ["Out of scope variable", x]
+    MetaScopeTooBig x sc1 sc2 -> singleton $
+        unwords [ "Cannot use", x, "here as it is defined in too big a scope"
+                , parens (unwords [ show sc1, "won't fit in", show sc2 ])]
+    VariableShadowing x -> singleton $ unwords [x, "is already defined"]
+    EmptyContext -> singleton "Tried to pop an empty context"
+    NotTopVariable x y -> singleton $ unwords [ "Expected", x, "to be the top variable but found", y, "instead"]
+    -- kinding
+    NotAValidTermVariable x k -> singleton $ unwords ["Invalid term variable:", x, "refers to", prettyKind k]
+    NotAValidPatternVariable x k -> singleton $ unwords ["Invalid pattern variable:", x, "refers to", prettyKind k]
+    NotAValidJudgement x -> singleton $ unwords ["Invalid judgement variable", x]
+    NotAValidChannel x -> singleton $ unwords ["Invalid channel variable", x]
+    NotAValidBoundVar x -> singleton $ unwords ["Invalid bound variable", x]
+    -- protocol
+    InvalidSend ch -> singleton $ unwords ["Invalid send on channel", show ch]
+    InvalidRecv ch -> singleton $ unwords ["Invalid receive on channel", show ch]
+    NonLinearChannelUse ch -> singleton $ unwords ["Non linear use of channel", show ch]
+    UnfinishedProtocol ch p -> singleton $
+      unwords ["Unfinished protocol", parens (prettyProtocol p), "on channel", show ch]
+    InconsistentCommunication -> singleton $ unwords ["Inconsistent communication"]
+    DoomedBranchCommunicated a -> singleton $ unwords ["Doomed branch communicated", show a]
+    -- syntaxes
+    NotAValidSyntaxCat x -> singleton $ unwords ["Invalid syntactic category:", x]
+    AlreadyDeclaredSyntaxCat x -> singleton $ unwords ["The syntactic category", x, "is already defined"]
+    SyntaxContainsMeta x -> singleton $
+      unwords ["The description of the syntactic category", x, "contains meta variables"]
+    InvalidSyntax x -> singleton $ unwords ["Invalid description for the syntactic category", x]
+    -- contextual info
+    SendTermElaboration ch t c -> go c :< unwords [ "when elaborating:", show ch ++ "!" ++ show t ]
+    MatchTermElaboration t c -> go c :< unwords [ "when elaborating the case scrutinee", show t]
+    ConstrainTermElaboration t c -> go c :< unwords [ "when elaborating a constraint involving", show t]
+    FreshMetaElaboration c -> go c :< "when declaring a fresh metavariable"
+    UnderElaboration c -> go c :<  "when binding a local variable"
+    RecvMetaElaboration ch c -> go c :< unwords ["when receiving a value on channel", show ch]
+    PushTermElaboration t c -> go c :< unwords ["when pushing the term", show t]
+    LookupTermElaboration t c -> go c :< unwords [ "when looking up the term", show t]
+    LookupHandlersElaboration t c ->
+       go c :< unwords ["when elaborating the handlers for the lookup acting on", show t]
+    DeclJElaboration jd c -> go c :< unwords ["when elaborating the judgement declaration for", jd]
+    DefnJElaboration jd c -> go c :< unwords ["when elaborating the judgement definition for", jd]
+    DeclaringSyntaxCat cat c -> go c :< unwords ["when elaborating the syntax declaration for", cat]
+    SubstitutionElaboration sg c -> go c :< unwords ["when elaborating the substitution", show sg]
+
 
 data ElabState = ElabState
   { channelStates :: Map Channel ([Turn], Protocol)
@@ -191,7 +259,7 @@ svar x = do
       ActVar sc -> case findSub sc ovs of
         Just th -> pure (ActorMeta x $: sbstW (sbst0 0) th)
         Nothing -> throwError (MetaScopeTooBig x sc ovs)
-      _ -> throwError (InvalidTermVariable x k)
+      _ -> throwError (NotAValidTermVariable x k)
     Just (Right i) -> pure $ var i (length ovs)
     Nothing -> throwError (OutOfScope x)
 
@@ -245,7 +313,7 @@ stm = \case
     isFresh x
     local (declareObjVar x) $ stm sc
   Sbst sg t -> do
-    (sg, ovs) <- ssbst sg
+    (sg, ovs) <- during (SubstitutionElaboration sg) $ ssbst sg
     t <- local (setObjVars ovs) (stm t)
     pure (t //^ sg)
 
@@ -255,7 +323,7 @@ spat = \case
     ds <- asks declarations
     res <- resolve v
     case res of
-      Just (Left k)  -> throwError (InvalidPatternVariable v k)
+      Just (Left k)  -> throwError (NotAValidPatternVariable v k)
       Just (Right i) -> pure (VP i, ds)
       Nothing        -> do ovs <- asks objVars
                            pure (MP v (ones (length ovs)), ds :< (v, ActVar ovs))
@@ -354,9 +422,9 @@ sact = \case
     pure $ A.Send ch tm a
 
   C.Recv ch (av, a) -> do
-    during RecvMetaElaboration $ isFresh av
-    -- Check the channel is in receiving mode & step it
     ch <- pure (Channel ch)
+    during (RecvMetaElaboration ch) $ isFresh av
+    -- Check the channel is in receiving mode & step it
     steppingChannel ch $ \case
       (Input, cat) : p -> pure p
       _ -> throwError (InvalidRecv ch)
@@ -377,12 +445,12 @@ sact = \case
     a <- local (declareObjVar x) $ sact a
     pure $ A.Under (Scope v a)
 
-  C.Match tm cls -> do
+  C.Match rtm@tm cls -> do
     tm <- during (MatchTermElaboration tm) $ stm tm
     chs <- get
     clsts <- traverse sclause cls
     let (cls, sts) = unzip clsts
-    consistentCommunication sts
+    during (MatchTermElaboration rtm) $ consistentCommunication sts
     pure $ A.Match tm cls
 
   C.Push jd (p, t) a -> do
@@ -393,19 +461,19 @@ sact = \case
 
     p <- resolve p >>= \case
       Just (Right i) -> pure i
-      Just (Left k) -> throwError $ InvalidPatternVariable p k
+      Just (Left k) -> throwError $ NotAValidPatternVariable p k
       _ -> throwError $ OutOfScope p
     t <- during (PushTermElaboration t) $ stm t
     a <- sact a
     pure $ A.Push jd (p, t) a
 
-  C.Lookup t (av, a) b -> do
+  C.Lookup rt@t (av, a) b -> do
     t <- during (LookupTermElaboration t) $ stm t
     isFresh av
     ovs <- asks objVars
     (a, mcha) <- local (declare av (ActVar ovs)) $ sbranch a
     (b, mchb) <- sbranch b
-    consistentCommunication [mcha, mchb]
+    during (LookupHandlersElaboration rt) $ consistentCommunication [mcha, mchb]
     pure $ A.Lookup t (ActorMeta av, a) b
 
   C.Fail fmt -> A.Fail <$> traverse (traverse stm) fmt <* tell (All False)

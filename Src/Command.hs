@@ -5,7 +5,6 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 
-import Data.Foldable (fold)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
@@ -40,14 +39,11 @@ type ACommand = CommandF A.JudgementForm A.Channel ACTm A.Actor
 
 instance Display Mode where
   type DisplayEnv Mode = ()
-  display Input = pure "?"
-  display Output = pure "!"
+  display = pure . prettyMode
 
 instance Display Protocol where
   type DisplayEnv Protocol = ()
-  display p = (fold <$>) $ for p $ \ (m, c) -> do
-    m <- display m
-    pure $ m ++ c ++ ". "
+  display = pure . prettyProtocol
 
 instance Display String where
   type DisplayEnv String = ()
