@@ -1,6 +1,5 @@
 {-# LANGUAGE
   PatternGuards,
-  GeneralizedNewtypeDeriving,
   ConstraintKinds #-}
 
 module Display where

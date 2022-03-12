@@ -15,6 +15,7 @@ common haskell
   default-extensions:  DeriveTraversable,
                        FlexibleContexts,
                        FlexibleInstances,
+                       GeneralizedNewtypeDeriving,
                        MultiParamTypeClasses,
                        NamedFieldPuns,
                        RecordWildCards,
@@ -55,6 +56,7 @@ library
                        Term.Mangler,
                        Term.Substitution,
                        Thin,
+                       Unelaboration,
                        Utils
 
   build-depends:       base <5, containers, mtl, optparse-applicative
