@@ -37,13 +37,6 @@ dual = map $ \case
   (Input, c) -> (Output, c)
   (Output, c) -> (Input, c)
 
-prettyMode :: Mode -> String
-prettyMode Input = "?"
-prettyMode Output = "!"
-
-prettyProtocol :: Protocol -> String
-prettyProtocol = foldMap $ \ (m, c) -> prettyMode m ++ c ++ ". "
-
 type ObjVars = Bwd String
 
 data Kind
@@ -131,6 +124,8 @@ data Complaint
   -- contextual info
   | SendTermElaboration Channel Raw Complaint
   | MatchTermElaboration Raw Complaint
+  | MatchElaboration Raw Complaint
+  | MatchBranchElaboration RawP Complaint
   | ConstrainTermElaboration Raw Complaint
   | FreshMetaElaboration Complaint
   | UnderElaboration Complaint
@@ -143,68 +138,6 @@ data Complaint
   | DeclaringSyntaxCat SyntaxCat Complaint
   | SubstitutionElaboration (Bwd SbstC) Complaint
   deriving (Show)
-
-prettyKind :: Kind -> String
-prettyKind = \case
-  ActVar{} -> "an object variable"
-  AChannel{} -> "a channel"
-  AJudgement{} -> "a judgement"
-
-prettyComplaint :: Complaint -> String
-prettyComplaint = unlines . (<>> []) . go where
-
-   go :: Complaint -> Bwd String
-   go = \case
-    -- scope
-    OutOfScope x -> singleton $ unwords ["Out of scope variable", getVariable x]
-    MetaScopeTooBig x sc1 sc2 -> singleton $
-        unwords [ "Cannot use", getVariable x, "here as it is defined in too big a scope"
-                , parens (unwords [ show sc1, "won't fit in", show sc2 ])]
-    VariableShadowing x -> singleton $ unwords [getVariable x, "is already defined"]
-    EmptyContext -> singleton "Tried to pop an empty context"
-    NotTopVariable x y -> singleton $
-       unwords [ "Expected", getVariable x, "to be the top variable"
-               , "but found", getVariable y, "instead"]
-    -- kinding
-    NotAValidTermVariable x k -> singleton $
-       unwords ["Invalid term variable:", getVariable x, "refers to", prettyKind k]
-    NotAValidPatternVariable x k -> singleton $
-       unwords ["Invalid pattern variable:", getVariable x, "refers to", prettyKind k]
-    NotAValidJudgement x -> singleton $
-       unwords ["Invalid judgement variable", getVariable x]
-    NotAValidChannel x -> singleton $
-       unwords ["Invalid channel variable", getVariable x]
-    NotAValidBoundVar x -> singleton $
-      unwords ["Invalid bound variable", getVariable x]
-    -- protocol
-    InvalidSend ch -> singleton $ unwords ["Invalid send on channel", show ch]
-    InvalidRecv ch -> singleton $ unwords ["Invalid receive on channel", show ch]
-    NonLinearChannelUse ch -> singleton $ unwords ["Non linear use of channel", show ch]
-    UnfinishedProtocol ch p -> singleton $
-      unwords ["Unfinished protocol", parens (prettyProtocol p), "on channel", show ch]
-    InconsistentCommunication -> singleton $ unwords ["Inconsistent communication"]
-    DoomedBranchCommunicated a -> singleton $ unwords ["Doomed branch communicated", show a]
-    -- syntaxes
-    NotAValidSyntaxCat x -> singleton $ unwords ["Invalid syntactic category:", x]
-    AlreadyDeclaredSyntaxCat x -> singleton $ unwords ["The syntactic category", x, "is already defined"]
-    SyntaxContainsMeta x -> singleton $
-      unwords ["The description of the syntactic category", x, "contains meta variables"]
-    InvalidSyntax x -> singleton $ unwords ["Invalid description for the syntactic category", x]
-    -- contextual info
-    SendTermElaboration ch t c -> go c :< unwords [ "when elaborating:", show ch ++ "!" ++ show t ]
-    MatchTermElaboration t c -> go c :< unwords [ "when elaborating the case scrutinee", show t]
-    ConstrainTermElaboration t c -> go c :< unwords [ "when elaborating a constraint involving", show t]
-    FreshMetaElaboration c -> go c :< "when declaring a fresh metavariable"
-    UnderElaboration c -> go c :<  "when binding a local variable"
-    RecvMetaElaboration ch c -> go c :< unwords ["when receiving a value on channel", show ch]
-    PushTermElaboration t c -> go c :< unwords ["when pushing the term", show t]
-    LookupTermElaboration t c -> go c :< unwords [ "when looking up the term", show t]
-    LookupHandlersElaboration t c ->
-       go c :< unwords ["when elaborating the handlers for the lookup acting on", show t]
-    DeclJElaboration jd c -> go c :< unwords ["when elaborating the judgement declaration for", getVariable jd]
-    DefnJElaboration jd c -> go c :< unwords ["when elaborating the judgement definition for", getVariable jd]
-    DeclaringSyntaxCat cat c -> go c :< unwords ["when elaborating the syntax declaration for", cat]
-    SubstitutionElaboration sg c -> go c :< unwords ["when elaborating the substitution", show sg]
 
 data ElabState = ElabState
   { channelStates :: Map Channel ([Turn], Protocol)
@@ -455,7 +388,7 @@ sact = \case
     chs <- get
     clsts <- traverse sclause cls
     let (cls, sts) = unzip clsts
-    during (MatchTermElaboration rtm) $ consistentCommunication sts
+    during (MatchElaboration rtm) $ consistentCommunication sts
     pure $ A.Match tm cls
 
   C.Push jd (p, t) a -> do
@@ -502,7 +435,7 @@ sbranch ra = do
   pure (a, chs' <$ guard b)
 
 sclause :: (RawP, C.Actor) -> Elab ((Pat, A.Actor), Maybe ElabState)
-sclause (rp, a) = do
+sclause (rp, a) = during (MatchBranchElaboration rp) $ do
   (p, ds) <- spat rp
   (a, me) <- local (setDecls ds) $ sbranch a
   pure ((p, a), me)

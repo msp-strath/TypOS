@@ -95,13 +95,18 @@ instance UnelabMeta m => Unelab (Tm m) where
            na              -> throwError (VarOutOfScope na)
     A a -> pure (At a)
     P (s :<>: t) -> Cons <$> unelab s <*> unelab t
-    (x := b) :. t -> Lam . Scope x <$> case b of
-            False -> unelab t
+    (x := b) :. t -> Lam . uncurry (Scope . Hide) <$> case b of
+            False -> ("_",) <$> unelab t
             True -> do
               na <- ask
               let y = freshen (unhide x) na
-              local (`nameOn` y) $ unelab t
-    m :$ sg -> Sbst <$> unelab sg <*> (Var <$> subunelab m)
+              local (`nameOn` y) $ (y,) <$> unelab t
+    m :$ sg -> do
+      sg <- unelab sg
+      m <- Var <$> subunelab m
+      pure $ case sg of
+        B0 -> m
+        _ -> Sbst sg m
 
 instance UnelabMeta m => Unelab (Sbst m) where
   type UnelabEnv (Sbst m) = Naming

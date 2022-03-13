@@ -17,11 +17,13 @@ import Concrete.Parse
 import Bwd
 import Display
 import Elaboration
+import Elaboration.Pretty()
 import Machine.Base
 import Machine.Display (Store)
 import Machine.Exec
 import Main.Options
 import Parse
+import Pretty
 import Syntax
 import Term.Base
 import Utils
@@ -40,11 +42,11 @@ type ACommand = CommandF A.JudgementForm A.Channel ACTm A.Actor
 
 instance Display Mode where
   type DisplayEnv Mode = ()
-  display = pure . prettyMode
+  display = pure . pretty
 
 instance Display Protocol where
   type DisplayEnv Protocol = ()
-  display = pure . prettyProtocol
+  display = pure . pretty
 
 instance Display String where
   type DisplayEnv String = ()

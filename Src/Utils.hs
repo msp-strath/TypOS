@@ -1,8 +1,5 @@
 module Utils where
 
-parens :: String -> String
-parens str = concat ["(", str, ")"]
-
 isAllJustBy :: [a] -> (a -> Maybe b) -> Either a [b]
 isAllJustBy [] f = pure []
 isAllJustBy (a:as) f = do

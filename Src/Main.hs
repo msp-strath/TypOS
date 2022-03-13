@@ -4,9 +4,10 @@ import ANSI
 import Bwd
 import Parse
 import Actor
-import Elaboration
+import Elaboration.Pretty()
 import Machine
-import Term
+import Pretty
+import Term.Base
 import Main.Options
 import Command
 
@@ -16,7 +17,7 @@ main = do
   txt <- readFile (filename opts)
   let ccs = parse pfile txt
   acs <- case elaborate ccs of
-           Left err -> error $ withANSI [ SetColour Background Red ] "Error" ++ "\n" ++ prettyComplaint err
+           Left err -> error $ withANSI [ SetColour Background Red ] "Error" ++ "\n" ++ pretty err
            Right acs -> pure acs
   -- putStrLn $ unsafeEvalDisplay initNaming $ collapse <$> traverse display acs
   let p = Process [] B0 initRoot (initEnv B0) initStore Win ""
