@@ -18,7 +18,7 @@ import Syntax
 import Thin
 import Utils
 
-import Concrete.Base (Variable, Raw(..), SbstC(..), RawP(..), ThDirective(..))
+import Concrete.Base (Variable(..), Raw(..), SbstC(..), RawP(..), ThDirective(..))
 import qualified Concrete.Base as C
 
 import Term.Base
@@ -87,7 +87,7 @@ type Slced = [(String, Kind)]
 type Focus a = (Decls, a, Slced)
 
 resolve :: Variable -> Elab (Maybe (Either Kind DB))
-resolve x = do
+resolve (Variable x) = do
   ctx <- ask
   let ds  = declarations ctx
   let ovs = objVars ctx
@@ -97,10 +97,11 @@ resolve x = do
       Just (xz, _, xs) -> pure (Just $ Right (DB $ length xs))
       Nothing -> pure Nothing
 
-isFresh :: String -> Elab ()
+isFresh :: Variable -> Elab String
 isFresh x = do
   res <- resolve x
   whenJust res $ \ _ -> throwError (VariableShadowing x)
+  pure (getVariable x)
 
 data Complaint
   -- scope
@@ -123,7 +124,7 @@ data Complaint
   | InconsistentCommunication
   | DoomedBranchCommunicated C.Actor
   -- syntaxes
-  | NotAValidSyntaxCat Variable
+  | NotAValidSyntaxCat SyntaxCat
   | AlreadyDeclaredSyntaxCat SyntaxCat
   | SyntaxContainsMeta SyntaxCat
   | InvalidSyntax SyntaxCat
@@ -137,8 +138,8 @@ data Complaint
   | PushTermElaboration Raw Complaint
   | LookupTermElaboration Raw Complaint
   | LookupHandlersElaboration Raw Complaint
-  | DeclJElaboration String Complaint
-  | DefnJElaboration String Complaint
+  | DeclJElaboration Variable Complaint
+  | DefnJElaboration Variable Complaint
   | DeclaringSyntaxCat SyntaxCat Complaint
   | SubstitutionElaboration (Bwd SbstC) Complaint
   deriving (Show)
@@ -155,19 +156,26 @@ prettyComplaint = unlines . (<>> []) . go where
    go :: Complaint -> Bwd String
    go = \case
     -- scope
-    OutOfScope x -> singleton $ unwords ["Out of scope variable", x]
+    OutOfScope x -> singleton $ unwords ["Out of scope variable", getVariable x]
     MetaScopeTooBig x sc1 sc2 -> singleton $
-        unwords [ "Cannot use", x, "here as it is defined in too big a scope"
+        unwords [ "Cannot use", getVariable x, "here as it is defined in too big a scope"
                 , parens (unwords [ show sc1, "won't fit in", show sc2 ])]
-    VariableShadowing x -> singleton $ unwords [x, "is already defined"]
+    VariableShadowing x -> singleton $ unwords [getVariable x, "is already defined"]
     EmptyContext -> singleton "Tried to pop an empty context"
-    NotTopVariable x y -> singleton $ unwords [ "Expected", x, "to be the top variable but found", y, "instead"]
+    NotTopVariable x y -> singleton $
+       unwords [ "Expected", getVariable x, "to be the top variable"
+               , "but found", getVariable y, "instead"]
     -- kinding
-    NotAValidTermVariable x k -> singleton $ unwords ["Invalid term variable:", x, "refers to", prettyKind k]
-    NotAValidPatternVariable x k -> singleton $ unwords ["Invalid pattern variable:", x, "refers to", prettyKind k]
-    NotAValidJudgement x -> singleton $ unwords ["Invalid judgement variable", x]
-    NotAValidChannel x -> singleton $ unwords ["Invalid channel variable", x]
-    NotAValidBoundVar x -> singleton $ unwords ["Invalid bound variable", x]
+    NotAValidTermVariable x k -> singleton $
+       unwords ["Invalid term variable:", getVariable x, "refers to", prettyKind k]
+    NotAValidPatternVariable x k -> singleton $
+       unwords ["Invalid pattern variable:", getVariable x, "refers to", prettyKind k]
+    NotAValidJudgement x -> singleton $
+       unwords ["Invalid judgement variable", getVariable x]
+    NotAValidChannel x -> singleton $
+       unwords ["Invalid channel variable", getVariable x]
+    NotAValidBoundVar x -> singleton $
+      unwords ["Invalid bound variable", getVariable x]
     -- protocol
     InvalidSend ch -> singleton $ unwords ["Invalid send on channel", show ch]
     InvalidRecv ch -> singleton $ unwords ["Invalid receive on channel", show ch]
@@ -193,11 +201,10 @@ prettyComplaint = unlines . (<>> []) . go where
     LookupTermElaboration t c -> go c :< unwords [ "when looking up the term", show t]
     LookupHandlersElaboration t c ->
        go c :< unwords ["when elaborating the handlers for the lookup acting on", show t]
-    DeclJElaboration jd c -> go c :< unwords ["when elaborating the judgement declaration for", jd]
-    DefnJElaboration jd c -> go c :< unwords ["when elaborating the judgement definition for", jd]
+    DeclJElaboration jd c -> go c :< unwords ["when elaborating the judgement declaration for", getVariable jd]
+    DefnJElaboration jd c -> go c :< unwords ["when elaborating the judgement definition for", getVariable jd]
     DeclaringSyntaxCat cat c -> go c :< unwords ["when elaborating the syntax declaration for", cat]
     SubstitutionElaboration sg c -> go c :< unwords ["when elaborating the substitution", show sg]
-
 
 data ElabState = ElabState
   { channelStates :: Map Channel ([Turn], Protocol)
@@ -255,7 +262,7 @@ svar x = do
   case res of
     Just (Left k) -> case k of
       ActVar sc -> case findSub sc ovs of
-        Just th -> pure (ActorMeta x $: sbstW (sbst0 0) th)
+        Just th -> pure (ActorMeta (getVariable x) $: sbstW (sbst0 0) th)
         Nothing -> throwError (MetaScopeTooBig x sc ovs)
       _ -> throwError (NotAValidTermVariable x k)
     Just (Right i) -> pure $ var i (length ovs)
@@ -266,12 +273,12 @@ getName = do
   loc <- asks location
   pure (loc <>> [])
 
-spop :: Elab (ObjVars, String)
+spop :: Elab (ObjVars, Variable)
 spop = do
   ovs <- asks objVars
   case ovs of
     B0 -> throwError EmptyContext
-    (xz :< x) -> pure (xz, x)
+    (xz :< x) -> pure (xz, Variable x)
 
 ssbst :: Bwd SbstC -> Elab (ACTSbst, ObjVars)
 ssbst B0 = do
@@ -282,7 +289,7 @@ ssbst (sg :< sgc) = case sgc of
       (xz, w) <- spop
       when (v /= w) $ throwError (NotTopVariable v w)
       (sg, ovs) <- local (setObjVars xz) (ssbst sg)
-      pure (sbstW sg (ones 1), ovs :< w)
+      pure (sbstW sg (ones 1), ovs :< getVariable w)
     Drop v -> do
       (xz, w) <- spop
       when (v /= w) $ throwError (NotTopVariable v w)
@@ -291,13 +298,13 @@ ssbst (sg :< sgc) = case sgc of
     Assign v t -> do
       t <- stm t
       (sg, ovs) <- ssbst sg
-      local (setObjVars ovs) $ isFresh v
+      v <- local (setObjVars ovs) $ isFresh v
       pure (sbstT sg ((Hide v :=) $^ t), ovs :< v)
 
 sth :: (Bwd Variable, ThDirective) -> Elab Th
 sth (xz, b) = do
   ovs <- asks objVars
-  let th = which (`elem` xz) ovs
+  let th = which (`elem` (getVariable <$> xz)) ovs
   pure $ case b of
     ThKeep -> th
     ThDrop -> comp th
@@ -308,7 +315,7 @@ stm = \case
   At a -> atom a <$> asks (length . objVars)
   Cons p q -> (%) <$> stm p <*> stm q
   Lam (Scope (Hide x) sc) -> (x \\) <$> do
-    isFresh x
+    x <- isFresh (Variable x)
     local (declareObjVar x) $ stm sc
   Sbst sg t -> do
     (sg, ovs) <- during (SubstitutionElaboration sg) $ ssbst sg
@@ -324,6 +331,7 @@ spat = \case
       Just (Left k)  -> throwError (NotAValidPatternVariable v k)
       Just (Right i) -> pure (VP i, ds)
       Nothing        -> do ovs <- asks objVars
+                           v <- pure (getVariable v)
                            pure (MP v (ones (length ovs)), ds :< (v, ActVar ovs))
   AtP at -> (AP at,) <$> asks declarations
   ConsP p q -> do
@@ -331,7 +339,7 @@ spat = \case
     (q, ds) <- local (setDecls ds) (spat q)
     pure (PP p q, ds)
   LamP (Scope v@(Hide x) p) -> do
-    isFresh x
+    () <$ isFresh (Variable x)
     (p, ds) <- local (declareObjVar x) (spat p)
     pure (BP v p, ds)
   ThP th p -> do
@@ -392,17 +400,16 @@ sact = \case
 
   C.Spawn jd ch a -> do
     -- check the channel name is fresh & initialise it
-    isFresh ch
-    ch <- pure (Channel ch)
+    ch <- Channel <$> isFresh ch
     p <- resolve jd >>= \case
       Just (Left (AJudgement p)) -> pure p
       _ -> throwError (NotAValidJudgement jd)
 
     a <- withChannel ch (dual p) $ sact a
 
-    pure $ A.Spawn jd ch a
+    pure $ A.Spawn (getVariable jd) ch a
 
-  C.Send ch tm a -> do
+  C.Send (Variable ch) tm a -> do
     -- Check the channel is in sending mode & step it
     ch <- pure (Channel ch)
     steppingChannel ch $ \case
@@ -420,8 +427,8 @@ sact = \case
     pure $ A.Send ch tm a
 
   C.Recv ch (av, a) -> do
-    ch <- pure (Channel ch)
-    during (RecvMetaElaboration ch) $ isFresh av
+    ch <- pure (Channel $ getVariable ch)
+    av <- during (RecvMetaElaboration ch) $ isFresh av
     -- Check the channel is in receiving mode & step it
     steppingChannel ch $ \case
       (Input, cat) : p -> pure p
@@ -433,13 +440,13 @@ sact = \case
     pure $ A.Recv ch (ActorMeta av, a)
 
   C.FreshMeta (av, a) -> do
-    during FreshMetaElaboration $ isFresh av
+    av <- during FreshMetaElaboration $ isFresh av
     ovs <- asks objVars
     a <- local (declare av (ActVar ovs)) $ sact a
     pure $ A.FreshMeta (ActorMeta av, a)
 
   C.Under (Scope v@(Hide x) a) -> do
-    during UnderElaboration $ isFresh x
+    during UnderElaboration $ () <$ isFresh (Variable x)
     a <- local (declareObjVar x) $ sact a
     pure $ A.Under (Scope v a)
 
@@ -463,11 +470,11 @@ sact = \case
       _ -> throwError $ OutOfScope p
     t <- during (PushTermElaboration t) $ stm t
     a <- sact a
-    pure $ A.Push jd (p, t) a
+    pure $ A.Push (getVariable jd) (p, t) a
 
   C.Lookup rt@t (av, a) b -> do
     t <- during (LookupTermElaboration t) $ stm t
-    isFresh av
+    av <- isFresh av
     ovs <- asks objVars
     (a, mcha) <- local (declare av (ActVar ovs)) $ sbranch a
     (b, mchb) <- sbranch b

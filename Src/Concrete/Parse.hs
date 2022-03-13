@@ -17,8 +17,11 @@ instance Lisp Raw where
 pscoped :: Parser a -> Parser (Scope a)
 pscoped p = Scope . Hide <$ pch (== '\\') <* pspc <*> pnom <* punc "." <*> p
 
+pvariable :: Parser Variable
+pvariable = Variable <$> pnom
+
 ptm :: Parser Raw
-ptm = Var <$> pnom
+ptm = Var <$> pvariable
   <|> At <$> patom
   <|> Lam <$> pscoped ptm
   <|> id <$ pch (== '[') <* pspc <*> plisp
@@ -26,7 +29,7 @@ ptm = Var <$> pnom
   <|> Sbst <$ pch (== '{') <* pspc <*> ppes (punc ",") psbstC <* punc "}" <*> ptm
 
 psbstC :: Parser SbstC
-psbstC = pnom >>= \ x ->
+psbstC = pvariable >>= \ x ->
   Assign x <$ punc "=" <*> ptm
   <|> Drop x <$ pspc <* pch (== '*')
   <|> pure (Keep x)
@@ -37,7 +40,7 @@ instance Lisp RawP where
   pCar = ppat
 
 ppat :: Parser RawP
-ppat = VarP <$> pnom
+ppat = VarP <$> pvariable
   <|> AtP <$> patom
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pch (== ')')
@@ -46,7 +49,7 @@ ppat = VarP <$> pnom
   <|> UnderscoreP <$ pch (== '_')
 
 pth :: Parser (Bwd Variable, ThDirective)
-pth = (,) <$> ppes pspc pnom
+pth = (,) <$> ppes pspc pvariable
           <*> (ThDrop <$ pspc <* pch ('*' ==) <|> pure ThKeep)
 
 pACT :: Parser Actor
@@ -57,14 +60,14 @@ pACT = pact >>= more where
     <|> pure act
 
 withVar :: String -> Parser a -> Parser (Variable, a)
-withVar str p = (,) <$> pnom <* punc str <*> p
+withVar str p = (,) <$> pvariable <* punc str <*> p
 
 pact :: Parser Actor
 pact = Under <$> pscoped pact
-  <|> Send <$> pnom <* punc "!" <*> ptm <* punc "." <*> pact
-  <|> Recv <$> pnom <* punc "?" <*> withVar "." pact
+  <|> Send <$> pvariable <* punc "!" <*> ptm <* punc "." <*> pact
+  <|> Recv <$> pvariable <* punc "?" <*> withVar "." pact
   <|> FreshMeta <$ pch (== '?') <* pspc <*> withVar "." pact
-  <|> Spawn <$> pnom <* punc "@" <*> pnom <* punc "." <*> pact
+  <|> Spawn <$> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
   <|> Constrain <$> ptm <* punc "~" <*> ptm
   <|> Match <$ plit "case" <* pspc <*> ptm <* punc "{"
        <*> psep (punc ";") ((,) <$> ppat <* punc "->" <*> pACT)
@@ -74,7 +77,7 @@ pact = Under <$> pscoped pact
   <|> Print <$ plit "PRINT" <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
   <|> Print <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Fail <$ pch (== '#') <* pspc <*> (pformat >>= pargs)
-  <|> Push <$> pnom <*> pcurlies (withVar "->" ptm) <* punc "." <*> pact
+  <|> Push <$> pvariable <*> pcurlies (withVar "->" ptm) <* punc "." <*> pact
   <|> Lookup <$ plit "lookup" <* pspc <*> ptm <* pspc <*> pcurlies (withVar "->" pACT)
              <* pspc <* plit "else" <* pspc <*> pact
   <|> pure Win

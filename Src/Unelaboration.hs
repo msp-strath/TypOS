@@ -81,7 +81,7 @@ instance UnelabMeta m => Unelab (CdB (Tm m)) where
 instance Unelab DB where
   type UnelabEnv DB = Naming
   type Unelabed DB = Variable
-  unelab (DB n) = do
+  unelab (DB n) = Variable <$> do
     na@(ns, _, _) <- ask
     when (n >= length ns) $ throwError (InvalidNaming na)
     pure (ns <! n)
@@ -91,7 +91,7 @@ instance UnelabMeta m => Unelab (Tm m) where
   type Unelabed (Tm m) = Raw
   unelab = \case
     V -> ask >>= \case
-           (B0 :< x, _, _) -> pure (Var x)
+           (B0 :< x, _, _) -> pure (Var (Variable x))
            na              -> throwError (VarOutOfScope na)
     A a -> pure (At a)
     P (s :<>: t) -> Cons <$> unelab s <*> unelab t
@@ -113,18 +113,18 @@ instance UnelabMeta m => Unelab (Sbst m) where
       (ST (CdB sg th :<>: CdB (Hide x := t) ph) :^^ 0) -> do
         t <- unelab (CdB t ph)
         sg <- local (nameSel th) $ unelab sg
-        pure (sg :< Assign x t)
+        pure (sg :< Assign (Variable x) t)
       (sg :^^ w) -> case na of
         (_, th, _) | bigEnd th <= 0 -> throwError (UnexpectedEmptyThinning na)
         (xz, th, yz :< y) -> case thun th of
          (th, False) -> do
            sg <- local (const (xz, th, yz)) $ unelab (sg :^^ w)
-           pure (sg :< Drop y)
+           pure (sg :< Drop (Variable y))
          (th, True) ->
            case xz of
              xz :< x -> do
                sg <- local (const (xz, th, yz)) $ unelab (sg :^^ (w - 1))
-               pure (sg :< Keep x)
+               pure (sg :< Keep (Variable x))
              _ -> throwError $ InvalidNaming na
         _ -> throwError $ InvalidNaming na
 
@@ -136,7 +136,7 @@ instance Unelab Pat where
     AP str -> pure (AtP str)
     PP p q -> ConsP <$> unelab p <*> unelab q
     BP x p -> LamP . Scope x <$> local (`nameOn` unhide x) (unelab p)
-    MP m th -> {- TODO: insert ThP -} pure (VarP m)
+    MP m th -> {- TODO: insert ThP -} pure (VarP (Variable m))
     HP -> pure UnderscoreP
 
 instance Unelab (Pat, A.Actor) where
@@ -175,17 +175,17 @@ instance Forget DAEnv Naming where
 instance Unelab ActorMeta where
   type UnelabEnv ActorMeta = ()
   type Unelabed ActorMeta = Variable
-  unelab (ActorMeta str) = pure str
+  unelab (ActorMeta str) = pure (Variable str)
 
 instance Unelab Channel where
   type UnelabEnv Channel = ()
   type Unelabed Channel = Variable
-  unelab (Channel str)  = pure str
+  unelab (Channel str) = pure (Variable str)
 
 instance Unelab A.JudgementForm where
   type UnelabEnv A.JudgementForm = ()
   type Unelabed A.JudgementForm = Variable
-  unelab str  = pure str
+  unelab str = pure (Variable str)
 
 instance Unelab Debug where
   type UnelabEnv Debug = ()

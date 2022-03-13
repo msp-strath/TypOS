@@ -11,6 +11,7 @@ import Data.Traversable (for)
 
 import qualified Actor as A
 import Actor.Display (DAEnv, initDAEnv, declareChannel)
+import Concrete.Base (Variable(..))
 import qualified Concrete.Base as C
 import Concrete.Parse
 import Bwd
@@ -84,7 +85,7 @@ pmode :: Parser Mode
 pmode = Input <$ pch (== '?') <|> Output <$ pch (== '!')
 
 pjudgeat :: Parser (C.Variable, C.Variable)
-pjudgeat = (,) <$> pnom <* punc "@" <*> pnom
+pjudgeat = (,) <$> pvariable <* punc "@" <*> pvariable
 
 pprotocol :: Parser Protocol
 pprotocol = psep pspc ((,) <$> pmode <* pspc <*> patom <* pspc <* pch (== '.'))
@@ -94,7 +95,7 @@ psyntax = (,) <$> patom <* punc "=" <*> plocal B0 ptm
 
 pcommand :: Parser CCommand
 pcommand
-    = DeclJ <$> pnom <* punc ":" <*> pprotocol
+    = DeclJ <$> pvariable <* punc ":" <*> pprotocol
   <|> DefnJ <$> pjudgeat <* punc "=" <*> pACT
   <|> DeclS <$ plit "syntax" <*> pcurlies (psep (punc ";") psyntax)
   <|> Go <$ plit "exec" <* pspc <*> pACT
@@ -106,7 +107,7 @@ pfile = id <$ pspc <*> psep pspc pcommand <* pspc
 collectDecls :: [CCommand] -> Elab Decls
 collectDecls [] = asks declarations
 collectDecls (DeclJ jd p : ccs) = do
-  during (DeclJElaboration jd) $ isFresh jd
+  jd <- during (DeclJElaboration jd) $ isFresh jd
   local (declare jd (AJudgement p)) $ collectDecls ccs
 collectDecls (_ : ccs) = collectDecls ccs
 
@@ -119,12 +120,12 @@ elaborate ccs = evalElab $ do
       forM_ (snd <$> p) $ \ cat -> do
          whenNothing (Map.lookup cat (syntaxCats st)) $
            throwError (DeclJElaboration jd $ NotAValidSyntaxCat cat)
-      pure (DeclJ jd p)
+      pure (DeclJ (getVariable jd) p)
     DefnJ (jd, ch) a -> during (DefnJElaboration jd) $ do
-      ch <- pure (A.Channel ch)
+      ch <- pure (A.Channel $ getVariable ch)
       resolve jd >>= \case
         Just (Left (AJudgement p)) -> do
-          withChannel ch p $ DefnJ (jd, ch) <$> sact a
+          withChannel ch p $ DefnJ (getVariable jd, ch) <$> sact a
         Just _ -> throwError (NotAValidJudgement jd)
         _ -> throwError (OutOfScope jd)
     DeclS syns -> do

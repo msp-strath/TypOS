@@ -4,7 +4,8 @@ import Bwd
 import Format
 import Scope
 
-type Variable = String
+newtype Variable = Variable { getVariable :: String }
+  deriving (Show, Eq)
 type Atom = String
 
 data Raw
