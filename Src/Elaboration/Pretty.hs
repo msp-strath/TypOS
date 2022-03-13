@@ -43,10 +43,10 @@ instance Pretty Complaint where
         unwords ["Invalid term variable", pretty x, "refers to", pretty k]
      NotAValidPatternVariable x k -> singleton $
         unwords ["Invalid pattern variable", pretty x, "refers to", pretty k]
-     NotAValidJudgement x -> singleton $
-        unwords ["Invalid judgement variable", pretty x]
-     NotAValidChannel x -> singleton $
-        unwords ["Invalid channel variable", pretty x]
+     NotAValidJudgement x mk -> singleton $
+        unwords ["Invalid judgement variable", pretty x, "refers to", maybe "a bound variable" pretty mk]
+     NotAValidChannel x mk -> singleton $
+        unwords ["Invalid channel variable", pretty x, "refers to", maybe "a bound variable" pretty mk]
      NotAValidBoundVar x -> singleton $
        unwords ["Invalid bound variable", pretty x]
      -- protocol

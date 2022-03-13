@@ -106,8 +106,8 @@ data Complaint
   -- kinding
   | NotAValidTermVariable Variable Kind
   | NotAValidPatternVariable Variable Kind
-  | NotAValidJudgement Variable
-  | NotAValidChannel Variable
+  | NotAValidJudgement Variable (Maybe Kind)
+  | NotAValidChannel Variable (Maybe Kind)
   | NotAValidBoundVar Variable
   -- protocol
   | InvalidSend Channel
@@ -281,6 +281,18 @@ spat = \case
     pure (p *^ th, ds)
   UnderscoreP -> (HP,) <$> asks declarations
 
+isChannel :: Variable -> Elab Channel
+isChannel ch = resolve ch >>= \case
+  Just (Left (AChannel sc)) -> pure (Channel $ getVariable ch)
+  Just mk -> throwError (NotAValidChannel ch $ either Just (const Nothing) mk)
+  Nothing -> throwError (OutOfScope ch)
+
+isJudgement :: Variable -> Elab (A.JudgementForm, Protocol)
+isJudgement jd = resolve jd >>= \case
+  Just (Left (AJudgement p)) -> pure (getVariable jd, p)
+  Just mk -> throwError (NotAValidJudgement jd $ either Just (const Nothing) mk)
+  Nothing -> throwError (OutOfScope jd)
+
 channelScope :: Channel -> Elab ObjVars
 channelScope (Channel ch) = do
   ds <- asks declarations
@@ -334,17 +346,15 @@ sact = \case
   C.Spawn jd ch a -> do
     -- check the channel name is fresh & initialise it
     ch <- Channel <$> isFresh ch
-    p <- resolve jd >>= \case
-      Just (Left (AJudgement p)) -> pure p
-      _ -> throwError (NotAValidJudgement jd)
+    (jd, p) <- isJudgement jd
 
     a <- withChannel ch (dual p) $ sact a
 
-    pure $ A.Spawn (getVariable jd) ch a
+    pure $ A.Spawn jd ch a
 
-  C.Send (Variable ch) tm a -> do
-    -- Check the channel is in sending mode & step it
-    ch <- pure (Channel ch)
+  C.Send ch tm a -> do
+    ch <- isChannel ch
+    -- Check the channel is in sending mode, & step it
     steppingChannel ch $ \case
       (Output, cat) : p -> pure p
       _ -> throwError (InvalidSend ch)
@@ -360,7 +370,7 @@ sact = \case
     pure $ A.Send ch tm a
 
   C.Recv ch (av, a) -> do
-    ch <- pure (Channel $ getVariable ch)
+    ch <- isChannel ch
     av <- during (RecvMetaElaboration ch) $ isFresh av
     -- Check the channel is in receiving mode & step it
     steppingChannel ch $ \case
@@ -392,10 +402,7 @@ sact = \case
     pure $ A.Match tm cls
 
   C.Push jd (p, t) a -> do
-    resolve jd >>= \case
-      Just (Left (AJudgement _)) -> pure ()
-      Just _ -> throwError $ NotAValidJudgement jd
-      _ -> throwError $ OutOfScope jd
+    (jd, _) <- isJudgement jd
 
     p <- resolve p >>= \case
       Just (Right i) -> pure i
@@ -403,7 +410,7 @@ sact = \case
       _ -> throwError $ OutOfScope p
     t <- during (PushTermElaboration t) $ stm t
     a <- sact a
-    pure $ A.Push (getVariable jd) (p, t) a
+    pure $ A.Push jd (p, t) a
 
   C.Lookup rt@t (av, a) b -> do
     t <- during (LookupTermElaboration t) $ stm t

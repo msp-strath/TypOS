@@ -125,11 +125,8 @@ elaborate ccs = evalElab $ do
       pure (DeclJ (getVariable jd) p)
     DefnJ (jd, ch) a -> during (DefnJElaboration jd) $ do
       ch <- pure (A.Channel $ getVariable ch)
-      resolve jd >>= \case
-        Just (Left (AJudgement p)) -> do
-          withChannel ch p $ DefnJ (getVariable jd, ch) <$> sact a
-        Just _ -> throwError (NotAValidJudgement jd)
-        _ -> throwError (OutOfScope jd)
+      (jd, p) <- isJudgement jd
+      withChannel ch p $ DefnJ (jd, ch) <$> sact a
     DeclS syns -> do
       oldsyndecls <- gets (Map.keys . syntaxCats)
       let newsyndecls = map fst syns
