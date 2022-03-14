@@ -140,8 +140,9 @@ scommand = \case
   DefnJ (jd, ch) a -> during (DefnJElaboration jd) $ do
     ch <- pure (A.Channel $ getVariable ch)
     (jd, mstk, p) <- isJudgement jd
-    a <- withChannel ch p $ sact a
-    (DefnJ (jd, ch) a,) <$> asks declarations
+    local (setCurrentActor jd mstk) $ do
+      a <- withChannel ch p $ sact a
+      (DefnJ (jd, ch) a,) <$> asks declarations
   DeclS syns -> do
     oldsyndecls <- gets (Map.keys . syntaxCats)
     let newsyndecls = map fst syns

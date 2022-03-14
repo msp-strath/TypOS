@@ -1,3 +1,5 @@
+* [ ] Fix all the incomplete patterns errors
+* [ ] Add missing pretty cases for Complaints (Elaboration.Pretty)
 * [ ] Using a pretty printer rather than String
 * [ ] Pretty print raw syntax
 * [ ] Remove display in favour of unelab + pretty

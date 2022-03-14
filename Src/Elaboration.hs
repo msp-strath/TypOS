@@ -77,10 +77,14 @@ data Context = Context
   , declarations :: Decls
   , location     :: Bwd Turn
   , binderHints  :: Hints
+  , currentActor :: (A.JudgementForm, Maybe (JudgementStack SyntaxDesc))
   } deriving (Show)
 
+setCurrentActor :: A.JudgementForm -> Maybe (JudgementStack SyntaxDesc) -> Context -> Context
+setCurrentActor jd mstk ctx = ctx { currentActor = (jd, mstk) }
+
 initContext :: Context
-initContext = Context B0 B0 B0 Map.empty
+initContext = Context B0 B0 B0 Map.empty ("", Nothing)
 
 data Turn = West | East
   deriving (Show, Eq)
@@ -149,6 +153,7 @@ data Complaint
   | DoomedBranchCommunicated C.Actor
   -- judgement stacks
   | PushingOnAStacklessJudgement A.JudgementForm
+  | LookupFromAStacklessActor A.JudgementForm
   -- syntaxes
   | NotAValidSyntaxCat SyntaxCat
   | AlreadyDeclaredSyntaxCat SyntaxCat
@@ -617,7 +622,10 @@ sact = \case
     pure $ A.Push jd (p, t) a
 
   C.Lookup rt@t (av, a) b -> do
-    desc <- fromInfo Unknown
+    (jd, stk) <- asks currentActor >>= \case
+      (jd, Nothing) -> throwError (LookupFromAStacklessActor jd)
+      (jd, Just stk) -> pure (jd, stk)
+    desc <- fromInfo (Known $ keyCat stk)
     t <- during (LookupTermElaboration t) $ stm desc t
     av <- isFresh av
     ovs <- asks objVars
