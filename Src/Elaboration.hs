@@ -331,11 +331,6 @@ sth (xz, b) = do
     ThKeep -> th
     ThDrop -> comp th
 
-isRec :: SyntaxDesc -> Maybe (Info SyntaxCat)
-isRec = asTagged $ \case
-  ("Rec", _) -> asPair $ asAtom $ \ (at, _) _ -> pure (Known at)
-  _ -> bust
-
 stms :: [SyntaxDesc] -> Raw -> Elab ACTm
 stms [] (At "") = atom "" <$> asks (length . objVars)
 stms [] (At a) = throwError (ExpectedNilGot a)
@@ -347,11 +342,11 @@ stm :: SyntaxDesc -> Raw -> Elab ACTm
 stm desc (Var v) = do
   table <- gets syntaxCats
   (cat, t) <- svar v
-  case isRec desc of
+  case asRec pure desc of
     Nothing -> case Syntax.expand table desc of
       Just VTerm -> pure ()
       _ -> throwError (SyntaxError desc (Var v))
-    Just cat' -> during (TermVariableElaboration v) $ compatibleInfos cat cat'
+    Just cat' -> during (TermVariableElaboration v) $ compatibleInfos cat (Known cat')
   pure t
 stm desc (Sbst sg t) = do
     (sg, ovs) <- during (SubstitutionElaboration sg) $ ssbst sg
@@ -366,13 +361,13 @@ stm desc rt = do
         case vdesc of
           VAtom -> pure ()
           VNil -> unless (a == "") $ throwError (ExpectedNilGot a)
-          VNilsOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot a)
+          VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot a)
           VEnum ts -> unless (a `elem` ts) $ throwError (ExpectedEnumGot ts a)
           VTerm -> pure ()
           _ -> throwError (SyntaxError desc rt)
         atom a <$> asks (length . objVars)
       Cons p q -> case vdesc of
-        VNilsOrCons d1 d2 -> (%) <$> stm d1 p <*> stm d2 q
+        VNilOrCons d1 d2 -> (%) <$> stm d1 p <*> stm d2 q
         VCons d1 d2 -> (%) <$> stm d1 p <*> stm d2 q
         VTerm -> (%) <$> stm desc p <*> stm desc q
         VTag ds -> case p of
@@ -402,11 +397,11 @@ spats _ t = throwError (ExpectedAConsPGot t)
 spat :: SyntaxDesc -> RawP -> Elab (Pat, Decls, Hints)
 spat desc (C.VarP v) = do
   table <- gets syntaxCats
-  cat <- case isRec desc of
+  cat <- case asRec pure desc of
     Nothing -> case Syntax.expand table desc of
       Just VTerm -> pure Unknown
       _ -> throwError (SyntaxPError desc (VarP v))
-    Just cat -> pure cat
+    Just cat -> pure (Known cat)
   ds <- asks declarations
   hs <- asks binderHints
   res <- resolve v
@@ -433,14 +428,14 @@ spat desc rp = do
         case vdesc of
           VAtom -> pure ()
           VNil -> unless (a == "") $ throwError (ExpectedNilGot a)
-          VNilsOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot a)
+          VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot a)
           VEnum ts -> unless (a `elem` ts) $ throwError (ExpectedEnumGot ts a)
           VTerm -> pure ()
           _ -> throwError (SyntaxPError desc rp)
         (AP a,,) <$> asks declarations <*> asks binderHints
 
       ConsP p q -> case vdesc of
-        VNilsOrCons d1 d2 -> do
+        VNilOrCons d1 d2 -> do
           (p, ds, hs) <- spat d1 p
           (q, ds, hs) <- local (setDecls ds . setHints hs) (spat d2 q)
           pure (PP p q, ds, hs)

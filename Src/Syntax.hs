@@ -22,11 +22,16 @@ data VSyntaxDesc
   = VAtom
   | VNil
   | VCons SyntaxDesc SyntaxDesc
-  | VNilsOrCons SyntaxDesc SyntaxDesc
+  | VNilOrCons SyntaxDesc SyntaxDesc
   | VBind SyntaxCat SyntaxDesc
   | VTag [(String, [SyntaxDesc])]
   | VEnum [String]
   | VTerm
+
+asRec :: OrBust x => (SyntaxCat -> x) -> SyntaxDesc -> x
+asRec f = asTagged $ \case
+  ("Rec", _) -> asPair $ asAtom $ \ (at, _) _ -> f at
+  _ -> bust
 
 expand :: SyntaxTable -> SyntaxDesc -> Maybe VSyntaxDesc
 expand table = go True where
@@ -39,7 +44,7 @@ expand table = go True where
     "Atom" -> \ _ -> pure VAtom
     "Nil"  -> \ _ -> pure VNil
     "Cons" -> asPair $ \ s0 -> asPair $ \ s1 _ -> pure (VCons s0 s1)
-    "NilOrCons" -> asPair $ \ s0 -> asPair $ \ s1 _ -> pure (VNilsOrCons s0 s1)
+    "NilOrCons" -> asPair $ \ s0 -> asPair $ \ s1 _ -> pure (VNilOrCons s0 s1)
     "Bind" -> asTagged $ \ (a,_) -> asPair $ \ s _ -> pure (VBind a s)
 
     "Tag" -> asPair $ asListOf (asTagged $ \ (a, _) ->
@@ -52,36 +57,25 @@ expand table = go True where
     _ -> bust
 
 validate :: SyntaxTable -> Bwd SyntaxCat -> SyntaxDesc -> CdB (Tm m) -> Bool
-validate table env s t
-  = ($ s) $ asTagged $ (. fst) $ \case
-  "Rec" -> asTagged $ \ (a,_) _ -> t ?: \case
-    VX x _ -> a == bwdProj env (dbIndex x)
-    _   -> case Map.lookup a table of
-      Nothing -> False
-      Just s -> validate table env s t
-  "Atom" -> \ _ -> ($ t) $ asAtom $ \ (a,_) -> not (null a)
-  "Nil"  -> \ _ -> ($ t) $ asAtom $ \ (a,_) -> null a
-  "Cons" -> asPair $ \ s0 -> asPair $ \ s1 _ ->
-                   ($ t) $ asPair $ \ t0 t1 -> validate table env s0 t0 && validate table env s1 t1
-  "NilOrCons" -> asPair $ \ s0 -> asPair $ \ s1 _ ->
-                   ($ t) $ asNilOrCons True $ \ t0 t1 -> validate table env s0 t0 && validate table env s1 t1
-  "Bind" -> asTagged $ \ (a,_) -> asPair $ \ s _ ->
-                   ($ t) $ asBind $ \ x t -> validate table (env :< a) s t
-  "Tag" -> asPair $ \ s _ ->
-                   ($ t) $ asTagged $ \ (a,_) t -> case ourLookup a s of
-                         Nothing -> False
-                         Just s -> ($ s) $ asList $ \ ss -> validates table env ss t
-  "Fix" -> asPair $ asBind $ \ x s' _ -> validate table env (s' //^ topSbst x s)  t
-  "Enum" -> asPair $ asListOf (asAtom $ Just . fst) $ \es -> asNil $ ($ t) $ asAtom $ \ (e,_) -> e `elem` es
-  "Term" -> \ _ -> True
-  where
-   ourLookup  :: String -> CdB (Tm m) -> Maybe (CdB (Tm m))
-   ourLookup a = asListOf (asTagged $ \ (a, _) b -> Just (a, b)) $ lookup a
+validate table = go where
 
-validates :: SyntaxTable -> Bwd SyntaxCat -> [SyntaxDesc] -> CdB (Tm m) -> Bool
-validates table env [] = asNil True
-validates table env (s:ss) = asPair $ \ t0 t1 ->
-  validate table env s t0 && validates table env ss t1
+  go :: Bwd SyntaxCat -> SyntaxDesc -> CdB (Tm m) -> Bool
+  go env s (CdB V th) = ($ s) $ asRec $ \ a -> a == bwdProj env (dbIndex $ lsb th)
+  go env s t = ($ t) $ flip (maybe bust) (Syntax.expand table s) $ \case
+    VAtom -> asAtom $ \ (a,_) -> not (null a)
+    VNil  -> asAtom $ \ (a,_) -> null a
+    VCons s0 s1 -> asPair $ \ t0 t1 -> go env s0 t0 && go env s1 t1
+    VNilOrCons s0 s1 -> asNilOrCons True $ \ t0 t1 -> go env s0 t0 && go env s1 t1
+    VBind a s -> asBind $ \ x t -> go (env :< a) s t
+    VTag ds -> asTagged $ \ (a,_) t -> case lookup a ds of
+                 Nothing -> False
+                 Just ss -> gos env ss t
+    VEnum es -> asAtom $ \ (e,_) -> e `elem` es
+    VTerm -> \ _ -> True
+
+  gos :: Bwd SyntaxCat -> [SyntaxDesc] -> CdB (Tm m) -> Bool
+  gos env [] = asNil True
+  gos env (s:ss) = asPair $ \ t0 t1 -> go env s t0 && gos env ss t1
 
 listOf :: SyntaxDesc -> SyntaxDesc
 listOf d = let ga = scope d + 1 in
