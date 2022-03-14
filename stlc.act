@@ -21,7 +21,8 @@ syntax
   }
 
 check : ?'Type. ?'Check.
-synth : ?'Synth. !'Type.
+synth : {-'Synth -> ['Rec 'Type] -- synth's stash associates Types to Synth variables
+      |- -} ?'Synth. !'Type.
 
 ------------------------------------------------------------------------------
 -- Implementation
@@ -35,7 +36,7 @@ type@p = p?ty. case ty
   }
 
 check@p = p?ty. p?tm. case tm
-  { ['Lam \x. body] -> ?S. ?T.
+  { ['Lam \x. body] -> 'Type?S. 'Type?T.
       ( ty ~ ['Arr S T]
       | \x. synth { x -> S }. check@q. q!T. q!body.
       )
@@ -48,7 +49,7 @@ synth@p = p?tm . lookup tm { S -> p!S. } else case tm
         | check@r. r!ty. r!t.
         | p!ty.
         )
-   ; ['App f s] -> ?U. ?V.
+   ; ['App f s] -> 'Type?U. 'Type?V.
         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
         | check@r. r!U. r!s.
         | p!V.
@@ -73,3 +74,4 @@ exec  check@p.
    p! ['Lam \z. ['Emb
          ['App ['Rad ['Lam \w. ['Emb w]] ['Arr ['Nat] ['Nat]]]
          ['Emb z]]]].
+   PRINTF "Victory!".

@@ -1,5 +1,7 @@
 module Syntax where
 
+import Control.Monad
+
 import Data.Void
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -15,6 +17,39 @@ type SyntaxCat = String
 type SyntaxDesc = CdB (Tm Void)
 
 type SyntaxTable = Map SyntaxCat SyntaxDesc
+
+data VSyntaxDesc
+  = VAtom
+  | VNil
+  | VCons SyntaxDesc SyntaxDesc
+  | VNilsOrCons SyntaxDesc SyntaxDesc
+  | VBind SyntaxCat SyntaxDesc
+  | VTag [(String, [SyntaxDesc])]
+  | VEnum [String]
+  | VTerm
+
+expand :: SyntaxTable -> SyntaxDesc -> Maybe VSyntaxDesc
+expand table = go True where
+
+  go b s = ($ s) $ asTagged $ (. fst) $ \case
+    "Rec" -> asTagged $ \ (a,_) _ -> do
+      guard b
+      s <- Map.lookup a table
+      go False s
+    "Atom" -> \ _ -> pure VAtom
+    "Nil"  -> \ _ -> pure VNil
+    "Cons" -> asPair $ \ s0 -> asPair $ \ s1 _ -> pure (VCons s0 s1)
+    "NilOrCons" -> asPair $ \ s0 -> asPair $ \ s1 _ -> pure (VNilsOrCons s0 s1)
+    "Bind" -> asTagged $ \ (a,_) -> asPair $ \ s _ -> pure (VBind a s)
+
+    "Tag" -> asPair $ asListOf (asTagged $ \ (a, _) ->
+                                  asList $ \ bs -> Just (a, bs))
+                    $ \ xs _ -> pure (VTag xs)
+    "Fix" -> asPair $ asBind $ \ x s' _ -> go False (s' //^ topSbst x s)
+    "Enum" -> asPair $ asListOf (asAtom $ Just . fst)
+                     $ \ xs _ -> pure (VEnum xs)
+    "Term" -> \ _ -> pure VTerm
+    _ -> bust
 
 validate :: SyntaxTable -> Bwd SyntaxCat -> SyntaxDesc -> CdB (Tm m) -> Bool
 validate table env s t
@@ -72,26 +107,26 @@ syntaxDesc syns = "Tag" #%+ [
         atom0 = ("Atom",0) #% []
         scats = "Enum" #%+ [foldr (%) (nil 0) $ map (\ s -> atom s 0) syns]
 
-{- > putStrLn $ unsafeEvalDisplay initNaming $ display syntaxDesc
 
-['Tag [
-  ['Rec ['Atom]]
+{- > printIt
+
+['Tag
+  [['Rec ['Enum ['Syntax]]]
   ['Atom]
   ['Nil]
   ['Cons ['Rec 'Syntax] ['Rec 'Syntax]]
   ['NilOrCons ['Rec 'Syntax] ['Rec 'Syntax]]
-  ['Bind ['Atom] ['Rec 'Syntax]]
+  ['Bind ['Enum ['Syntax]] ['Rec 'Syntax]]
   ['Tag ['Fix (\list.['NilOrCons ['Cons ['Atom] ['Fix (\list.['NilOrCons ['Rec 'Syntax] list])]] list])]]
   ['Fix ['Bind 'Syntax ['Rec 'Syntax]]]
   ['Enum ['Fix (\list.['NilOrCons ['Atom] list])]]
-  ['Term]
-]]
-
+  ['Term]]]
 -}
 
 validateDesc :: [SyntaxCat] -> SyntaxDesc -> Bool
 validateDesc syns =
-    validate (Map.singleton "Syntax" (syntaxDesc syns)) B0 ("Rec" #%+ [atom "Syntax" 0])
+    validate (Map.singleton "Syntax" (syntaxDesc syns)) B0
+     ("Rec" #%+ [atom "Syntax" 0])
 
 validateIt = validateDesc ["Syntax"] (syntaxDesc ["Syntax"])
 printIt = putStrLn $ unlines

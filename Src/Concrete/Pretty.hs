@@ -66,7 +66,7 @@ instance Pretty Actor where
     Spawn jd p a -> concat [ pretty jd, "@", pretty p, ". ", prettyPrec 1 a ]
     Send ch t a -> concat [ pretty ch, "!", pretty t, ". ", prettyPrec 1 a ]
     Recv ch (av, a) -> concat [ pretty ch, "?", pretty av, ". ", prettyPrec 1 a ]
-    FreshMeta (av, a) -> concat [ "?", pretty av, ". ", prettyPrec 1 a ]
+    FreshMeta syn (av, a) -> concat [ '\'':syn, "?", pretty av, ". ", prettyPrec 1 a ]
     Under (Scope x a) -> concat [ "\\", pretty x, ". ", prettyPrec 1 a ]
     Match tm pts -> unwords [ "case", pretty tm, "of", braces (intercalate ";" $ map pretty pts) ]
     Constrain s t -> unwords [ pretty s, "~", pretty t ]

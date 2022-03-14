@@ -3,6 +3,7 @@ module Concrete.Base where
 import Bwd
 import Format
 import Scope
+import Syntax
 
 newtype Variable = Variable { getVariable :: String }
   deriving (Show, Eq)
@@ -39,7 +40,7 @@ data Actor
  | Spawn Variable Variable Actor
  | Send Variable Raw Actor
  | Recv Variable (Variable, Actor)
- | FreshMeta (Variable, Actor)
+ | FreshMeta SyntaxCat (Variable, Actor)
  | Under (Scope Actor)
  | Match Raw [(RawP, Actor)]
  -- This is going to bite us when it comes to dependent types

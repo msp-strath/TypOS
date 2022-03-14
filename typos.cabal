@@ -66,6 +66,7 @@ library
   hs-source-dirs:      Src
   default-language:    Haskell2010
   ghc-options:         -Wunused-imports
+                       -fwarn-incomplete-patterns
 
 executable typos
   import:              haskell

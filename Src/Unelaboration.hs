@@ -7,6 +7,7 @@ import Control.Monad.Reader
 
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Void
 
 import GHC.Stack
 
@@ -56,6 +57,12 @@ newtype UnelabM e a = Unelab
            , MonadError Complaint
            , MonadReader e)
 
+evalUnelab :: e -> UnelabM e a -> Either Complaint a
+evalUnelab e (Unelab m) = runReaderT m e
+
+unsafeEvalUnelab :: e -> UnelabM e a -> a
+unsafeEvalUnelab e m = either (error . show) id $ evalUnelab e m
+
 withForget :: Forget e e' => UnelabM e' a -> UnelabM e a
 withForget (Unelab md) = Unelab (withReaderT forget md)
 
@@ -64,8 +71,6 @@ class Unelab t where
   type Unelabed t
 
   unelab :: HasCallStack => t -> UnelabM (UnelabEnv t) (Unelabed t)
-
--- type Unelab0 m = (Unelab m, UnelabEnv m ~ ())
 
 
 subunelab :: (Unelab t, Forget e (UnelabEnv t)) => t -> UnelabM e (Unelabed t)
@@ -76,7 +81,12 @@ type UnelabMeta m = (Unelab m, Forget Naming (UnelabEnv m), Unelabed m ~ Variabl
 instance UnelabMeta m => Unelab (CdB (Tm m)) where
   type UnelabEnv (CdB (Tm m)) = Naming
   type Unelabed (CdB (Tm m)) = Raw
-  unelab  (CdB t' th) = local (nameSel th) $ unelab t'
+  unelab (CdB t' th) = local (nameSel th) $ unelab t'
+
+instance Unelab Void where
+  type UnelabEnv Void = ()
+  type Unelabed Void = Variable
+  unelab = absurd
 
 instance Unelab DB where
   type UnelabEnv DB = Naming
@@ -218,7 +228,7 @@ instance Unelab A.Actor where
     A.Spawn jd ch a -> C.Spawn <$> subunelab jd <*> subunelab ch <*> unelab a
     A.Send ch tm a -> C.Send <$> subunelab ch <*> (inChannel ch $ subunelab tm) <*> unelab a
     A.Recv ch (av, a) -> C.Recv <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
-    A.FreshMeta (av, a) -> C.FreshMeta <$> ((,) <$> subunelab av <*> unelab a)
+    A.FreshMeta cat (av, a) -> C.FreshMeta cat <$> ((,) <$> subunelab av <*> unelab a)
     A.Under (Scope x a) -> C.Under . Scope x <$> local (updateNaming (`nameOn` unhide x)) (unelab a)
     A.Push jd (p, t) a -> C.Push <$> subunelab jd <*> ((,) <$> subunelab p <*> subunelab t) <*> unelab a
     A.Lookup t (av, a) b -> C.Lookup <$> subunelab t <*> ((,) <$> subunelab av <*> unelab a) <*> unelab b

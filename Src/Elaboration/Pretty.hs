@@ -5,6 +5,8 @@ import Bwd
 import Concrete.Pretty()
 import Elaboration
 import Pretty
+import Syntax
+import Unelaboration (unsafeEvalUnelab, unelab, initNaming)
 
 instance Pretty Channel where
   pretty (Channel ch) = ch
@@ -21,6 +23,9 @@ instance Pretty Kind where
     ActVar{} -> "an object variable"
     AChannel{} -> "a channel"
     AJudgement{} -> "a judgement"
+
+instance Pretty SyntaxDesc where
+  pretty t = pretty $ unsafeEvalUnelab initNaming (unelab t)
 
 instance Pretty Complaint where
 
@@ -80,3 +85,7 @@ instance Pretty Complaint where
      DefnJElaboration jd c -> go c :< unwords ["when elaborating the judgement definition for", pretty jd]
      DeclaringSyntaxCat cat c -> go c :< unwords ["when elaborating the syntax declaration for", cat]
      SubstitutionElaboration sg c -> go c :< unwords ["when elaborating the substitution", pretty sg]
+
+     --
+     InvalidSyntaxDesc d -> singleton $ unwords ["Invalid syntax desc", pretty d]
+     w -> B0 :< show w

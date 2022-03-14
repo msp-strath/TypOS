@@ -66,7 +66,7 @@ pact :: Parser Actor
 pact = Under <$> pscoped pact
   <|> Send <$> pvariable <* punc "!" <*> ptm <* punc "." <*> pact
   <|> Recv <$> pvariable <* punc "?" <*> withVar "." pact
-  <|> FreshMeta <$ pch (== '?') <* pspc <*> withVar "." pact
+  <|> FreshMeta <$> patom <* pspc <* pch (== '?') <* pspc <*> withVar "." pact
   <|> Spawn <$> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
   <|> Constrain <$> ptm <* punc "~" <*> ptm
   <|> Match <$ plit "case" <* pspc <*> ptm <* punc "{"

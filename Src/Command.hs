@@ -119,9 +119,8 @@ elaborate ccs = evalElab $ do
   local (setDecls ds) $ forM ccs $ \case
     DeclJ jd p -> do
       st <- get
-      forM_ (snd <$> p) $ \ cat -> do
-         whenNothing (Map.lookup cat (syntaxCats st)) $
-           throwError (DeclJElaboration jd $ NotAValidSyntaxCat cat)
+      during (DeclJElaboration jd) $
+        forM_ (snd <$> p) $ isSyntaxCat
       pure (DeclJ (getVariable jd) p)
     DefnJ (jd, ch) a -> during (DefnJElaboration jd) $ do
       ch <- pure (A.Channel $ getVariable ch)
@@ -130,12 +129,16 @@ elaborate ccs = evalElab $ do
     DeclS syns -> do
       oldsyndecls <- gets (Map.keys . syntaxCats)
       let newsyndecls = map fst syns
-      syns <- for syns $ \ syn@(cat, _) ->
-                during (DeclaringSyntaxCat cat) $ traverse stm syn
+      let syndecls = newsyndecls ++ oldsyndecls
+      desc <- fromInfo (Known "Syntax")
+      syns <- withSyntax (syntaxDesc syndecls) $
+                for syns $ \ syn@(cat, _) ->
+                  during (DeclaringSyntaxCat cat) $
+                    traverse (stm desc) syn
       syns0 <- case isAllJustBy syns (traverse isMetaFree) of
                 Left a -> throwError (SyntaxContainsMeta (fst a))
                 Right syns -> pure syns
-      whenLeft (isAll (validateDesc (newsyndecls ++ oldsyndecls) . snd) syns0) $ \ a ->
+      whenLeft (isAll (validateDesc syndecls . snd) syns0) $ \ a ->
         throwError (InvalidSyntax (fst a))
       forM_ syns0 (uncurry declareSyntax)
       pure (DeclS syns)

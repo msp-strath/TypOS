@@ -122,7 +122,7 @@ exec p@Process { actor = m@(Match s cls), ..}
 
 
 
-exec p@Process { actor = FreshMeta (av@(ActorMeta x), a), ..} =
+exec p@Process { actor = FreshMeta cat (av@(ActorMeta x), a), ..} =
   let (xm, root') = meta root x
       xt = xm $: sbstI (length (globalScope env) + length (localScope env))
       env' = newActorVar av (localScope env <>> [], xt) env
