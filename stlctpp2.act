@@ -127,11 +127,11 @@ evalSynth@p = p?tm.
       ; _ -> #"Failed to evaluate Snd: Expected a pair type"
       }
     }
-  ; ['ListElim rty ltm nil (\x.\xs.\ih.cons)] ->
+  ; ['ListElim rty ltm nil cons] ->
        -- BREAK "evaluating list" .
        evalSynth@q. q!ltm. q?lnf. q?lty.
        -- BREAK "evaluating listElim" .
-       listElimSynth@r. r!rty. r!lnf. r!lty. r!nil. r!(\x.\xs.\ih.cons).
+       listElimSynth@r. r!rty. r!lnf. r!lty. r!nil. r!cons.
        -- BREAK "returning from listElim" .
        r?v. p!v. r?vty. p!vty.
   }
