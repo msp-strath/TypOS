@@ -33,6 +33,11 @@ data Mode = Input | {- Subject | -} Output
 
 type Protocol = [(Mode, SyntaxCat)]
 
+data JudgementStack t = JudgementStack
+  { keyCat :: SyntaxCat
+  , valueDesc :: t
+  } deriving (Show)
+
 dual :: Protocol -> Protocol
 dual = map $ \case
   (Input, c) -> (Output, c)
@@ -51,13 +56,18 @@ instance Eq a => Monoid (Info a) where
 instance Eq a => Semigroup (Info a) where
   (<>) = mappend
 
+compatibleInfos :: Info SyntaxCat -> Info SyntaxCat -> Elab ()
+compatibleInfos cat cat' =
+  when (cat <> cat' == Inconsistent) $
+    throwError (IncompatibleSyntaxCats cat cat')
+
 type ObjVar = (String, Info SyntaxCat)
 type ObjVars = Bwd ObjVar
 
 data Kind
   = ActVar (Info SyntaxCat) ObjVars
   | AChannel ObjVars
-  | AJudgement Protocol
+  | AJudgement (Maybe (JudgementStack SyntaxDesc)) Protocol
   deriving (Show)
 
 type Hints = Map String (Info SyntaxCat)
@@ -137,6 +147,8 @@ data Complaint
   | UnfinishedProtocol Channel Protocol
   | InconsistentCommunication
   | DoomedBranchCommunicated C.Actor
+  -- judgement stacks
+  | PushingOnAStacklessJudgement A.JudgementForm
   -- syntaxes
   | NotAValidSyntaxCat SyntaxCat
   | AlreadyDeclaredSyntaxCat SyntaxCat
@@ -145,7 +157,7 @@ data Complaint
   -- syntaxdesc validation
   | InconsistentSyntaxCat
   | InvalidSyntaxDesc SyntaxDesc
-  | IncompatibleSyntaxCats Variable (Info SyntaxCat) (Info SyntaxCat)
+  | IncompatibleSyntaxCats (Info SyntaxCat) (Info SyntaxCat)
   | ExpectedNilGot String
   | ExpectedEnumGot [String] String
   | ExpectedTagGot [String] String
@@ -172,6 +184,8 @@ data Complaint
   | DefnJElaboration Variable Complaint
   | DeclaringSyntaxCat SyntaxCat Complaint
   | SubstitutionElaboration (Bwd SbstC) Complaint
+  | PatternVariableElaboration Variable Complaint
+  | TermVariableElaboration Variable Complaint
   deriving (Show)
 
 data ElabState = ElabState
@@ -332,8 +346,7 @@ stm desc (Var v) = do
     Nothing -> case Syntax.expand table desc of
       Just VTerm -> pure ()
       _ -> throwError (SyntaxError desc (Var v))
-    Just cat' -> when (cat <> cat' == Inconsistent) $
-      throwError (IncompatibleSyntaxCats v cat cat')
+    Just cat' -> during (TermVariableElaboration v) $ compatibleInfos cat cat'
   pure t
 stm desc (Sbst sg t) = do
     (sg, ovs) <- during (SubstitutionElaboration sg) $ ssbst sg
@@ -383,8 +396,11 @@ spats _ t = throwError (ExpectedAConsPGot t)
 
 spat :: SyntaxDesc -> RawP -> Elab (Pat, Decls, Hints)
 spat desc (C.VarP v) = do
+  table <- gets syntaxCats
   cat <- case isRec desc of
-    Nothing -> throwError (SyntaxError desc (Var v))
+    Nothing -> case Syntax.expand table desc of
+      Just VTerm -> pure Unknown
+      _ -> throwError (SyntaxPError desc (VarP v))
     Just cat -> pure cat
   ds <- asks declarations
   hs <- asks binderHints
@@ -392,8 +408,7 @@ spat desc (C.VarP v) = do
   case res of
     Just (Left k)  -> throwError (NotAValidPatternVariable v k)
     Just (Right (cat', i)) -> do
-      when (cat <> cat' == Inconsistent) $
-          throwError (IncompatibleSyntaxCats v cat cat')
+      during (PatternVariableElaboration v) $ compatibleInfos cat cat'
       pure (VP i, ds, hs)
     Nothing -> do
       ovs <- asks objVars
@@ -458,9 +473,9 @@ isChannel ch = resolve ch >>= \case
   Just mk -> throwError (NotAValidChannel ch $ either Just (const Nothing) mk)
   Nothing -> throwError (OutOfScope ch)
 
-isJudgement :: Variable -> Elab (A.JudgementForm, Protocol)
+isJudgement :: Variable -> Elab (A.JudgementForm, Maybe (JudgementStack SyntaxDesc), Protocol)
 isJudgement jd = resolve jd >>= \case
-  Just (Left (AJudgement p)) -> pure (getVariable jd, p)
+  Just (Left (AJudgement mstk p)) -> pure (getVariable jd, mstk, p)
   Just mk -> throwError (NotAValidJudgement jd $ either Just (const Nothing) mk)
   Nothing -> throwError (OutOfScope jd)
 
@@ -529,7 +544,7 @@ sact = \case
   C.Spawn jd ch a -> do
     -- check the channel name is fresh & initialise it
     ch <- Channel <$> isFresh ch
-    (jd, p) <- isJudgement jd
+    (jd, _, p) <- isJudgement jd
 
     a <- withChannel ch (dual p) $ sact a
 
@@ -588,14 +603,16 @@ sact = \case
     pure $ A.Match tm cls
 
   C.Push jd (p, t) a -> do
-    (jd, _) <- isJudgement jd
+    (jd, mstk, _) <- isJudgement jd
+    stk <- case mstk of
+      Nothing -> throwError (PushingOnAStacklessJudgement jd)
+      Just stk -> pure stk
 
     p <- resolve p >>= \case
-      Just (Right (_, i)) -> pure i
+      Just (Right (cat, i)) -> i <$ compatibleInfos cat (Known $ keyCat stk)
       Just (Left k) -> throwError $ NotAValidPatternVariable p k
       _ -> throwError $ OutOfScope p
-    desc <- fromInfo Unknown
-    t <- during (PushTermElaboration t) $ stm desc t
+    t <- during (PushTermElaboration t) $ stm (valueDesc stk) t
     a <- sact a
     pure $ A.Push jd (p, t) a
 

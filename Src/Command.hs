@@ -26,23 +26,27 @@ import Parse
 import Pretty
 import Syntax
 import Term.Base
-import Utils
 
-
-data CommandF jd ch t a
-  = DeclJ jd [(Mode, SyntaxCat)]
+data CommandF jd ch syn a
+  = DeclJ jd (Maybe (JudgementStack syn)) Protocol
   | DefnJ (jd, ch) a
-  | DeclS [(SyntaxCat, t)]
+  | DeclS [(SyntaxCat, syn)]
   | Go a
   | Trace [MachineStep]
   deriving (Show)
 
 type CCommand = CommandF C.Variable C.Variable C.Raw C.Actor
-type ACommand = CommandF A.JudgementForm A.Channel ACTm A.Actor
+type ACommand = CommandF A.JudgementForm A.Channel SyntaxDesc A.Actor
 
 instance Display Mode where
   type DisplayEnv Mode = ()
   display = pure . pretty
+
+instance Display t => Display (JudgementStack t) where
+  type DisplayEnv (JudgementStack t) = DisplayEnv t
+  display stk = do
+    desc <- display (valueDesc stk)
+    pure $ unwords [ keyCat stk, "->", desc ]
 
 instance Display Protocol where
   type DisplayEnv Protocol = ()
@@ -53,12 +57,12 @@ instance Display String where
   display str = pure str
 
 instance ( Display0 jd, Display0 ch
-         , Display t, DisplayEnv t ~ Naming
+         , Display syn, DisplayEnv syn ~ ()
          , Display a, DisplayEnv a ~ DAEnv) =>
-         Display (CommandF jd ch t a) where
-  type DisplayEnv (CommandF jd ch t a) = Naming
+         Display (CommandF jd ch syn a) where
+  type DisplayEnv (CommandF jd ch syn a) = Naming
   display = \case
-    DeclJ jd p -> do
+    DeclJ jd stk p -> do
       jd <- subdisplay jd
       p <- subdisplay p
       pure $ unwords [ jd, ":", p]
@@ -69,7 +73,7 @@ instance ( Display0 jd, Display0 ch
       a <- withEnv (declareChannel (A.Channel ch) initDAEnv) $ display a
       pure $ unwords [ jd, "@", ch, "=", a]
     DeclS s -> do
-      s <- traverse (\ (c, t) -> display t >>= \ t -> pure $ unwords ["'" ++ c, "=", t]) s
+      s <- traverse (\ (c, t) -> subdisplay t >>= \ t -> pure $ unwords ["'" ++ c, "=", t]) s
       pure $ "syntax " ++ collapse (BracesList s)
     Go a -> withEnv initDAEnv $ display a
     Trace ts -> pure ""
@@ -95,9 +99,13 @@ pprotocol = psep pspc ((,) <$> pmode <* pspc <*> patom <* pspc <* pch (== '.'))
 psyntax :: Parser (SyntaxCat, C.Raw)
 psyntax = (,) <$> patom <* punc "=" <*> plocal B0 ptm
 
+pjudgementstack :: Parser (JudgementStack C.Raw)
+pjudgementstack =
+   JudgementStack <$> patom <* punc "->" <*> plocal B0 ptm <* punc "|-"
+
 pcommand :: Parser CCommand
 pcommand
-    = DeclJ <$> pvariable <* punc ":" <*> pprotocol
+    = DeclJ <$> pvariable <* punc ":" <*> poptional pjudgementstack <*> pprotocol
   <|> DefnJ <$> pjudgeat <* punc "=" <*> pACT
   <|> DeclS <$ plit "syntax" <*> pcurlies (psep (punc ";") psyntax)
   <|> Go <$ plit "exec" <* pspc <*> pACT
@@ -106,45 +114,55 @@ pcommand
 pfile :: Parser [CCommand]
 pfile = id <$ pspc <*> psep pspc pcommand <* pspc
 
-collectDecls :: [CCommand] -> Elab Decls
-collectDecls [] = asks declarations
-collectDecls (DeclJ jd p : ccs) = do
-  jd <- during (DeclJElaboration jd) $ isFresh jd
-  local (declare jd (AJudgement p)) $ collectDecls ccs
-collectDecls (_ : ccs) = collectDecls ccs
+ssyntaxdecl :: [SyntaxCat] -> C.Raw -> Elab SyntaxDesc
+ssyntaxdecl syndecls syn = do
+  desc <- fromInfo (Known "Syntax")
+  syn <- withSyntax (syntaxDesc syndecls) $ stm desc syn
+  case isMetaFree syn of
+    Nothing -> throwError undefined
+    Just syn0 -> pure syn0
+
+sjudgementstack :: JudgementStack C.Raw -> Elab (JudgementStack SyntaxDesc)
+sjudgementstack (JudgementStack key val) = do
+  key <- isSyntaxCat key
+  syndecls <- gets (Map.keys . syntaxCats)
+  val <- ssyntaxdecl syndecls val
+  pure (JudgementStack key val)
+
+scommand :: CCommand -> Elab (ACommand, Decls)
+scommand = \case
+  DeclJ jd mstk p -> during (DeclJElaboration jd) $ do
+    jd <- isFresh jd
+    mstk <- traverse sjudgementstack mstk
+    forM_ (snd <$> p) $ isSyntaxCat
+    local (declare jd (AJudgement mstk p)) $
+      (DeclJ jd mstk p,) <$> asks declarations
+  DefnJ (jd, ch) a -> during (DefnJElaboration jd) $ do
+    ch <- pure (A.Channel $ getVariable ch)
+    (jd, mstk, p) <- isJudgement jd
+    a <- withChannel ch p $ sact a
+    (DefnJ (jd, ch) a,) <$> asks declarations
+  DeclS syns -> do
+    oldsyndecls <- gets (Map.keys . syntaxCats)
+    let newsyndecls = map fst syns
+    let syndecls = newsyndecls ++ oldsyndecls
+    syns <- for syns $ \ syn@(cat, _) ->
+              during (DeclaringSyntaxCat cat) $
+                traverse (ssyntaxdecl syndecls) syn
+    forM_ syns (uncurry declareSyntax)
+    (DeclS syns,) <$> asks declarations
+  Go a -> (,) . Go <$> sact a <*> asks declarations
+  Trace ts -> (Trace ts,) <$> asks declarations
+
+scommands :: [CCommand] -> Elab [ACommand]
+scommands [] = pure []
+scommands (c:cs) = do
+  (c, ds) <- scommand c
+  cs <- local (setDecls ds) $ scommands cs
+  pure (c:cs)
 
 elaborate :: [CCommand] -> Either Complaint [ACommand]
-elaborate ccs = evalElab $ do
-  ds <- collectDecls ccs
-  local (setDecls ds) $ forM ccs $ \case
-    DeclJ jd p -> do
-      st <- get
-      during (DeclJElaboration jd) $
-        forM_ (snd <$> p) $ isSyntaxCat
-      pure (DeclJ (getVariable jd) p)
-    DefnJ (jd, ch) a -> during (DefnJElaboration jd) $ do
-      ch <- pure (A.Channel $ getVariable ch)
-      (jd, p) <- isJudgement jd
-      withChannel ch p $ DefnJ (jd, ch) <$> sact a
-    DeclS syns -> do
-      oldsyndecls <- gets (Map.keys . syntaxCats)
-      let newsyndecls = map fst syns
-      let syndecls = newsyndecls ++ oldsyndecls
-      desc <- fromInfo (Known "Syntax")
-      syns <- withSyntax (syntaxDesc syndecls) $
-                for syns $ \ syn@(cat, _) ->
-                  during (DeclaringSyntaxCat cat) $
-                    traverse (stm desc) syn
-      syns0 <- case isAllJustBy syns (traverse isMetaFree) of
-                Left a -> throwError (SyntaxContainsMeta (fst a))
-                Right syns -> pure syns
-      whenLeft (isAll (validateDesc syndecls . snd) syns0) $ \ a ->
-        throwError (InvalidSyntax (fst a))
-      forM_ syns0 (uncurry declareSyntax)
-      pure (DeclS syns)
-    Go a -> Go <$> sact a
-    Trace ts -> pure (Trace ts)
-
+elaborate = evalElab . scommands
 
 run :: Options -> Process Store Bwd -> [ACommand] -> Process Store []
 run opts p [] = exec p

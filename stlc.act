@@ -9,7 +9,7 @@ syntax
             ]]
   }
 
-type  : ?'Type.
+type : ?'Type.
 
 syntax
   { 'Check = ['Tag  [ ['Lam ['Bind 'Synth ['Rec 'Check]]]
@@ -21,8 +21,8 @@ syntax
   }
 
 check : ?'Type. ?'Check.
-synth : {-'Synth -> ['Rec 'Type] -- synth's stash associates Types to Synth variables
-      |- -} ?'Synth. !'Type.
+synth : 'Synth -> ['Rec 'Type] -- synth's stash associates Types to Synth variables
+      |- ?'Synth. !'Type.
 
 ------------------------------------------------------------------------------
 -- Implementation

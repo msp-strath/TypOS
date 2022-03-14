@@ -18,6 +18,9 @@ instance Pretty Mode where
 instance Pretty Protocol where
   pretty = foldMap $ \ (m, c) -> pretty m ++ c ++ ". "
 
+instance Pretty t => Pretty (JudgementStack t) where
+  pretty stk = unwords [keyCat stk, "->", pretty (valueDesc stk)]
+
 instance Pretty Kind where
   pretty = \case
     ActVar{} -> "an object variable"
