@@ -8,7 +8,7 @@ syntax
   ; 'Stack = ['NilOrCons ['Rec 'Term] ['Rec 'Stack]]
   }
 
-krivine : ?'Term. ?'Stack. !'Term.
+krivine : 'Term -> ['Rec 'Term] |- ?'Term. ?'Stack. !'Term.
 unwind : ?'Term. ?'Stack. !'Term.
 
 unwind@p = p?tm. p?stk. case stk
@@ -19,9 +19,10 @@ unwind@p = p?tm. p?stk. case stk
 krivine@p = p?tm. p?stk.
   lookup tm { v -> unwind@q. q!v. q!stk. q?res. p!res. }
   else case tm
-  { ['App f t] -> ?vt. ( krivine@q. q!t. q![]. q?res. res ~ vt
-                       | krivine@q. q!f. q![vt|stk]. q?res. p!res.
-                       )
+  { ['App f t] -> 'Term?vt.
+                    ( krivine@q. q!t. q![]. q?res. res ~ vt
+                    | krivine@q. q!f. q![vt|stk]. q?res. p!res.
+                    )
   ; ['Lam \x.b] -> case stk
     { [] -> \x. krivine { x -> x }.
                 krivine@q. q!b. q![]. q?res. p!['Lam \x.res].

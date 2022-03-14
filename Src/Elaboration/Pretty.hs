@@ -19,9 +19,9 @@ instance Pretty Protocol where
   pretty = foldMap $ \ (m, c) -> pretty m ++ c ++ ". "
 
 instance Pretty (Info SyntaxCat) where
-  pretty = \case
+  prettyPrec d = \case
     Unknown -> "Unknown"
-    Known cat -> unwords ["Known", cat]
+    Known cat -> parenthesise (d > 0) (unwords ["Known", cat])
     Inconsistent -> "Inconsistent"
 
 instance Pretty t => Pretty (JudgementStack t) where
@@ -84,7 +84,7 @@ instance Pretty Complaint where
      InconsistentSyntaxCat -> singleton "Inconsistent syntactic categories"
      InvalidSyntaxDesc d -> singleton $ unwords ["Invalid syntax desc", pretty d]
      IncompatibleSyntaxCats cat cat' -> singleton $
-       unwords ["Incompatible syntactic categories", pretty cat, "and", pretty cat']
+       unwords ["Incompatible syntactic categories", prettyPrec 1 cat, "and", prettyPrec 1 cat']
      ExpectedNilGot at -> singleton $ concat ["Expected [] and got", '\'': at]
      ExpectedEnumGot es e -> singleton $ unwords ["Expected an atom among", collapse es, "and got", e]
      ExpectedTagGot ts t -> singleton $ unwords ["Expected a tag among", collapse ts, "and got", t]

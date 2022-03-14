@@ -20,9 +20,9 @@ syntax
             ]]
   }
 
-type  : ?'Type.
+type  : 'Type -> ['Nil] |- ?'Type.
 check : ?'Type. ?'Check.
-synth : ?'Synth. !'Type.
+synth : 'Synth -> ['Rec 'Type] |- ?'Synth. !'Type.
 
 type@p = p?ty. lookup ty { S -> } else case ty
     { ['One]   	  -> -- winning is silent
@@ -33,8 +33,9 @@ type@p = p?ty. lookup ty { S -> } else case ty
     }
 
 check@p = p?ty. p?tm. case tm
-    { ['Lam \x. body] -> ?S. ?T. -- fresh metas for S(ource) and T(arget) of function type
-         (ty ~ ['Arr S T]        -- ensure ty is (S -> T)
+    { ['Lam \x. body] ->
+         'Type?S. 'Type?T. -- fresh metas for S(ource) and T(arget) of function type
+         (ty ~ ['Arr S T]  -- ensure ty is (S -> T)
          | \y.                              -- bind the fresh variable y
                synth { y -> S }.            -- extend the synth rule for fresh variable y : S
                check@q. q!T. q!{x=y}body.)  -- check the body with x=y
@@ -57,23 +58,23 @@ synth@p = p?tm .
   -- lookup: in case tm is a free variable and a type has been pushed for it
   lookup tm { S -> p!S. } else case tm
    { ['Rad t ty] -> (type@r. r!ty. | check@q. q!ty. q!t. | p!ty.)
-   ; ['Fst e]    -> ?S. ?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!S.)
-   ; ['Snd e]    -> ?S. ?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!T.)
+   ; ['Fst e]    -> 'Type?S. 'Type?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!S.)
+   ; ['Snd e]    -> 'Type?S. 'Type?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!T.)
    ; ['ListElim ty e n (\x. \xs. \ih. c)] ->
      	p!ty. | type@r. r!ty. | check@q. q!ty. q!n. |
-	?X. (synth@u. u!e. u?V. V ~ ['List X] |
+	'Type?X. (synth@u. u!e. u?V. V ~ ['List X] |
 	     \y.  synth { y  -> X }.
 	     \ys. synth { ys -> ['List X] }.
 	     \jh. synth { jh -> ty }.
                   check@v. v!ty. v!{x=y,xs=ys,ih=jh}c.
 	    )
-   ; ['App f s]  -> ?U. ?V.
+   ; ['App f s]  -> 'Type?U. 'Type?V.
         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
         | check@r. r!U. r!s.
         | p!V.)
    }
 
-exec \A. type {A -> [] }. check@p. p!['Arr ['List A] ['Arr ['List A] ['List A]]].
+exec \A. type { A -> [] }. check@p. p!['Arr ['List A] ['Arr ['List A] ['List A]]].
         p!['Lam \as. ['Lam \bs.
 		['Emb ['ListElim ['List A] as
                       ['Emb bs]                                       -- [] ++ ys = ys

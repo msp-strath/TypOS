@@ -14,17 +14,17 @@ syntax
             ]]
   }
 check : ?'Type. ?'Check.
-synth : ?'Synth. !'Type.
+synth : 'Synth -> ['Rec 'Type] |- ?'Synth. !'Type.
 
 check@p = p?ty. p?tm. case tm
-    { ['Lam \x. body] -> ?S. ?T.
+    { ['Lam \x. body] -> 'Type?S. 'Type?T.
          (ty ~ ['Arr S T]
          | \x. synth { x -> S }. check@q. q!T. q!body.)
     ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
     }
 synth@p = p?tm . lookup tm { S -> p!S. } else case tm
    { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)
-   ; ['App f s] -> ?U. ?V.
+   ; ['App f s] -> 'Type?U. 'Type?V.
         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
         | check@r. r!U. r!s.
         | p!V.)
