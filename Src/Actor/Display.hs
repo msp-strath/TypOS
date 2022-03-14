@@ -14,6 +14,7 @@ import Forget
 import Format
 import Hide
 import Pattern
+import Pretty
 import Scope
 import Term.Display (nameOn, initNaming)
 import Thin

@@ -8,6 +8,7 @@ import Display
 import Format
 import Hide
 import Pattern
+import Pretty
 import Scope
 import Term
 import Thin

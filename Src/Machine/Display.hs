@@ -15,6 +15,7 @@ import Display
 import Forget
 import Format
 import Machine.Base
+import Pretty
 import Term
 import Term.Display
 

@@ -4,7 +4,6 @@
 
 module Display where
 
-import Data.List
 import Data.Void
 
 import Control.Monad.Except
@@ -12,7 +11,6 @@ import Control.Monad.Reader
 
 import Bwd
 import Thin
-import ANSI
 import Forget
 
 import GHC.Stack
@@ -78,24 +76,3 @@ instance Display () where
 instance Display Void where
   type DisplayEnv Void = ()
   display = absurd
-
-class Collapse t where
-  collapse :: t String -> String
-
-newtype BracesList t = BracesList { unBracesList :: [t] }
-
-instance Collapse BracesList where
-  collapse (BracesList strs) = "{" ++ intercalate "; " strs ++ "}"
-
-instance Collapse Bwd where
-  collapse strs = "[<" ++ intercalate ", " (strs <>> []) ++ "]"
-
-instance Collapse [] where
-  collapse strs = "[" ++ intercalate ", " strs ++ "]"
-
-instance Collapse Cursor where
-  collapse (lstrs :<+>: rstrs) =
-    unwords [ collapse lstrs
-            , withANSI [SetColour Foreground Red, SetWeight Bold] ":<+>:"
-            , collapse rstrs
-            ]
