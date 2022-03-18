@@ -5,6 +5,7 @@ import Control.Monad
 import Data.Void
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe
 
 import Bwd
 import Thin
@@ -27,6 +28,7 @@ data VSyntaxDesc
   | VBind SyntaxCat SyntaxDesc
   | VEnumOrTag [String] [(String, [SyntaxDesc])]
   | VWildcard
+  deriving (Eq, Show)
 
 asRec :: OrBust x => (SyntaxCat -> x) -> SyntaxDesc -> x
 asRec f = asAtom $ \ (at, _) -> f at
@@ -59,6 +61,23 @@ expand table = go True where
                      pure (VEnumOrTag xs ys)
     "Fix" -> asPair $ asBind $ \ x s' _ -> go False (s' //^ topSbst x s)
     _ -> bust
+
+contract :: VSyntaxDesc -> SyntaxDesc
+contract = \case
+  VAtom -> atom "Atom" 0
+  VAtomBar xs -> "AtomBar" #%+ [enums (\ s -> atom s 0) xs]
+  VNil -> atom "Nil" 0
+  VCons s t -> "Cons" #%+ [s, t]
+  VNilOrCons s t -> "NilOrCons" #%+ [s, t]
+  VBind cat s -> "Bind" #%+ [catToDesc cat, s]
+  VEnumOrTag es ts -> "EnumOrTag" #%+
+    [enums (\ s -> atom s 0) es, enums ( \ (t, s) -> (t,0) #% s) ts]
+  VWildcard -> atom "Wildcard" 0
+  where
+    enums f = foldr (%) (nil 0) . map f
+
+catToDesc :: SyntaxCat -> SyntaxDesc
+catToDesc c = atom c 0
 
 validate :: Show m => SyntaxTable -> Bwd SyntaxCat -> SyntaxDesc -> CdB (Tm m) -> Bool
 validate table = go where
@@ -136,4 +155,6 @@ validateIt = validateDesc ["Syntax"] (syntaxDesc ["Syntax"])
 printIt = putStrLn $ unlines
   [ show validateIt
   , "==="
-  , unsafeEvalDisplay initNaming $ display (syntaxDesc ["Syntax"])]
+  , unsafeEvalDisplay initNaming $ display (syntaxDesc ["Syntax"])
+  , "==="
+  , unsafeEvalDisplay initNaming $ display $ Syntax.contract (fromJust (Syntax.expand (Map.singleton "Syntax" (syntaxDesc ["Syntax"])) (syntaxDesc ["Syntax"])))]

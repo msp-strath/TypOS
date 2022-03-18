@@ -143,7 +143,7 @@ listElimSynth@p = p?rty. p?lnf. p?lty. p?nil. p?cons. case lnf
     checkEval@r. r!rty.
       -- BREAK "inspecting cons" .
       case cons
-      { (\y.\ys.\ih. c) ->
+      { (\y.\ys.\ih.c) ->
         -- BREAK "evaluating cons".
         r!{y=['Rad x a],ys=['Rad xs ['List a]],ih=ihnf}c.
         -- BREAK "returning from cons".

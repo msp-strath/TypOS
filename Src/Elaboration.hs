@@ -31,20 +31,35 @@ import qualified Actor as A
 data Mode = Input | {- Subject | -} Output
   deriving (Show, Eq)
 
-type Protocol = [(Mode, SyntaxCat)]
+type Protocol t = [(Mode, t)]
 
 data JudgementStack t = JudgementStack
-  { keyCat :: SyntaxCat
+  { keyDesc :: t
   , valueDesc :: t
   } deriving (Show)
 
-dual :: Protocol -> Protocol
+type CProtocol = Protocol C.Raw
+type AProtocol = Protocol SyntaxDesc
+
+type CJudgementStack = JudgementStack C.Raw
+type AJudgementStack = JudgementStack SyntaxDesc
+
+dual :: Protocol t -> Protocol t
 dual = map $ \case
   (Input, c) -> (Output, c)
   (Output, c) -> (Input, c)
 
 data Info a = Unknown | Known a | Inconsistent
-  deriving (Show, Eq)
+  deriving (Show, Eq, Functor)
+
+instance Applicative Info where
+  pure = Known
+  (<*>) = ap
+
+instance Monad Info where
+  Unknown >>= f = Unknown
+  Known a >>= f = f a
+  Inconsistent >>= f = Inconsistent
 
 instance Eq a => Monoid (Info a) where
   mempty = Unknown
@@ -56,18 +71,28 @@ instance Eq a => Monoid (Info a) where
 instance Eq a => Semigroup (Info a) where
   (<>) = mappend
 
-compatibleInfos :: Info SyntaxCat -> Info SyntaxCat -> Elab ()
-compatibleInfos cat cat' =
-  when (cat <> cat' == Inconsistent) $
-    throwError (IncompatibleSyntaxCats cat cat')
+infoExpand :: SyntaxTable -> SyntaxDesc -> Info VSyntaxDesc
+infoExpand table s = case Syntax.expand table s of
+  Nothing -> Inconsistent
+  Just VWildcard -> Unknown
+  Just a -> Known a
 
-type ObjVar = (String, Info SyntaxCat)
+compatibleInfos :: Info SyntaxDesc -> Info SyntaxDesc -> Elab (Info SyntaxDesc)
+compatibleInfos desc desc' = do
+  table <- gets syntaxCats
+  let de = infoExpand table =<< desc
+  let de' = infoExpand table =<< desc'
+  case de <> de' of
+    Inconsistent -> throwError (IncompatibleSyntaxDescs desc desc')
+    d -> pure (Syntax.contract <$> d)
+
+type ObjVar = (String, Info SyntaxDesc)
 type ObjVars = Bwd ObjVar
 
 data Kind
-  = ActVar (Info SyntaxCat) ObjVars
+  = ActVar (Info SyntaxDesc) ObjVars
   | AChannel ObjVars
-  | AJudgement (Maybe (JudgementStack SyntaxDesc)) Protocol
+  | AJudgement (Maybe AJudgementStack) AProtocol
   deriving (Show)
 
 type Hints = Map String (Info SyntaxCat)
@@ -77,10 +102,10 @@ data Context = Context
   , declarations :: Decls
   , location     :: Bwd Turn
   , binderHints  :: Hints
-  , currentActor :: (A.JudgementForm, Maybe (JudgementStack SyntaxDesc))
+  , currentActor :: (A.JudgementForm, Maybe AJudgementStack)
   } deriving (Show)
 
-setCurrentActor :: A.JudgementForm -> Maybe (JudgementStack SyntaxDesc) -> Context -> Context
+setCurrentActor :: A.JudgementForm -> Maybe AJudgementStack -> Context -> Context
 setCurrentActor jd mstk ctx = ctx { currentActor = (jd, mstk) }
 
 initContext :: Context
@@ -114,15 +139,15 @@ type Decls = Bwd (String, Kind)
 type Slced = [(String, Kind)]
 type Focus a = (Decls, a, Slced)
 
-resolve :: Variable -> Elab (Maybe (Either Kind (Info SyntaxCat, DB)))
+resolve :: Variable -> Elab (Maybe (Either Kind (Info SyntaxDesc, DB)))
 resolve (Variable x) = do
   ctx <- ask
   let ds  = declarations ctx
   let ovs = objVars ctx
   case focusBy (\ (y, k) -> k <$ guard (x == y)) ds of
     Just (_, k, _) -> pure (Just $ Left k)
-    _ -> case focusBy (\ (y, cat) -> cat <$ guard (x == y)) ovs of
-      Just (xz, cat, xs) -> pure (Just $ Right (cat, DB $ length xs))
+    _ -> case focusBy (\ (y, desc) -> desc <$ guard (x == y)) ovs of
+      Just (xz, desc, xs) -> pure (Just $ Right (desc, DB $ length xs))
       Nothing -> pure Nothing
 
 isFresh :: Variable -> Elab String
@@ -148,7 +173,7 @@ data Complaint
   | InvalidSend Channel
   | InvalidRecv Channel
   | NonLinearChannelUse Channel
-  | UnfinishedProtocol Channel Protocol
+  | UnfinishedProtocol Channel AProtocol
   | InconsistentCommunication
   | DoomedBranchCommunicated C.Actor
   -- judgement stacks
@@ -160,9 +185,9 @@ data Complaint
   | SyntaxContainsMeta SyntaxCat
   | InvalidSyntax SyntaxCat
   -- syntaxdesc validation
-  | InconsistentSyntaxCat
+  | InconsistentSyntaxDesc
   | InvalidSyntaxDesc SyntaxDesc
-  | IncompatibleSyntaxCats (Info SyntaxCat) (Info SyntaxCat)
+  | IncompatibleSyntaxDescs (Info SyntaxDesc) (Info SyntaxDesc)
   | ExpectedNilGot String
   | ExpectedEnumGot [String] String
   | ExpectedTagGot [String] String
@@ -191,19 +216,20 @@ data Complaint
   | SubstitutionElaboration (Bwd SbstC) Complaint
   | PatternVariableElaboration Variable Complaint
   | TermVariableElaboration Variable Complaint
+  | ProtocolElaboration CProtocol Complaint
   deriving (Show)
 
 data ElabState = ElabState
-  { channelStates :: Map Channel ([Turn], Protocol)
+  { channelStates :: Map Channel ([Turn], AProtocol)
   , syntaxCats    :: Map SyntaxCat SyntaxDesc
   } deriving (Eq)
 
-isSyntaxCat :: String -> Elab SyntaxCat
+isSyntaxCat :: String -> Elab SyntaxDesc
 isSyntaxCat str = do
   cats <- gets syntaxCats
   case Map.lookup str cats of
     Nothing -> throwError (NotAValidSyntaxCat str)
-    Just _ -> pure str
+    Just d -> pure d
 
 addHint :: String -> Info SyntaxCat -> Context -> Context
 addHint str cat ctx =
@@ -218,10 +244,10 @@ getHint str = do
   hints <- asks binderHints
   pure $ fromMaybe Unknown $ Map.lookup str hints
 
-fromInfo :: Info SyntaxCat -> Elab SyntaxDesc
+fromInfo :: Info SyntaxDesc -> Elab SyntaxDesc
 fromInfo Unknown = pure (atom "Wildcard" 0)
-fromInfo (Known cat) = pure (atom cat 0)
-fromInfo Inconsistent = throwError InconsistentSyntaxCat
+fromInfo (Known desc) = pure desc
+fromInfo Inconsistent = throwError InconsistentSyntaxDesc
 
 declareSyntax :: SyntaxCat -> SyntaxDesc -> Elab ()
 declareSyntax cat desc = do
@@ -230,10 +256,10 @@ declareSyntax cat desc = do
     throwError (AlreadyDeclaredSyntaxCat cat)
   put (st { syntaxCats = Map.insert cat desc (syntaxCats st) })
 
-channelLookup :: Channel -> ElabState -> Maybe ([Turn], Protocol)
+channelLookup :: Channel -> ElabState -> Maybe ([Turn], AProtocol)
 channelLookup ch = Map.lookup ch . channelStates
 
-channelInsert :: Channel -> ([Turn], Protocol) -> ElabState -> ElabState
+channelInsert :: Channel -> ([Turn], AProtocol) -> ElabState -> ElabState
 channelInsert ch x st = st { channelStates = Map.insert ch x (channelStates st) }
 
 channelDelete :: Channel -> ElabState -> ElabState
@@ -275,17 +301,17 @@ evalElab = fmap fst
 type ACTm = CdB (Tm ActorMeta)
 type ACTSbst = CdB (Sbst ActorMeta)
 
-svar :: Variable -> Elab (Info SyntaxCat, ACTm)
+svar :: Variable -> Elab (Info SyntaxDesc, ACTm)
 svar x = do
   ovs <- asks objVars
   res <- resolve x
   case res of
     Just (Left k) -> case k of -- TODO: come back and remove fst <$>
-      ActVar cat sc -> case findSub (fst <$> sc) (fst <$> ovs) of
-        Just th -> pure (cat, ActorMeta (getVariable x) $: sbstW (sbst0 0) th)
+      ActVar desc sc -> case findSub (fst <$> sc) (fst <$> ovs) of
+        Just th -> pure (desc, ActorMeta (getVariable x) $: sbstW (sbst0 0) th)
         Nothing -> throwError (MetaScopeTooBig x sc ovs)
       _ -> throwError (NotAValidTermVariable x k)
-    Just (Right (cat, i)) -> pure (cat, var i (length ovs))
+    Just (Right (desc, i)) -> pure (desc, var i (length ovs))
     Nothing -> throwError (OutOfScope x)
 
 getName :: Elab [Turn]
@@ -293,7 +319,7 @@ getName = do
   loc <- asks location
   pure (loc <>> [])
 
-spop :: Elab (ObjVars, (Variable, Info SyntaxCat))
+spop :: Elab (ObjVars, (Variable, Info SyntaxDesc))
 spop = do
   ovs <- asks objVars
   case ovs of
@@ -316,7 +342,7 @@ ssbst (sg :< sgc) = case sgc of
       (sg, ovs) <- local (setObjVars xz) (ssbst sg)
       pure (weak sg, ovs)
     Assign v t -> do
-      info <- getHint (getVariable v)
+      info <- fmap catToDesc <$> getHint (getVariable v)
       desc <- fromInfo info
       t <- stm desc t
       (sg, ovs) <- ssbst sg
@@ -338,20 +364,11 @@ stms [] t = throwError (ExpectedANilGot t)
 stms (d:ds) (Cons p q) = (%) <$> stm d p <*> stms ds q
 stms _ t = throwError (ExpectedAConsGot t)
 
-asInfo :: SyntaxDesc -> Maybe (Info SyntaxCat)
-asInfo = asRec $ \case
-  "Wildcard" -> pure Unknown
-  a -> pure (Known a)
-
 stm :: SyntaxDesc -> Raw -> Elab ACTm
 stm desc (Var v) = during (TermVariableElaboration v) $ do
   table <- gets syntaxCats
-  (cat, t) <- svar v
-  case asInfo desc of
-    Nothing -> case Syntax.expand table desc of
-      Just VWildcard -> pure ()
-      _ -> throwError (SyntaxError desc (Var v))
-    Just cat' -> compatibleInfos cat cat'
+  (desc', t) <- svar v
+  compatibleInfos (Known desc) desc'
   pure t
 stm desc (Sbst sg t) = do
     (sg, ovs) <- during (SubstitutionElaboration sg) $ ssbst sg
@@ -384,7 +401,7 @@ stm desc rt = do
       Lam (Scope (Hide x) sc) -> (x \\) <$> do
         (s, desc) <- case vdesc of
           VWildcard -> pure (Unknown, desc)
-          VBind cat desc -> pure (Known cat, desc)
+          VBind cat desc -> pure (Known (catToDesc cat), desc)
           _ -> throwError (SyntaxError desc rt)
         x <- isFresh (Variable x)
         local (declareObjVar (x, s)) $ stm desc sc
@@ -402,23 +419,18 @@ spats _ t = throwError (ExpectedAConsPGot t)
 spat :: SyntaxDesc -> RawP -> Elab (Pat, Decls, Hints)
 spat desc (C.VarP v) = during (PatternVariableElaboration v) $ do
   table <- gets syntaxCats
-  cat <- case asInfo desc of
-    Nothing -> case Syntax.expand table desc of
-      Just VWildcard -> pure Unknown
-      _ -> throwError (SyntaxPError desc (VarP v))
-    Just cat -> pure cat
   ds <- asks declarations
   hs <- asks binderHints
   res <- resolve v
   case res of
     Just (Left k)  -> throwError (NotAValidPatternVariable v k)
-    Just (Right (cat', i)) -> do
-      compatibleInfos cat cat'
+    Just (Right (desc', i)) -> do
+      compatibleInfos (Known desc) desc'
       pure (VP i, ds, hs)
     Nothing -> do
       ovs <- asks objVars
       v <- pure (getVariable v)
-      pure (MP v (ones (length ovs)), ds :< (v, ActVar cat ovs), hs)
+      pure (MP v (ones (length ovs)), ds :< (v, ActVar (Known desc) ovs), hs)
 spat desc (ThP th p) = do
   th <- sth th
   (p, ds, hs) <- local (th ^?) $ spat desc p
@@ -469,7 +481,7 @@ spat desc rp = do
           _ -> throwError (SyntaxPError desc rp)
 
         () <$ isFresh (Variable x)
-        (p, ds, hs) <- local (declareObjVar (x, s) . addHint x s) $ spat desc p
+        (p, ds, hs) <- local (declareObjVar (x, fmap catToDesc s) . addHint x s) $ spat desc p
         pure (BP v p, ds, hs)
 
 isChannel :: Variable -> Elab Channel
@@ -478,7 +490,7 @@ isChannel ch = resolve ch >>= \case
   Just mk -> throwError (NotAValidChannel ch $ either Just (const Nothing) mk)
   Nothing -> throwError (OutOfScope ch)
 
-isJudgement :: Variable -> Elab (A.JudgementForm, Maybe (JudgementStack SyntaxDesc), Protocol)
+isJudgement :: Variable -> Elab (A.JudgementForm, Maybe AJudgementStack, AProtocol)
 isJudgement jd = resolve jd >>= \case
   Just (Left (AJudgement mstk p)) -> pure (getVariable jd, mstk, p)
   Just mk -> throwError (NotAValidJudgement jd $ either Just (const Nothing) mk)
@@ -490,8 +502,8 @@ channelScope (Channel ch) = do
   case fromJust (focusBy (\ (y, k) -> k <$ guard (ch == y)) ds) of
     (_, AChannel sc, _) -> pure sc
 
-steppingChannel :: Channel -> (Protocol -> Elab (SyntaxCat, Protocol)) ->
-                   Elab SyntaxCat
+steppingChannel :: Channel -> (AProtocol -> Elab (SyntaxDesc, AProtocol)) ->
+                   Elab SyntaxDesc
 steppingChannel ch step = do
   nm <- getName
   (pnm, p) <- gets (fromJust . channelLookup ch)
@@ -500,7 +512,7 @@ steppingChannel ch step = do
   modify (channelInsert ch (nm, p))
   pure cat
 
-open :: Channel -> Protocol -> Elab ()
+open :: Channel -> AProtocol -> Elab ()
 open ch p = do
   nm <- getName
   modify (channelInsert ch (nm, p))
@@ -514,7 +526,7 @@ close ch = do
     p -> throwError (UnfinishedProtocol ch p)
   modify (channelDelete ch)
 
-withChannel :: Channel -> Protocol -> Elab a -> Elab a
+withChannel :: Channel -> AProtocol -> Elab a -> Elab a
 withChannel ch@(Channel rch) p ma = do
   open ch p
   -- run the actor in the extended context
@@ -523,20 +535,21 @@ withChannel ch@(Channel rch) p ma = do
   close ch
   pure a
 
-guessCat :: Raw -> Elab (Info SyntaxCat)
-guessCat (Var v) = resolve v >>= \case
+guessDesc :: Raw -> Elab (Info SyntaxDesc)
+guessDesc (Var v) = resolve v >>= \case
   Just (Right (info, i)) -> pure info
   Just (Left (ActVar info _)) -> pure info
   _ -> pure Unknown
-guessCat _ = pure Unknown
+guessDesc _ = pure Unknown
 
 sact :: C.Actor -> Elab A.Actor
 sact = \case
   C.Win -> pure A.Win
   C.Constrain s t -> do
-    infoS <- guessCat s
-    infoT <- guessCat t
-    desc <- during (ConstrainSyntaxCatGuess s t) $ fromInfo (infoS <> infoT)
+    infoS <- guessDesc s
+    infoT <- guessDesc t
+    desc <- during (ConstrainSyntaxCatGuess s t) $
+      fromInfo =<< compatibleInfos infoS infoT
     s <- during (ConstrainTermElaboration s) $ stm desc s
     t <- during (ConstrainTermElaboration t) $ stm desc t
     pure $ A.Constrain s t
@@ -558,8 +571,8 @@ sact = \case
   C.Send ch tm a -> do
     ch <- isChannel ch
     -- Check the channel is in sending mode, & step it
-    cat <- steppingChannel ch $ \case
-      (Output, cat) : p -> pure (cat, p)
+    desc <- steppingChannel ch $ \case
+      (Output, desc) : p -> pure (desc, p)
       _ -> throwError (InvalidSend ch)
 
     -- Send
@@ -567,7 +580,6 @@ sact = \case
       sc <- channelScope ch
       ovs <- asks objVars
       let (thx, xyz, thy) = lintersection sc ovs
-      desc <- fromInfo (Known cat)
       (*^ thx) <$> local (setObjVars xyz) (stm desc tm)
 
     a <- sact a
@@ -587,10 +599,10 @@ sact = \case
     pure $ A.Recv ch (ActorMeta av, a)
 
   C.FreshMeta cat (av, a) -> do
-    cat <- during FreshMetaElaboration $ isSyntaxCat cat
+    desc <- during FreshMetaElaboration $ isSyntaxCat cat
     av <- during FreshMetaElaboration $ isFresh av
     ovs <- asks objVars
-    a <- local (declare av (ActVar (Known cat) ovs)) $ sact a
+    a <- local (declare av (ActVar (Known desc) ovs)) $ sact a
     pure $ A.FreshMeta cat (ActorMeta av, a)
 
   C.Under (Scope v@(Hide x) a) -> do
@@ -599,7 +611,7 @@ sact = \case
     pure $ A.Under (Scope v a)
 
   C.Match rtm@tm cls -> do
-    desc <- fromInfo =<< guessCat rtm
+    desc <- fromInfo =<< guessDesc rtm
     tm <- during (MatchTermElaboration tm) $ stm desc tm
     chs <- get
     clsts <- traverse (sclause desc) cls
@@ -614,7 +626,7 @@ sact = \case
       Just stk -> pure stk
 
     p <- resolve p >>= \case
-      Just (Right (cat, i)) -> i <$ compatibleInfos cat (Known $ keyCat stk)
+      Just (Right (cat, i)) -> i <$ compatibleInfos cat (Known $ keyDesc stk)
       Just (Left k) -> throwError $ NotAValidPatternVariable p k
       _ -> throwError $ OutOfScope p
     t <- during (PushTermElaboration t) $ stm (valueDesc stk) t
@@ -625,11 +637,10 @@ sact = \case
     (jd, stk) <- asks currentActor >>= \case
       (jd, Nothing) -> throwError (LookupFromAStacklessActor jd)
       (jd, Just stk) -> pure (jd, stk)
-    desc <- fromInfo (Known $ keyCat stk)
-    t <- during (LookupTermElaboration t) $ stm desc t
+    t <- during (LookupTermElaboration t) $ stm (keyDesc stk) t
     av <- isFresh av
     ovs <- asks objVars
-    (a, mcha) <- local (declare av (ActVar Unknown ovs)) $ sbranch a
+    (a, mcha) <- local (declare av (ActVar (Known $ valueDesc stk) ovs)) $ sbranch a
     (b, mchb) <- sbranch b
     during (LookupHandlersElaboration rt) $ consistentCommunication [mcha, mchb]
     pure $ A.Lookup t (ActorMeta av, a) b

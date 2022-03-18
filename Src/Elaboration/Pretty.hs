@@ -15,17 +15,17 @@ instance Pretty Mode where
   pretty Input = "?"
   pretty Output = "!"
 
-instance Pretty Protocol where
-  pretty = foldMap $ \ (m, c) -> pretty m ++ c ++ ". "
+instance Pretty t => Pretty (Protocol t) where
+  pretty = foldMap $ \ (m, d) -> pretty m ++ pretty d ++ ". "
 
-instance Pretty (Info SyntaxCat) where
+instance Pretty a => Pretty (Info a) where
   prettyPrec d = \case
     Unknown -> "Unknown"
-    Known cat -> parenthesise (d > 0) (unwords ["Known", cat])
+    Known a -> parenthesise (d > 0) (unwords ["Known", prettyPrec 1 a])
     Inconsistent -> "Inconsistent"
 
 instance Pretty t => Pretty (JudgementStack t) where
-  pretty stk = unwords [keyCat stk, "->", pretty (valueDesc stk)]
+  pretty stk = unwords [pretty (keyDesc stk), "->", pretty (valueDesc stk)]
 
 instance Pretty Kind where
   pretty = \case
@@ -81,10 +81,10 @@ instance Pretty Complaint where
        unwords ["The description of the syntactic category", x, "contains meta variables"]
      InvalidSyntax x -> singleton $ unwords ["Invalid description for the syntactic category", x]
   -- syntaxdesc validation
-     InconsistentSyntaxCat -> singleton "Inconsistent syntactic categories"
+     InconsistentSyntaxDesc -> singleton "Inconsistent syntactic descriptions"
      InvalidSyntaxDesc d -> singleton $ unwords ["Invalid syntax desc", pretty d]
-     IncompatibleSyntaxCats cat cat' -> singleton $
-       unwords ["Incompatible syntactic categories", prettyPrec 1 cat, "and", prettyPrec 1 cat']
+     IncompatibleSyntaxDescs desc desc' -> singleton $
+       unwords ["Incompatible syntax descriptions", prettyPrec 1 desc, "and", prettyPrec 1 desc']
      ExpectedNilGot at -> singleton $ concat ["Expected [] and got", '\'': at]
      ExpectedEnumGot es e -> singleton $ unwords ["Expected an atom among", collapse es, "and got", e]
      ExpectedTagGot ts t -> singleton $ unwords ["Expected a tag among", collapse ts, "and got", t]
@@ -114,3 +114,4 @@ instance Pretty Complaint where
      SubstitutionElaboration sg c -> go c :< unwords ["when elaborating the substitution", pretty sg]
      PatternVariableElaboration v c -> go c :< unwords ["when elaborating the pattern variable", pretty v]
      TermVariableElaboration v c -> go c :< unwords ["when elaborating the term variable", pretty v]
+     ProtocolElaboration p c -> go c :< unwords ["when elaborating the protocol", pretty p]

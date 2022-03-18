@@ -32,6 +32,8 @@ escape = concatMap go where
   go '\t' = "\\t"
   go c = [c]
 
+instance Pretty String where
+  pretty s = s
 
 class Collapse t where
   collapse :: t String -> String

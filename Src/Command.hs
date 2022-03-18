@@ -28,7 +28,7 @@ import Syntax
 import Term.Base
 
 data CommandF jd ch syn a
-  = DeclJ jd (Maybe (JudgementStack syn)) Protocol
+  = DeclJ jd (Maybe (JudgementStack syn)) (Protocol syn)
   | DefnJ (jd, ch) a
   | DeclS [(SyntaxCat, syn)]
   | Go a
@@ -45,12 +45,15 @@ instance Display Mode where
 instance Display t => Display (JudgementStack t) where
   type DisplayEnv (JudgementStack t) = DisplayEnv t
   display stk = do
+    key <- display (keyDesc stk)
     desc <- display (valueDesc stk)
-    pure $ unwords [ keyCat stk, "->", desc ]
+    pure $ unwords [key , "->", desc ]
 
-instance Display Protocol where
-  type DisplayEnv Protocol = ()
-  display = pure . pretty
+instance Display t => Display (Protocol t) where
+  type DisplayEnv (Protocol t) = DisplayEnv t
+  display t = do
+    t <- traverse (traverse display) t
+    pure (pretty t)
 
 instance Display String where
   type DisplayEnv String = ()
@@ -93,15 +96,18 @@ pmode = Input <$ pch (== '?') <|> Output <$ pch (== '!')
 pjudgeat :: Parser (C.Variable, C.Variable)
 pjudgeat = (,) <$> pvariable <* punc "@" <*> pvariable
 
-pprotocol :: Parser Protocol
-pprotocol = psep pspc ((,) <$> pmode <* pspc <*> patom <* pspc <* pch (== '.'))
+pprotocol :: Parser (Protocol C.Raw)
+pprotocol = psep pspc ((,) <$> pmode <* pspc <*> psyntaxdecl <* pspc <* pch (== '.'))
 
 psyntax :: Parser (SyntaxCat, C.Raw)
-psyntax = (,) <$> patom <* punc "=" <*> plocal B0 ptm
+psyntax = (,) <$> patom <* punc "=" <*> psyntaxdecl
+
+psyntaxdecl :: Parser C.Raw
+psyntaxdecl = plocal B0 ptm
 
 pjudgementstack :: Parser (JudgementStack C.Raw)
 pjudgementstack =
-   JudgementStack <$> patom <* punc "->" <*> plocal B0 ptm <* punc "|-"
+   JudgementStack <$> psyntaxdecl <* punc "->" <*> psyntaxdecl <* punc "|-"
 
 pcommand :: Parser CCommand
 pcommand
@@ -114,18 +120,23 @@ pcommand
 pfile :: Parser [CCommand]
 pfile = id <$ pspc <*> psep pspc pcommand <* pspc
 
+sprotocol :: CProtocol -> Elab AProtocol
+sprotocol ps = during (ProtocolElaboration ps) $ do
+  syndecls <- gets (Map.keys . syntaxCats)
+  traverse (traverse (ssyntaxdecl syndecls)) ps
+
 ssyntaxdecl :: [SyntaxCat] -> C.Raw -> Elab SyntaxDesc
 ssyntaxdecl syndecls syn = do
-  desc <- fromInfo (Known "Syntax")
+  let desc = catToDesc "Syntax"
   syn <- withSyntax (syntaxDesc syndecls) $ stm desc syn
   case isMetaFree syn of
-    Nothing -> throwError undefined
+    Nothing -> throwError undefined -- this should be impossible, since parsed in empty context
     Just syn0 -> pure syn0
 
 sjudgementstack :: JudgementStack C.Raw -> Elab (JudgementStack SyntaxDesc)
 sjudgementstack (JudgementStack key val) = do
-  key <- isSyntaxCat key
   syndecls <- gets (Map.keys . syntaxCats)
+  key <- ssyntaxdecl syndecls key
   val <- ssyntaxdecl syndecls val
   pure (JudgementStack key val)
 
@@ -134,7 +145,7 @@ scommand = \case
   DeclJ jd mstk p -> during (DeclJElaboration jd) $ do
     jd <- isFresh jd
     mstk <- traverse sjudgementstack mstk
-    forM_ (snd <$> p) $ isSyntaxCat
+    p <- sprotocol p
     local (declare jd (AJudgement mstk p)) $
       (DeclJ jd mstk p,) <$> asks declarations
   DefnJ (jd, ch) a -> during (DefnJElaboration jd) $ do
