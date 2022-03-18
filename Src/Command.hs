@@ -138,7 +138,7 @@ scommand = \case
     local (declare jd (AJudgement mstk p)) $
       (DeclJ jd mstk p,) <$> asks declarations
   DefnJ (jd, ch) a -> during (DefnJElaboration jd) $ do
-    ch <- pure (A.Channel $ getVariable ch)
+    ch <- A.Channel <$> isFresh ch
     (jd, mstk, p) <- isJudgement jd
     local (setCurrentActor jd mstk) $ do
       a <- withChannel ch p $ sact a
