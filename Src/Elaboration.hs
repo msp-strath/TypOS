@@ -84,7 +84,10 @@ compatibleInfos desc desc' = do
   let de' = infoExpand table =<< desc'
   case de <> de' of
     Inconsistent -> throwError (IncompatibleSyntaxDescs desc desc')
-    d -> pure (Syntax.contract <$> d)
+    d -> pure $ case (desc, desc') of
+      (Known (CdB (A _) _), _) -> desc
+      (_, Known (CdB (A _) _)) -> desc'
+      _ -> Syntax.contract <$> d
 
 type ObjVar = (String, Info SyntaxDesc)
 type ObjVars = Bwd ObjVar

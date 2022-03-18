@@ -11,7 +11,7 @@ import Data.Traversable (for)
 
 import qualified Actor as A
 import Actor.Display (DAEnv, initDAEnv, declareChannel)
-import Concrete.Base (Variable(..))
+
 import qualified Concrete.Base as C
 import Concrete.Parse
 import Bwd
