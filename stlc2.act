@@ -1,21 +1,19 @@
 trace { exec }
 
 syntax
-  { 'Check = ['Tag  [ ['Lam ['Bind 'Synth ['Rec 'Check]]]
-                      ['Emb ['Rec 'Synth]]
+  { 'Check = ['Tag  [ ['Lam ['Bind 'Synth 'Check]]
+                      ['Emb 'Synth]
              ]]
-  ; 'Synth = ['Tag  [ ['Rad ['Rec 'Check] ['Rec 'Type]]
-                      ['App ['Rec 'Synth] ['Rec 'Check]]
+  ; 'Synth = ['Tag  [ ['Rad 'Check 'Type]
+                      ['App 'Synth 'Check]
              ]]
-  ; 'Type = ['Tag  [ ['Base]
-                     ['Nat ]
-                     ['Bool]
-                     ['Arr  ['Rec 'Type] ['Rec 'Type]]
+  ; 'Type = ['EnumOrTag  [ 'Base 'Nat 'Bool ]
+                         [ ['Arr  'Type 'Type]
             ]]
   }
 
 check : ?'Type. ?'Check.
-synth : 'Synth -> ['Rec 'Type] |- ?'Synth. !'Type.
+synth : 'Synth -> 'Type |- ?'Synth. !'Type.
 
 check@p = p?ty. p?tm. case tm
     { ['Lam \x. body] -> 'Type?S. 'Type?T.
@@ -33,4 +31,4 @@ synth@p = p?tm . lookup tm { S -> p!S. } else case tm
    }
 
 exec check@p. 'Check?t.
-              (p! ['Arr ['Nat] ['Nat]]. p! t. | t ~ ['Lam \z. ['Emb z]])
+              (p! ['Arr 'Nat 'Nat]. p! t. | t ~ ['Lam \z. ['Emb z]])

@@ -2,13 +2,13 @@ trace { exec }
 
 syntax
   { 'Term = ['Tag [
-       ['Lam ['Bind 'Term ['Rec 'Term]]]
-       ['App ['Rec 'Term] ['Rec 'Term]]
+       ['Lam ['Bind 'Term 'Term]]
+       ['App 'Term 'Term]
     ]]
-  ; 'Stack = ['NilOrCons ['Rec 'Term] ['Rec 'Stack]]
+  ; 'Stack = ['NilOrCons 'Term 'Stack]
   }
 
-krivine : 'Term -> ['Rec 'Term] |- ?'Term. ?'Stack. !'Term.
+krivine : 'Term -> 'Term |- ?'Term. ?'Stack. !'Term.
 unwind : ?'Term. ?'Stack. !'Term.
 
 unwind@p = p?tm. p?stk. case stk

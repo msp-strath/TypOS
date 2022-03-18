@@ -219,8 +219,8 @@ getHint str = do
   pure $ fromMaybe Unknown $ Map.lookup str hints
 
 fromInfo :: Info SyntaxCat -> Elab SyntaxDesc
-fromInfo Unknown = pure (("Term", 0) #% [])
-fromInfo (Known cat) = pure (("Rec", 0) #% [atom cat 0])
+fromInfo Unknown = pure (atom "Wildcard" 0)
+fromInfo (Known cat) = pure (atom cat 0)
 fromInfo Inconsistent = throwError InconsistentSyntaxCat
 
 declareSyntax :: SyntaxCat -> SyntaxDesc -> Elab ()
@@ -338,15 +338,20 @@ stms [] t = throwError (ExpectedANilGot t)
 stms (d:ds) (Cons p q) = (%) <$> stm d p <*> stms ds q
 stms _ t = throwError (ExpectedAConsGot t)
 
+asInfo :: SyntaxDesc -> Maybe (Info SyntaxCat)
+asInfo = asRec $ \case
+  "Wildcard" -> pure Unknown
+  a -> pure (Known a)
+
 stm :: SyntaxDesc -> Raw -> Elab ACTm
-stm desc (Var v) = do
+stm desc (Var v) = during (TermVariableElaboration v) $ do
   table <- gets syntaxCats
   (cat, t) <- svar v
-  case asRec pure desc of
+  case asInfo desc of
     Nothing -> case Syntax.expand table desc of
-      Just VTerm -> pure ()
+      Just VWildcard -> pure ()
       _ -> throwError (SyntaxError desc (Var v))
-    Just cat' -> during (TermVariableElaboration v) $ compatibleInfos cat (Known cat')
+    Just cat' -> compatibleInfos cat cat'
   pure t
 stm desc (Sbst sg t) = do
     (sg, ovs) <- during (SubstitutionElaboration sg) $ ssbst sg
@@ -362,23 +367,23 @@ stm desc rt = do
           VAtom -> pure ()
           VNil -> unless (a == "") $ throwError (ExpectedNilGot a)
           VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot a)
-          VEnum ts -> unless (a `elem` ts) $ throwError (ExpectedEnumGot ts a)
-          VTerm -> pure ()
+          VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot es a)
+          VWildcard -> pure ()
           _ -> throwError (SyntaxError desc rt)
         atom a <$> asks (length . objVars)
       Cons p q -> case vdesc of
         VNilOrCons d1 d2 -> (%) <$> stm d1 p <*> stm d2 q
         VCons d1 d2 -> (%) <$> stm d1 p <*> stm d2 q
-        VTerm -> (%) <$> stm desc p <*> stm desc q
-        VTag ds -> case p of
+        VWildcard -> (%) <$> stm desc p <*> stm desc q
+        VEnumOrTag _ ds -> case p of
           At a -> case lookup a ds of
             Nothing -> throwError (ExpectedTagGot (fst <$> ds) a)
-            Just descs -> (%) <$> stm (("Atom", 0) #% []) p <*> stms descs q
+            Just descs -> (%) <$> stm (atom "Atom" 0) p <*> stms descs q
           _ -> throwError (SyntaxError desc rt)
         _ -> throwError (SyntaxError desc rt)
       Lam (Scope (Hide x) sc) -> (x \\) <$> do
         (s, desc) <- case vdesc of
-          VTerm -> pure (Unknown, desc)
+          VWildcard -> pure (Unknown, desc)
           VBind cat desc -> pure (Known cat, desc)
           _ -> throwError (SyntaxError desc rt)
         x <- isFresh (Variable x)
@@ -395,20 +400,20 @@ spats (d:ds) (ConsP p q) = do
 spats _ t = throwError (ExpectedAConsPGot t)
 
 spat :: SyntaxDesc -> RawP -> Elab (Pat, Decls, Hints)
-spat desc (C.VarP v) = do
+spat desc (C.VarP v) = during (PatternVariableElaboration v) $ do
   table <- gets syntaxCats
-  cat <- case asRec pure desc of
+  cat <- case asInfo desc of
     Nothing -> case Syntax.expand table desc of
-      Just VTerm -> pure Unknown
+      Just VWildcard -> pure Unknown
       _ -> throwError (SyntaxPError desc (VarP v))
-    Just cat -> pure (Known cat)
+    Just cat -> pure cat
   ds <- asks declarations
   hs <- asks binderHints
   res <- resolve v
   case res of
     Just (Left k)  -> throwError (NotAValidPatternVariable v k)
     Just (Right (cat', i)) -> do
-      during (PatternVariableElaboration v) $ compatibleInfos cat cat'
+      compatibleInfos cat cat'
       pure (VP i, ds, hs)
     Nothing -> do
       ovs <- asks objVars
@@ -429,8 +434,8 @@ spat desc rp = do
           VAtom -> pure ()
           VNil -> unless (a == "") $ throwError (ExpectedNilGot a)
           VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot a)
-          VEnum ts -> unless (a `elem` ts) $ throwError (ExpectedEnumGot ts a)
-          VTerm -> pure ()
+          VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot es a)
+          VWildcard -> pure ()
           _ -> throwError (SyntaxPError desc rp)
         (AP a,,) <$> asks declarations <*> asks binderHints
 
@@ -443,15 +448,15 @@ spat desc rp = do
           (p, ds, hs) <- spat d1 p
           (q, ds, hs) <- local (setDecls ds . setHints hs) (spat d2 q)
           pure (PP p q, ds, hs)
-        VTerm -> do
+        VWildcard -> do
           (p, ds, hs) <- spat desc p
           (q, ds, hs) <- local (setDecls ds . setHints hs) (spat desc q)
           pure (PP p q, ds, hs)
-        VTag ds -> case p of
+        VEnumOrTag _ ds -> case p of
           AtP a -> case lookup a ds of
             Nothing -> throwError (ExpectedTagGot (fst <$> ds) a)
             Just descs ->  do
-              (p, ds, hs) <- spat (("Atom", 0) #% []) p
+              (p, ds, hs) <- spat (atom "Atom" 0) p
               (q, ds, hs) <- local (setDecls ds . setHints hs) (spats descs q)
               pure (PP p q, ds, hs)
           _ -> throwError (SyntaxPError desc rp)
@@ -459,7 +464,7 @@ spat desc rp = do
 
       LamP (Scope v@(Hide x) p) -> do
         (s, desc) <- case vdesc of
-          VTerm -> pure (Unknown, desc)
+          VWildcard -> pure (Unknown, desc)
           VBind cat desc -> pure (Known cat, desc)
           _ -> throwError (SyntaxPError desc rp)
 

@@ -1,16 +1,16 @@
 syntax
   { 'Term = ['Tag [
-       ['Lam ['Bind 'Term ['Rec 'Term]]]
-       ['App ['Rec 'Term] ['Rec 'Term]]
+       ['Lam ['Bind 'Term 'Term]]
+       ['App 'Term 'Term]
     ]]
   }
 
-eval : ?'Term. !'Term.
+eval : 'Term -> 'Term |- ?'Term. !'Term.
 
 eval@p = p?tm. lookup tm { v -> p!v. } else case tm
   { ['Lam \x. t] -> \x. eval { x -> x }.
       eval@q. q!t. q?v. p!['Lam \x. v].
-  ; ['App f s] -> ?u.
+  ; ['App f s] -> 'Term?u.
       ( eval@q. q!s. q?v. u ~ v
       | eval@r. r!f. r?g. case g
         { ['Lam \y. t] -> eval@z. z!{y=u}t. z?w. p!w.

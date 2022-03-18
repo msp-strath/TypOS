@@ -2,17 +2,17 @@ trace { break }
 
 syntax
   { 'Term = ['Tag [
-       ['Lam ['Bind 'Term ['Rec 'Term]]]
-       ['App ['Rec 'Term] ['Rec 'Term]]
+       ['Lam ['Bind 'Term 'Term]]
+       ['App 'Term 'Term]
     ]]
-  ; 'Stack = ['NilOrCons ['Rec 'Term] ['Rec 'Stack]]
+  ; 'Stack = ['NilOrCons 'Term 'Stack]
   ; 'Entry = ['Tag [
-       ['Argument ['Rec 'Term]]
-       ['Variable ['Rec 'Term]]
+       ['Argument 'Term]
+       ['Variable 'Term]
      ]]
   }
 
-krivine : 'Term -> ['Rec 'Entry] |- ?'Term. ?'Stack. !'Term.
+krivine : 'Term -> 'Entry |- ?'Term. ?'Stack. !'Term.
 unwind : ?'Term. ?'Stack. !'Term.
 
 unwind@p = p?tm. p?stk. case stk

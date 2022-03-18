@@ -4,31 +4,31 @@
 -- Interface
 
 syntax
-  { 'Type = ['Tag  [ ['Nat ]
-                     ['Arr  ['Rec 'Type] ['Rec 'Type]]
-            ]]
+  { 'Type = ['EnumOrTag  ['Nat]
+                         [['Arr  'Type 'Type]]
+            ]
   }
 
 type : ?'Type.
 
 syntax
-  { 'Check = ['Tag  [ ['Lam ['Bind 'Synth ['Rec 'Check]]]
-                      ['Emb ['Rec 'Synth]]
+  { 'Check = ['EnumOrTag [] [ ['Lam ['Bind 'Synth 'Check]]
+                              ['Emb 'Synth]
              ]]
-  ; 'Synth = ['Tag  [ ['Rad ['Rec 'Check] ['Rec 'Type]]
-                      ['App ['Rec 'Synth] ['Rec 'Check]]
+  ; 'Synth = ['EnumOrTag [] [ ['Rad 'Check 'Type]
+                              ['App 'Synth 'Check]
              ]]
   }
 
 check : ?'Type. ?'Check.
-synth : 'Synth -> ['Rec 'Type] -- synth's stash associates Types to Synth variables
+synth : 'Synth -> 'Type -- synth's stash associates Types to Synth variables
       |- ?'Synth. !'Type.
 
 ------------------------------------------------------------------------------
 -- Implementation
 
 type@p = p?ty. case ty
-  { ['Nat] ->
+  { 'Nat ->
   ; ['Arr S T] ->
       ( type@q. q!S.
       | type@r. r!T.
@@ -58,20 +58,20 @@ synth@p = p?tm . lookup tm { S -> p!S. } else case tm
 
 ------------------------------------------------------------------------------
 -- Examples
-
 {-
-exec  check@p. p! ['Arr ['Nat] ['Arr ['One] ['Nat]]].
+exec  check@p. p! ['Arr 'Nat ['Arr 'Nat 'Nat]].
               p! ['Lam \z. ['Lam \y. ['Emb z]]].
 -}
 {-
-exec  check@p. p! ['Arr ['Nat] ['Nat]].
+exec  check@p. p! ['Arr 'Nat 'Nat].
               p! ['Lam \z. ['Emb z]].
 
 -}
 
+
 exec  check@p.
-   p! ['Arr ['Nat] ['Nat]].
+   p! ['Arr 'Nat 'Nat].
    p! ['Lam \z. ['Emb
-         ['App ['Rad ['Lam \w. ['Emb w]] ['Arr ['Nat] ['Nat]]]
+         ['App ['Rad ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]]
          ['Emb z]]]].
    PRINTF "Victory!".
