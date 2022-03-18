@@ -11,7 +11,7 @@ data Options = Options
   }
 
 options :: Parser Options
-options = Options <$> argument str (metavar "FILE" <> showDefault <> value "stlc.act" <> help "Actor file")
+options = Options <$> argument str (metavar "FILE" <> showDefault <> value "examples/stlc.act" <> help "Actor file")
                   <*> (optional $ option (str >>= (readSteps . words))
                                              (long "tracing" <> metavar "LEVELS" <> help tracingHelp))
  where
