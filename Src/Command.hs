@@ -102,9 +102,6 @@ pprotocol = psep pspc ((,) <$> pmode <* pspc <*> psyntaxdecl <* pspc <* pch (== 
 psyntax :: Parser (SyntaxCat, C.Raw)
 psyntax = (,) <$> patom <* punc "=" <*> psyntaxdecl
 
-psyntaxdecl :: Parser C.Raw
-psyntaxdecl = plocal B0 ptm
-
 pjudgementstack :: Parser (JudgementStack C.Raw)
 pjudgementstack =
    JudgementStack <$> psyntaxdecl <* punc "->" <*> psyntaxdecl <* punc "|-"
@@ -124,14 +121,6 @@ sprotocol :: CProtocol -> Elab AProtocol
 sprotocol ps = during (ProtocolElaboration ps) $ do
   syndecls <- gets (Map.keys . syntaxCats)
   traverse (traverse (ssyntaxdecl syndecls)) ps
-
-ssyntaxdecl :: [SyntaxCat] -> C.Raw -> Elab SyntaxDesc
-ssyntaxdecl syndecls syn = do
-  let desc = catToDesc "Syntax"
-  syn <- withSyntax (syntaxDesc syndecls) $ stm desc syn
-  case isMetaFree syn of
-    Nothing -> throwError undefined -- this should be impossible, since parsed in empty context
-    Just syn0 -> pure syn0
 
 sjudgementstack :: JudgementStack C.Raw -> Elab (JudgementStack SyntaxDesc)
 sjudgementstack (JudgementStack key val) = do

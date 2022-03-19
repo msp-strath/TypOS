@@ -40,7 +40,7 @@ data Actor
  | Spawn Variable Variable Actor
  | Send Variable Raw Actor
  | Recv Variable (Variable, Actor)
- | FreshMeta SyntaxCat (Variable, Actor)
+ | FreshMeta Raw (Variable, Actor)
  | Under (Scope Actor)
  | Match Raw [(RawP, Actor)]
  -- This is going to bite us when it comes to dependent types

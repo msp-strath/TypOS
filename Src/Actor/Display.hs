@@ -83,9 +83,10 @@ instance Display Actor where
       ch <- subdisplay ch
       a <- display a
       pure $ concat [ch, "?", show av, ". ", a]
-    FreshMeta cat (av, a) -> do
+    FreshMeta desc (av, a) -> do
       a <- display a
-      pure $ concat ['\'':cat, "?", show av, ". ", a]
+      desc <- subdisplay desc
+      pure $ concat [desc, "?", show av, ". ", a]
     Under (Scope (Hide x) a) -> do
       a <- local (updateNaming (`nameOn` x)) $ display a
       pure $ concat ["\\", x, ". ", a]

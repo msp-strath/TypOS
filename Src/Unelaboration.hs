@@ -228,7 +228,7 @@ instance Unelab A.Actor where
     A.Spawn jd ch a -> C.Spawn <$> subunelab jd <*> subunelab ch <*> unelab a
     A.Send ch tm a -> C.Send <$> subunelab ch <*> (inChannel ch $ subunelab tm) <*> unelab a
     A.Recv ch (av, a) -> C.Recv <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
-    A.FreshMeta cat (av, a) -> C.FreshMeta cat <$> ((,) <$> subunelab av <*> unelab a)
+    A.FreshMeta desc (av, a) -> C.FreshMeta <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
     A.Under (Scope x a) -> C.Under . Scope x <$> local (updateNaming (`nameOn` unhide x)) (unelab a)
     A.Push jd (p, t) a -> C.Push <$> subunelab jd <*> ((,) <$> subunelab p <*> subunelab t) <*> unelab a
     A.Lookup t (av, a) b -> C.Lookup <$> subunelab t <*> ((,) <$> subunelab av <*> unelab a) <*> unelab b

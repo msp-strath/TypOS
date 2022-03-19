@@ -98,7 +98,7 @@ data Kind
   | AJudgement (Maybe AJudgementStack) AProtocol
   deriving (Show)
 
-type Hints = Map String (Info SyntaxCat)
+type Hints = Map String (Info SyntaxDesc)
 
 data Context = Context
   { objVars      :: ObjVars
@@ -227,14 +227,7 @@ data ElabState = ElabState
   , syntaxCats    :: Map SyntaxCat SyntaxDesc
   } deriving (Eq)
 
-isSyntaxCat :: String -> Elab SyntaxDesc
-isSyntaxCat str = do
-  cats <- gets syntaxCats
-  case Map.lookup str cats of
-    Nothing -> throwError (NotAValidSyntaxCat str)
-    Just d -> pure d
-
-addHint :: String -> Info SyntaxCat -> Context -> Context
+addHint :: String -> Info SyntaxDesc -> Context -> Context
 addHint str cat ctx =
   let hints = binderHints ctx
       hints' = case Map.lookup str hints of
@@ -242,7 +235,7 @@ addHint str cat ctx =
                  Just cat' -> Map.insert str (cat <> cat') hints
   in ctx { binderHints = hints' }
 
-getHint :: String -> Elab (Info SyntaxCat)
+getHint :: String -> Elab (Info SyntaxDesc)
 getHint str = do
   hints <- asks binderHints
   pure $ fromMaybe Unknown $ Map.lookup str hints
@@ -329,6 +322,14 @@ spop = do
     B0 -> throwError EmptyContext
     (xz :< (x, cat)) -> pure (xz, (Variable x, cat))
 
+ssyntaxdecl :: [SyntaxCat] -> C.Raw -> Elab SyntaxDesc
+ssyntaxdecl syndecls syn = do
+  let desc = catToDesc "Syntax"
+  syn <- withSyntax (syntaxDesc syndecls) $ stm desc syn
+  case isMetaFree syn of
+    Nothing -> throwError undefined -- this should be impossible, since parsed in empty context
+    Just syn0 -> pure syn0
+
 ssbst :: Bwd SbstC -> Elab (ACTSbst, ObjVars)
 ssbst B0 = do
     ovs <- asks objVars
@@ -345,7 +346,7 @@ ssbst (sg :< sgc) = case sgc of
       (sg, ovs) <- local (setObjVars xz) (ssbst sg)
       pure (weak sg, ovs)
     Assign v t -> do
-      info <- fmap catToDesc <$> getHint (getVariable v)
+      info <- getHint (getVariable v)
       desc <- fromInfo info
       t <- stm desc t
       (sg, ovs) <- ssbst sg
@@ -480,11 +481,11 @@ spat desc rp = do
       LamP (Scope v@(Hide x) p) -> do
         (s, desc) <- case vdesc of
           VWildcard -> pure (Unknown, desc)
-          VBind cat desc -> pure (Known cat, desc)
+          VBind cat desc -> pure (Known (catToDesc cat), desc)
           _ -> throwError (SyntaxPError desc rp)
 
         () <$ isFresh (Variable x)
-        (p, ds, hs) <- local (declareObjVar (x, fmap catToDesc s) . addHint x s) $ spat desc p
+        (p, ds, hs) <- local (declareObjVar (x, s) . addHint x s) $ spat desc p
         pure (BP v p, ds, hs)
 
 isChannel :: Variable -> Elab Channel
@@ -601,12 +602,13 @@ sact = \case
     a <- local (declare av (ActVar (Known cat) sc)) $ sact a
     pure $ A.Recv ch (ActorMeta av, a)
 
-  C.FreshMeta cat (av, a) -> do
-    desc <- during FreshMetaElaboration $ isSyntaxCat cat
-    av <- during FreshMetaElaboration $ isFresh av
+  C.FreshMeta desc (av, a) -> during FreshMetaElaboration $ do
+    syndecls <- gets (Map.keys . syntaxCats)
+    desc <- ssyntaxdecl syndecls desc
+    av <- isFresh av
     ovs <- asks objVars
     a <- local (declare av (ActVar (Known desc) ovs)) $ sact a
-    pure $ A.FreshMeta cat (ActorMeta av, a)
+    pure $ A.FreshMeta desc (ActorMeta av, a)
 
   C.Under (Scope v@(Hide x) a) -> do
     during UnderElaboration $ () <$ isFresh (Variable x)

@@ -8,7 +8,7 @@ import Format
 import Hide
 import Pattern
 import Scope
-import Syntax (SyntaxCat)
+import Syntax (SyntaxDesc)
 import Term
 import Thin
 
@@ -56,7 +56,7 @@ data Actor
  | Spawn JudgementForm Channel Actor
  | Send Channel (CdB (Tm ActorMeta)) Actor
  | Recv Channel (ActorMeta, Actor)
- | FreshMeta SyntaxCat (ActorMeta, Actor)
+ | FreshMeta SyntaxDesc (ActorMeta, Actor)
  | Under (Scope Actor)
  | Match (CdB (Tm ActorMeta)) [(Pat, Actor)]
  -- This is going to bite us when it comes to dependent types
