@@ -37,6 +37,7 @@ library
                        Display,
                        Doc,
                        Doc.Internal,
+                       Doc.Render.Terminal,
                        Elaboration,
                        Elaboration.Pretty,
                        Forget,

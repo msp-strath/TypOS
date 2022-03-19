@@ -24,6 +24,7 @@ data Annotation
   | SetUnderlining Underlining
 
 withANSI :: [Annotation] -> String -> String
+withANSI [] str = str
 withANSI anns str = concat
   [ "\x1b[", intercalate ";" (show . encode <$> anns) , "m"
   , str
