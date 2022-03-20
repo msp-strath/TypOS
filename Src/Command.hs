@@ -5,6 +5,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 
+import Data.List
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
@@ -23,7 +24,6 @@ import Machine.Display (Store)
 import Machine.Exec
 import Main.Options
 import Parse
-import Pretty
 import Syntax
 import Term.Base
 
@@ -40,7 +40,9 @@ type ACommand = CommandF A.JudgementForm A.Channel SyntaxDesc A.Actor
 
 instance Display Mode where
   type DisplayEnv Mode = ()
-  display = pure . pretty
+  display m = pure $ case m of
+    Input -> "?"
+    Output -> "!"
 
 instance Display t => Display (JudgementStack t) where
   type DisplayEnv (JudgementStack t) = DisplayEnv t
@@ -52,8 +54,8 @@ instance Display t => Display (JudgementStack t) where
 instance Display t => Display (Protocol t) where
   type DisplayEnv (Protocol t) = DisplayEnv t
   display t = do
-    t <- traverse (traverse display) t
-    pure (pretty t)
+    ps <- traverse (\ (m, c) -> (++) <$> subdisplay m <*> display c) t
+    pure $ intercalate ". " ps
 
 instance Display String where
   type DisplayEnv String = ()

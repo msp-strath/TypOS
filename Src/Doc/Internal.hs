@@ -15,7 +15,7 @@ data Tree ann a
   | Indent !Int (Tree ann a)
   | Node (Tree ann a) a (Tree ann a)
   | Annotate ann (Tree ann a)
-  deriving (Functor)
+  deriving (Show, Functor)
 
 -- auxiliary function used to fuse blocks
 node :: Maybe (a, Tree ann a) -> a -> Tree ann a -> Maybe (a, Tree ann a)
@@ -37,7 +37,7 @@ treeAnnotate ann (Annotate ann' t) = Annotate (ann <> ann') t
 treeAnnotate ann t = Annotate ann t
 
 newtype Line ann = Line { runLine :: Bwd (ann, String) }
-  deriving (Semigroup, Monoid, Functor)
+  deriving (Show, Semigroup, Monoid, Functor)
 
 asLine :: Monoid ann => String -> Line ann
 asLine "" = mempty
@@ -59,7 +59,7 @@ data Block ann = Block
   , maxWidth  :: !Int
   , lastWidth :: !Int
   , lastLine  :: Line ann
-  }
+  } deriving (Show)
 
 instance Functor Block where
   fmap f (Block h c mw lw l) = Block h (bimap (f <$>) (mapTree f) <$> c) mw lw (f <$> l)

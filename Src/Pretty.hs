@@ -1,28 +1,18 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Pretty where
 
-import ANSI
+import ANSI hiding (withANSI)
 import Bwd
-import Data.List
+import Doc
+import Doc.Render.Terminal
 
 -- TODO: use a structured Doc type as output
 class Pretty a where
-  pretty :: a -> String
+  pretty :: a -> Doc Annotations
   pretty = prettyPrec 0
 
-  prettyPrec :: Int -> a -> String
+  prettyPrec :: Int -> a -> Doc Annotations
   prettyPrec _ = pretty
-
-parens :: String -> String
-parens str = concat ["(", str, ")"]
-
-parenthesise :: Bool -> String -> String
-parenthesise b = if b then parens else id
-
-brackets :: String -> String
-brackets str = concat ["[", str, "]"]
-
-braces :: String -> String
-braces str = concat ["{", str, "}"]
 
 escape :: String -> String
 escape = concatMap go where
@@ -33,25 +23,25 @@ escape = concatMap go where
   go c = [c]
 
 instance Pretty String where
-  pretty s = s
+  pretty s = text s
 
 class Collapse t where
-  collapse :: t String -> String
+  collapse :: t (Doc Annotations) -> Doc Annotations
 
 newtype BracesList t = BracesList { unBracesList :: [t] }
 
 instance Collapse BracesList where
-  collapse (BracesList strs) = "{" ++ intercalate "; " strs ++ "}"
+  collapse (BracesList ds) = braces $ hsepBy ";" ds
 
 instance Collapse Bwd where
-  collapse strs = "[<" ++ intercalate ", " (strs <>> []) ++ "]"
+  collapse ds = brackets ("<" <+> hsepBy "," (ds <>> []))
 
 instance Collapse [] where
-  collapse strs = "[" ++ intercalate ", " strs ++ "]"
+  collapse ds = brackets (hsepBy "," ds)
 
 instance Collapse Cursor where
   collapse (lstrs :<+>: rstrs) =
-    unwords [ collapse lstrs
-            , withANSI [SetColour Foreground Red, SetWeight Bold] ":<+>:"
-            , collapse rstrs
-            ]
+    hsep [ collapse lstrs
+         , withANSI [SetColour Foreground Red, SetWeight Bold] ":<+>:"
+         , collapse rstrs
+         ]

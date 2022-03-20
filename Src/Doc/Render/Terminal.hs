@@ -13,7 +13,7 @@ data Annotations = Annotations
   , backgroundColour :: Maybe Colour
   , fontWeight       :: Maybe Weight
   , fontUnderlining  :: Maybe Underlining
-  }
+  } deriving (Show)
 
 instance Semigroup Annotations where
   Annotations fg1 bg1 fw1 fu1 <> Annotations fg2 bg2 fw2 fu2
@@ -39,18 +39,19 @@ fromANSIs = foldl (\ acc ann -> acc <> fromANSI ann) mempty where
   fromANSI (SetWeight w) = mempty { fontWeight = Just w }
   fromANSI (SetUnderlining u) = mempty { fontUnderlining = Just u }
 
-render :: Doc cfg Annotations -> String
-render d
+render :: Int -> Doc Annotations -> String
+render i d
   = unlines
   $ map (concatMap (uncurry (ANSI.withANSI . toANSIs)))
-  $ Doc.render d
+  $ Doc.render i d
 
-withANSI :: [Annotation] -> Doc cfg Annotations -> Doc cfg Annotations
+withANSI :: [Annotation] -> Doc Annotations -> Doc Annotations
 withANSI = Doc.annotate . fromANSIs
 
+keyword :: Doc Annotations -> Doc Annotations
+keyword = withANSI [ SetUnderlining Single ]
 
-
-testT = test (render . withANSI [ SetColour Background Blue ])
+testT = test (render 80 . withANSI [ SetColour Background Blue ])
   (fancyChar Green '1')
   (fancyChar Red '0')
 
