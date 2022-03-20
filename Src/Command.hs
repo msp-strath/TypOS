@@ -102,6 +102,9 @@ pprotocol = psep pspc ((,) <$> pmode <* pspc <*> psyntaxdecl <* pspc <* pch (== 
 psyntax :: Parser (SyntaxCat, C.Raw)
 psyntax = (,) <$> patom <* punc "=" <*> psyntaxdecl
 
+psyntaxdecl :: Parser C.Raw
+psyntaxdecl = plocal B0 ptm
+
 pjudgementstack :: Parser (JudgementStack C.Raw)
 pjudgementstack =
    JudgementStack <$> psyntaxdecl <* punc "->" <*> psyntaxdecl <* punc "|-"
