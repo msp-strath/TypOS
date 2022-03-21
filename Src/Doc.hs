@@ -27,7 +27,7 @@ instance Functor Doc where
   fmap f (Doc ds) = Doc (L1.map (f <$>) . ds)
 
 instance Monoid ann => IsString (Doc ann) where
-  fromString str = Doc (const $ I.text str :| [])
+  fromString str = Doc (const (I.para str :| []))
 
 -- | cutOff will filter the potential results based on the
 --   tape width.

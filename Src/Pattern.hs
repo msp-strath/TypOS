@@ -4,17 +4,13 @@ module Pattern where
 import qualified Data.Map as Map
 
 import Control.Applicative
-import Control.Monad.Reader
-import Control.Monad.Except
 
 import Bwd
 import Thin
 import Hide
-import Display
 import Parse
 
 import Term.Base
-import Term.Display
 
 -- patterns are de Bruijn
 data Pat
@@ -32,13 +28,6 @@ bound xz (PP l r) = bound xz l <> bound xz r
 bound xz (BP (Hide x) b) = bound (xz :< x) b
 bound xz (MP m th) = Map.singleton m (th ^? xz)
 bound _ _ = mempty
-
-instance Display DB where
-  type DisplayEnv DB = Naming
-  display (DB n) = do
-    na@(ns, _, _) <- ask
-    when (n >= length ns) $ throwError (InvalidNaming na)
-    pure (ns <! n)
 
 instance Thable Pat where
   VP v *^ th = VP (v *^ th)
@@ -120,36 +109,3 @@ pth = do
   raw = (,) <$> many (id <$ pspc <*> pvar') <* pspc
             <*> (True <$ pch (== '*') <* pspc <|> pure False)
             <* pch (== '}')
-
--- Displaying
-
-instance Display Pat where
-  type DisplayEnv Pat = Naming
-  display = \case
-    VP n -> display n
-    AP ""  -> pure "[]"
-    AP str -> pure $ "'" ++ str
-    PP p q -> do
-      p <- pdisplay p
-      q <- displayPatCdr q
-      pure $ "[" ++ p ++ q ++ "]"
-    BP (Hide x) p -> do
-      p <- local (`nameOn` x) $ display p
-      pure $ "\\" ++ x ++ "." ++ p
-    MP m th -> pure m
-    HP -> pure "_"
-
-  pdisplay p = case p of
-    AP{} -> display p
-    PP{} -> display p
-    _ -> pdisplayDFT p
-
-displayPatCdr :: Pat -> DisplayM Naming String
-displayPatCdr (AP "") = pure ""
-displayPatCdr (PP p q) = do
-  p <- pdisplay p
-  q <- displayPatCdr q
-  pure $ " " ++ p ++ q
-displayPatCdr t = do
-  t <- display t
-  pure $ "|" ++ t

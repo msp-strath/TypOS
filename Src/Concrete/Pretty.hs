@@ -106,5 +106,29 @@ instance Pretty t => Pretty [Format Directive Debug t] where
       DebugPart dbg -> go (fmt :< pretty dbg) args fs
       StringPart str -> go (fmt :< pretty (escape str)) args fs
 
+instance Pretty t => Pretty [Format () String t] where
+  pretty = go mempty where
+
+    go acc [] = acc
+    go acc (f:fs) = case f of
+      TermPart () t -> go (acc <> pretty t) fs
+      DebugPart dbg -> go (acc <> pretty dbg) fs
+      StringPart str -> go' acc str fs
+
+    go' acc str fs = case span ('\n' /=) str of
+      (str, []) -> go (acc <> text str) fs
+      (str, _:rest) -> go' (flush (acc <> text str)) rest fs
+
+
 instance Pretty (RawP, Actor) where
   pretty (p, a) = hsep [ pretty p, "->", pretty a ]
+
+instance Pretty Mode where
+  pretty Input = "?"
+  pretty Output = "!"
+
+instance Pretty t => Pretty (Protocol t) where
+  pretty = foldMap $ \ (m, d) -> fold [pretty m, pretty d, ". "]
+
+instance Pretty t => Pretty (JudgementStack t) where
+  pretty stk = hsep [pretty (keyDesc stk), "->", pretty (valueDesc stk)]

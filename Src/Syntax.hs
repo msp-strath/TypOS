@@ -5,14 +5,10 @@ import Control.Monad
 import Data.Void
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe
 
 import Bwd
 import Thin
 import Term
-
-import Display
-import Term.Display
 
 type SyntaxCat = String
 type SyntaxDesc = CdB (Tm Void)
@@ -151,6 +147,7 @@ validateDesc syns =
     validate (Map.singleton "Syntax" (syntaxDesc syns)) B0
      (rec "Syntax")
 
+{-
 validateIt = validateDesc ["Syntax"] (syntaxDesc ["Syntax"])
 printIt = putStrLn $ unlines
   [ show validateIt
@@ -158,3 +155,4 @@ printIt = putStrLn $ unlines
   , unsafeEvalDisplay initNaming $ display (syntaxDesc ["Syntax"])
   , "==="
   , unsafeEvalDisplay initNaming $ display $ Syntax.contract (fromJust (Syntax.expand (Map.singleton "Syntax" (syntaxDesc ["Syntax"])) (syntaxDesc ["Syntax"])))]
+-}

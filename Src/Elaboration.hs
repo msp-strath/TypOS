@@ -19,7 +19,15 @@ import Syntax
 import Thin
 import Utils
 
-import Concrete.Base (Variable(..), Raw(..), SbstC(..), RawP(..), ThDirective(..))
+import Concrete.Base
+  (Variable(..)
+  , Raw(..)
+  , SbstC(..)
+  , RawP(..)
+  , ThDirective(..)
+  , Mode(..)
+  , Protocol(..)
+  , JudgementStack(..))
 import qualified Concrete.Base as C
 
 import Term.Base
@@ -27,16 +35,6 @@ import Term.Substitution
 import Pattern as P
 import Actor (ActorMeta(..), Channel(..))
 import qualified Actor as A
-
-data Mode = Input | {- Subject | -} Output
-  deriving (Show, Eq)
-
-type Protocol t = [(Mode, t)]
-
-data JudgementStack t = JudgementStack
-  { keyDesc :: t
-  , valueDesc :: t
-  } deriving (Show)
 
 type CProtocol = Protocol C.Raw
 type AProtocol = Protocol SyntaxDesc

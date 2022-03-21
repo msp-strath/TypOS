@@ -194,4 +194,4 @@ exec evalSynth@p.
              ['List ['List 'One]]]                  -- [0,1] :: [Nat]
        ['Cons ['Cons 'Nil ['Cons 'Nil 'Nil]] 'Nil]  -- nil = [2] :: [Nat]
        (\x.\xs.\ih.['Cons ['Emb x] ['Emb ih]])].    -- cons(x,xs,ih) = x : xs
-  p?nf. p?ty. PRINTF "Result:\n[0,1] ++ [2]\n  : %i\n  = %i\n" ty nf.
+  p?nf. p?ty. PRINTF "Result:\n[0,1] ++ [2]\n  : %i\n  = %i" ty nf.

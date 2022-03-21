@@ -1,6 +1,7 @@
 module Doc.Render.Terminal where
 
 import Control.Applicative
+import Data.List
 import Data.Maybe
 
 import Doc (Doc, test, char)
@@ -41,7 +42,7 @@ fromANSIs = foldl (\ acc ann -> acc <> fromANSI ann) mempty where
 
 render :: Int -> Doc Annotations -> String
 render i d
-  = unlines
+  = intercalate "\n"
   $ map (concatMap (uncurry (ANSI.withANSI . toANSIs)))
   $ Doc.render i d
 
