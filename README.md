@@ -70,15 +70,15 @@ simply typed lambda-calculus.
 
 ```
 syntax
-  { 'Check = ['Tag  [ ['Lam ['Bind 'Synth ['Rec 'Check]]]
-                      ['Emb ['Rec 'Synth]]
-             ]]
-  ; 'Synth = ['Tag  [ ['Rad ['Rec 'Check] ['Rec 'Type]]
-                      ['App ['Rec 'Synth] ['Rec 'Check]]
-             ]]
-  ; 'Type = ['Tag  [ ['Nat ]
-                     ['Arr  ['Rec 'Type] ['Rec 'Type]]
-            ]]
+  { 'Check = ['Tag  [ ['Lam ['Bind 'Synth 'Check]]
+                      ['Emb 'Synth] ]
+             ]
+  ; 'Synth = ['Tag  [ ['Rad 'Check 'Type]
+                      ['App 'Synth 'Check] ]
+             ]
+  ; 'Type = ['EnumOrTag ['Nat ]
+                        [ ['Arr 'Type 'Type] ]
+            ]
   }
 ```
 
@@ -98,9 +98,16 @@ descriptions:
   descriptions, allowing us to demand exactly a list whose head is a
   tag and whose other elements are specified in a manner selected by
   the tag. So `'Lam` and `'Emb` are the tags for `'Check` terms,
-  `'Rad'` and `'App` for `'Synth` terms, `'Nat` and `'Arr` for `'Type`
-  terms.
-* `['Rec` ..`]`, for *recursive*, is followed by an atom which is the name of
+  `'Rad'` and `'App` for `'Synth` terms.
+* `['EnumOrTag` .. `]` takes two lists: the first one *enumerates* the
+  permissible atoms, that is, it admits any of of them, whereas the
+  second again is a list of pairs of tags and syntax descriptions (in
+  fact, `['Tag` *ts*`]` is syntactic sugar for `[EnumOrTag []` *ts* `]`;
+  similarly `['Enum` *es* `]` is syntactic sugar for `[EnumOrTag` *es* `[] ]`).
+  So `Nat` on its own is a `'Type`, and `'Arr` is a tag demanding two
+  further types.
+* Names of syntax declarations can occur *recursively* in syntax
+  descriptions: these are atoms which is the name of
   a syntax, including the syntaxes defined in previous syntax
   declarations, or the current syntax declaration. E.g., we see that
   the `'Emb` tag should be followed by one `'Synth` term, while the
@@ -120,31 +127,30 @@ The other permitted syntax descriptions are as follows:
   admits *h* and *tail* admits *t*.
 * `['NilOrCons` *head* *tail*`]` admits the union of the above two.
 * `['Atom]` admits any atom.
-* `['Enum` ..`]` takes a list of atoms and admits any of them. Note
-  that `['Enum ['tt 'ff]]` admits `'tt` and `'ff`, as opposed to
-  `['Tag [ ['tt] ['ff] ]`, which admits `['tt]` and `['ff]`.
+* `['AtomBar *as*]` admits any atom, *except* those listed in *as*.
 * `['Fix \`*x*`.` ..`]` takes a syntax decsription in which the bound
   *x* is treated as a syntax description, allowing local recursion.
-* `['Term]` admits anything.
+* `['Wildcard]` admits anything.
 
 For a more exciting example, we take
+
 ```
-syntax { 'Syntax = ['Tag [
-  ['Rec ['Atom]]
-  ['Atom]
-  ['Nil]
-  ['Cons ['Rec 'Syntax] ['Rec 'Syntax]]
-  ['NilOrCons ['Rec 'Syntax] ['Rec 'Syntax]]
-  ['Bind ['Atom] ['Rec 'Syntax]]
-  ['Tag ['Fix (\list.['NilOrCons ['Cons ['Atom] ['Fix (\list.['NilOrCons ['Rec 'Syntax] list])]] list])]]
-  ['Fix ['Bind 'Syntax ['Rec 'Syntax]]]
-  ['Enum ['Fix (\list.['NilOrCons ['Atom] list])]]
-  ['Term]
-]]}
+syntax { 'Syntax = ['EnumOrTag
+  ['Nil 'Atom 'Wildcard 'Syntax]
+  [['AtomBar ['Fix (\list.['NilOrCons 'Atom list])]]
+   ['Cons 'Syntax 'Syntax]
+   ['NilOrCons 'Syntax 'Syntax]
+   ['Bind ['EnumOrTag ['Syntax] []] 'Syntax]
+   ['EnumOrTag ['Fix (\list.['NilOrCons 'Atom list])]
+               ['Fix (\list.['NilOrCons ['Cons 'Atom ['Fix (\list.['NilOrCons 'Syntax list])]] list])]]
+   ['Enum ['Fix (\list.['NilOrCons 'Atom list])]]
+   ['Tag ['Fix (\list.['NilOrCons ['Cons 'Atom ['Fix (\list.['NilOrCons 'Syntax list])]] list])]]
+   ['Fix ['Bind 'Syntax 'Syntax]]]
+]}
 ```
 as the syntax description of syntax descriptions, using `'Fix` to
-characterize the lists which occur in the `['Tag` ..`]` and
-`['Enum` .. `]` constructs.
+characterize the lists which occur in the `['AtomBar` ..`]`, `['Tag` ..`]`
+and `['Enum` .. `]` constructs.
 
 
 ## Judgement forms and protocols
@@ -154,10 +160,11 @@ say which actors exist and how to communicate with them. Our version
 of Milner's judgement-form-in-a-box names is to declare
 *name* `:` *protocol*. A protocol is a sequence of *actions*. Each
 action is specified by `?` for input or `!` for output, then the
-intended syntax for that transmission, then `.` as a closing
+intended syntax description for that transmission, then `.` as a closing
 delimiter.
 
 For our example language, we have
+
 ```
 type  : ?'Type.
 check : ?'Type. ?'Check.
@@ -168,6 +175,9 @@ validate; `check` actors receive a `'Type` to check and a `'Check`able
 term which we hope the type admits; `synth` actors receive a
 `'Synth`esizable term, then (we hope) transmit the `'Type` synthesized
 for that term.
+
+> :warning: Actually the judgement declaration for `synth` is slightly
+> more complicated; see below.
 
 Our protocols are nowhere near as exciting as session types, offering
 only a rigid sequence of actions to do (or die). In the future, we
@@ -183,10 +193,9 @@ plan to enrich the notion of protocol in two ways:
    `type` accepts, but demand that `synth` always yields a `'Type`
    which `type` accepts.
 
-That is, we plan to check the checkers: at the moment we just about
+That is, we plan to check the checkers: at the moment we
 check that actors stick to the designated interleaving of input and
-output operations. The syntax for each signal is but a good intention
-upon which we do not yet act.
+output operations, and that syntax descriptions are adhered to.
 
 
 ## TypOS actors
@@ -195,16 +204,17 @@ An actor definition looks like *judgement*`@`*channel* `=` *actor*.
 The channel is the actor's link with its parent (so we often call it
 `p`) along which it must follow the declared protocol.
 Here is a simple example:
+
 ```
 type@p = p?ty. case ty
-  { ['Nat] ->
+  { 'Nat ->
   ; ['Arr S T] ->
       ( type@q. q!S.
       | type@r. r!T.
       )
   }
   ```
-  
+
 This actor implements `type`, with channel `p` to its parent. Its
 first action is `p?ty.` to ask its parent for an input, which
 comes into scope as the value of the *actor-variable* `ty`. I.e.,
@@ -217,8 +227,8 @@ received a type to validate. How does it proceed?
 It performs a `case` analysis on the structure of the type. The
 actor construct is `case` *term* `{` *pattern* `->` *actor* `;` ..`}`.
 We shall specify patterns in more detail shortly, but let us
-continue the overview. The `['Nat]` pattern matches only if `ty`
-is exactly `['Nat]`, and the action taken in that case is nothing
+continue the overview. The `'Nat` pattern matches only if `ty`
+is exactly `'Nat`, and the action taken in that case is nothing
 at all! The empty actor denotes glorious success! Meanwhile, the
 pattern `['Arr S T]` matches any three element list whose head is
 the atom `'Arr`: the other two elements are brought into scope as
@@ -242,9 +252,10 @@ The second fork similarly delegates the validation of `T` to another
 We have seen actors for receiving, sending, case analysis, parallel
 composition, and spawning. There is a little more to come. Let us
 have a further example:
+
 ```
 check@p = p?ty. p?tm. case tm
-  { ['Lam \x. body] -> ?S. ?T.
+  { ['Lam \x. body] -> 'Type?S. 'Type?T.
       ( ty ~ ['Arr S T]
       | \x. synth { x -> S }. check@q. q!T. q!body.
       )
@@ -273,18 +284,18 @@ everything the terms they stand for might need is somehow in
 existence. We have found the body of our abstraction. What happens
 next?
 
-It looks like we are making inputs `S` and `T` from *no* channel, and
-that is exactly what we are doing! We request `S` and `T` from *thin
-air*. Operationally, TypOS generates placeholders for terms as yet
-unknown, but which may yet be solved, given subsequent constraints.
-Indeed, one of our subsequent forked actors exactly demands that `ty`
-is `['Arr S T]`, but we need not wait to proceed. In parallel, we
-*bind* a fresh variable `x`, allowing us to spawn a `check` actor on
-channel `q` and ask it to check that type `T` admits `body` (whose `x`
-has been captured by our binding). But we race ahead. A *binding*
-actor looks like `\` *variable* `.` *actor*. It brings a fresh term
-*variable* into scope, then behaves like *actor* for the duration of
-that scope.
+It looks like we are making inputs `S` and `T` of syntactic
+description `'Type` from *no* channel, and that is exactly what we are
+doing! We request `S` and `T` from *thin air*. Operationally, TypOS
+generates placeholders for terms as yet unknown, but which may yet be
+solved, given subsequent constraints.  Indeed, one of our subsequent
+forked actors exactly demands that `ty` is `['Arr S T]`, but we need
+not wait to proceed. In parallel, we *bind* a fresh variable `x`,
+allowing us to spawn a `check` actor on channel `q` and ask it to
+check that type `T` admits `body` (whose `x` has been captured by our
+binding). But we race ahead. A *binding* actor looks like `\` *variable* `.` *actor*.
+It brings a fresh term *variable* into scope, then behaves like
+*actor* for the duration of that scope.
 
 Now, before we can `check` the `body`, we must ensure that `synth`
 knows what to do whenever it is asked about `x`. We have explored
@@ -293,24 +304,34 @@ incarnation is to equip each judgement with its own notion of
 *contextual data* for free variables. The form
 *judgement* `{` *variable* `->` *term* `}.` *actor* pushes the
 association of *term* with *variable* into the context for
-*judgement*, then continues as *actor*. In our example, we have
-`synth { x -> S }. check@q. q!T. q!body.`, so any `synth` actor
-which is a descendant of the `check` actor on channel `q` will
-be able to access the `S` associated with `x`. To see how, we must
-look at the `synth` actor's definition.
+*judgement*, then continues as *actor*. We explain the syntactic
+descriptions involved in the declarations of the judgements; we
+are now ready to reveal the full declaration of `synth`, which is
+
+```
+synth : 'Synth -> 'Type |- ?'Synth. !'Type.
+```
+The protocol after the "turnstyle" `|-` we have seen before, but
+before `|-`, this also says that the `synth` judgement may keep track
+of `Type` data associated with `'Synth` terms.
+In our example, we have `synth { x -> S }. check@q. q!T. q!body.`, so
+any `synth` actor which is a descendant of the `check` actor on
+channel `q` will be able to access the `S` associated with `x`. To see
+how, we must look at the `synth` actor's definition.
+
 ```
 synth@p = p?tm . lookup tm { S -> p!S. } else case tm
-  { ['Rad t ty] ->
-      ( type@q. q!ty.
-      | check@r. r!ty. r!t.
-      | p!ty.
-      )
-  ; ['App f s] -> ?U. ?V.
-      ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
-      | check@r. r!U. r!s.
-      | p!V.
-      )
-  }
+   { ['Rad t ty] ->
+        ( type@q. q!ty.
+        | check@r. r!ty. r!t.
+        | p!ty.
+        )
+   ; ['App f s] -> 'Type?U. 'Type?V.
+        ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
+        | check@r. r!U. r!s.
+        | p!V.
+        )
+   }
 ```
 We have only one new feature, which is invoked immediately we have
 received `tm`. The actor `lookup` *term* `{` *actor-variable* `->` *actor*
@@ -334,7 +355,8 @@ argument at our guessed source type, and output our guessed target
 type as the type of the application.
 
 You have been watching
-* guessing: `?`*actor-variable*`.` *actor*
+
+* guessing: *syntax-desc*`?`*actor-variable*`.` *actor*
 * receiving: *channel* `?`*actor-variable*`.` *actor*
 * sending: *channel*`!`*term*`.` *actor*
 * casing: `case` *term* `{` *pattern* `->` *actor* `;` ..`}`
@@ -345,14 +367,16 @@ You have been watching
 * looking: `lookup` *term* `{` *actor-variable* `->` *actor* `} else` *actor*
 * winning:
 
-and there's one more
-* losing: `#` *string*
-(should error messages be *term*s?).
+and there's three more:
 
+* losing: `#` *format-string*
+* printing: `PRINTF` *format-string*
+* breaking: `BREAK` *format-string*
 
 ## Patterns
 
 The patterns you can write in a TypOS `case` actor look like
+
 * term variable:    *variable*
 * specific atom:    `'`*name*
 * paired patterns:  `[` *pattern* `|` *pattern* `]`
@@ -395,6 +419,7 @@ variables.
 
 We extend the syntax of terms with `{`*substitution*`}`*term*. A
 substitution is a comma-separated list of components which look like
+
 * definition: *variable*`=`*term*
 * exclusion: *variable*`*`
 * preservation: *variable*
@@ -437,3 +462,22 @@ Meanwhile, channels also have a notion of scope, restricting the
 variables which may occur free in the terms which get sent along
 them. The scope of a channel is exactly the scope at its time of
 creation.
+
+## Format strings
+
+The actors `PRINTF`, `BREAK` and `#` can be used to print messages to
+the user: `#` signifies failure, `BREAK` halts execution to display a
+message, and `PRINTF` is often used to communicate success. Each of
+these actors are followed by a format string enclosed in double quotes
+", which may contain placeholders `%r`, `%i`, `%s`, `%S`, `%e`, and
+`%m`, followed by a term for each `%r`, `%i`, and `%s` placeholder in
+the string. Newlines and tabs are represented by `\n` and `\t`
+respectively, and characters can be quoted by preceding them with a
+backslash. The placeholders have the following meaning:
+
+* `%r`: print "raw" term (without instantiating solved meta variables)
+* `%i`: print "instantiated" term
+* `%s`: print underlying term representation using Haskell's `show`
+* `%S`: print current stack of virtual machine
+* `%e`: print current environment of bindings
+* `%m`: print current store of metavariable solutions
