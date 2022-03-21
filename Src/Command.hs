@@ -1,4 +1,4 @@
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances, OverloadedStrings #-}
 
 module Command where
 
@@ -19,7 +19,8 @@ import qualified Concrete.Base as C
 import Concrete.Parse
 import Concrete.Pretty()
 import Bwd
-import Display
+import Display(Display(..), viaPretty)
+import Doc
 import Elaboration
 import Elaboration.Pretty()
 import Machine.Base
@@ -27,10 +28,10 @@ import Machine.Display (Store)
 import Machine.Exec
 import Main.Options
 import Parse
-import Pretty (Pretty(..))
+import Pretty (keyword, Collapse(..), BracesList(..), Pretty(..))
 import Syntax
 import Term.Base
-import Unelaboration(Unelab(..), DAEnv, initDAEnv, Naming, declareChannel)
+import Unelaboration(Unelab(..), subunelab, withEnv, initDAEnv, Naming, declareChannel)
 
 data CommandF jd ch syn a
   = DeclJ jd (Maybe (JudgementStack syn)) (Protocol syn)
@@ -57,30 +58,29 @@ instance (Show t, Unelab t, Pretty (Unelabed t)) =>
   type DisplayEnv (Protocol t) = UnelabEnv t
   display = viaPretty
 
--- TODO: refactor via unelab
-instance ( Display0 jd, Display0 ch
-         , Display syn, DisplayEnv syn ~ ()
-         , Unelab syn, UnelabEnv syn ~ (), Pretty (Unelabed syn)
-         , Display a, DisplayEnv a ~ DAEnv) =>
-         Display (CommandF jd ch syn a) where
-  type DisplayEnv (CommandF jd ch syn a) = Naming
-  display = \case
-    DeclJ jd stk p -> do
-      jd <- subdisplay jd
-      p <- subdisplay p
-      pure $ unwords [ jd, ":", p]
-    d@(DefnJ (jd, ch) a) -> do
-      jd <- subdisplay jd
-      ch <- subdisplay ch
-      -- hack: the above happens to convert ch into a string
-    -- , ready to be declared
-      a <- withEnv (declareChannel (A.Channel ch) initDAEnv) $ display a
-      pure $ unwords [ jd, "@", ch, "=", a]
-    DeclS s -> do
-      s <- traverse (\ (c, t) -> subdisplay t >>= \ t -> pure $ unwords ["'" ++ c, "=", t]) s
-      pure $ "syntax " ++ collapse (BracesList s)
-    Go a -> withEnv initDAEnv $ display a
-    Trace ts -> pure ""
+instance Pretty CCommand where
+  pretty = \case
+    DeclJ jd mstk p -> pretty jd <> maybe "" (\ stk -> space <> pretty stk <+> "|-") mstk <+> pretty p
+    DefnJ (jd, ch) a -> hsep [pretty jd <> "@" <> pretty ch, equal, pretty a]
+    DeclS s -> let docs = fmap (\ (cat, desc) -> pretty cat <+> equal <+> pretty desc) s in
+               keyword "syntax" <+> collapse (BracesList docs)
+    Go a -> keyword "exec" <+> pretty a
+    Trace ts -> keyword "trace" <+> collapse (BracesList $ map pretty ts)
+
+instance Unelab ACommand where
+  type UnelabEnv ACommand = Naming
+  type Unelabed ACommand = CCommand
+  unelab = \case
+    DeclJ jd mstk p -> DeclJ <$> subunelab jd <*> traverse unelab mstk <*> unelab p
+    DefnJ (jd, ch) a -> DefnJ <$> ((,) <$> subunelab jd <*> subunelab ch)
+                              <*> withEnv (declareChannel ch initDAEnv) (unelab a)
+    DeclS s -> DeclS <$> traverse (traverse unelab) s
+    Go a -> Go <$> withEnv initDAEnv (unelab a)
+    Trace ts -> pure $ Trace ts
+
+instance Display ACommand where
+  type DisplayEnv ACommand = Naming
+  display = viaPretty
 
 pmachinestep :: Parser MachineStep
 pmachinestep =
@@ -91,24 +91,11 @@ pmachinestep =
   <|> MachineUnify <$ plit "unify"
   <|> MachineBreak <$ plit "break"
 
-pmode :: Parser Mode
-pmode = Input <$ pch (== '?') <|> Output <$ pch (== '!')
-
 pjudgeat :: Parser (C.Variable, C.Variable)
 pjudgeat = (,) <$> pvariable <* punc "@" <*> pvariable
 
-pprotocol :: Parser CProtocol
-pprotocol = psep pspc ((,) <$> pmode <* pspc <*> psyntaxdecl <* pspc <* pch (== '.'))
-
 psyntax :: Parser (SyntaxCat, C.Raw)
 psyntax = (,) <$> patom <* punc "=" <*> psyntaxdecl
-
-psyntaxdecl :: Parser C.Raw
-psyntaxdecl = plocal B0 ptm
-
-pjudgementstack :: Parser CJudgementStack
-pjudgementstack =
-   JudgementStack <$> psyntaxdecl <* punc "->" <*> psyntaxdecl <* punc "|-"
 
 pcommand :: Parser CCommand
 pcommand
@@ -120,18 +107,6 @@ pcommand
 
 pfile :: Parser [CCommand]
 pfile = id <$ pspc <*> psep pspc pcommand <* pspc
-
-sprotocol :: CProtocol -> Elab AProtocol
-sprotocol ps = during (ProtocolElaboration ps) $ do
-  syndecls <- gets (Map.keys . syntaxCats)
-  traverse (traverse (ssyntaxdecl syndecls)) ps
-
-sjudgementstack :: CJudgementStack -> Elab AJudgementStack
-sjudgementstack (JudgementStack key val) = do
-  syndecls <- gets (Map.keys . syntaxCats)
-  key <- ssyntaxdecl syndecls key
-  val <- ssyntaxdecl syndecls val
-  pure (JudgementStack key val)
 
 scommand :: CCommand -> Elab (ACommand, Decls)
 scommand = \case

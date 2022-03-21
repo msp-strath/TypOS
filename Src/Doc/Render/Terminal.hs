@@ -49,9 +49,6 @@ render i d
 withANSI :: [Annotation] -> Doc Annotations -> Doc Annotations
 withANSI = Doc.annotate . fromANSIs
 
-keyword :: Doc Annotations -> Doc Annotations
-keyword = withANSI [ SetUnderlining Single ]
-
 testT = test (render 80 . withANSI [ SetColour Background Blue ])
   (fancyChar Green '1')
   (fancyChar Red '0')

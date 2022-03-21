@@ -57,6 +57,9 @@ newtype UnelabM e a = Unelab
            , MonadError Complaint
            , MonadReader e)
 
+withEnv :: e' -> UnelabM e' a -> UnelabM e a
+withEnv rh (Unelab md) = Unelab (withReaderT (const rh) md)
+
 evalUnelab :: e -> UnelabM e a -> Either Complaint a
 evalUnelab e (Unelab m) = runReaderT m e
 
@@ -255,6 +258,11 @@ instance Unelab A.Actor where
 instance Unelab Mode where
   type UnelabEnv Mode = ()
   type Unelabed Mode = Mode
+  unelab = pure
+
+instance Unelab () where
+  type UnelabEnv () = ()
+  type Unelabed () = ()
   unelab = pure
 
 instance Unelab t => Unelab (JudgementStack t) where

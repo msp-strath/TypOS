@@ -1,4 +1,4 @@
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances, OverloadedStrings #-}
 
 module Machine.Display where
 
@@ -7,21 +7,24 @@ import Control.Monad.State
 
 import qualified Data.Map as Map
 
-import ANSI
+import ANSI hiding (withANSI)
 import Actor
-import Unelaboration (DAEnv, initDAEnv, Naming, nameOn, initNaming)
-import qualified Unelaboration as A
+import Actor.Display ()
 import Display
+import Doc
+import Doc.Render.Terminal
 import Forget
 import Format
 import Machine.Base
+import Pretty
 import Term
 import Term.Display ()
-import Actor.Display ()
+import Unelaboration (DAEnv, initDAEnv, Naming, nameOn, initNaming)
+import qualified Unelaboration as A
 
 instance Display Date where
   type DisplayEnv Date = ()
-  display (Date i) = pure $ show i
+  display (Date i) = pure $ pretty (show i)
 
 instance Display Hole where
   type DisplayEnv Hole = ()
@@ -58,7 +61,7 @@ instance ( Display c, Forget DEnv (DisplayEnv c)
     cch' <- subdisplay cch
     pch' <- subdisplay pch
     p <- local (declareChannel pch) $ subdisplay p
-    pure $ unwords [ c, "@", cch', "|", pch', collapse xs, "@", p ]
+    pure $ hsep [ c, "@", cch', "|", pch', collapse (pretty <$> xs), "@", p ]
 
 instance Display Frame where
   type DisplayEnv Frame = DEnv
@@ -66,40 +69,42 @@ instance Display Frame where
     Rules jd (ch, a) -> do
       ch' <- subdisplay ch
       a <- local (declareChannel ch) $ subpdisplay a
-      pure $ jd ++ " |-@" ++ ch' ++ " {}" -- ++ a
+      pure $ pretty jd <+> "|-@" <> ch' <> " {}" -- a
     LeftBranch Hole p -> do
       p <- display p
-      pure $ "<> | " ++ p
+      pure $ "<> |" <+> p
     RightBranch p Hole -> do
       p <- display p
-      pure $ p ++ " | <>"
+      pure $ p <+> "| <>"
     Spawnee intf -> display intf
     Spawner intf -> display intf -- pure $ withANSI [ SetColour Background Yellow ] $ show intf -- display intf
     Sent ch (xs, t) -> do
       ch' <- subdisplay ch
       t <- subpdisplay t -- pure $ show t
       pure $ withANSI [SetColour Foreground Blue, SetWeight Bold]
-           $ "!" ++ ch' ++ ". " ++ collapse xs ++ " " ++ t
+           $ "!" <> ch' <> dot <+> collapse (pretty <$> xs) <+> t
     Pushed jd (p, t) -> do
       p <- subdisplay p
       t <- subdisplay t
-      pure $ unwords [jd, "{", p, "->", t, "}. "]
+      pure $ hsep [pretty jd, "{", p, "->", t, "}. "]
     Binding x ->
-      pure $ withANSI [SetColour Foreground Yellow, SetWeight Bold] $ "\\" ++ x ++ ". "
+      pure $ withANSI [SetColour Foreground Yellow, SetWeight Bold]
+           $ backslash <> pretty x <> ". "
     UnificationProblem date s t -> do
       s <- subdisplay s
       t <- subdisplay t
       date <- subdisplay date
-      pure $ withANSI [SetColour Background Red] (s ++ " ~?[" ++ date ++ "] " ++ t)
+      pure $ withANSI [SetColour Background Red]
+           $ s <+> "~?" <> brackets date <+> t
 
 instance (Show (t Frame), Traversable t, Collapse t, Display0 s) => Display (Process s t) where
   type DisplayEnv (Process s t) = DEnv
-  display p = do
+  display p =  do
     (fs', store', env', a') <- displayProcess' p
-    pure $ concat ["(", collapse fs', " ", store', " ", env', " ", a', ")"]
+    pure $ parens $ hsep [collapse fs', store', env', a']
 
 displayProcess' :: (Traversable t, Collapse t, Display0 s) =>
-  Process s t -> DisplayM DEnv (t String, String, String, String)
+  Process s t -> DisplayM DEnv (t (Doc Annotations), Doc Annotations, Doc Annotations, Doc Annotations)
 displayProcess' Process{..} = do
   de <- ask
   (fs', de) <- runStateT (traverse go stack) de
@@ -111,7 +116,7 @@ displayProcess' Process{..} = do
 
     where
 
-    go :: Frame -> StateT DEnv (DisplayM DEnv) String
+    go :: Frame -> StateT DEnv (DisplayM DEnv) (Doc Annotations)
     go f = do
       de <- get
       dis <- local (const de) $ lift $ display f
@@ -125,26 +130,30 @@ instance Display Store where
   display st = do
     tst <- display (today st)
     sols <- traverse go $ Map.toList $ solutions st
-    pure $ tst ++ ": " ++
+    pure $ tst <> colon <+>
                  withANSI [SetColour Background Green
                           , SetColour Foreground Black]
                  (collapse sols)
     where
-    go :: (Meta, (Naming, Term)) -> DisplayM () String
+    go :: (Meta, (Naming, Term)) -> DisplayM () (Doc Annotations)
     go (k, (na, t)) = do
       t <- withEnv na $ display t
       k <- subdisplay k
-      pure $ k ++ " := " ++ t
+      pure $ k <+> ":=" <+> t
+
+instance Pretty MachineStep where
+  pretty = \case
+    MachineRecv -> "recv"
+    MachineSend -> "send"
+    MachineExec -> "exec"
+    MachineMove -> "move"
+    MachineUnify -> "unify"
+    MachineBreak -> "break"
+
 
 instance Display MachineStep where
   type DisplayEnv MachineStep = ()
-  display = \case
-    MachineRecv -> pure "recv"
-    MachineSend -> pure "send"
-    MachineExec -> pure "exec"
-    MachineMove -> pure "move"
-    MachineUnify -> pure "unify"
-    MachineBreak -> pure "break"
+  display = pure . pretty
 
 frameOn :: DEnv -> Frame -> DEnv
 frameOn de@DEnv{..} = \case
@@ -159,7 +168,7 @@ frDisplayEnv :: Foldable t => t Frame -> DEnv
 frDisplayEnv = foldl frameOn initDEnv
 
 insertDebug :: (Traversable t, Collapse t, Display0 s)
-            => Process s t -> [Format dir Debug a] -> [Format dir String a]
+            => Process s t -> [Format dir Debug a] -> [Format dir (Doc Annotations) a]
 insertDebug p fmt = map go fmt where
 
   (fs, st, en, _) = unsafeEvalDisplay initDEnv (displayProcess' p)

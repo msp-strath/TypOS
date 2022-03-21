@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Pretty where
 
+import Data.Void
+
 import ANSI hiding (withANSI)
 import Bwd
 import Doc
@@ -14,6 +16,9 @@ class Pretty a where
   prettyPrec :: Int -> a -> Doc Annotations
   prettyPrec _ = pretty
 
+keyword :: Doc Annotations -> Doc Annotations
+keyword = withANSI [ SetUnderlining Single ]
+
 escape :: String -> String
 escape = concatMap go where
 
@@ -24,6 +29,12 @@ escape = concatMap go where
 
 instance Pretty String where
   pretty s = text s
+
+instance Pretty () where
+  pretty _ = text "()"
+
+instance Pretty Void where
+  pretty = absurd
 
 class Collapse t where
   collapse :: t (Doc Annotations) -> Doc Annotations

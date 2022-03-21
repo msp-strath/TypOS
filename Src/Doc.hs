@@ -47,6 +47,9 @@ render i (Doc ds)
   $ minimumBy (compare `on` I.height)
   $ L1.toList (ds i)
 
+instance Show (Doc ann) where
+  show = unlines . map (concatMap snd) . render 0 . (() <$)
+
 -- Should we fail or not for literals that are too big?
 text :: Monoid ann => String -> Doc ann
 text str = fromString str
@@ -58,7 +61,7 @@ empty :: Monoid ann => Doc ann
 empty = fromString ""
 
 annotate :: Semigroup ann => ann -> Doc ann -> Doc ann
-annotate ann (Doc ds) = Doc ((I.annotate ann <$>) <$> ds)
+annotate ann (Doc ds) = Doc (\ i -> I.annotate ann <$> ds i)
 
 indent :: Monoid ann => Int -> Doc ann -> Doc ann
 indent n d = spaces n <> d

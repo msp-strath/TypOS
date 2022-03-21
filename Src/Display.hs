@@ -2,19 +2,17 @@
 
 module Display where
 
-import Data.List
 import Data.Void
 
 import Control.Monad.Except
 import Control.Monad.Reader
 
-import ANSI
-import Bwd
 import Concrete.Pretty ()
-import Doc.Render.Terminal (render)
 import Forget
 import Format
 import Pattern
+import Doc
+import Doc.Render.Terminal
 import Thin
 
 import Pretty (Pretty(..))
@@ -24,27 +22,6 @@ import qualified Unelaboration
 import GHC.Stack
 
 -- uglyprinting
-
-class Collapse t where
-  collapse :: t String -> String
-
-newtype BracesList t = BracesList { unBracesList :: [t] }
-
-instance Collapse BracesList where
-  collapse (BracesList strs) = "{" ++ intercalate "; " strs ++ "}"
-
-instance Collapse Bwd where
-  collapse strs = "[<" ++ intercalate ", " (strs <>> []) ++ "]"
-
-instance Collapse [] where
-  collapse strs = "[" ++ intercalate ", " strs ++ "]"
-
-instance Collapse Cursor where
-  collapse (lstrs :<+>: rstrs) =
-    unwords [ collapse lstrs
-            , withANSI [SetColour Foreground Red, SetWeight Bold] ":<+>:"
-            , collapse rstrs
-            ]
 
 data DisplayComplaint
   = UnexpectedEmptyThinning Naming
@@ -75,48 +52,47 @@ evalDisplay e = (`runReaderT` e)
 unsafeEvalDisplay :: e -> DisplayM e a -> a
 unsafeEvalDisplay e = either (error . show) id . evalDisplay e
 
-pdisplayDFT :: HasCallStack => Display t => t -> DisplayM (DisplayEnv t) String
-pdisplayDFT t = do
-  t' <- display t
-  pure $ if ' ' `elem` t' then concat ["(", t', ")"] else t'
-
 type Display0 m = (Display m, DisplayEnv m ~ ())
 class Show t => Display t where
   type DisplayEnv t
-  display :: HasCallStack => t -> DisplayM (DisplayEnv t) String
+  display :: HasCallStack => t -> DisplayM (DisplayEnv t) (Doc Annotations)
+  displayPrec :: HasCallStack => Int -> t -> DisplayM (DisplayEnv t) (Doc Annotations)
 
-  pdisplay :: HasCallStack => t -> DisplayM (DisplayEnv t) String
-  pdisplay = pdisplayDFT
+  display = displayPrec 0
+  displayPrec _ = display
 
-subdisplay :: (Display t, Forget e (DisplayEnv t)) => t -> DisplayM e String
+pdisplay :: Display t => t -> DisplayM (DisplayEnv t) (Doc Annotations)
+pdisplay = displayPrec 1
+
+subdisplay :: (Display t, Forget e (DisplayEnv t)) => t -> DisplayM e (Doc Annotations)
 subdisplay = withForget . display
 
-subpdisplay :: (Display t, Forget e (DisplayEnv t)) => t -> DisplayM e String
+subpdisplay :: (Display t, Forget e (DisplayEnv t)) => t -> DisplayM e (Doc Annotations)
 subpdisplay = withForget . pdisplay
 
 viaPretty :: (Pretty (Unelabed t), Unelab t, UnelabEnv t ~ e) =>
-             t -> DisplayM e String
+             t -> DisplayM e (Doc Annotations)
 viaPretty t = do
   env <- ask
   case evalUnelab env (unelab t) of
     Left err -> throwError (UnelabError err)
-    Right t -> pure $ render (-1) $ pretty t
+    Right t -> pure $ pretty t
 
 instance Display () where
   type DisplayEnv () = ()
-  display _ = pure "()"
+  display = viaPretty
 
 instance Display Void where
   type DisplayEnv Void = ()
-  display = absurd
+  display = viaPretty
 
 instance Display DB where
   type DisplayEnv DB = Naming
   display = viaPretty
 
 instance (Show t, Unelab t, Pretty (Unelabed t)) =>
-  Display [Format () String t] where
-  type DisplayEnv [Format () String t] = UnelabEnv t
+  Display [Format () (Doc Annotations) t] where
+  type DisplayEnv [Format () (Doc Annotations) t] = UnelabEnv t
   display = viaPretty
 
 instance (Show t, Unelab t, Pretty (Unelabed t)) =>

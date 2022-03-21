@@ -1,13 +1,17 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Machine.Exec where
 
 import Control.Monad.Reader
 
-import ANSI
+import ANSI hiding (withANSI)
 import Bwd
 import Display
+import Doc hiding (render)
+import Doc.Render.Terminal
 import Format
 import Hide
 import Pattern
+import Pretty
 import Scope
 import Term
 import Thin
@@ -62,19 +66,19 @@ exec p@Process { actor = m@(Match s cls), ..}
 
   switch :: Term -> [(Pat, Actor)] -> Process Store []
   switch t [] =
-    let msg = unsafeEvalDisplay (frDisplayEnv stack) $ do
+    let msg = render 80 $ unsafeEvalDisplay (frDisplayEnv stack) $ do
           it <- subdisplay (instantiate store t)
           t <- subdisplay t
           (s, cls) <- asks daEnv >>= \ rh -> withEnv rh $ do
             s <- subdisplay s
             cls <- traverse display cls
             pure (s, cls)
-          pure $ unlines $
-                [ "No matching clause for: " ++ it
-                , "(raw term: " ++ t ++ ")"
-                , "in: case " ++ s
-                ] ++ zipWith (\ cs cl -> "  " ++ cs ++ cl) ("{ ":repeat "; ") cls
-                  ++ ["  }"]
+          pure $ vcat $
+                [ "No matching clause for:" <+> it
+                , parens ("raw term:" <+> t)
+                , "in:" <+> keyword "case" <+> s
+                ] ++ zipWith (\ p cl -> indent 2 $ p <+> cl) ("{":repeat ";") cls
+                  ++ [indent 2 "}"]
     in alarm msg $ move (p { stack = stack :<+>: [] })
   switch t ((pat, a):cs) = case match env [(localScope env, pat,t)] of
     Left True -> switch t cs
@@ -167,31 +171,32 @@ exec p@Process { actor = Lookup t (av, a) b, ..}
 exec p@Process { actor = Print fmt a, ..}
   | Just fmt <- traverse (traverse $ mangleActors env) fmt
   =  unsafePerformIO $ do
-      putStrLn $ withANSI [SetColour Background Magenta]
-               $ format p fmt
+      putStrLn $ format [SetColour Background Magenta] p fmt
       pure (exec (p { actor = a }))
 
 exec p@Process { actor = Break fmt a, ..}
   = unsafePerformIO $ do
       when (MachineBreak `elem` tracing) $ do
         whenJust (traverse (traverse $ mangleActors env) fmt) $ \ fmt -> do
-          putStrLn $ withANSI [SetColour Background Red] $ format p fmt
+          putStrLn $ format [SetColour Background Red] p fmt
           () <$ getLine
       pure (exec (p { actor = a }))
 
 exec p@Process { actor = Fail fmt, ..}
   = let msg = case traverse (traverse $ mangleActors env) fmt of
-                Just fmt -> format p fmt
+                Just fmt -> format [] p fmt
                 Nothing -> case evalDisplay (frDisplayEnv stack) (subdisplay fmt) of
                   Left grp -> "Error " ++ show grp ++ " in the error " ++ show fmt
-                  Right str -> str
+                  Right str -> render 80 str
     in alarm msg $ move (p { stack = stack :<+>: [] })
 
 exec p@Process {..} = move (p { stack = stack :<+>: [] })
 
-format :: Process Store Bwd -> [Format Directive Debug Term] -> String
-format p@Process{..} fmt
-  = unsafeEvalDisplay (frDisplayEnv stack)
+format :: [Annotation] -> Process Store Bwd -> [Format Directive Debug Term] -> String
+format ann p@Process{..} fmt
+  = render 80
+  $ unsafeEvalDisplay (frDisplayEnv stack)
+  $ fmap (withANSI ann)
   $ subdisplay
   $ insertDebug p
   $ instantiate store fmt
@@ -301,6 +306,8 @@ debug :: (Show (t Frame), Traversable t, Collapse t, Display0 s)
       => MachineStep -> String -> Process s t -> Bool
 debug step str p | step `elem` tracing p = -- dmesg (show step ++ ": " ++ show p) $
   let (fs', store', env', a') = unsafeEvalDisplay initDEnv $ displayProcess' p
-      p' = unlines $ map ("  " ++) [collapse fs', store', env', a']
-  in dmesg ("\n" ++ (unsafeEvalDisplay initDEnv $ subdisplay step) ++ " " ++ str ++ "\n" ++ p') False
+      p' = indent 2 $ vcat $ [collapse fs', store', env', a']
+      step' = keyword (pretty step)
+      msg = render 0 $ vcat [mempty, step' <+> pretty str, p']
+  in dmesg msg False
 debug step _ p = False

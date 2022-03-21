@@ -52,6 +52,19 @@ pth :: Parser (Bwd Variable, ThDirective)
 pth = (,) <$> ppes pspc pvariable
           <*> (ThDrop <$ pspc <* pch ('*' ==) <|> pure ThKeep)
 
+pmode :: Parser Mode
+pmode = Input <$ pch (== '?') <|> Output <$ pch (== '!')
+
+pprotocol :: Parser (Protocol Raw)
+pprotocol = psep pspc ((,) <$> pmode <* pspc <*> psyntaxdecl <* pspc <* pch (== '.'))
+
+psyntaxdecl :: Parser Raw
+psyntaxdecl = plocal B0 ptm
+
+pjudgementstack :: Parser (JudgementStack Raw)
+pjudgementstack =
+   JudgementStack <$> psyntaxdecl <* punc "->" <*> psyntaxdecl <* punc "|-"
+
 pACT :: Parser Actor
 pACT = pact >>= more where
 

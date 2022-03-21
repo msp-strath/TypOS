@@ -1,9 +1,11 @@
 module Main.Options where
 
-import Display
+import Doc hiding (render)
+import Doc.Render.Terminal
 import Machine.Base
 import Machine.Display()
 import Options.Applicative
+import Pretty
 
 data Options = Options
   { filename :: String
@@ -25,8 +27,8 @@ options = Options <$> argument str (metavar "FILE" <> showDefault <> value "exam
      "break" -> pure MachineBreak
      x -> readerError $ "Unknown tracing level '" ++ x ++ "'. Accepted levels: " ++ levels
    tracingHelp = "Override tracing level (combinations of {" ++ levels ++ "} in quotes, separated by spaces, e.g. " ++ exampleLevels ++ ")"
-   levels = unwords $ map (unsafeEvalDisplay () . display) [(minBound::MachineStep)..]
-   exampleLevels = "\"" ++ (unwords $ map (unsafeEvalDisplay () . display) [minBound::MachineStep, maxBound]) ++ "\""
+   levels = render 80 $ vcat $ map pretty [(minBound::MachineStep)..]
+   exampleLevels = "\"" ++ render 0 (hsep $ map pretty [minBound::MachineStep, maxBound]) ++ "\""
 
 getOptions :: IO Options
 getOptions = execParser (info (options <**> helper)

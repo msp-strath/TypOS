@@ -679,3 +679,15 @@ sclause desc (rp, a) = during (MatchBranchElaboration rp) $ do
   (p, ds, hs) <- spat desc rp
   (a, me) <- local (setDecls ds . setHints hs) $ sbranch a
   pure ((p, a), me)
+
+sprotocol :: CProtocol -> Elab AProtocol
+sprotocol ps = during (ProtocolElaboration ps) $ do
+  syndecls <- gets (Map.keys . syntaxCats)
+  traverse (traverse (ssyntaxdecl syndecls)) ps
+
+sjudgementstack :: CJudgementStack -> Elab AJudgementStack
+sjudgementstack (JudgementStack key val) = do
+  syndecls <- gets (Map.keys . syntaxCats)
+  key <- ssyntaxdecl syndecls key
+  val <- ssyntaxdecl syndecls val
+  pure (JudgementStack key val)

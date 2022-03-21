@@ -108,13 +108,13 @@ instance Pretty t => Pretty [Format Directive Debug t] where
       DebugPart dbg -> go (fmt :< pretty dbg) args fs
       StringPart str -> go (fmt :< pretty (escape str)) args fs
 
-instance Pretty t => Pretty [Format () String t] where
+instance Pretty t => Pretty [Format () (Doc Annotations) t] where
   pretty = go mempty where
 
     go acc [] = acc
     go acc (f:fs) = case f of
       TermPart () t -> go (acc <> pretty t) fs
-      DebugPart dbg -> go (acc <> pretty dbg) fs
+      DebugPart dbg -> go (acc <> dbg) fs
       StringPart str -> go' acc str fs
 
     go' acc str fs = case span ('\n' /=) str of
