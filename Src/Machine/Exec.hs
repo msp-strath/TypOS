@@ -169,7 +169,6 @@ exec p@Process { actor = Print fmt a, ..}
   =  unsafePerformIO $ do
       putStrLn $ withANSI [SetColour Background Magenta]
                $ format p fmt
-      _ <- getLine
       pure (exec (p { actor = a }))
 
 exec p@Process { actor = Break fmt a, ..}

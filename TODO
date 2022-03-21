@@ -1,3 +1,2 @@
 * [ ] Fix all the incomplete patterns errors
-* [ ] Using a pretty printer rather than String
-* [ ] Remove display in favour of unelab + pretty
+* [ ] Make Actor generic

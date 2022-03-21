@@ -3,6 +3,7 @@
 module Concrete.Pretty where
 
 import Data.Foldable
+import Data.List
 
 import Bwd
 import Concrete.Base
@@ -41,8 +42,8 @@ prettyCdr = \case
 instance Pretty SbstC where
   pretty = \case
     Keep x -> pretty x
-    Drop x -> pretty x <+> "*"
-    Assign x t -> pretty x <+> equal <+> pretty t
+    Drop x -> pretty x <> "*"
+    Assign x t -> pretty x <> equal <> pretty t
 
 instance Pretty ThDirective where
   pretty = \case
@@ -55,7 +56,7 @@ instance Pretty RawP where
     AtP at -> squote <> pretty at
     ConsP p q -> brackets $ pretty p <> prettyCdrP q
     LamP (Scope x p) -> backslash <> pretty x <> dot <+> pretty p
-    ThP (thxz, thd) p -> braces (hsep (pretty <$> thxz <>> []) <+> pretty thd) <+> pretty p
+    ThP (thxz, thd) p -> braces (hsep (pretty <$> thxz <>> []) <> pretty thd) <+> pretty p
     UnderscoreP -> "_"
 
 prettyCdrP :: RawP -> Doc Annotations
@@ -72,7 +73,7 @@ instance Pretty Actor where
     Recv ch (av, a) -> fold [ pretty ch, "?", pretty av, dot, space, prettyPrec 1 a ]
     FreshMeta syn (av, a) -> fold [ pretty syn, "?", pretty av, dot, space, prettyPrec 1 a ]
     Under (Scope x a) -> fold [ backslash , pretty x, dot, colon, prettyPrec 1 a ]
-    Match tm pts -> hsep [ keyword "case", pretty tm, keyword "of", collapse (BracesList $ map pretty pts) ]
+    Match tm pts -> hsep [ keyword "case", pretty tm, braces (sep $ intersperse ";" $ map pretty pts) ]
     Constrain s t -> hsep [ pretty s, "~", pretty t ]
     Push jd (x, t) a -> hsep [ pretty jd, braces (hsep [ pretty x, "->", pretty t ]) <+> dot, prettyPrec 1 a]
     Lookup tm (av, a) b -> hsep
