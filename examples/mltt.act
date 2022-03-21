@@ -1,0 +1,72 @@
+syntax
+  { 'Check = ['EnumOrTag ['Ty]
+                         [ ['Lam ['Bind 'Synth 'Check]]
+                           ['Pi  'Check ['Bind 'Synth 'Check]]
+                           ['Emb 'Synth]
+                         ]
+             ]
+  ; 'Synth = ['Tag [ ['Rad 'Check 'Check]
+                     ['App 'Synth 'Check]
+             ]]
+
+  ; 'NCheck = ['EnumOrTag ['Ty]
+                        [ ['Lam ['Bind 'NSynth 'NCheck]]
+                          ['Pi  'NCheck ['Bind 'NSynth 'NCheck]]
+                          ['Emb 'NSynth]]]
+  ; 'NSynth = ['Tag [ ['App 'NSynth 'NCheck]]]
+  }
+
+type  : ?'Check. !'NCheck.
+
+check : ?'NCheck. ?'Check. !'NCheck.
+synth : 'Synth -> ['Cons 'NCheck 'NCheck]
+      |- ?'Synth. !'NCheck. !'NCheck.
+
+------------------------------------------------------------------------------
+-- Implementation
+
+type@p = p?ty. check@q. q!'Ty. q!ty. q?nf. p!nf.
+
+check@p = p?ty. p?tm. case tm
+  { 'Ty -> (ty ~ 'Ty | p!'Ty.)
+  ; ['Pi S \x. T] -> 
+    (ty ~ 'Ty
+    |type@q. q!S. q?NS. \x. \v. synth{x -> [NS | ['Emb v]]}.
+     type@r. r!T. r?NT. case NT
+     { {x*}VT -> p!['Pi NS \v. VT].
+     ; _ -> #"%i depends on %s" NT x
+     }
+    )
+  ; ['Emb e] -> synth@q. q!e. q?nty. (nty ~ ty | q?ne. p!ne.)
+  ; ['Lam \x. body] -> case ty
+    { ['Pi S \v. T] -> \x. \v. synth{x -> [S | ['Emb v]]}.
+                       check@q. q!T. q!body. q?vbody.
+                       case vbody
+      { {x*}nfbody -> p!['Lam \v. nfbody].
+      ; _ -> #"%i depends on %s" vbody x
+      }
+    ; _ -> #"Expected Pi; got %i" ty
+    }
+  }
+
+synth@p = p?tm . lookup tm { Sv -> case Sv
+                 { [ S | v ] -> p!S. p!['Emb v].
+                 ; _ -> #"The IMPOSSIBLE has happened"
+                 } else case tm
+   { ['Rad t ty] -> type@q. q!ty. q?nty.
+                    check@r. r!nty. r!t. r?nt.
+                    p!nty. p!nt.
+   ; ['App f s] -> synth@q. q!f. q?ty. q?nf.
+                   case ty
+     { ['Pi S \v. T] -> check@r. r!S. r!s. r?ns.
+                        case nf
+       { ['Lam \x. body] -> \x. synth{x -> [S | ns]}.
+                            type@w. type!{v=ns}T.
+                            check@u. u!{v=ns}T.
+                            #"we're stuck"
+       }                        
+     }
+   }
+
+exec  type@p. p!['Pi 'Ty \x. ['Emb x]]. p?ty. 
+      PRINTF "%i" ty.
