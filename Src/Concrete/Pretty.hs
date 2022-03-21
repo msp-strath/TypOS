@@ -107,13 +107,18 @@ instance Pretty t => Pretty [Format Directive Debug t] where
       StringPart str -> go (fmt :< pretty (escape str)) args fs
 
 instance Pretty t => Pretty [Format () String t] where
-  pretty = go B0 where
+  pretty = go mempty where
 
-    go parts [] = fold parts
-    go parts (f:fs) = case f of
-      TermPart () t -> go (parts :< pretty t) fs
-      DebugPart dbg -> go (parts :< pretty dbg) fs
-      StringPart str -> go (parts :< pretty str) fs
+    go acc [] = acc
+    go acc (f:fs) = case f of
+      TermPart () t -> go (acc <> pretty t) fs
+      DebugPart dbg -> go (acc <> pretty dbg) fs
+      StringPart str -> go' acc str fs
+
+    go' acc str fs = case span ('\n' /=) str of
+      (str, []) -> go (acc <> text str) fs
+      (str, _:rest) -> go' (flush (acc <> text str)) rest fs
+
 
 instance Pretty (RawP, Actor) where
   pretty (p, a) = hsep [ pretty p, "->", pretty a ]

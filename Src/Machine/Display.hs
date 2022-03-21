@@ -134,7 +134,7 @@ instance Display Store where
     go (k, (na, t)) = do
       t <- withEnv na $ display t
       k <- subdisplay k
-      pure $ "?" ++ k ++ " := " ++ t
+      pure $ k ++ " := " ++ t
 
 instance Display MachineStep where
   type DisplayEnv MachineStep = ()
