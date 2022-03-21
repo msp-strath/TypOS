@@ -25,7 +25,7 @@ instance Pretty Raw where
     Var v -> pretty v
     At [] -> "[]"
     At at -> squote <> pretty at
-    Cons p q -> brackets $ pretty p <> prettyCdr q
+    Cons p q -> brackets $ sep (pretty p : prettyCdr q)
     Lam (Scope x t) -> backslash <> pretty x <> dot <+> pretty t
     Sbst B0 t -> pretty t
     Sbst sg t -> hsep [ pretty sg, pretty t ]
@@ -33,11 +33,11 @@ instance Pretty Raw where
 instance Pretty (Bwd SbstC) where
   pretty sg = braces (hsepBy "," $ pretty <$> sg <>> [])
 
-prettyCdr :: Raw -> Doc Annotations
+prettyCdr :: Raw -> [Doc Annotations]
 prettyCdr = \case
-  At [] -> ""
-  Cons p q -> space <> pretty p <> prettyCdr q
-  p -> pipe <> pretty p
+  At [] -> []
+  Cons p q -> pretty p : prettyCdr q
+  p -> [pipe, pretty p]
 
 instance Pretty SbstC where
   pretty = \case
@@ -54,16 +54,16 @@ instance Pretty RawP where
   prettyPrec d = \case
     VarP v -> pretty v
     AtP at -> squote <> pretty at
-    ConsP p q -> brackets $ pretty p <> prettyCdrP q
+    ConsP p q -> brackets $ sep (pretty p : prettyCdrP q)
     LamP (Scope x p) -> backslash <> pretty x <> dot <+> pretty p
     ThP (thxz, thd) p -> braces (hsep (pretty <$> thxz <>> []) <> pretty thd) <+> pretty p
     UnderscoreP -> "_"
 
-prettyCdrP :: RawP -> Doc Annotations
+prettyCdrP :: RawP -> [Doc Annotations]
 prettyCdrP = \case
-  AtP [] -> ""
-  ConsP p q -> space <> pretty p <> prettyCdrP q
-  p -> pipe <> pretty p
+  AtP [] -> []
+  ConsP p q -> pretty p : prettyCdrP q
+  p -> [pipe, pretty p]
 
 instance Pretty Actor where
   prettyPrec d = \case

@@ -127,4 +127,3 @@ instance (Show t, Unelab t, Pretty (Unelabed t)) =>
 instance Display Pat where
   type DisplayEnv Pat = Naming
   display = viaPretty
-
