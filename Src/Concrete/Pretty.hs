@@ -53,6 +53,7 @@ instance Pretty ThDirective where
 instance Pretty RawP where
   prettyPrec d = \case
     VarP v -> pretty v
+    AtP "" -> "[]"
     AtP at -> squote <> pretty at
     ConsP p q -> brackets $ sep (pretty p : prettyCdrP q)
     LamP (Scope x p) -> backslash <> pretty x <> dot <+> pretty p
