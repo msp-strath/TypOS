@@ -1,0 +1,87 @@
+syntax
+  { 'Check = ['EnumOrTag ['Ty]
+                         [ ['Lam ['Bind 'Synth 'Check]]
+                           ['Pi  'Check ['Bind 'Synth 'Check]]
+                           ['Emb 'Synth]
+                         ]
+             ]
+  ; 'Synth = ['Tag [ ['Rad 'Check 'Check]
+                     ['App 'Synth 'Check]
+             ]]
+
+  ; 'Stack = ['NilOrCons 'Check 'Stack]
+  ; 'Entry = ['Tag [ ['Arg 'Synth]
+                     ['Var 'Check 'Synth]
+                   ]]
+  }
+
+type  : ?'Check. !'Check.
+
+check : ?'Check. ?'Check. ?'Stack. !'Check.
+synth : 'Synth -> 'Entry
+      |- ?'Synth. ?'Stack. !'Check. !'Check.
+
+unwind : ?'Check. ?'Synth. ?'Stack. !'Check. !'Synth.
+
+------------------------------------------------------------------------------
+-- Implementation
+
+type@p = p?ty. check@q. q!'Ty. q!ty. q![]. q?nf. p!nf.
+
+check@p = p?ty. p?tm. p?stk. case tm
+  { 'Ty -> (ty ~ 'Ty | stk ~ [] | p!'Ty.)
+  ; ['Pi S \x. T] -> 
+    (ty ~ 'Ty
+    |type@q. q!S. q?NS.
+     \x. synth{x -> ['Var NS x]}.
+     type@r. r!T. r?NT. p!['Pi NS \x. NT].
+    )
+  ; ['Emb e] -> synth@q. q!e. q!stk. q?nty. (nty ~ ty | q?ne. p!ne.)
+  ; ['Lam \x. body] -> case ty
+    { ['Pi S \x. T] -> case stk
+      { [] -> \x. synth{x -> ['Var S x]}.
+              check@q. q!T. q!body. q!stk. q?vbody.
+              p!['Lam \x. vbody].
+      ; [a|as] -> \x. synth{ x -> ['Arg ['Rad a S]]}.
+                  type@r. r!T. r?NT.
+                  check@q. q!NT. q!body. q!as. q?nbody.
+                  case nbody
+        { {x*}nbody2 -> p!nbody2.
+        ; _ -> #"%i should not occur in %s" x nbody
+        }
+      }                  
+    ; _ -> #"Expected Pi; got %i" ty
+    }
+  }
+
+synth@p = p?tm. p?stk. lookup tm { rec -> case rec
+   { ['Arg x] -> synth@q. q!x. q!stk. q?nty. q?nx. p!nty. p!nx.
+   ; ['Var S v] -> unwind@q. q!S. q!v. q!stk. q?nty. q?nv. p!nty. p!['Emb nv].
+   }} else case tm
+   { ['Rad t ty] -> type@q. q!ty. q?nty.
+                    check@r. r!nty. r!t. r!stk. r?nt.
+                    p!nty. p!nt.
+   ; ['App f s] -> synth@q. q!f. q![s|stk]. q?nty. q?nf.
+                   p!nty. p!nf.
+   }
+
+unwind@p = p?ty. p?tm. p?stk. case stk
+  { [] -> p!ty. p!tm.
+  ; [a | as] -> case ty
+    { ['Pi S \x. T] -> \x. synth{x -> ['Arg ['Rad a S]]}.
+                       type@q. q!T. q?NT.
+                       unwind@r. r!NT. r!['App tm a]. r!as.
+                       r?nty. r?ntm.
+                       case [nty|ntm]
+      { {x*}[nty2|ntm2] ->  p!nty2. p!ntm2.
+      ; _ -> #"%i should not occur in %s or %s" x nty ntm
+      }
+    }
+  }
+
+exec  type@p. p!['Emb
+                 ['App ['Rad
+                        ['Lam \x. ['Pi ['Emb x] \a. ['Emb x]]]
+                        ['Pi 'Ty \x. 'Ty]]
+                       ['Pi 'Ty \x. ['Emb x]]]]. p?ty. 
+      PRINTF "%i" ty.
