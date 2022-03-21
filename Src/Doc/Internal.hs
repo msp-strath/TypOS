@@ -86,6 +86,14 @@ text str = let n = length str in Block
   , lastLine  = asLine str
   }
 
+-- We can't "unlines lines" because that would introduce extra newlines
+para :: (HasCallStack, Monoid ann) => String -> Block ann
+para = go mempty where
+
+  go acc str = case span ('\n' /=) str of
+    (str, []) -> acc <> text str
+    (str, _:rest) -> go (flush (acc <> text str)) rest
+
 instance Monoid ann => Semigroup (Block ann) where
   Block h1 c1 mw1 lw1 l1 <> Block h2 c2 mw2 lw2 l2 = Block
     { height    = h1 + h2

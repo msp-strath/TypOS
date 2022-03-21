@@ -34,6 +34,16 @@ data RawP
 data ThDirective = ThKeep | ThDrop
   deriving (Show)
 
+data Mode = Input | {- Subject | -} Output
+  deriving (Show, Eq)
+
+type Protocol t = [(Mode, t)]
+
+data JudgementStack t = JudgementStack
+  { keyDesc :: t
+  , valueDesc :: t
+  } deriving (Show, Functor, Foldable, Traversable)
+
 data Actor
  = Actor :|: Actor
  | Spawn Variable Variable Actor

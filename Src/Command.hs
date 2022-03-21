@@ -1,3 +1,5 @@
+{-# LANGUAGE UndecidableInstances #-}
+
 module Command where
 
 import Control.Applicative
@@ -5,16 +7,17 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 
-import Data.List
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
 
 import qualified Actor as A
-import Actor.Display (DAEnv, initDAEnv, declareChannel)
+import Actor.Display ()
 
+import Concrete.Base (Mode(..), Protocol(..), JudgementStack(..))
 import qualified Concrete.Base as C
 import Concrete.Parse
+import Concrete.Pretty()
 import Bwd
 import Display
 import Elaboration
@@ -24,8 +27,10 @@ import Machine.Display (Store)
 import Machine.Exec
 import Main.Options
 import Parse
+import Pretty (Pretty(..))
 import Syntax
 import Term.Base
+import Unelaboration(Unelab(..), DAEnv, initDAEnv, Naming, declareChannel)
 
 data CommandF jd ch syn a
   = DeclJ jd (Maybe (JudgementStack syn)) (Protocol syn)
@@ -40,29 +45,22 @@ type ACommand = CommandF A.JudgementForm A.Channel SyntaxDesc A.Actor
 
 instance Display Mode where
   type DisplayEnv Mode = ()
-  display m = pure $ case m of
-    Input -> "?"
-    Output -> "!"
+  display = viaPretty
 
-instance Display t => Display (JudgementStack t) where
-  type DisplayEnv (JudgementStack t) = DisplayEnv t
-  display stk = do
-    key <- display (keyDesc stk)
-    desc <- display (valueDesc stk)
-    pure $ unwords [key , "->", desc ]
+instance (Show t, Unelab t, Pretty (Unelabed t)) =>
+  Display (JudgementStack t) where
+  type DisplayEnv (JudgementStack t) = UnelabEnv t
+  display = viaPretty
 
-instance Display t => Display (Protocol t) where
-  type DisplayEnv (Protocol t) = DisplayEnv t
-  display t = do
-    ps <- traverse (\ (m, c) -> (++) <$> subdisplay m <*> display c) t
-    pure $ intercalate ". " ps
+instance (Show t, Unelab t, Pretty (Unelabed t)) =>
+  Display (Protocol t) where
+  type DisplayEnv (Protocol t) = UnelabEnv t
+  display = viaPretty
 
-instance Display String where
-  type DisplayEnv String = ()
-  display str = pure str
-
+-- TODO: refactor via unelab
 instance ( Display0 jd, Display0 ch
          , Display syn, DisplayEnv syn ~ ()
+         , Unelab syn, UnelabEnv syn ~ (), Pretty (Unelabed syn)
          , Display a, DisplayEnv a ~ DAEnv) =>
          Display (CommandF jd ch syn a) where
   type DisplayEnv (CommandF jd ch syn a) = Naming
@@ -74,7 +72,8 @@ instance ( Display0 jd, Display0 ch
     d@(DefnJ (jd, ch) a) -> do
       jd <- subdisplay jd
       ch <- subdisplay ch
-      -- hack: the above happens to convert ch into a string, ready to be declared
+      -- hack: the above happens to convert ch into a string
+    -- , ready to be declared
       a <- withEnv (declareChannel (A.Channel ch) initDAEnv) $ display a
       pure $ unwords [ jd, "@", ch, "=", a]
     DeclS s -> do
@@ -98,7 +97,7 @@ pmode = Input <$ pch (== '?') <|> Output <$ pch (== '!')
 pjudgeat :: Parser (C.Variable, C.Variable)
 pjudgeat = (,) <$> pvariable <* punc "@" <*> pvariable
 
-pprotocol :: Parser (Protocol C.Raw)
+pprotocol :: Parser CProtocol
 pprotocol = psep pspc ((,) <$> pmode <* pspc <*> psyntaxdecl <* pspc <* pch (== '.'))
 
 psyntax :: Parser (SyntaxCat, C.Raw)
@@ -107,7 +106,7 @@ psyntax = (,) <$> patom <* punc "=" <*> psyntaxdecl
 psyntaxdecl :: Parser C.Raw
 psyntaxdecl = plocal B0 ptm
 
-pjudgementstack :: Parser (JudgementStack C.Raw)
+pjudgementstack :: Parser CJudgementStack
 pjudgementstack =
    JudgementStack <$> psyntaxdecl <* punc "->" <*> psyntaxdecl <* punc "|-"
 
@@ -127,7 +126,7 @@ sprotocol ps = during (ProtocolElaboration ps) $ do
   syndecls <- gets (Map.keys . syntaxCats)
   traverse (traverse (ssyntaxdecl syndecls)) ps
 
-sjudgementstack :: JudgementStack C.Raw -> Elab (JudgementStack SyntaxDesc)
+sjudgementstack :: CJudgementStack -> Elab AJudgementStack
 sjudgementstack (JudgementStack key val) = do
   syndecls <- gets (Map.keys . syntaxCats)
   key <- ssyntaxdecl syndecls key

@@ -9,14 +9,15 @@ import qualified Data.Map as Map
 
 import ANSI
 import Actor
-import Actor.Display (DAEnv, initDAEnv)
-import qualified Actor.Display as A
+import Unelaboration (DAEnv, initDAEnv, Naming, nameOn, initNaming)
+import qualified Unelaboration as A
 import Display
 import Forget
 import Format
 import Machine.Base
 import Term
-import Term.Display
+import Term.Display ()
+import Actor.Display ()
 
 instance Display Date where
   type DisplayEnv Date = ()

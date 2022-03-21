@@ -1,4 +1,4 @@
-{-# LANGUAGE ConstraintKinds, UndecidableInstances #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 module Unelaboration where
 
@@ -76,7 +76,7 @@ class Unelab t where
 subunelab :: (Unelab t, Forget e (UnelabEnv t)) => t -> UnelabM e (Unelabed t)
 subunelab = withForget . unelab
 
-type UnelabMeta m = (Unelab m, Forget Naming (UnelabEnv m), Unelabed m ~ Variable)
+type UnelabMeta m = (Unelab m, UnelabEnv m ~ (), Unelabed m ~ Variable)
 
 instance UnelabMeta m => Unelab (CdB (Tm m)) where
   type UnelabEnv (CdB (Tm m)) = Naming
@@ -187,6 +187,11 @@ inChannel ch ma = do
 instance Forget DAEnv Naming where
   forget = daActorNaming
 
+instance Unelab Meta where
+  type UnelabEnv Meta = ()
+  type Unelabed Meta = Variable
+  unelab m = pure (Variable $ '?' : show m)
+
 instance Unelab ActorMeta where
   type UnelabEnv ActorMeta = ()
   type Unelabed ActorMeta = Variable
@@ -212,20 +217,28 @@ instance Unelab Directive where
   type Unelabed Directive = Directive
   unelab = pure
 
-instance Unelab t => Unelab (Format Directive Debug t) where
-  type UnelabEnv (Format Directive Debug t) = UnelabEnv t
-  type Unelabed (Format Directive Debug t) = Format Directive Debug (Unelabed t)
+instance Unelab t => Unelab (Format dir dbg t) where
+  type UnelabEnv (Format dir dbg t) = UnelabEnv t
+  type Unelabed (Format dir dbg t) = Format dir dbg (Unelabed t)
   unelab = \case
     TermPart d t -> TermPart d <$> unelab t
     DebugPart dbg -> pure (DebugPart dbg)
     StringPart str -> pure (StringPart str)
+
+instance Unelab t => Unelab [Format dir dbg t] where
+  type UnelabEnv [Format dir dbg t] = UnelabEnv t
+  type Unelabed [Format dir dbg t] = [Format dir dbg (Unelabed t)]
+  unelab = traverse unelab
 
 instance Unelab A.Actor where
   type UnelabEnv A.Actor = DAEnv
   type Unelabed A.Actor = C.Actor
   unelab = \case
     a A.:|: b -> (C.:|:) <$> unelab a <*> unelab b
-    A.Spawn jd ch a -> C.Spawn <$> subunelab jd <*> subunelab ch <*> unelab a
+    A.Spawn jd ch a -> C.Spawn
+        <$> subunelab jd
+        <*> subunelab ch
+        <*> local (declareChannel ch) (unelab a)
     A.Send ch tm a -> C.Send <$> subunelab ch <*> (inChannel ch $ subunelab tm) <*> unelab a
     A.Recv ch (av, a) -> C.Recv <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
     A.FreshMeta desc (av, a) -> C.FreshMeta <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
@@ -238,3 +251,18 @@ instance Unelab A.Actor where
     A.Fail fmt -> C.Fail <$> traverse subunelab fmt
     A.Print fmt a -> C.Print <$> traverse subunelab fmt <*> unelab a
     A.Break fmt a -> C.Break <$> traverse subunelab fmt <*> unelab a
+
+instance Unelab Mode where
+  type UnelabEnv Mode = ()
+  type Unelabed Mode = Mode
+  unelab = pure
+
+instance Unelab t => Unelab (JudgementStack t) where
+  type UnelabEnv (JudgementStack t) = UnelabEnv t
+  type Unelabed (JudgementStack t) = JudgementStack (Unelabed t)
+  unelab = traverse unelab
+
+instance Unelab t => Unelab (Protocol t) where
+  type UnelabEnv (Protocol t) = UnelabEnv t
+  type Unelabed (Protocol t) = Protocol (Unelabed t)
+  unelab = traverse (traverse unelab)

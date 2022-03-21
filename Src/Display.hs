@@ -1,6 +1,4 @@
-{-# LANGUAGE
-  PatternGuards,
-  ConstraintKinds #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 module Display where
 
@@ -12,8 +10,16 @@ import Control.Monad.Reader
 
 import ANSI
 import Bwd
-import Thin
+import Concrete.Pretty ()
+import Doc.Render.Terminal (render)
 import Forget
+import Format
+import Pattern
+import Thin
+
+import Pretty (Pretty(..))
+import Unelaboration (Unelab(..), evalUnelab, Naming)
+import qualified Unelaboration
 
 import GHC.Stack
 
@@ -40,16 +46,12 @@ instance Collapse Cursor where
             , collapse rstrs
             ]
 
-type Naming =
-  ( Bwd String  -- what's in the support
-  , Th          -- and how that was chosen from
-  , Bwd String  -- what's in scope
-  )
-
-data DisplayComplaint = UnexpectedEmptyThinning Naming
-                      | VarOutOfScope Naming
-                      | InvalidNaming Naming
-                      | UnknownChannel String
+data DisplayComplaint
+  = UnexpectedEmptyThinning Naming
+  | VarOutOfScope Naming
+  | InvalidNaming Naming
+  | UnknownChannel String
+  | UnelabError Unelaboration.Complaint
   deriving (Show)
 
 newtype DisplayM e a = Display
@@ -92,6 +94,14 @@ subdisplay = withForget . display
 subpdisplay :: (Display t, Forget e (DisplayEnv t)) => t -> DisplayM e String
 subpdisplay = withForget . pdisplay
 
+viaPretty :: (Pretty (Unelabed t), Unelab t, UnelabEnv t ~ e) =>
+             t -> DisplayM e String
+viaPretty t = do
+  env <- ask
+  case evalUnelab env (unelab t) of
+    Left err -> throwError (UnelabError err)
+    Right t -> pure $ render (-1) $ pretty t
+
 instance Display () where
   type DisplayEnv () = ()
   display _ = pure "()"
@@ -99,3 +109,22 @@ instance Display () where
 instance Display Void where
   type DisplayEnv Void = ()
   display = absurd
+
+instance Display DB where
+  type DisplayEnv DB = Naming
+  display = viaPretty
+
+instance (Show t, Unelab t, Pretty (Unelabed t)) =>
+  Display [Format () String t] where
+  type DisplayEnv [Format () String t] = UnelabEnv t
+  display = viaPretty
+
+instance (Show t, Unelab t, Pretty (Unelabed t)) =>
+  Display [Format Directive Debug t] where
+  type DisplayEnv [Format Directive Debug t] = UnelabEnv t
+  display = viaPretty
+
+instance Display Pat where
+  type DisplayEnv Pat = Naming
+  display = viaPretty
+

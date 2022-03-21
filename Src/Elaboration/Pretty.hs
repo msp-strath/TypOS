@@ -17,21 +17,11 @@ import Unelaboration (unsafeEvalUnelab, unelab, initNaming)
 instance Pretty Channel where
   pretty (Channel ch) = pretty ch
 
-instance Pretty Mode where
-  pretty Input = "?"
-  pretty Output = "!"
-
-instance Pretty t => Pretty (Protocol t) where
-  pretty = foldMap $ \ (m, d) -> fold [pretty m, pretty d, ". "]
-
 instance Pretty a => Pretty (Info a) where
   prettyPrec d = \case
     Unknown -> "Unknown"
     Known a -> parenthesise (d > 0) (hsep ["Known", prettyPrec 1 a])
     Inconsistent -> "Inconsistent"
-
-instance Pretty t => Pretty (JudgementStack t) where
-  pretty stk = hsep [pretty (keyDesc stk), "->", pretty (valueDesc stk)]
 
 instance Pretty Kind where
   pretty = \case
