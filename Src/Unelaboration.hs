@@ -11,11 +11,9 @@ import Data.Void
 
 import GHC.Stack
 
-import Actor (ActorMeta(..), Channel(..))
-import qualified Actor as A
+import Actor
 import Bwd
 import Concrete.Base
-import qualified Concrete.Base as C
 import Forget
 import Format
 import Hide
@@ -157,9 +155,9 @@ instance Unelab Pat where
     MP m th -> {- TODO: insert ThP -} pure (VarP (Variable m))
     HP -> pure UnderscoreP
 
-instance Unelab (Pat, A.Actor) where
-  type UnelabEnv (Pat, A.Actor) = DAEnv
-  type Unelabed  (Pat, A.Actor) = (RawP, C.Actor)
+instance Unelab (Pat, AActor) where
+  type UnelabEnv (Pat, AActor) = DAEnv
+  type Unelabed  (Pat, AActor) = (RawP, CActor)
   unelab (p, a) = (,) <$> subunelab p <*> unelab a
 
 data DAEnv = DAEnv
@@ -205,9 +203,9 @@ instance Unelab Channel where
   type Unelabed Channel = Variable
   unelab (Channel str) = pure (Variable str)
 
-instance Unelab A.JudgementForm where
-  type UnelabEnv A.JudgementForm = ()
-  type Unelabed A.JudgementForm = Variable
+instance Unelab JudgementForm where
+  type UnelabEnv JudgementForm = ()
+  type Unelabed JudgementForm = Variable
   unelab str = pure (Variable str)
 
 instance Unelab Debug where
@@ -233,27 +231,27 @@ instance Unelab t => Unelab [Format dir dbg t] where
   type Unelabed [Format dir dbg t] = [Format dir dbg (Unelabed t)]
   unelab = traverse unelab
 
-instance Unelab A.Actor where
-  type UnelabEnv A.Actor = DAEnv
-  type Unelabed A.Actor = C.Actor
+instance Unelab AActor where
+  type UnelabEnv AActor = DAEnv
+  type Unelabed AActor = CActor
   unelab = \case
-    a A.:|: b -> (C.:|:) <$> unelab a <*> unelab b
-    A.Spawn jd ch a -> C.Spawn
+    a :|: b -> (:|:) <$> unelab a <*> unelab b
+    Spawn jd ch a -> Spawn
         <$> subunelab jd
         <*> subunelab ch
         <*> local (declareChannel ch) (unelab a)
-    A.Send ch tm a -> C.Send <$> subunelab ch <*> (inChannel ch $ subunelab tm) <*> unelab a
-    A.Recv ch (av, a) -> C.Recv <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
-    A.FreshMeta desc (av, a) -> C.FreshMeta <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
-    A.Under (Scope x a) -> C.Under . Scope x <$> local (updateNaming (`nameOn` unhide x)) (unelab a)
-    A.Push jd (p, t) a -> C.Push <$> subunelab jd <*> ((,) <$> subunelab p <*> subunelab t) <*> unelab a
-    A.Lookup t (av, a) b -> C.Lookup <$> subunelab t <*> ((,) <$> subunelab av <*> unelab a) <*> unelab b
-    A.Match tm pts -> C.Match <$> subunelab tm <*> traverse unelab pts
-    A.Constrain s t -> C.Constrain <$> subunelab s <*> subunelab t
-    A.Win -> pure C.Win
-    A.Fail fmt -> C.Fail <$> traverse subunelab fmt
-    A.Print fmt a -> C.Print <$> traverse subunelab fmt <*> unelab a
-    A.Break fmt a -> C.Break <$> traverse subunelab fmt <*> unelab a
+    Send ch tm a -> Send <$> subunelab ch <*> (inChannel ch $ subunelab tm) <*> unelab a
+    Recv ch (av, a) -> Recv <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
+    FreshMeta desc (av, a) -> FreshMeta <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
+    Under (Scope x a) -> Under . Scope x <$> local (updateNaming (`nameOn` unhide x)) (unelab a)
+    Push jd (p, t) a -> Push <$> subunelab jd <*> ((,) <$> subunelab p <*> subunelab t) <*> unelab a
+    Lookup t (av, a) b -> Lookup <$> subunelab t <*> ((,) <$> subunelab av <*> unelab a) <*> unelab b
+    Match tm pts -> Match <$> subunelab tm <*> traverse unelab pts
+    Constrain s t -> Constrain <$> subunelab s <*> subunelab t
+    Win -> pure Win
+    Fail fmt -> Fail <$> traverse subunelab fmt
+    Print fmt a -> Print <$> traverse subunelab fmt <*> unelab a
+    Break fmt a -> Break <$> traverse subunelab fmt <*> unelab a
 
 instance Unelab Mode where
   type UnelabEnv Mode = ()

@@ -10,6 +10,7 @@ import qualified Data.Map as Map
 import ANSI hiding (withANSI)
 import Actor
 import Actor.Display ()
+import Concrete.Base
 import Display
 import Doc
 import Doc.Render.Terminal

@@ -4,6 +4,7 @@ module Main where
 
 import ANSI hiding (withANSI)
 import Bwd
+import Concrete.Base
 import Doc (vcat)
 import Doc.Render.Terminal
 import Parse

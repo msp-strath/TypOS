@@ -11,7 +11,9 @@ import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
 
+import Actor
 import Bwd
+import Concrete.Base
 import Format
 import Hide
 import Scope
@@ -19,28 +21,9 @@ import Syntax
 import Thin
 import Utils
 
-import Concrete.Base
-  (Variable(..)
-  , Raw(..)
-  , SbstC(..)
-  , RawP(..)
-  , ThDirective(..)
-  , Mode(..)
-  , Protocol(..)
-  , JudgementStack(..))
-import qualified Concrete.Base as C
-
 import Term.Base
 import Term.Substitution
 import Pattern as P
-import Actor (ActorMeta(..), Channel(..))
-import qualified Actor as A
-
-type CProtocol = Protocol C.Raw
-type AProtocol = Protocol SyntaxDesc
-
-type CJudgementStack = JudgementStack C.Raw
-type AJudgementStack = JudgementStack SyntaxDesc
 
 dual :: Protocol t -> Protocol t
 dual = map $ \case
@@ -103,10 +86,10 @@ data Context = Context
   , declarations :: Decls
   , location     :: Bwd Turn
   , binderHints  :: Hints
-  , currentActor :: (A.JudgementForm, Maybe AJudgementStack)
+  , currentActor :: (JudgementForm, Maybe AJudgementStack)
   } deriving (Show)
 
-setCurrentActor :: A.JudgementForm -> Maybe AJudgementStack -> Context -> Context
+setCurrentActor :: JudgementForm -> Maybe AJudgementStack -> Context -> Context
 setCurrentActor jd mstk ctx = ctx { currentActor = (jd, mstk) }
 
 initContext :: Context
@@ -176,10 +159,10 @@ data Complaint
   | NonLinearChannelUse Channel
   | UnfinishedProtocol Channel AProtocol
   | InconsistentCommunication
-  | DoomedBranchCommunicated C.Actor
+  | DoomedBranchCommunicated CActor
   -- judgement stacks
-  | PushingOnAStacklessJudgement A.JudgementForm
-  | LookupFromAStacklessActor A.JudgementForm
+  | PushingOnAStacklessJudgement JudgementForm
+  | LookupFromAStacklessActor JudgementForm
   -- syntaxes
   | NotAValidSyntaxCat SyntaxCat
   | AlreadyDeclaredSyntaxCat SyntaxCat
@@ -320,7 +303,7 @@ spop = do
     B0 -> throwError EmptyContext
     (xz :< (x, cat)) -> pure (xz, (Variable x, cat))
 
-ssyntaxdecl :: [SyntaxCat] -> C.Raw -> Elab SyntaxDesc
+ssyntaxdecl :: [SyntaxCat] -> Raw -> Elab SyntaxDesc
 ssyntaxdecl syndecls syn = do
   let desc = catToDesc "Syntax"
   syn <- withSyntax (syntaxDesc syndecls) $ stm desc syn
@@ -419,7 +402,7 @@ spats (d:ds) (ConsP p q) = do
 spats _ t = throwError (ExpectedAConsPGot t)
 
 spat :: SyntaxDesc -> RawP -> Elab (Pat, Decls, Hints)
-spat desc (C.VarP v) = during (PatternVariableElaboration v) $ do
+spat desc (VarP v) = during (PatternVariableElaboration v) $ do
   table <- gets syntaxCats
   ds <- asks declarations
   hs <- asks binderHints
@@ -492,7 +475,7 @@ isChannel ch = resolve ch >>= \case
   Just mk -> throwError (NotAValidChannel ch $ either Just (const Nothing) mk)
   Nothing -> throwError (OutOfScope ch)
 
-isJudgement :: Variable -> Elab (A.JudgementForm, Maybe AJudgementStack, AProtocol)
+isJudgement :: Variable -> Elab (JudgementForm, Maybe AJudgementStack, AProtocol)
 isJudgement jd = resolve jd >>= \case
   Just (Left (AJudgement mstk p)) -> pure (getVariable jd, mstk, p)
   Just mk -> throwError (NotAValidJudgement jd $ either Just (const Nothing) mk)
@@ -544,33 +527,33 @@ guessDesc (Var v) = resolve v >>= \case
   _ -> pure Unknown
 guessDesc _ = pure Unknown
 
-sact :: C.Actor -> Elab A.Actor
+sact :: CActor -> Elab AActor
 sact = \case
-  C.Win -> pure A.Win
-  C.Constrain s t -> do
+  Win -> pure Win
+  Constrain s t -> do
     infoS <- guessDesc s
     infoT <- guessDesc t
     desc <- during (ConstrainSyntaxCatGuess s t) $
       fromInfo =<< compatibleInfos infoS infoT
     s <- during (ConstrainTermElaboration s) $ stm desc s
     t <- during (ConstrainTermElaboration t) $ stm desc t
-    pure $ A.Constrain s t
+    pure $ Constrain s t
 
-  a C.:|: b -> do
+  a :|: b -> do
     a <- local (turn West) $ sact a
     b <- local (turn East) $ sact b
-    pure (a A.:|: b)
+    pure (a :|: b)
 
-  C.Spawn jd ch a -> do
+  Spawn jd ch a -> do
     -- check the channel name is fresh & initialise it
     ch <- Channel <$> isFresh ch
     (jd, _, p) <- isJudgement jd
 
     a <- withChannel ch (dual p) $ sact a
 
-    pure $ A.Spawn jd ch a
+    pure $ Spawn jd ch a
 
-  C.Send ch tm a -> do
+  Send ch tm a -> do
     ch <- isChannel ch
     -- Check the channel is in sending mode, & step it
     desc <- steppingChannel ch $ \case
@@ -585,9 +568,9 @@ sact = \case
       (*^ thx) <$> local (setObjVars xyz) (stm desc tm)
 
     a <- sact a
-    pure $ A.Send ch tm a
+    pure $ Send ch tm a
 
-  C.Recv ch (av, a) -> do
+  Recv ch (av, a) -> do
     ch <- isChannel ch
     av <- during (RecvMetaElaboration ch) $ isFresh av
     -- Check the channel is in receiving mode & step it
@@ -598,31 +581,31 @@ sact = \case
     -- Receive
     sc <- channelScope ch
     a <- local (declare av (ActVar (Known cat) sc)) $ sact a
-    pure $ A.Recv ch (ActorMeta av, a)
+    pure $ Recv ch (ActorMeta av, a)
 
-  C.FreshMeta desc (av, a) -> during FreshMetaElaboration $ do
+  FreshMeta desc (av, a) -> during FreshMetaElaboration $ do
     syndecls <- gets (Map.keys . syntaxCats)
     desc <- ssyntaxdecl syndecls desc
     av <- isFresh av
     ovs <- asks objVars
     a <- local (declare av (ActVar (Known desc) ovs)) $ sact a
-    pure $ A.FreshMeta desc (ActorMeta av, a)
+    pure $ FreshMeta desc (ActorMeta av, a)
 
-  C.Under (Scope v@(Hide x) a) -> do
+  Under (Scope v@(Hide x) a) -> do
     during UnderElaboration $ () <$ isFresh (Variable x)
     a <- local (declareObjVar (x, Unknown)) $ sact a
-    pure $ A.Under (Scope v a)
+    pure $ Under (Scope v a)
 
-  C.Match rtm@tm cls -> do
+  Match rtm@tm cls -> do
     desc <- fromInfo =<< guessDesc rtm
     tm <- during (MatchTermElaboration tm) $ stm desc tm
     chs <- get
     clsts <- traverse (sclause desc) cls
     let (cls, sts) = unzip clsts
     during (MatchElaboration rtm) $ consistentCommunication sts
-    pure $ A.Match tm cls
+    pure $ Match tm cls
 
-  C.Push jd (p, t) a -> do
+  Push jd (p, t) a -> do
     (jd, mstk, _) <- isJudgement jd
     stk <- case mstk of
       Nothing -> throwError (PushingOnAStacklessJudgement jd)
@@ -634,9 +617,9 @@ sact = \case
       _ -> throwError $ OutOfScope p
     t <- during (PushTermElaboration t) $ stm (valueDesc stk) t
     a <- sact a
-    pure $ A.Push jd (p, t) a
+    pure $ Push jd (p, t) a
 
-  C.Lookup rt@t (av, a) b -> do
+  Lookup rt@t (av, a) b -> do
     (jd, stk) <- asks currentActor >>= \case
       (jd, Nothing) -> throwError (LookupFromAStacklessActor jd)
       (jd, Just stk) -> pure (jd, stk)
@@ -646,11 +629,11 @@ sact = \case
     (a, mcha) <- local (declare av (ActVar (Known $ valueDesc stk) ovs)) $ sbranch a
     (b, mchb) <- sbranch b
     during (LookupHandlersElaboration rt) $ consistentCommunication [mcha, mchb]
-    pure $ A.Lookup t (ActorMeta av, a) b
+    pure $ Lookup t (ActorMeta av, a) b
 
-  C.Fail fmt -> A.Fail <$> sformat fmt <* tell (All False)
-  C.Print fmt a -> A.Print <$> sformat fmt <*> sact a
-  C.Break fmt a -> A.Break <$> sformat fmt <*> sact a
+  Fail fmt -> Fail <$> sformat fmt <* tell (All False)
+  Print fmt a -> Print <$> sformat fmt <*> sact a
+  Break fmt a -> Break <$> sformat fmt <*> sact a
 
 sformat :: [Format Directive Debug Raw] -> Elab [Format Directive Debug ACTm]
 sformat fmt = do
@@ -664,7 +647,7 @@ consistentCommunication sts = do
    [(c:_)] -> put c
    _ -> throwError InconsistentCommunication
 
-sbranch :: C.Actor -> Elab (A.Actor, Maybe ElabState)
+sbranch :: CActor -> Elab (AActor, Maybe ElabState)
 sbranch ra = do
   chs <- get
   (a, All b) <- censor (const (All True)) $ listen $ sact ra
@@ -673,8 +656,8 @@ sbranch ra = do
   put chs
   pure (a, chs' <$ guard b)
 
-sclause :: SyntaxDesc -> (RawP, C.Actor) ->
-           Elab ((Pat, A.Actor), Maybe ElabState)
+sclause :: SyntaxDesc -> (RawP, CActor) ->
+           Elab ((Pat, AActor), Maybe ElabState)
 sclause desc (rp, a) = during (MatchBranchElaboration rp) $ do
   (p, ds, hs) <- spat desc rp
   (a, me) <- local (setDecls ds . setHints hs) $ sbranch a

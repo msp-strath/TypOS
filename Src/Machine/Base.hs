@@ -70,7 +70,7 @@ data Interface c p = Interface
   } deriving (Show)
 
 data Frame
-  = Rules JudgementForm (Channel, Actor)
+  = Rules JudgementForm (Channel, AActor)
   | LeftBranch Hole (Process Date [])
   | RightBranch (Process Date []) Hole
   | Spawnee (Interface Hole (Process Date []))
@@ -97,7 +97,7 @@ data Process s t
   , root    :: Root    -- Name supply
   , env     :: Env     -- definitions in scope
   , store   :: s       -- Definitions we know for metas (or not)
-  , actor   :: Actor   -- The thing we are
+  , actor   :: AActor  -- The thing we are
   , judgementform :: JudgementForm -- who we are
   }
 

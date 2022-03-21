@@ -33,13 +33,10 @@ instance Display Channel where
   type DisplayEnv Channel = ()
   display = viaPretty
 
-instance Display Actor where
-  type DisplayEnv Actor = DAEnv
+instance Display AActor where
+  type DisplayEnv AActor = DAEnv
   display = viaPretty
 
-instance Display (Pat, Actor) where
-  type DisplayEnv (Pat, Actor) = DAEnv
-  display (p, a) = do
-    p <- subdisplay p
-    a <- display a
-    pure $ hsep [p, "->", a]
+instance Display (Pat, AActor) where
+  type DisplayEnv (Pat, AActor) = DAEnv
+  display = viaPretty

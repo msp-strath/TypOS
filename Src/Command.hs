@@ -11,11 +11,10 @@ import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
 
-import qualified Actor as A
+import Actor
 import Actor.Display ()
 
-import Concrete.Base (Mode(..), Protocol(..), JudgementStack(..))
-import qualified Concrete.Base as C
+import Concrete.Base
 import Concrete.Parse
 import Concrete.Pretty()
 import Bwd
@@ -41,8 +40,8 @@ data CommandF jd ch syn a
   | Trace [MachineStep]
   deriving (Show)
 
-type CCommand = CommandF C.Variable C.Variable C.Raw C.Actor
-type ACommand = CommandF A.JudgementForm A.Channel SyntaxDesc A.Actor
+type CCommand = CommandF Variable Variable Raw CActor
+type ACommand = CommandF JudgementForm Channel SyntaxDesc AActor
 
 instance Display Mode where
   type DisplayEnv Mode = ()
@@ -91,10 +90,10 @@ pmachinestep =
   <|> MachineUnify <$ plit "unify"
   <|> MachineBreak <$ plit "break"
 
-pjudgeat :: Parser (C.Variable, C.Variable)
+pjudgeat :: Parser (Variable, Variable)
 pjudgeat = (,) <$> pvariable <* punc "@" <*> pvariable
 
-psyntax :: Parser (SyntaxCat, C.Raw)
+psyntax :: Parser (SyntaxCat, Raw)
 psyntax = (,) <$> patom <* punc "=" <*> psyntaxdecl
 
 pcommand :: Parser CCommand
@@ -117,7 +116,7 @@ scommand = \case
     local (declare jd (AJudgement mstk p)) $
       (DeclJ jd mstk p,) <$> asks declarations
   DefnJ (jd, ch) a -> during (DefnJElaboration jd) $ do
-    ch <- A.Channel <$> isFresh ch
+    ch <- Channel <$> isFresh ch
     (jd, mstk, p) <- isJudgement jd
     local (setCurrentActor jd mstk) $ do
       a <- withChannel ch p $ sact a

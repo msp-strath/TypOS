@@ -65,17 +65,17 @@ pjudgementstack :: Parser (JudgementStack Raw)
 pjudgementstack =
    JudgementStack <$> psyntaxdecl <* punc "->" <*> psyntaxdecl <* punc "|-"
 
-pACT :: Parser Actor
+pACT :: Parser CActor
 pACT = pact >>= more where
 
-  more :: Actor -> Parser Actor
+  more :: CActor -> Parser CActor
   more act = (act :|:) <$ punc "|" <*> pACT
     <|> pure act
 
 withVar :: String -> Parser a -> Parser (Variable, a)
 withVar str p = (,) <$> pvariable <* punc str <*> p
 
-pact :: Parser Actor
+pact :: Parser CActor
 pact = Under <$> pscoped pact
   <|> Send <$> pvariable <* punc "!" <*> ptm <* punc "." <*> pact
   <|> questionmark <$> ptm <* punc "?" <*> withVar "." pact

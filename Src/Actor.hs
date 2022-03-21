@@ -4,10 +4,9 @@ import qualified Data.Map as Map
 
 import ANSI
 import Bwd
-import Format
+import Concrete.Base
 import Hide
 import Pattern
-import Scope
 import Syntax (SyntaxDesc)
 import Term
 import Thin
@@ -25,6 +24,10 @@ newtype Channel = Channel { rawChannel :: String }
 
 type JudgementForm = String
 type Gripe = String
+
+type AProtocol = Protocol SyntaxDesc
+type AJudgementStack = JudgementStack SyntaxDesc
+type AActor = Actor JudgementForm Channel ActorMeta SyntaxDesc DB (CdB (Tm ActorMeta)) Pat
 
 data Env = Env
   { globalScope :: Bwd String -- free vars ga actor does *not* know about
@@ -49,25 +52,6 @@ childEnv parentEnv = initEnv (globalScope parentEnv <> localScope parentEnv)
 
 newActorVar :: ActorMeta -> ([String], Term) -> Env -> Env
 newActorVar x defn env = env { actorVars = Map.insert x defn (actorVars env) }
-
-infixr 3 :|:
-data Actor
- = Actor :|: Actor
- | Spawn JudgementForm Channel Actor
- | Send Channel (CdB (Tm ActorMeta)) Actor
- | Recv Channel (ActorMeta, Actor)
- | FreshMeta SyntaxDesc (ActorMeta, Actor)
- | Under (Scope Actor)
- | Match (CdB (Tm ActorMeta)) [(Pat, Actor)]
- -- This is going to bite us when it comes to dependent types
- | Constrain (CdB (Tm ActorMeta)) (CdB (Tm ActorMeta))
- | Push JudgementForm (DB, CdB (Tm ActorMeta)) Actor
- | Lookup (CdB (Tm ActorMeta)) (ActorMeta, Actor) Actor
- | Win
- | Fail  [Format Directive Debug (CdB (Tm ActorMeta))]
- | Print [Format Directive Debug (CdB (Tm ActorMeta))] Actor
- | Break [Format Directive Debug (CdB (Tm ActorMeta))] Actor
- deriving (Show, Eq)
 
 -- | When we encounter a term with actor variables inside and want to send
 --   or match on it, we need to first substitute all of the terms the actor

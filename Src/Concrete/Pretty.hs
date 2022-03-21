@@ -66,7 +66,7 @@ prettyCdrP = \case
   ConsP p q -> pretty p : prettyCdrP q
   p -> [pipe, pretty p]
 
-instance Pretty Actor where
+instance Pretty CActor where
   prettyPrec d = \case
     a :|: b -> parenthesise (d > 0) $ hsep [ prettyPrec 1 a, pipe, pretty b ]
     Spawn jd p a -> fold [ pretty jd, "@", pretty p, dot, space, prettyPrec 1 a ]
@@ -122,7 +122,7 @@ instance Pretty t => Pretty [Format () (Doc Annotations) t] where
       (str, _:rest) -> go' (flush (acc <> text str)) rest fs
 
 
-instance Pretty (RawP, Actor) where
+instance Pretty (RawP, CActor) where
   pretty (p, a) = hsep [ pretty p, "->", pretty a ]
 
 instance Pretty Mode where

@@ -5,6 +5,7 @@ import Control.Monad.Reader
 
 import ANSI hiding (withANSI)
 import Bwd
+import Concrete.Base
 import Display
 import Doc hiding (render)
 import Doc.Render.Terminal
@@ -26,7 +27,7 @@ import System.IO.Unsafe
 import Debug.Trace
 dmesg = trace
 
-lookupRules :: JudgementForm -> Bwd Frame -> Maybe (Channel, Actor)
+lookupRules :: JudgementForm -> Bwd Frame -> Maybe (Channel, AActor)
 lookupRules jd zf = do
   (_, cha, _) <- (`focusBy` zf) $ \case
     Rules jd' cha | jd == jd' -> Just cha
@@ -64,7 +65,7 @@ exec p@Process { actor = m@(Match s cls), ..}
   = switch term cls
  where
 
-  switch :: Term -> [(Pat, Actor)] -> Process Store []
+  switch :: Term -> [(Pat, AActor)] -> Process Store []
   switch t [] =
     let msg = render 80 $ unsafeEvalDisplay (frDisplayEnv stack) $ do
           it <- subdisplay (instantiate store t)
