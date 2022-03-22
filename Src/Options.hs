@@ -1,4 +1,4 @@
-module Main.Options where
+module Options where
 
 import Doc hiding (render)
 import Doc.Render.Terminal

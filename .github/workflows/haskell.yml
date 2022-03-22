@@ -15,9 +15,6 @@ jobs:
           - "9.0.2"
           - "9.2.1"
         exclude:
-          - os: ubuntu-latest
-            ghc: 9.2.1
-
           - os: macOS-latest
             ghc: 9.0.2
           - os: macOS-latest
