@@ -13,7 +13,7 @@ import Elaboration.Pretty()
 import Machine
 import Pretty
 import Term.Base
-import Main.Options
+import Options
 import Command
 
 main :: IO ()

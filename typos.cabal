@@ -48,7 +48,7 @@ library
                        Machine.Display,
                        Machine.Exec,
                        Main,
-                       Main.Options,
+                       Options,
                        Parse,
                        Pattern,
                        Pretty,

@@ -25,7 +25,7 @@ import Elaboration.Pretty()
 import Machine.Base
 import Machine.Display (Store)
 import Machine.Exec
-import Main.Options
+import Options
 import Parse
 import Pretty (keyword, Collapse(..), BracesList(..), Pretty(..))
 import Syntax
