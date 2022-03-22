@@ -112,13 +112,12 @@ penv :: Parser ParserEnv
 penv = Parser $ \ env s -> [(env, s)]
 
 instance Monad Parser where
-  return a = Parser $ \ env s -> [(a, s)]
   Parser f >>= k = Parser $ \ env s -> do
     (a, s) <- f env s
     parser (k a) env s
 
 instance Applicative Parser where
-  pure = return
+  pure a = Parser $ \ env s -> [(a, s)]
   (<*>) = ap
 
 instance Functor Parser where

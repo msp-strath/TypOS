@@ -128,10 +128,11 @@ comp :: Th -> Th
 comp (Th th i) = Th (xor th (full i)) i
 
 -- kind of append, only taking first i bits of second arg into account
+instance Semigroup Th where
+  (Th th j) <> (Th ph i) = Th (shiftL th i .|. (ph .&. full i)) (i+j)
+
 instance Monoid Th where
   mempty = ones 0
-  mappend (Th th j) (Th ph i) = Th (shiftL th i .|. (ph .&. full i)) (i+j)
-instance Semigroup Th where (<>) = mappend
 
 -- "take" for bits, undoes mappend
 thChop :: Th -> Int -> (Th, Th)

@@ -42,15 +42,14 @@ instance Monad Info where
   Known a >>= f = f a
   Inconsistent >>= f = Inconsistent
 
+instance Eq a => Semigroup (Info a) where
+  Unknown <> y = y
+  x <> Unknown = x
+  Known x <> Known y | x == y = Known x
+  _ <> _ = Inconsistent
+
 instance Eq a => Monoid (Info a) where
   mempty = Unknown
-  Unknown `mappend` y = y
-  x `mappend` Unknown = x
-  Known x `mappend` Known y | x == y = Known x
-  _ `mappend` _ = Inconsistent
-
-instance Eq a => Semigroup (Info a) where
-  (<>) = mappend
 
 infoExpand :: SyntaxTable -> SyntaxDesc -> Info VSyntaxDesc
 infoExpand table s = case Syntax.expand table s of

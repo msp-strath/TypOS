@@ -11,12 +11,12 @@ data Bwd x = B0 | Bwd x :< x
   deriving (Show, Eq, Functor, Foldable, Traversable)
 infixl 4 :<
 
+instance Semigroup (Bwd x) where
+  xz <> B0        = xz
+  xz <> (yz :< y) = xz <> yz :< y
+
 instance Monoid (Bwd x) where
   mempty = B0
-  mappend xz B0        = xz
-  mappend xz (yz :< y) = mappend xz yz :< y
-
-instance Semigroup (Bwd x) where (<>) = mappend
 
 (<!) :: Bwd x -> Int -> x
 (_  :< x) <! 0 = x
