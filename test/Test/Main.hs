@@ -14,26 +14,40 @@ data TestConfig = TestConfig
   { name      :: String
   , extension :: String
   , goldenExt :: String
+  , folder    :: FilePath
   , excluded  :: [FilePath]
   }
 
 main :: IO ()
-main = defaultMain . testGroup "Tests" =<< sequence
-  [ typosTests
+main = defaultMain . testGroup "TypOS" =<< sequence
+  [ typosExamples
+  , typosTests
   ]
+
+typosExamples :: IO TestTree
+typosExamples = do
+  let name      = "Examples"
+  let extension = ".act"
+  let goldenExt = ".gold"
+  let folder    = "examples"
+  let excluded  = ["mltt_krivine.act"]
+  ioTests TestConfig{..}
+
 
 typosTests :: IO TestTree
 typosTests = do
-  let name      = "TypOS"
+  let name      = "Tests"
   let extension = ".act"
   let goldenExt = ".gold"
-  let excluded = ["./examples/mltt_krivine.act"]
+  let folder    = "test"
+  let excluded  = []
   ioTests TestConfig{..}
+
 
 ioTests :: TestConfig -> IO TestTree
 ioTests TestConfig{..} = testGroup name <$> do
-  files <- findByExtension [extension] "."
-  forM (files \\ excluded) $ \ file -> do
+  files <- findByExtension [extension] folder
+  forM (files \\ ((folder </>) <$> excluded)) $ \ file -> do
     let dir  = takeDirectory file
     let name = takeBaseName file
     let gold = dir </> "golden" </> addExtension name goldenExt
