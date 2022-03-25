@@ -70,16 +70,12 @@ exec p@Process { actor = m@(Match s cls), ..}
     let msg = render 80 $ unsafeEvalDisplay (frDisplayEnv stack) $ do
           it <- subdisplay (instantiate store t)
           t <- subdisplay t
-          (s, cls) <- asks daEnv >>= \ rh -> withEnv rh $ do
-            s <- subdisplay s
-            cls <- traverse display cls
-            pure (s, cls)
+          m <- asks daEnv >>= \ rh -> withEnv rh $ display (Match s cls)
           pure $ vcat $
                 [ "No matching clause for:" <+> it
                 , parens ("raw term:" <+> t)
-                , "in:" <+> keyword "case" <+> s
-                ] ++ zipWith (\ p cl -> indent 2 $ p <+> cl) ("{":repeat ";") cls
-                  ++ [indent 2 "}"]
+                , "in:"
+                , m ]
     in alarm msg $ move (p { stack = stack :<+>: [] })
   switch t ((pat, a):cs) = case match env [(localScope env, pat,t)] of
     Left True -> switch t cs
