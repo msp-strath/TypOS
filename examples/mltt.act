@@ -23,7 +23,7 @@ type@p = p?ty. check@q. q!'Ty. q!ty. q?nf. p!nf.
 
 check@p = p?ty. p?tm. case tm
   { 'Ty -> (ty ~ 'Ty | p!'Ty.)
-  ; ['Pi S \x. T] -> 
+  ; ['Pi S \x. T] ->
     (ty ~ 'Ty
     |type@q. q!S. q?NS. \x. synth{x -> NS}.
      type@r. r!T. r?NT. p!['Pi NS \x. NT].
@@ -48,13 +48,26 @@ synth@p = p?tm . lookup tm { S -> p!S. p!['Emb tm]. } else case tm
        { ['Lam \x. body] -> check@w. w!NT. w!{x=['Rad ns S]}body. w?nbody.
                             p!nbody.
        ; ['Emb e] -> p!['Emb ['App e ns]].
-       }                        
+       }
      }
    }
 
+exec  synth@p. p!['Rad
+                  ['Lam \x. ['Emb x]]
+                  ['Emb
+                   ['App ['Rad
+                          ['Lam \x. ['Pi ['Emb x] \a. ['Emb x]]]
+                          ['Pi 'Ty \x. 'Ty]]
+                         ['Pi 'Ty \x. ['Emb x]]]]].
+      p?nty. p?ntm.
+      PRINTF "%i" nty.
+      PRINTF "%i" ntm.
+
+{-
 exec  type@p. p!['Emb
                  ['App ['Rad
                         ['Lam \x. ['Pi ['Emb x] \a. ['Emb x]]]
                         ['Pi 'Ty \x. 'Ty]]
                        ['Pi 'Ty \x. ['Emb x]]]]. p?ty. 
       PRINTF "%i" ty.
+-}
