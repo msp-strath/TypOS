@@ -3,6 +3,7 @@
 module Concrete.Pretty where
 
 import Data.Foldable
+import Data.List
 
 import Bwd
 import Concrete.Base
@@ -70,38 +71,47 @@ prettyCdrP = \case
 prettyact :: CActor -> [Doc Annotations]
 prettyact a = go B0 B0 a where
 
+  add :: Bwd (Doc Annotations) -> [Doc Annotations] -> Bwd (Doc Annotations)
+  add B0 ds = B0 <>< ds
+  add sd ds = sd <>< (space : ds)
+
   go :: Bwd (Doc Annotations) -> -- lines above us
         Bwd (Doc Annotations) -> -- part of the line on our left
         CActor -> [Doc Annotations]
   go ls l = \case
-    Spawn jd p a -> go (ls :< fold (l <>< [pretty jd, "@", pretty p, dot])) B0 a
-    Send ch t@(Var _) a -> go ls (l <>< [pretty ch, "!", pretty t, dot, space]) a
-    Send ch t a -> go (ls :< fold (l <>< [pretty ch, "!", pretty t, dot])) B0 a
-    Recv ch (av, a) -> go ls (l <>< [pretty ch, "?", pretty av, dot, space]) a
-    FreshMeta syn (av, a) -> go (ls :< fold (l <>< [pretty syn, "?", pretty av, dot, space])) B0 a
-    Under (Scope x a) -> go ls (l <>< [backslash , pretty x, dot, space]) a
+    Spawn jd p a -> go (ls :< fold (l `add` [pretty jd, "@", pretty p, dot])) B0 a
+    Send ch t@(Var _) a -> go ls (l `add` [pretty ch, "!", pretty t, dot]) a
+    Send ch t a -> go (ls :< fold (l `add` [pretty ch, "!", pretty t, dot])) B0 a
+    Recv ch (av, a) -> go ls (l `add` [pretty ch, "?", pretty av, dot]) a
+    FreshMeta syn (av, a) -> go (ls :< fold (l `add` [pretty syn, "?", pretty av, dot])) B0 a
+    Under (Scope x a) -> go ls (l `add` [backslash , pretty x, dot]) a
     Push jd (x, t) a ->
       let push = hsep [pretty jd, braces (hsep [ pretty x, "->", pretty t])] <> dot in
-      go (ls :< (fold l <> push)) B0 a
-    Print [TermPart Instantiate tm] a -> go (ls :< (fold l <> hsep [keyword "PRINT", pretty tm] <> dot)) B0 a
-    Print fmt a -> go (ls :< (fold l <> hsep [keyword "PRINTF", pretty fmt] <> dot)) B0 a
-    Break fmt a -> go (ls :< (fold l <> hsep [keyword "BREAK", pretty fmt] <> dot)) B0 a
+      go (ls :< (fold (l `add` [push]))) B0 a
+    Print [TermPart Instantiate tm] a -> go (ls :< (fold (l `add` [hsep [keyword "PRINT", pretty tm] <> dot]))) B0 a
+    Print fmt a -> go (ls :< (fold (l `add` [hsep [keyword "PRINTF", pretty fmt] <> dot]))) B0 a
+    Break fmt a -> go (ls :< (fold (l `add` [hsep [keyword "BREAK", pretty fmt] <> dot]))) B0 a
     -- if we win, avoid generating an empty line
     Win -> case l of
              B0 -> ls <>> []
              _ -> ls <>> [fold l]
-    a -> ls <>> [fold l <> pretty a] -- either a big one or a final one
+    a -> ls <>> [fold (l `add` [prettyPrec 1 a])] -- either a big one or a final one
 
 instance Pretty CActor where
   prettyPrec d = \case
     -- big ones
     a :|: b -> parenthesise (d > 0) $ sep [ prettyPrec 1 a, pipe <+> pretty b ]
     Match tm pts ->
-      fold [ flush (hsep [ keyword "case", pretty tm ])
-           , flush (indent 2 $ vcat $ zipWith (<+>) ("{": repeat ";") (map pretty pts))
-           , indent 2 "}"
-           ]
-    Lookup tm (av, a) b -> vcat
+      let match = hsep [ keyword "case", pretty tm ]
+          cls   = map pretty pts
+      in alts
+      [ fold [ flush match
+             , flush (indent 2 $ vcat $ zipWith (<+>) ("{": repeat ";") cls)
+             , indent 2 "}"
+             ]
+      , hsep [ match , braces (sep $ intersperse ";" cls) ]
+      ]
+    Lookup tm (av, a) b -> sep
       [ hsep [ keyword "lookup", pretty tm, braces (hsep [ pretty av, "->", pretty a ]), keyword "else" ]
       , prettyPrec 1 a ]
     -- final actors
@@ -109,8 +119,7 @@ instance Pretty CActor where
     Fail fmt -> "#" <> pretty fmt
     Constrain s t -> hsep [ pretty s, "~", pretty t ]
     -- right nested small actors
-    a -> let ls = prettyact a in
-         if length ls >= 4 then vcat ls else sep ls
+    a -> sep (prettyact a)
 
 instance Pretty Debug where
   pretty = \case
@@ -148,12 +157,9 @@ instance Pretty t => Pretty [Format () (Doc Annotations) t] where
 
 instance Pretty (RawP, CActor) where
   pretty (p, a) =
-     let pp = pretty p; ls = prettyact a in
-     if length ls >= 4
-       then hsep [pp, "->"] $$ indent 2 (vcat ls)
-       else let pa = sep ls in
-            alts [ hsep [pp, "->", pa ]
-                 , hsep [pp, "->"] $$ indent 2 pa ]
+     let pp = pretty p; pa = sep (prettyact a) in
+     alts [ hsep [pp, "->", pa ]
+          , hsep [pp, "->"] $$ indent 2 pa ]
 
 instance Pretty Mode where
   pretty Input = "?"
