@@ -524,6 +524,12 @@ guessDesc (Var v) = resolve v >>= \case
   Just (Right (info, i)) -> pure info
   Just (Left (ActVar info _)) -> pure info
   _ -> pure Unknown
+guessDesc (Cons p q) = do
+  dp <- guessDesc p
+  dq <- guessDesc q
+  case (dp, dq) of
+    (Known d1, Known d2) -> pure (Known $ Syntax.contract (VCons d1 d2))
+    _ -> pure Unknown
 guessDesc _ = pure Unknown
 
 sact :: CActor -> Elab AActor
