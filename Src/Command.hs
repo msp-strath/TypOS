@@ -130,7 +130,7 @@ scommand = \case
                 traverse (ssyntaxdecl syndecls) syn
     forM_ syns (uncurry declareSyntax)
     (DeclS syns,) <$> asks declarations
-  Go a -> (,) . Go <$> sact a <*> asks declarations
+  Go a -> during ExecElaboration $ (,) . Go <$> sact a <*> asks declarations
   Trace ts -> (Trace ts,) <$> asks declarations
 
 scommands :: [CCommand] -> Elab [ACommand]

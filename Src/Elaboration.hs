@@ -153,8 +153,8 @@ data Complaint
   | NotAValidChannel Variable (Maybe Kind)
   | NotAValidBoundVar Variable
   -- protocol
-  | InvalidSend Channel
-  | InvalidRecv Channel
+  | InvalidSend Channel Raw
+  | InvalidRecv Channel String
   | NonLinearChannelUse Channel
   | UnfinishedProtocol Channel AProtocol
   | InconsistentCommunication
@@ -195,6 +195,7 @@ data Complaint
   | LookupHandlersElaboration Raw Complaint
   | DeclJElaboration Variable Complaint
   | DefnJElaboration Variable Complaint
+  | ExecElaboration Complaint
   | DeclaringSyntaxCat SyntaxCat Complaint
   | SubstitutionElaboration (Bwd SbstC) Complaint
   | PatternVariableElaboration Variable Complaint
@@ -563,7 +564,7 @@ sact = \case
     -- Check the channel is in sending mode, & step it
     desc <- steppingChannel ch $ \case
       (Output, desc) : p -> pure (desc, p)
-      _ -> throwError (InvalidSend ch)
+      _ -> throwError (InvalidSend ch tm)
 
     -- Send
     tm <- during (SendTermElaboration ch tm) $ do
@@ -581,7 +582,7 @@ sact = \case
     -- Check the channel is in receiving mode & step it
     cat <- steppingChannel ch $ \case
       (Input, cat) : p -> pure (cat, p)
-      _ -> throwError (InvalidRecv ch)
+      _ -> throwError (InvalidRecv ch av)
 
     -- Receive
     sc <- channelScope ch

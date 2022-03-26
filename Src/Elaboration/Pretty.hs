@@ -68,8 +68,8 @@ instance Pretty Complaint where
      NotAValidBoundVar x -> singleton $
        hsep ["Invalid bound variable", pretty x]
      -- protocol
-     InvalidSend ch -> singleton $ hsep ["Invalid send on channel", pretty ch]
-     InvalidRecv ch -> singleton $ hsep ["Invalid receive on channel", pretty ch]
+     InvalidSend ch tm -> singleton $ hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
+     InvalidRecv ch v -> singleton $ hsep ["Invalid receive of", pretty v, "on channel", pretty ch]
      NonLinearChannelUse ch -> singleton $ hsep ["Non linear use of channel", pretty ch]
      UnfinishedProtocol ch p -> singleton $
        hsep ["Unfinished protocol", parens (pretty p), "on channel", pretty ch]
@@ -118,6 +118,7 @@ instance Pretty Complaint where
         go c :< hsep ["when elaborating the handlers for the lookup acting on", pretty t]
      DeclJElaboration jd c -> go c :< hsep ["when elaborating the judgement declaration for", pretty jd]
      DefnJElaboration jd c -> go c :< hsep ["when elaborating the judgement definition for", pretty jd]
+     ExecElaboration c -> go c :< hsep ["when elaborating an exec statement"]
      DeclaringSyntaxCat cat c -> go c :< hsep ["when elaborating the syntax declaration for", pretty cat]
      SubstitutionElaboration sg c -> go c :< hsep ["when elaborating the substitution", pretty sg]
      PatternVariableElaboration v c -> go c :< hsep ["when elaborating the pattern variable", pretty v]
