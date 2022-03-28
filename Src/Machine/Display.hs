@@ -185,5 +185,5 @@ insertDebug p fmt = map go fmt where
     StringPart str -> StringPart str
     DebugPart dbg -> DebugPart $ case dbg of
       ShowEnv -> en
-      ShowStack -> collapse fs
+      ShowStack -> inline $ collapse fs
       ShowStore -> st

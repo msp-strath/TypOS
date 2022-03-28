@@ -41,6 +41,9 @@ cutOff doc@(Doc ds) = Doc $ \ i ->
     -- Otherwise we're happy to proceed with the compact enough outputs
     d:ds -> d :| ds
 
+inline :: Doc ann -> Doc ann
+inline (Doc ds) = Doc (\ _ -> minimumBy (compare `on` I.height) (L1.toList (ds 0)) :| [])
+
 render :: Monoid ann => Int -> Doc ann -> [[(ann, String)]]
 render i (Doc ds)
   = I.render
