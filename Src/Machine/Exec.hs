@@ -58,7 +58,7 @@ exec p@Process { actor = Spawn jd spawnerCh actor, ..}
 exec p@Process { actor = Send ch tm a, ..}
   | Just term <- mangleActors env tm
   = let (subRoot, newRoot) = splitRoot root ""
-    in send ch (tm, term) (p { stack = stack :<+>: [], root = newRoot, actor = a })
+    in send ch term (p { stack = stack :<+>: [], root = newRoot, actor = a })
 exec p@Process { actor = Recv ch (x, a), ..}
   = recv ch x (p { stack = stack :<+>: [], actor = a })
 exec p@Process { actor = m@(Match s cls), ..}
@@ -224,16 +224,17 @@ solveMeta m (CdB (S0 :^^ _) ph) tm p@Process{..} = do
   -- FIXME: do a deep occurs check here to avoid the bug from match
   return (p { store = updateStore m (objectNaming $ frDisplayEnv stack) tm store })
 
-send :: Channel -> (CdB (Tm ActorMeta), Term) -> Process Store Cursor -> Process Store []
---send ch (tm, term) (Process zfs@(zf :<+>: fs) _ _ _ a)
+send :: Channel -> Term -> Process Store Cursor -> Process Store []
+--send ch term (Process zfs@(zf :<+>: fs) _ _ _ a)
 --  | dmesg ("\nsend " ++ show ch ++ " " ++ show term ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
--- send (Channel ch) (tm, term) p
---   | debug MachineSend (unwords [ch, show (tm, term)]) p
+-- send (Channel ch) term p
+--   | debug MachineSend (unwords [ch, show term]) p
 --   = undefined
 
-send ch (tm, term) (p@Process { stack = B0 :<+>: fs, ..})
-  = move (p { stack = B0 <>< fs :<+>: [], actor = Send ch tm actor })
-send ch (tm, term)
+send ch term (p@Process { stack = B0 :<+>: fs, ..})
+  = let a = Fail [StringPart ("Couldn't find channel " ++ rawChannel ch)]
+    in exec (p { stack = B0 <>< fs, actor = a })
+send ch term
   p@Process { stack = zf :< Spawner (Interface (childP, q) (rxs@(r, _), Hole)) :<+>: fs, ..}
   | r == ch =
   let parentP = p { stack = fs, store = New }
@@ -241,7 +242,7 @@ send ch (tm, term)
                   :< Sent q ([], term) <>< stack childP
       p' = childP { stack = stack', store }
   in debug MachineSend (pretty ch) p' `seq` exec p'
-send ch (tm, term)
+send ch term
   p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs@(r, xs), parentP))) :<+>: fs
             , ..}
   | ch == q =
@@ -249,9 +250,11 @@ send ch (tm, term)
       stack'   = zf :< Spawnee (Interface (Hole, q) (rxs, parentP')) <>< fs
       p' = p { stack = stack' }
   in debug MachineSend (pretty ch) p' `seq` exec p'
-  | otherwise = move (p { stack = zf' <>< fs :<+>: [], actor = Send ch tm actor })
-send ch (tm, term) p@Process { stack = (zf :< f) :<+>: fs }
-  = send ch (tm, term) (p { stack = zf :<+>: (f:fs) })
+  | otherwise
+  = let a = Fail [StringPart ("Couldn't find channel " ++ rawChannel ch)]
+    in exec (p { stack = zf' <>< fs, actor = a })
+send ch term p@Process { stack = (zf :< f) :<+>: fs }
+  = send ch term (p { stack = zf :<+>: (f:fs) })
 
 recv :: Channel -> ActorMeta -> Process Store Cursor -> Process Store []
 recv ch v p | debug MachineRecv (hsep [ pretty ch, pretty v ]) p = undefined
