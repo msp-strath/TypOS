@@ -28,7 +28,7 @@ options = Options <$> argument str (metavar "FILE" <> showDefault <> value "exam
      x -> readerError $ "Unknown tracing level '" ++ x ++ "'. Accepted levels: " ++ levels
    tracingHelp = "Override tracing level (combinations of {" ++ levels ++ "} in quotes, separated by spaces, e.g. " ++ exampleLevels ++ ")"
    levels = render (initConfig 80) $ vcat $ map pretty [(minBound::MachineStep)..]
-   exampleLevels = "\"" ++ render 0 (hsep $ map pretty [minBound::MachineStep, maxBound]) ++ "\""
+   exampleLevels = "\"" ++ render (initConfig 0) (hsep $ map pretty [minBound::MachineStep, maxBound]) ++ "\""
 
 getOptions :: IO Options
 getOptions = execParser (info (options <**> helper)

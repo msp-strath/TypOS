@@ -49,7 +49,7 @@ render cfg d
 withANSI :: [Annotation] -> Doc Annotations -> Doc Annotations
 withANSI = Doc.annotate . fromANSIs
 
-testT = test (render (initConfig { tapeWidth = 80 }) . withANSI [ SetColour Background Blue ])
+testT = test (render (initConfig 80) . withANSI [ SetColour Background Blue ])
   (fancyChar Green '1')
   (fancyChar Red '0')
 

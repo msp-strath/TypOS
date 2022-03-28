@@ -26,6 +26,15 @@ data Config = Config
 initConfig :: Int -> Config
 initConfig i = Config i Horizontal
 
+usingConfig :: (Config -> Doc ann) -> Doc ann
+usingConfig f = Doc (\ cfg -> runDoc (f cfg) cfg)
+
+locally :: (Config -> Config) -> Doc ann -> Doc ann
+locally f ds = Doc (\ cfg -> runDoc ds (f cfg))
+
+horizontally :: Doc ann -> Doc ann
+horizontally = locally (\ cfg -> cfg { orientation = Horizontal })
+
 -- | A document is a computation that, given a tape width,
 --   will return a non-empty list of candidates.
 --   We try to force the result to fit in the tape width's
@@ -58,7 +67,7 @@ render cfg (Doc ds)
   $ L1.toList (ds cfg)
 
 instance Show (Doc ann) where
-  show = unlines . map (concatMap snd) . render initConfig . (() <$)
+  show = unlines . map (concatMap snd) . render (initConfig 0) . (() <$)
 
 -- Should we fail or not for literals that are too big?
 text :: Monoid ann => String -> Doc ann
@@ -193,6 +202,6 @@ test format one zero
   $ format
   $ matrix (\ b -> if b then one else zero) testMatrix
 
-testU = test (unlines . map (concatMap snd) . render (initConfig { tapeWidth = 80 }))
+testU = test (unlines . map (concatMap snd) . render (initConfig 80))
         (char '1' :: Doc ())
         (char '0')

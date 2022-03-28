@@ -191,7 +191,13 @@ instance Forget DAEnv Naming where
 instance Unelab Meta where
   type UnelabEnv Meta = ()
   type Unelabed Meta = Variable
-  unelab m = pure (Variable $ '?' : show m)
+  unelab (Meta ms) = pure $ Variable $ go (B0 :< "?[") ms where
+
+    go :: Bwd String -> [(String, Int)] -> String
+    go acc [] = concat (acc :< "]")
+    go acc ((str, n):ms) =
+      let (ns, rest) = span ((str ==) . fst) ms in
+      go (acc :< "(" ++ show str ++ "," ++ show (n : map snd ns) ++ ")") rest
 
 instance Unelab ActorMeta where
   type UnelabEnv ActorMeta = ()

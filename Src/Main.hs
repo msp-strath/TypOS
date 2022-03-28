@@ -5,7 +5,7 @@ module Main where
 import ANSI hiding (withANSI)
 import Bwd
 import Concrete.Base
-import Doc (vcat)
+import Doc (vcat, Config(..), Orientation(..))
 import Doc.Render.Terminal
 import Parse
 import Actor
@@ -22,7 +22,7 @@ main = do
   txt <- readFile (filename opts)
   let ccs = parse pfile txt
   acs <- case elaborate ccs of
-    Left err -> do error $ render 80 $
+    Left err -> do error $ render (Config 80 Vertical) $
                      vcat [ withANSI [ SetColour Background Red ] "Error"
                           , pretty err ]
 
