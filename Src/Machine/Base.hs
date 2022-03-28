@@ -64,9 +64,16 @@ instance Instantiable t => Instantiable [t] where
 
 data Hole = Hole deriving Show
 
+data Port
+  = Direct
+  | Indirect Th Channel
+  deriving (Show)
+
 data Interface c p = Interface
-  { spawnee :: (c, Channel)
-  , spawner :: ((Channel, [String]), p)
+  { spawneeProc :: c
+  , spawneeInfo :: (Port, Channel)
+  , spawnerInfo :: ((Channel, [String]), Port)
+  , spawnerProc :: p
   } deriving (Show)
 
 -- Do NOT reorder arguments: derived Ord needs to be this way
@@ -81,7 +88,7 @@ data Frame
   | LeftBranch Hole (Process Status [])
   | RightBranch (Process Status []) Hole
   | Spawnee (Interface Hole (Process Status []))
-  | Spawner (Interface (Process Status []) Hole)
+  | Spawner (Interface (Process Status []) (Hole))
   | Sent Channel ([String], Term)
   | Pushed JudgementForm (DB, Term)
   | Binding String

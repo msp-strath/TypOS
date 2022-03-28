@@ -64,7 +64,8 @@ declareChannel ch de@DEnv{..} = de { daEnv = A.declareChannel ch daEnv }
 instance ( Display c, Forget DEnv (DisplayEnv c)
          , Display p, Forget DEnv (DisplayEnv p)) => Display (Interface c p) where
   type DisplayEnv (Interface c p) = DEnv
-  display (Interface (c, cch) ((pch, xs), p)) = do
+  display (Interface c (cprt, cch) ((pch, xs), pprt) p) = do
+    -- TODO: print ports
     c <- local (initChildDEnv cch) $ subdisplay c
     cch' <- subdisplay cch
     pch' <- subdisplay pch
@@ -168,8 +169,8 @@ frameOn de@DEnv{..} = \case
   Binding x -> de { objectNaming = objectNaming `nameOn` x
                   , daEnv = A.updateNaming (`nameOn` x) daEnv
                   }
-  Spawnee (Interface (Hole, ch) _) -> initChildDEnv ch de
-  Spawner (Interface _ ((ch, _), Hole)) -> declareChannel ch $ de
+  Spawnee (Interface Hole (_, ch) _ _) -> initChildDEnv ch de
+  Spawner (Interface _ _ ((ch, _), _) Hole) -> declareChannel ch $ de
   _ -> de
 
 frDisplayEnv :: Foldable t => t Frame -> DEnv
@@ -185,5 +186,5 @@ insertDebug p fmt = map go fmt where
     StringPart str -> StringPart str
     DebugPart dbg -> DebugPart $ case dbg of
       ShowEnv -> en
-      ShowStack -> inline $ collapse fs
+      ShowStack -> inline $ vcollapse fs
       ShowStore -> st
