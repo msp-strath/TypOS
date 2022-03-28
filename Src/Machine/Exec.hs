@@ -9,6 +9,7 @@ import Concrete.Base
 import Display
 import Doc hiding (render)
 import Doc.Render.Terminal
+import Elaboration.Pretty ()
 import Format
 import Hide
 import Pattern
@@ -239,7 +240,7 @@ send ch (tm, term)
       stack' = zf :< Spawnee (Interface (Hole, q) (rxs, parentP))
                   :< Sent q ([], term) <>< stack childP
       p' = childP { stack = stack', store }
-  in debug MachineSend (rawChannel ch) p' `seq` exec p'
+  in debug MachineSend (pretty ch) p' `seq` exec p'
 send ch (tm, term)
   p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs@(r, xs), parentP))) :<+>: fs
             , ..}
@@ -247,13 +248,13 @@ send ch (tm, term)
   let parentP' = parentP { stack = Sent r (xs, term) : stack parentP }
       stack'   = zf :< Spawnee (Interface (Hole, q) (rxs, parentP')) <>< fs
       p' = p { stack = stack' }
-  in debug MachineSend (rawChannel ch) p' `seq` exec p'
+  in debug MachineSend (pretty ch) p' `seq` exec p'
   | otherwise = move (p { stack = zf' <>< fs :<+>: [], actor = Send ch tm actor })
 send ch (tm, term) p@Process { stack = (zf :< f) :<+>: fs }
   = send ch (tm, term) (p { stack = zf :<+>: (f:fs) })
 
 recv :: Channel -> ActorMeta -> Process Store Cursor -> Process Store []
-recv ch v p | debug MachineRecv (show ch ++ " " ++ show v) p = undefined
+recv ch v p | debug MachineRecv (hsep [ pretty ch, pretty v ]) p = undefined
 -- recv ch v (zfs, _, _, _, a)
  -- | dmesg ("\nrecv " ++ show ch ++ " " ++ show v ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
 recv ch x p@Process { stack = B0 :<+>: fs, ..}
@@ -300,11 +301,11 @@ move p@Process { stack = (zf :< f) :<+>: fs }
   = move (p { stack = zf :<+>: (f : fs) })
 
 debug :: (Show (t Frame), Traversable t, Collapse t, Display0 s)
-      => MachineStep -> String -> Process s t -> Bool
+      => MachineStep -> Doc Annotations -> Process s t -> Bool
 debug step str p | step `elem` tracing p = -- dmesg (show step ++ ": " ++ show p) $
   let (fs', store', env', a') = unsafeEvalDisplay initDEnv $ displayProcess' p
       p' = indent 2 $ vcat $ [collapse fs', store', env', a']
       step' = keyword (pretty step)
-      msg = render 0 $ vcat [mempty, step' <+> pretty str, p']
+      msg = render 0 $ vcat [mempty, step' <+> str, p']
   in dmesg msg False
 debug step _ p = False

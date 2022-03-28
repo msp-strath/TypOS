@@ -4,7 +4,7 @@ module Elaboration.Pretty where
 
 import Data.Foldable
 
-import Actor (Channel(..))
+import Actor (ActorMeta(..), Channel(..))
 import Bwd
 import Concrete.Pretty()
 import Doc
@@ -16,6 +16,9 @@ import Unelaboration (unsafeEvalUnelab, unelab, initNaming)
 
 instance Pretty Channel where
   pretty (Channel ch) = pretty ch
+
+instance Pretty ActorMeta where
+  pretty (ActorMeta m) = pretty m
 
 instance Pretty a => Pretty (Info a) where
   prettyPrec d = \case
