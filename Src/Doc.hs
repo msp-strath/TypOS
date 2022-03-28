@@ -16,12 +16,22 @@ import GHC.Stack
 import Doc.Internal (Block)
 import qualified Doc.Internal as I
 
+data Orientation = Vertical | Horizontal
+
+data Config = Config
+  { tapeWidth   :: Int
+  , orientation :: Orientation
+  }
+
+initConfig :: Int -> Config
+initConfig i = Config i Horizontal
+
 -- | A document is a computation that, given a tape width,
 --   will return a non-empty list of candidates.
 --   We try to force the result to fit in the tape width's
 --   but if no solution would do, we'll ignore the constraint
 --   to guarantee we get a result back.
-newtype Doc ann = Doc { runDoc :: Int -> NonEmpty (Block ann) }
+newtype Doc ann = Doc { runDoc :: Config -> NonEmpty (Block ann) }
 
 instance Functor Doc where
   fmap f (Doc ds) = Doc (L1.map (f <$>) . ds)
@@ -32,8 +42,8 @@ instance Monoid ann => IsString (Doc ann) where
 -- | cutOff will filter the potential results based on the
 --   tape width.
 cutOff :: Doc ann -> Doc ann
-cutOff doc@(Doc ds) = Doc $ \ i ->
-  let candidates = ds i in
+cutOff doc@(Doc ds) = Doc $ \ cfg -> let i = tapeWidth cfg in
+  let candidates = ds cfg in
   case L1.filter ((i >=) . I.maxWidth) candidates of
     -- none of them are good enough so we may as well already commit to
     -- the most compact representation
@@ -41,14 +51,14 @@ cutOff doc@(Doc ds) = Doc $ \ i ->
     -- Otherwise we're happy to proceed with the compact enough outputs
     d:ds -> d :| ds
 
-render :: Monoid ann => Int -> Doc ann -> [[(ann, String)]]
-render i (Doc ds)
+render :: Monoid ann => Config -> Doc ann -> [[(ann, String)]]
+render cfg (Doc ds)
   = I.render
   $ minimumBy (compare `on` I.height)
-  $ L1.toList (ds i)
+  $ L1.toList (ds cfg)
 
 instance Show (Doc ann) where
-  show = unlines . map (concatMap snd) . render 0 . (() <$)
+  show = unlines . map (concatMap snd) . render initConfig . (() <$)
 
 -- Should we fail or not for literals that are too big?
 text :: Monoid ann => String -> Doc ann
@@ -119,7 +129,7 @@ alts :: HasCallStack => [Doc ann] -> Doc ann
 alts [] = error "Using alts with an empty list"
 alts (d:ds) = cutOff $ Doc (go d ds) where
 
-  go :: Doc ann -> [Doc ann] -> Int -> NonEmpty (Block ann)
+  go :: Doc ann -> [Doc ann] -> Config -> NonEmpty (Block ann)
   go d [] i = runDoc d i
   go d (e:es) i = runDoc d i <> go e es i
 
@@ -183,6 +193,6 @@ test format one zero
   $ format
   $ matrix (\ b -> if b then one else zero) testMatrix
 
-testU = test (unlines . map (concatMap snd) . render 80)
+testU = test (unlines . map (concatMap snd) . render (initConfig { tapeWidth = 80 }))
         (char '1' :: Doc ())
         (char '0')
