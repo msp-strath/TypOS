@@ -43,13 +43,13 @@ exec :: Process Store Bwd -> Process Store []
 exec p | debug MachineExec "" p = undefined
 exec p@Process { actor = a :|: b, ..} =
   let (lroot, rroot) = splitRoot root ""
-      rbranch = Process tracing [] rroot env (today store) b judgementform
+      rbranch = Process tracing [] rroot env New b judgementform
   in exec (p { stack = stack :< LeftBranch Hole rbranch, root = lroot, actor = a})
 exec p@Process { actor = Spawn jd spawnerCh actor, ..}
   | Just (spawnedCh, spawnedActor) <- lookupRules jd stack
 --  , dmesg (show spawnedActor) True
   = let (subRoot, newRoot) = splitRoot root jd
-        spawnee = ( Process tracing [] subRoot (childEnv env) (today store) spawnedActor jd
+        spawnee = ( Process tracing [] subRoot (childEnv env) New spawnedActor jd
                   , spawnedCh)
         spawner = ((spawnerCh, localScope env <>> []), Hole)
     in exec (p { stack = stack :< Spawner (Interface spawnee spawner)
@@ -236,7 +236,7 @@ send ch (tm, term) (p@Process { stack = B0 :<+>: fs, ..})
 send ch (tm, term)
   p@Process { stack = zf :< Spawner (Interface (childP, q) (rxs@(r, _), Hole)) :<+>: fs, ..}
   | r == ch =
-  let parentP = p { stack = fs, store = today store }
+  let parentP = p { stack = fs, store = New }
       stack' = zf :< Spawnee (Interface (Hole, q) (rxs, parentP))
                   :< Sent q ([], term) <>< stack childP
       p' = childP { stack = stack', store }
@@ -266,6 +266,10 @@ recv ch x p@Process { stack = zf :< Sent q y :<+>: fs, ..}
 recv ch x
   p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs, parentP))) :<+>: fs, ..}
   = move (p { stack = zf' <>< fs :<+>: [], actor = Recv ch (x, actor) })
+recv ch x
+  p@Process { stack = zf'@(zf :< Spawner (Interface (childP, q) ((r, xs), Hole))) :<+>: fs, ..}
+  | ch == r
+  = move (p { actor = Recv ch (x, actor) })
 recv ch x p@Process { stack = zf :< f :<+>: fs }
   = recv ch x (p { stack = zf :<+>: (f:fs) })
 
@@ -277,21 +281,21 @@ move p | debug MachineMove "" p = undefined
 
 move p@Process { stack = B0 :<+>: fs } = p { stack = fs }
 move p@Process { stack = zf :< LeftBranch Hole rp :<+>: fs, ..}
-  = let lp = p { stack = fs, store = today store }
+  = let lp = p { stack = fs, store = StuckOn (today store) }
     in exec (rp { stack = zf :< RightBranch lp Hole <>< stack rp, store })
 move p@Process { stack = zf :< RightBranch lp Hole :<+>: fs, store = st, ..}
   -- | dmesg (show (today st) ++ " " ++ show (store lp)) True
-  | today st > store lp
-  = let rp = p { stack = fs, store = today st }
+  | StuckOn (today st) > store lp
+  = let rp = p { stack = fs, store = StuckOn (today st) }
     in exec (lp { stack = zf :< LeftBranch Hole rp <>< stack lp, store = st})
 move p@Process { stack = zf :< Spawnee (Interface (Hole, q) (rxs, parentP)) :<+>: fs, ..}
-  = let childP = p { stack = fs, store = today store }
+  = let childP = p { stack = fs, store = StuckOn (today store) }
         stack' = zf :< Spawner (Interface (childP, q) (rxs, Hole)) <>< stack parentP
     in exec (parentP { stack = stack', store })
 move p@Process { stack = zf :< Spawner (Interface (childP, q) (rxs, Hole)) :<+>: fs
                , store = st, ..}
-  | today st > store childP
-  = let parentP = p { stack = fs, store = today st }
+  | StuckOn (today st) > store childP
+  = let parentP = p { stack = fs, store = StuckOn (today st) }
         stack'  = zf :< Spawnee (Interface (Hole, q) (rxs, parentP)) <>< stack childP
     in exec (childP { stack = stack', store = st })
 move p@Process { stack = zf :< UnificationProblem date s t :<+>: fs, .. }

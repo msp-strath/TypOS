@@ -149,7 +149,7 @@ run opts p@Process{..} (c : cs) = case c of
   DefnJ (jd, ch) a -> run opts (p { stack = stack :< Rules jd (ch, a) }) cs
   Go a -> -- dmesg (show a) $
           let (lroot, rroot) = splitRoot root ""
-              rbranch = Process tracing [] rroot env (today store) a ""
+              rbranch = Process tracing [] rroot env New a ""
           in run opts (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
   Trace xs -> let tr = fromMaybe (xs ++ tracing) (tracingOption opts)
               in run opts (p { tracing = tr }) cs

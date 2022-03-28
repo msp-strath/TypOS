@@ -1,0 +1,28 @@
+-- trace { exec }
+
+syntax { 'Msg = ['Enum ['Ping 'Pong]] }
+
+ping : !'Msg. ?'Msg.
+pong : ?'Msg. !'Msg.
+
+ping@p = PRINTF "Ping". p!'Ping. p?m. case m
+  { 'Pong -> PRINTF "Done".
+  ; _ -> # "Expected Pong"
+  }
+pong@p = p?m. case m
+  { 'Ping -> PRINTF "Pong". p!'Pong.
+  ; _ -> # "Expected Ping"
+  }
+
+manual :
+manual@p = ping@q. pong@r. q?m. r!m. r?n. q!n.
+
+{-
+plumbed :
+
+plumbed@p =
+  ( ping@q. pong@r. (q :-: r)
+  | ping@q. pong@r. (r :-: q)
+  )
+-}
+exec manual@p.

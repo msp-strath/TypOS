@@ -27,6 +27,13 @@ instance Display Date where
   type DisplayEnv Date = ()
   display (Date i) = pure $ pretty (show i)
 
+instance Display Status where
+  type DisplayEnv Status = ()
+  display = \case
+    StuckOn d -> display d
+    New -> pure "New"
+--    Done -> pure "Done"
+
 instance Display Hole where
   type DisplayEnv Hole = ()
   display Hole = pure "<>"
