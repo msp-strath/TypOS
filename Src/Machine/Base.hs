@@ -83,7 +83,6 @@ data Frame
   | Spawnee (Interface Hole (Process Status []))
   | Spawner (Interface (Process Status []) Hole)
   | Sent Channel ([String], Term)
-  | Connected Channel Channel
   | Pushed JudgementForm (DB, Term)
   | Binding String
   | UnificationProblem Date Term Term

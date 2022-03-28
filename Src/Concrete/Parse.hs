@@ -81,6 +81,7 @@ pact = Under <$> pscoped pact
   <|> questionmark <$> ptm <* punc "?" <*> withVar "." pact
   <|> Spawn <$> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
   <|> Constrain <$> ptm <* punc "~" <*> ptm
+  <|> Connect <$> (CConnect <$> pvariable <* punc "<->" <*> pvariable)
   <|> Match <$ plit "case" <* pspc <*> ptm <* punc "{"
        <*> psep (punc ";") ((,) <$> ppat <* punc "->" <*> pACT)
        <* pspc <* pch (== '}')

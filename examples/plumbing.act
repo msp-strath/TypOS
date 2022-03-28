@@ -2,27 +2,27 @@
 
 syntax { 'Msg = ['Enum ['Ping 'Pong]] }
 
-ping : !'Msg. ?'Msg.
-pong : ?'Msg. !'Msg.
+ping : ?'Atom. !'Msg. ?'Msg.
+pong : ?'Atom. ?'Msg. !'Msg.
 
-ping@p = PRINTF "Ping". p!'Ping. p?m. case m
-  { 'Pong -> PRINTF "Done".
+ping@p = p?a. PRINTF "Ping %i" a. p!'Ping. p?m. case m
+  { 'Pong -> PRINTF "Done %i" a.
   ; _ -> # "Expected Pong"
   }
-pong@p = p?m. case m
-  { 'Ping -> PRINTF "Pong". p!'Pong.
+pong@p = p?a. p?m. case m
+  { 'Ping -> PRINTF "Pong %i" a. p!'Pong.
   ; _ -> # "Expected Ping"
   }
 
-manual :
-manual@p = ping@q. pong@r. q?m. r!m. r?n. q!n.
+manual : ?'Atom.
+manual@p = p?a. ping@q. q!a. pong@r. r!a. q?m. r!m. r?n. q!n.
 
-{-
-plumbed :
-
-plumbed@p =
-  ( ping@q. pong@r. (q :-: r)
-  | ping@q. pong@r. (r :-: q)
+plumbed : ?'Atom.
+plumbed@p = p?a.
+  ( ping@q. q!a. pong@r. r!a. q <-> r
+  | ping@q. q!a. pong@r. r!a. r <-> q
   )
--}
-exec manual@p.
+
+exec manual@p. p!'Manual.
+     plumbed@q. q!'Plumbed.
+--  PRINTF "%S".

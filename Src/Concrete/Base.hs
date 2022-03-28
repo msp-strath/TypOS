@@ -44,24 +44,28 @@ data JudgementStack t = JudgementStack
   , valueDesc :: t
   } deriving (Show, Functor, Foldable, Traversable)
 
-data Actor jd ch av syn var tm pat
- = Actor jd ch av syn var tm pat :|: Actor jd ch av syn var tm pat
- | Spawn jd ch (Actor jd ch av syn var tm pat)
- | Send ch tm (Actor jd ch av syn var tm pat)
- | Recv ch (av, Actor jd ch av syn var tm pat)
- | FreshMeta syn (av, Actor jd ch av syn var tm pat)
- | Under (Scope (Actor jd ch av syn var tm pat))
- | Match tm [(pat, Actor jd ch av syn var tm pat)]
+data CConnect = CConnect Variable Variable
+  deriving (Show)
+
+data Actor jd ch av syn var tm pat cnnct
+ = Actor jd ch av syn var tm pat cnnct :|: Actor jd ch av syn var tm pat cnnct
+ | Spawn jd ch (Actor jd ch av syn var tm pat cnnct)
+ | Send ch tm (Actor jd ch av syn var tm pat cnnct)
+ | Recv ch (av, Actor jd ch av syn var tm pat cnnct)
+ | Connect cnnct
+ | FreshMeta syn (av, Actor jd ch av syn var tm pat cnnct)
+ | Under (Scope (Actor jd ch av syn var tm pat cnnct))
+ | Match tm [(pat, Actor jd ch av syn var tm pat cnnct)]
  -- This is going to bite us when it comes to dependent types
  | Constrain tm tm
- | Push jd (var, tm) (Actor jd ch av syn var tm pat)
- | Lookup tm (av, Actor jd ch av syn var tm pat) (Actor jd ch av syn var tm pat)
+ | Push jd (var, tm) (Actor jd ch av syn var tm pat cnnct)
+ | Lookup tm (av, Actor jd ch av syn var tm pat cnnct) (Actor jd ch av syn var tm pat cnnct)
  | Win
  | Fail  [Format Directive Debug tm]
- | Print [Format Directive Debug tm] (Actor jd ch av syn var tm pat)
- | Break [Format Directive Debug tm] (Actor jd ch av syn var tm pat)
+ | Print [Format Directive Debug tm] (Actor jd ch av syn var tm pat cnnct)
+ | Break [Format Directive Debug tm] (Actor jd ch av syn var tm pat cnnct)
  deriving (Show, Eq)
 
 type CProtocol = Protocol Raw
 type CJudgementStack = JudgementStack Raw
-type CActor = Actor Variable Variable Variable Raw Variable Raw RawP
+type CActor = Actor Variable Variable Variable Raw Variable Raw RawP CConnect

@@ -25,9 +25,10 @@ newtype Channel = Channel { rawChannel :: String }
 type JudgementForm = String
 type Gripe = String
 
+data AConnect = AConnect Channel (Ordering, Th) Channel deriving (Show)
 type AProtocol = Protocol SyntaxDesc
 type AJudgementStack = JudgementStack SyntaxDesc
-type AActor = Actor JudgementForm Channel ActorMeta SyntaxDesc DB (CdB (Tm ActorMeta)) Pat
+type AActor = Actor JudgementForm Channel ActorMeta SyntaxDesc DB (CdB (Tm ActorMeta)) Pat AConnect
 
 data Env = Env
   { globalScope :: Bwd String -- free vars ga actor does *not* know about
