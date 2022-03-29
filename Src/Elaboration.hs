@@ -6,7 +6,8 @@ import Control.Monad.State
 import Control.Monad.Writer
 
 import Data.Function
-import Data.List (isPrefixOf, groupBy)
+import Data.List (isPrefixOf)
+import qualified Data.List as List
 import Data.Maybe
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -648,7 +649,7 @@ sformat fmt = do
 
 consistentCommunication :: [Maybe ElabState] -> Elab ()
 consistentCommunication sts = do
- case groupBy ((==) `on` fmap snd . channelStates) [ p | Just p <- sts ] of
+ case List.groupBy ((==) `on` fmap snd . channelStates) [ p | Just p <- sts ] of
    [] -> tell (All False) -- all branches are doomed, we don't care
    [(c:_)] -> put c
    _ -> throwError InconsistentCommunication

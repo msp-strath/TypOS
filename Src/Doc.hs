@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ConstraintKinds #-}
 
 -- Module based on Jean-Philippe Bernardy's functional pearl
 -- "A Pretty But Not Greedy Printer"
@@ -35,6 +35,8 @@ locally f ds = Doc (\ cfg -> runDoc ds (f cfg))
 horizontally :: Doc ann -> Doc ann
 horizontally = locally (\ cfg -> cfg { orientation = Horizontal })
 
+type IsAnnotation ann = (Eq ann, Monoid ann)
+
 -- | A document is a computation that, given a tape width,
 --   will return a non-empty list of candidates.
 --   We try to force the result to fit in the tape width's
@@ -45,7 +47,7 @@ newtype Doc ann = Doc { runDoc :: Config -> NonEmpty (Block ann) }
 instance Functor Doc where
   fmap f (Doc ds) = Doc (L1.map (f <$>) . ds)
 
-instance Monoid ann => IsString (Doc ann) where
+instance IsAnnotation ann => IsString (Doc ann) where
   fromString str = Doc (const (I.para str :| []))
 
 -- | cutOff will filter the potential results based on the
@@ -60,7 +62,7 @@ cutOff doc@(Doc ds) = Doc $ \ cfg -> let i = tapeWidth cfg in
     -- Otherwise we're happy to proceed with the compact enough outputs
     d:ds -> d :| ds
 
-render :: (Eq ann, Monoid ann) => Config -> Doc ann -> [[(ann, String)]]
+render :: IsAnnotation ann => Config -> Doc ann -> [[(ann, String)]]
 render cfg (Doc ds)
   = map (map (\ xxs -> (fst (head xxs), foldMap snd xxs))
         . groupBy ((==) `on` fst))
@@ -72,34 +74,34 @@ instance Show (Doc ann) where
   show = unlines . map (concatMap snd) . render (initConfig 0) . (() <$)
 
 -- Should we fail or not for literals that are too big?
-text :: Monoid ann => String -> Doc ann
+text :: IsAnnotation ann => String -> Doc ann
 text str = fromString str
 
-instance Monoid ann => Semigroup (Doc ann) where
+instance IsAnnotation ann => Semigroup (Doc ann) where
   Doc bs1 <> Doc bs2 = cutOff $ Doc (\ i -> (<>) <$> bs1 i <*> bs2 i)
 
-empty :: Monoid ann => Doc ann
+empty :: IsAnnotation ann => Doc ann
 empty = fromString ""
 
 annotate :: Semigroup ann => ann -> Doc ann -> Doc ann
 annotate ann (Doc ds) = Doc (\ i -> I.annotate ann <$> ds i)
 
-indent :: Monoid ann => Int -> Doc ann -> Doc ann
+indent :: IsAnnotation ann => Int -> Doc ann -> Doc ann
 indent n d = spaces n <> d
 
-instance Monoid ann => Monoid (Doc ann) where
+instance IsAnnotation ann => Monoid (Doc ann) where
   mempty = empty
 
-(<+>) :: Monoid ann => Doc ann -> Doc ann -> Doc ann
+(<+>) :: IsAnnotation ann => Doc ann -> Doc ann -> Doc ann
 d <+> e = d <> space <> e
 
-char :: Monoid ann => Char -> Doc ann
+char :: IsAnnotation ann => Char -> Doc ann
 char c = fromString [c]
 
-spaces :: Monoid ann => Int -> Doc ann
+spaces :: IsAnnotation ann => Int -> Doc ann
 spaces i = fromString (replicate i ' ')
 
-semi, colon, comma, space, dot :: Monoid ann => Doc ann
+semi, colon, comma, space, dot :: IsAnnotation ann => Doc ann
 
 semi = char ';'
 colon = char ':'
@@ -107,19 +109,19 @@ comma = char ','
 space = char ' '
 dot = char '.'
 
-backslash, forwardslash, equal, pipe :: Monoid ann => Doc ann
+backslash, forwardslash, equal, pipe :: IsAnnotation ann => Doc ann
 
 backslash = char '\\'
 forwardslash = char '/'
 equal = char '='
 pipe = char '|'
 
-squote, dquote :: Monoid ann => Doc ann
+squote, dquote :: IsAnnotation ann => Doc ann
 
 squote = char '\''
 dquote = char '"'
 
-lparen, rparen, langle, rangle, lbrace, rbrace, lbracket, rbracket :: Monoid ann => Doc ann
+lparen, rparen, langle, rangle, lbrace, rbrace, lbracket, rbracket :: IsAnnotation ann => Doc ann
 
 lparen = char '('
 rparen = char ')'
@@ -130,10 +132,10 @@ rbrace = char '}'
 lbracket = char '['
 rbracket = char ']'
 
-flush :: Doc ann -> Doc ann
+flush :: IsAnnotation ann => Doc ann -> Doc ann
 flush (Doc ds) = Doc ((I.flush <$>) <$> ds)
 
-($$) :: Monoid ann => Doc ann -> Doc ann -> Doc ann
+($$) :: IsAnnotation ann => Doc ann -> Doc ann -> Doc ann
 d $$ e = flush d <> e
 
 alts :: HasCallStack => [Doc ann] -> Doc ann
@@ -144,42 +146,42 @@ alts (d:ds) = cutOff $ Doc (go d ds) where
   go d [] i = runDoc d i
   go d (e:es) i = runDoc d i <> go e es i
 
-foldDoc :: Monoid ann => (Doc ann -> Doc ann -> Doc ann) ->
+foldDoc :: IsAnnotation ann => (Doc ann -> Doc ann -> Doc ann) ->
            [Doc ann] -> Doc ann
 foldDoc c [] = empty
 foldDoc c [x] = x
 foldDoc c (x : xs) = c x (foldDoc c xs)
 
-hsep :: Monoid ann => [Doc ann] -> Doc ann
+hsep :: IsAnnotation ann => [Doc ann] -> Doc ann
 hsep = foldDoc (<+>)
 
-hsepBy :: Monoid ann => Doc ann -> [Doc ann] -> Doc ann
+hsepBy :: IsAnnotation ann => Doc ann -> [Doc ann] -> Doc ann
 hsepBy s = foldDoc (\x y -> x <> s <+> y)
 
-vcat :: Monoid ann => [Doc ann] -> Doc ann
+vcat :: IsAnnotation ann => [Doc ann] -> Doc ann
 vcat = foldDoc ($$)
 
-sep :: Monoid ann => [Doc ann] -> Doc ann
+sep :: IsAnnotation ann => [Doc ann] -> Doc ann
 sep [] = empty
 sep ds = alts [hsep ds, vcat ds]
 
-between :: Monoid ann => Doc ann -> Doc ann -> Doc ann -> Doc ann
+between :: IsAnnotation ann => Doc ann -> Doc ann -> Doc ann -> Doc ann
 between d f e = d <> e <> f
 
-parens :: Monoid ann => Doc ann -> Doc ann
+parens :: IsAnnotation ann => Doc ann -> Doc ann
 parens = between lparen rparen
 
-parenthesise :: Monoid ann =>
+parenthesise :: IsAnnotation ann =>
                 Bool -> Doc ann -> Doc ann
 parenthesise b = if b then parens else id
 
-brackets :: Monoid ann => Doc ann -> Doc ann
+brackets :: IsAnnotation ann => Doc ann -> Doc ann
 brackets = between lbracket rbracket
 
-braces :: Monoid ann => Doc ann -> Doc ann
+braces :: IsAnnotation ann => Doc ann -> Doc ann
 braces = between lbrace rbrace
 
-matrix :: Monoid ann => (a -> Doc ann) -> [[a]] -> Doc ann
+matrix :: IsAnnotation ann => (a -> Doc ann) -> [[a]] -> Doc ann
 matrix cell
   = indent 2
   . vcat
@@ -198,7 +200,7 @@ testMatrix = do
     j <- [1..8]
     pure (j `mod` i /= 0)
 
-test :: Monoid ann => (Doc ann -> String) -> Doc ann -> Doc ann -> IO ()
+test :: IsAnnotation ann => (Doc ann -> String) -> Doc ann -> Doc ann -> IO ()
 test format one zero
   = putStr
   $ format
