@@ -151,6 +151,6 @@ run opts p@Process{..} (c : cs) = case c of
           let (lroot, rroot) = splitRoot root ""
               rbranch = Process tracing [] rroot env (today store) a ""
           in run opts (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
-  Trace xs -> let tr = fromMaybe (xs ++ tracing) (tracingOption opts)
+  Trace xs -> let tr = guard (not $ quiet opts) >> fromMaybe (xs ++ tracing) (tracingOption opts)
               in run opts (p { tracing = tr }) cs
   _ -> run opts p cs

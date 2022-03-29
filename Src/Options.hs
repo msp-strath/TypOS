@@ -9,12 +9,14 @@ import Pretty
 
 data Options = Options
   { filename :: String
+  , quiet :: Bool
   , tracingOption :: Maybe [MachineStep]
   }
 
 options :: Parser Options
 options = Options
   <$> argument str (metavar "FILE" <> showDefault <> value "examples/stlc.act" <> help "Actor file")
+  <*> flag False True (short 'q' <> long "quiet")
   <*> (optional $ option (str >>= (readSteps . words))
                          (long "tracing" <> metavar "LEVELS" <> help tracingHelp))
  where

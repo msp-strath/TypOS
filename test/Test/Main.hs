@@ -51,4 +51,4 @@ ioTests TestConfig{..} = testGroup name <$> do
     let dir  = takeDirectory file
     let name = takeBaseName file
     let gold = dir </> "golden" </> addExtension name goldenExt
-    pure $ goldenVsProg name gold "typos" [file] ""
+    pure $ goldenVsProg name gold "typos" ["-q", file] ""
