@@ -60,9 +60,11 @@ cutOff doc@(Doc ds) = Doc $ \ cfg -> let i = tapeWidth cfg in
     -- Otherwise we're happy to proceed with the compact enough outputs
     d:ds -> d :| ds
 
-render :: Monoid ann => Config -> Doc ann -> [[(ann, String)]]
+render :: (Eq ann, Monoid ann) => Config -> Doc ann -> [[(ann, String)]]
 render cfg (Doc ds)
-  = I.render
+  = map (map (\ xxs -> (fst (head xxs), foldMap snd xxs))
+        . groupBy ((==) `on` fst))
+  $ I.render
   $ minimumBy (compare `on` I.height)
   $ L1.toList (ds cfg)
 

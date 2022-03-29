@@ -13,9 +13,10 @@ data Options = Options
   }
 
 options :: Parser Options
-options = Options <$> argument str (metavar "FILE" <> showDefault <> value "examples/stlc.act" <> help "Actor file")
-                  <*> (optional $ option (str >>= (readSteps . words))
-                                             (long "tracing" <> metavar "LEVELS" <> help tracingHelp))
+options = Options
+  <$> argument str (metavar "FILE" <> showDefault <> value "examples/stlc.act" <> help "Actor file")
+  <*> (optional $ option (str >>= (readSteps . words))
+                         (long "tracing" <> metavar "LEVELS" <> help tracingHelp))
  where
    readSteps :: [String] -> ReadM [MachineStep]
    readSteps = mapM $ \case

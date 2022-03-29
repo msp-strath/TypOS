@@ -7,18 +7,18 @@ import System.IO.Unsafe
 data Colour
   = Black | Red | Green | Yellow | Blue
   | Magenta | Cyan | White
-  deriving (Show, Enum)
+  deriving (Eq, Show, Enum)
 
 data Layer
   = Foreground | Background
 
 data Weight
   = Bold | Faint | Normal
-  deriving (Show)
+  deriving (Eq, Show)
 
 data Underlining
   = Single | Double
-  deriving (Show)
+  deriving (Eq, Show)
 
 data Annotation
   = SetColour Layer Colour

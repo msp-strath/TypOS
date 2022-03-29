@@ -14,7 +14,7 @@ data Annotations = Annotations
   , backgroundColour :: Maybe Colour
   , fontWeight       :: Maybe Weight
   , fontUnderlining  :: Maybe Underlining
-  } deriving (Show)
+  } deriving (Eq, Show)
 
 instance Semigroup Annotations where
   Annotations fg1 bg1 fw1 fu1 <> Annotations fg2 bg2 fw2 fu2
