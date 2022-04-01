@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Pretty where
 
-import Data.Foldable
 import Data.Void
 
 import ANSI hiding (withANSI)
@@ -39,7 +38,6 @@ instance Pretty Void where
 
 class Collapse t where
   collapse :: t (Doc Annotations) -> Doc Annotations
-  vcollapse :: t (Doc Annotations) -> Doc Annotations
 
 newtype BracesList t = BracesList { unBracesList :: [t] }
 
@@ -48,7 +46,6 @@ instance Collapse BracesList where
 
 instance Collapse Bwd where
   collapse ds = brackets ("<" <+> hsepBy "," (ds <>> []))
-  vcollapse ds = fold [ flush (vcat $ zipWith (<+>) ("[<": repeat ",") (ds <>> [])), "]" ]
 
 instance Collapse [] where
   collapse ds = brackets (hsepBy "," ds)

@@ -1,4 +1,4 @@
-trace { break }
+-- trace { exec }
 
 syntax { 'Msg = ['Enum ['Ping 'Pong]] }
 
@@ -25,4 +25,4 @@ plumbed@p = p?a.
 
 exec manual@p. p!'Manual.
      plumbed@q. q!'Plumbed.
---     PRINTF "%S".
+--  PRINTF "%S".

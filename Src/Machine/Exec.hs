@@ -1,7 +1,6 @@
-{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Machine.Exec where
 
-import Control.Applicative
 import Control.Monad.Reader
 
 import ANSI hiding (withANSI)
@@ -50,10 +49,10 @@ exec p@Process { actor = Spawn jd spawnerCh actor, ..}
   | Just (spawnedCh, spawnedActor) <- lookupRules jd stack
 --  , dmesg (show spawnedActor) True
   = let (subRoot, newRoot) = splitRoot root jd
-        spawneeProc = Process tracing [] subRoot (childEnv env) New spawnedActor jd
-        spawneeInfo = (Direct, spawnedCh)
-        spawnerInfo = ((spawnerCh, localScope env <>> []), Direct)
-    in exec (p { stack = stack :< Spawner (Interface { spawnerProc = Hole, ..})
+        spawnee = ( Process tracing [] subRoot (childEnv env) New spawnedActor jd
+                  , spawnedCh)
+        spawner = ((spawnerCh, localScope env <>> []), Hole)
+    in exec (p { stack = stack :< Spawner (Interface spawnee spawner)
                , root = newRoot
                , actor })
 exec p@Process { actor = Send ch tm a, ..}
@@ -225,28 +224,6 @@ solveMeta m (CdB (S0 :^^ _) ph) tm p@Process{..} = do
   -- FIXME: do a deep occurs check here to avoid the bug from match
   return (p { store = updateStore m (objectNaming $ frDisplayEnv stack) tm store })
 
-connect :: AConnect -> Process Store Cursor -> Process Store []
-connect ac@(AConnect ch1 (_, th) ch2) (p@Process { stack = zf :< Sent q tm :<+>: fs})
-  | q == ch1 = send ch1 (snd tm *^ th) (p { stack = zf <>< fs :<+>: []})
-  | q == ch2 = send ch2 (snd tm *^ th) (p { stack = zf <>< fs :<+>: []})
-connect ac@(AConnect ch1 (dir, th) ch2)
-  p@Process { stack = (zf :< Spawnee (Interface { spawneeInfo = (old, q), ..})) :<+>: fs
-            , ..}
-  = let new = maybe old (Indirect th) (ch1 <$ guard (ch2 == q)
-                                   <|> ch2 <$ guard (ch1 == q))
-        sp' = Spawnee (Interface { spawneeInfo = (new, q), ..})
-    in move (p { stack = zf :< sp' <>< fs :<+>: [], actor = Win })
-connect ac@(AConnect ch1 (dir, th) ch2)
-  p@Process { stack = zf :< Spawner (intf@Interface { spawnerInfo = (rxs@(r, _), old), ..})
-                     :<+>: fs
-            , ..}
-  = let new = maybe old (Indirect th) (ch1 <$ guard (ch2 == r)
-                                   <|> ch2 <$ guard (ch1 == r))
-        sp' = Spawner (intf { spawnerInfo = (rxs, new) })
-    in connect ac (p { stack = zf :<+>: sp' : fs })
-connect ac (p@Process { stack = zf :< f :<+>: fs})
-  = connect ac (p { stack = zf :<+>: (f:fs) })
-
 send :: Channel -> Term -> Process Store Cursor -> Process Store []
 --send ch term (Process zfs@(zf :<+>: fs) _ _ _ a)
 --  | dmesg ("\nsend " ++ show ch ++ " " ++ show term ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
@@ -258,37 +235,21 @@ send ch term (p@Process { stack = B0 :<+>: fs, ..})
   = let a = Fail [StringPart ("Couldn't find channel " ++ rawChannel ch)]
     in exec (p { stack = B0 <>< fs, actor = a })
 send ch term
-  p@Process { stack = zf'@(zf :< Spawner (intf@Interface { spawneeInfo = (cprt, q)
-                                                         , spawnerInfo = (rxs@(r, xs), pprt)
-                                                         , ..}))
-                      :<+>: fs
-            , ..}
-  | r == ch = case pprt of
-      Direct ->
-        let parentP = p { stack = fs, store = New }
-            sp' = Spawnee (intf { spawneeProc = Hole, spawnerProc = parentP})
-        in case cprt of
-          Direct -> let stack' = zf :< sp' :< Sent q ([], term) <>< stack spawneeProc
-                        p' = spawneeProc { stack = stack', store }
-                    in debug MachineSend (pretty ch) p' `seq` exec p'
-          Indirect th ch ->
-                    let stack' = zf :< sp' <>< stack spawneeProc :<+>: []
-                        p' = spawneeProc { stack = stack', store }
-                    in send ch (term *^ th) p'
-      Indirect th ch -> send ch (term *^ th) (p { stack = zf' <>< fs :<+>: [] })
+  p@Process { stack = zf :< Spawner (Interface (childP, q) (rxs@(r, _), Hole)) :<+>: fs, ..}
+  | r == ch =
+  let parentP = p { stack = fs, store = New }
+      stack' = zf :< Spawnee (Interface (Hole, q) (rxs, parentP))
+                  :< Sent q ([], term) <>< stack childP
+      p' = childP { stack = stack', store }
+  in debug MachineSend (pretty ch) p' `seq` exec p'
 send ch term
-  p@Process { stack = zf'@(zf :< Spawnee (intf@Interface { spawneeInfo = (cprt, q)
-                                                         , spawnerInfo = (rxs@(r, xs), pprt)
-                                                         , ..}))
-                      :<+>: fs
+  p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs@(r, xs), parentP))) :<+>: fs
             , ..}
-  | ch == q = case pprt of
-      Direct -> let parentP' = spawnerProc { stack = Sent r (xs, term) : stack spawnerProc }
-                    sp' = Spawnee (intf { spawneeProc = Hole, spawnerProc = parentP' })
-                    stack' = zf :< sp' <>< fs
-                    p' = p { stack = stack' }
-                in debug MachineSend (pretty ch) p' `seq` exec p'
-      Indirect th ch -> send ch (term *^ th) (p { stack = zf' <>< fs :<+>: [] })
+  | ch == q =
+  let parentP' = parentP { stack = Sent r (xs, term) : stack parentP }
+      stack'   = zf :< Spawnee (Interface (Hole, q) (rxs, parentP')) <>< fs
+      p' = p { stack = stack' }
+  in debug MachineSend (pretty ch) p' `seq` exec p'
   | otherwise
   = let a = Fail [StringPart ("Couldn't find channel " ++ rawChannel ch)]
     in exec (p { stack = zf' <>< fs, actor = a })
@@ -306,10 +267,10 @@ recv ch x p@Process { stack = zf :< Sent q y :<+>: fs, ..}
   = let env' = newActorVar x y env in -- TODO: is this right?
     exec (p { stack = zf <>< fs, env = env' })
 recv ch x
-  p@Process { stack = zf'@(zf :< Spawnee (Interface { spawneeProc = Hole })) :<+>: fs, ..}
+  p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs, parentP))) :<+>: fs, ..}
   = move (p { stack = zf' <>< fs :<+>: [], actor = Recv ch (x, actor) })
 recv ch x
-  p@Process { stack = zf'@(zf :< Spawner (Interface { spawnerInfo = ((r, xs), _) })) :<+>: fs, ..}
+  p@Process { stack = zf'@(zf :< Spawner (Interface (childP, q) ((r, xs), Hole))) :<+>: fs, ..}
   | ch == r
   = move (p { actor = Recv ch (x, actor) })
 recv ch x p@Process { stack = zf :< f :<+>: fs }
@@ -330,19 +291,16 @@ move p@Process { stack = zf :< RightBranch lp Hole :<+>: fs, store = st, ..}
   | StuckOn (today st) > store lp
   = let rp = p { stack = fs, store = StuckOn (today st) }
     in exec (lp { stack = zf :< LeftBranch Hole rp <>< stack lp, store = st})
-move p@Process { stack = zf :< Spawnee (Interface{ spawneeProc = Hole, ..}) :<+>: fs
-               , ..}
+move p@Process { stack = zf :< Spawnee (Interface (Hole, q) (rxs, parentP)) :<+>: fs, ..}
   = let childP = p { stack = fs, store = StuckOn (today store) }
-        sp'    = Spawner (Interface { spawneeProc = childP, spawnerProc = Hole, ..})
-        stack' = zf :< sp' <>< stack spawnerProc
-    in exec (spawnerProc { stack = stack', store })
-move p@Process { stack = zf :< Spawner (Interface{ spawnerProc = Hole, ..}) :<+>: fs
+        stack' = zf :< Spawner (Interface (childP, q) (rxs, Hole)) <>< stack parentP
+    in exec (parentP { stack = stack', store })
+move p@Process { stack = zf :< Spawner (Interface (childP, q) (rxs, Hole)) :<+>: fs
                , store = st, ..}
-  | StuckOn (today st) > store spawneeProc
+  | StuckOn (today st) > store childP
   = let parentP = p { stack = fs, store = StuckOn (today st) }
-        sp' = Spawnee (Interface { spawneeProc = Hole, spawnerProc = parentP, ..})
-        stack'  = zf :< sp' <>< stack spawneeProc
-    in exec (spawneeProc { stack = stack', store = st })
+        stack'  = zf :< Spawnee (Interface (Hole, q) (rxs, parentP)) <>< stack childP
+    in exec (childP { stack = stack', store = st })
 move p@Process { stack = zf :< UnificationProblem date s t :<+>: fs, .. }
   | today store > date
   = unify (p { stack = zf :<+>: UnificationProblem (today store) s t : fs })
