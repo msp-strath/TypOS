@@ -37,9 +37,30 @@ treeAnnotate ann (Annotate ann' t) = Annotate (ann <> ann') t
 treeAnnotate ann t = Annotate ann t
 
 newtype Line ann = Line { runLine :: Bwd (ann, String) }
-  deriving (Show, Semigroup, Monoid, Functor)
+  deriving (Show, Functor)
 
-asLine :: Monoid ann => String -> Line ann
+instance Eq ann => Semigroup (Line ann) where
+{-
+  -- not sure which implementation to pick
+
+  -- 1. append & then group
+  Line lz <> Line rz = Line
+    $ fmap (\ xxs -> (fst (top xxs), foldMap snd xxs))
+    $ Bwd.groupBy ((==) `on` fst) (lz <> rz)
+-}
+
+  -- 2. alternatively, assuming both sides are already fused
+  Line B0 <> Line rz = Line rz
+  Line lz <> Line B0 = Line lz
+  Line llz@(lz :< (al, l)) <> Line rz = Line $
+    case rz <>> [] of
+      (ar, r):rs | al == ar -> lz :< (al, l <> r) <>< rs
+      _ -> llz <> rz
+
+instance Eq ann => Monoid (Line ann) where
+  mempty = Line B0
+
+asLine :: (Eq ann, Monoid ann) => String -> Line ann
 asLine "" = mempty
 asLine str = Line (singleton (mempty, str))
 
@@ -76,7 +97,7 @@ annotate ann (Block h c mw lw l)
   = Block h (bimap ((ann <>) <$>) (treeAnnotate ann) <$> c) mw lw ((ann <>) <$> l)
 
 -- A text is assumed not to contain any newline character
-text :: (HasCallStack, Monoid ann) => String -> Block ann
+text :: (HasCallStack, Eq ann, Monoid ann) => String -> Block ann
 text str | any (`elem` "\n\r") str = error ("Invalid text: " ++ show str)
 text str = let n = length str in Block
   { height    = 0
@@ -87,14 +108,14 @@ text str = let n = length str in Block
   }
 
 -- We can't "unlines lines" because that would introduce extra newlines
-para :: (HasCallStack, Monoid ann) => String -> Block ann
+para :: (HasCallStack, Eq ann, Monoid ann) => String -> Block ann
 para = go mempty where
 
   go acc str = case span ('\n' /=) str of
     (str, []) -> acc <> text str
     (str, _:rest) -> go (flush (acc <> text str)) rest
 
-instance Monoid ann => Semigroup (Block ann) where
+instance (Eq ann, Monoid ann) => Semigroup (Block ann) where
   Block h1 c1 mw1 lw1 l1 <> Block h2 c2 mw2 lw2 l2 = Block
     { height    = h1 + h2
     , chunk     = c12
@@ -110,11 +131,11 @@ instance Monoid ann => Semigroup (Block ann) where
           Just (f2, b2) -> ( node c1 (l1 <> f2) (treeIndent lw1 b2)
                            , if lw1 == 0 then l2 else asLine (replicate lw1 ' ') <> l2)
 
-instance Monoid ann => Monoid (Block ann) where
+instance (Eq ann, Monoid ann) => Monoid (Block ann) where
   mempty = text ""
 
 -- introduce a new line at the end
-flush :: Block ann -> Block ann
+flush :: Eq ann => Block ann -> Block ann
 flush (Block h c mw lw l) = Block (1+h) (node c l Leaf) mw 0 mempty
 
 render :: forall ann. Monoid ann => Block ann -> [[(ann, String)]]

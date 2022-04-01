@@ -1,10 +1,10 @@
 ret > ExitSuccess
 out > [45mResult:[0m
-out > [45m[0m[45m[0,1] ++ [2][0m
-out > [45m[0m[45m  : [0m[45m[[0m[45m'[0m[45mList[0m[45m [0m[45m[[0m[45m'[0m[45mList[0m[45m [0m[45m'[0m[45mOne[0m[45m][0m[45m][0m
-out > [45m[0m[45m  = [0m[45m[[0m[45m'[0m[45mRad[0m[45m [0m[45m[[0m[45m'[0m[45mCons[0m[45m [0m[45m'[0m[45mNil[0m[45m [0m[45m[[0m[45m'[0m[45mCons[0m[45m [0m[45m[[0m[45m'[0m[45mCons[0m[45m [0m[45m'[0m[45mNil[0m[45m [0m[45m'[0m[45mNil[0m[45m][0m[45m [0m[45m[[0m[45m'[0m[45mCons[0m
-out > [45m                                                [0m[45m[[0m[45m'[0m[45mCons[0m[45m [0m[45m'[0m[45mNil[0m[45m [0m[45m[[0m[45m'[0m[45mCons[0m[45m [0m[45m'[0m[45mNil[0m[45m [0m[45m'[0m[45mNil[0m[45m][0m[45m][0m
-out > [45m    [0m[45m [0m[45m    [0m[45m [0m[45m [0m[45m     [0m[45m [0m[45m    [0m[45m [0m[45m [0m[45m     [0m[45m [0m[45m                 [0m[45m [0m[45m [0m[45m'[0m[45mNil[0m[45m][0m[45m][0m[45m][0m[45m [0m[45m[[0m[45m'[0m[45mList[0m[45m [0m[45m[[0m[45m'[0m[45mList[0m[45m [0m[45m'[0m[45mOne[0m[45m][0m[45m][0m[45m][0m
+out > [45m[0,1] ++ [2][0m
+out > [45m  : ['List ['List 'One]][0m
+out > [45m  = ['Rad ['Cons 'Nil ['Cons ['Cons 'Nil 'Nil] ['Cons[0m
+out > [45m                                                ['Cons 'Nil ['Cons 'Nil 'Nil]][0m
+out > [45m                                                'Nil]]] ['List ['List 'One]]][0m
 out >
 err >
 err >

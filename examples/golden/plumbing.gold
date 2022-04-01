@@ -1,13 +1,13 @@
 ret > ExitSuccess
-out > [45mPing [0m[45m'[0m[45mManual[0m
-out > [45mPong [0m[45m'[0m[45mManual[0m
-out > [45mDone [0m[45m'[0m[45mManual[0m
-out > [45mPing [0m[45m'[0m[45mPlumbed[0m
-out > [45mPong [0m[45m'[0m[45mPlumbed[0m
-out > [45mDone [0m[45m'[0m[45mPlumbed[0m
-out > [45mPing [0m[45m'[0m[45mPlumbed[0m
-out > [45mPong [0m[45m'[0m[45mPlumbed[0m
-out > [45mDone [0m[45m'[0m[45mPlumbed[0m
+out > [45mPing 'Manual[0m
+out > [45mPong 'Manual[0m
+out > [45mDone 'Manual[0m
+out > [45mPing 'Plumbed[0m
+out > [45mPong 'Plumbed[0m
+out > [45mDone 'Plumbed[0m
+out > [45mPing 'Plumbed[0m
+out > [45mPong 'Plumbed[0m
+out > [45mDone 'Plumbed[0m
 out >
 err >
 err >

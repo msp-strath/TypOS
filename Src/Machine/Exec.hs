@@ -70,7 +70,7 @@ exec p@Process { actor = m@(Match s cls), ..}
 
   switch :: Term -> [(Pat, AActor)] -> Process Store []
   switch t [] =
-    let msg = render 80 $ unsafeEvalDisplay (frDisplayEnv stack) $ do
+    let msg = render (Config 80 Vertical) $ unsafeEvalDisplay (frDisplayEnv stack) $ do
           it <- subdisplay (instantiate store t)
           t <- subdisplay t
           m <- asks daEnv >>= \ rh -> withEnv rh $ display (Match s cls)
@@ -187,14 +187,14 @@ exec p@Process { actor = Fail fmt, ..}
                 Just fmt -> format [] p fmt
                 Nothing -> case evalDisplay (frDisplayEnv stack) (subdisplay fmt) of
                   Left grp -> "Error " ++ show grp ++ " in the error " ++ show fmt
-                  Right str -> render 80 str
+                  Right str -> render (Config 80 Vertical) str
     in alarm msg $ move (p { stack = stack :<+>: [] })
 
 exec p@Process {..} = move (p { stack = stack :<+>: [] })
 
 format :: [Annotation] -> Process Store Bwd -> [Format Directive Debug Term] -> String
 format ann p@Process{..} fmt
-  = render 80
+  = render (Config 80 Vertical)
   $ unsafeEvalDisplay (frDisplayEnv stack)
   $ fmap (withANSI ann)
   $ subdisplay
@@ -325,6 +325,6 @@ debug step str p | step `elem` tracing p = -- dmesg (show step ++ ": " ++ show p
   let (fs', store', env', a') = unsafeEvalDisplay initDEnv $ displayProcess' p
       p' = indent 2 $ vcat $ [collapse fs', store', env', a']
       step' = keyword (pretty step)
-      msg = render 0 $ vcat [mempty, step' <+> str, p']
+      msg = render (initConfig 0) $ vcat [mempty, step' <+> str, p']
   in dmesg msg False
 debug step _ p = False
