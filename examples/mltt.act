@@ -19,7 +19,7 @@ synth : 'Synth -> 'Check
 ------------------------------------------------------------------------------
 -- Implementation
 
-type@p = p?ty. check@q. q!'Ty. q!ty. q?nf. p!nf.
+type@p = check@q. q!'Ty. q <-> p
 
 check@p = p?ty. p?tm. case tm
   { 'Ty -> (ty ~ 'Ty | p!'Ty.)
@@ -28,7 +28,7 @@ check@p = p?ty. p?tm. case tm
     |type@q. q!S. q?NS. \x. synth{x -> NS}.
      type@r. r!T. r?NT. p!['Pi NS \x. NT].
     )
-  ; ['Emb e] -> synth@q. q!e. q?nty. (nty ~ ty | q?ne. p!ne.)
+  ; ['Emb e] -> synth@q. q!e. q?nty. (nty ~ ty | q <-> p)
   ; ['Lam \x. body] -> case ty
     { ['Pi S \x. T] -> \x. synth{x -> S}.
                        check@q. q!T. q!body. q?vbody.
@@ -38,15 +38,13 @@ check@p = p?ty. p?tm. case tm
   }
 
 synth@p = p?tm . lookup tm { S -> p!S. p!['Emb tm]. } else case tm
-   { ['Rad t ty] -> type@q. q!ty. q?nty.
-                    check@r. r!nty. r!t. r?nt.
-                    p!nty. p!nt.
+   { ['Rad t ty] -> type@q. q!ty. q?nty. p!nty.
+                    check@r. r!nty. r!t. r <-> p
    ; ['App f s] -> synth@q. q!f. q?ty. q?nf. case ty
      { ['Pi S \v. T] -> check@r. r!S. r!s. r?ns.
                         type@u. u!{v=['Rad ns S]}T. u?NT. p!NT.
                         case nf
-       { ['Lam \x. body] -> check@w. w!NT. w!{x=['Rad ns S]}body. w?nbody.
-                            p!nbody.
+       { ['Lam \x. body] -> check@w. w!NT. w!{x=['Rad ns S]}body. w <-> p
        ; ['Emb e] -> p!['Emb ['App e ns]].
        }
      }

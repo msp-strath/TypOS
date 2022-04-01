@@ -9,6 +9,7 @@ import Concrete.Base
 import Display
 import Doc hiding (render)
 import Doc.Render.Terminal
+import Elaboration.Pretty ()
 import Format
 import Hide
 import Pattern
@@ -42,13 +43,13 @@ exec :: Process Store Bwd -> Process Store []
 exec p | debug MachineExec "" p = undefined
 exec p@Process { actor = a :|: b, ..} =
   let (lroot, rroot) = splitRoot root ""
-      rbranch = Process tracing [] rroot env (today store) b judgementform
+      rbranch = Process tracing [] rroot env New b judgementform
   in exec (p { stack = stack :< LeftBranch Hole rbranch, root = lroot, actor = a})
 exec p@Process { actor = Spawn jd spawnerCh actor, ..}
   | Just (spawnedCh, spawnedActor) <- lookupRules jd stack
 --  , dmesg (show spawnedActor) True
   = let (subRoot, newRoot) = splitRoot root jd
-        spawnee = ( Process tracing [] subRoot (childEnv env) (today store) spawnedActor jd
+        spawnee = ( Process tracing [] subRoot (childEnv env) New spawnedActor jd
                   , spawnedCh)
         spawner = ((spawnerCh, localScope env <>> []), Hole)
     in exec (p { stack = stack :< Spawner (Interface spawnee spawner)
@@ -57,9 +58,11 @@ exec p@Process { actor = Spawn jd spawnerCh actor, ..}
 exec p@Process { actor = Send ch tm a, ..}
   | Just term <- mangleActors env tm
   = let (subRoot, newRoot) = splitRoot root ""
-    in send ch (tm, term) (p { stack = stack :<+>: [], root = newRoot, actor = a })
+    in send ch term (p { stack = stack :<+>: [], root = newRoot, actor = a })
 exec p@Process { actor = Recv ch (x, a), ..}
   = recv ch x (p { stack = stack :<+>: [], actor = a })
+exec p@Process { actor = Connect ac, ..}
+  = connect ac (p { stack = stack :<+>: []})
 exec p@Process { actor = m@(Match s cls), ..}
   | Just term <- mangleActors env s
   = switch term cls
@@ -223,37 +226,50 @@ solveMeta m (CdB (S0 :^^ _) ph) tm p@Process{..} = do
   -- FIXME: do a deep occurs check here to avoid the bug from match
   return (p { store = updateStore m (objectNaming $ frDisplayEnv stack) tm store })
 
-send :: Channel -> (CdB (Tm ActorMeta), Term) -> Process Store Cursor -> Process Store []
---send ch (tm, term) (Process zfs@(zf :<+>: fs) _ _ _ a)
+connect :: AConnect -> Process Store Cursor -> Process Store []
+connect ac@(AConnect ch1 th ch2 n) (p@Process { stack = zf :< Sent q tm :<+>: fs, ..})
+  | q == ch1 = send ch2 (snd tm *^ th') (p { stack = zf <>< fs :<+>: [], actor = aconnect ch1 th ch2 (n-1)})
+  | q == ch2 = send ch1 (snd tm *^ th') (p { stack = zf <>< fs :<+>: [], actor = aconnect ch1 th ch2 (n-1)})
+  where th' = ones (length (globalScope env)) <> th
+connect ac p@Process { stack = zf'@(zf :< Spawnee intf) :<+>: fs, ..}
+  = move (p { stack = zf' <>< fs :<+>: []})
+connect ac (p@Process { stack = zf :< f :<+>: fs})
+  = connect ac (p { stack = zf :<+>: (f:fs) })
+
+send :: Channel -> Term -> Process Store Cursor -> Process Store []
+--send ch term (Process zfs@(zf :<+>: fs) _ _ _ a)
 --  | dmesg ("\nsend " ++ show ch ++ " " ++ show term ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
--- send (Channel ch) (tm, term) p
---   | debug MachineSend (unwords [ch, show (tm, term)]) p
+-- send (Channel ch) term p
+--   | debug MachineSend (unwords [ch, show term]) p
 --   = undefined
 
-send ch (tm, term) (p@Process { stack = B0 :<+>: fs, ..})
-  = move (p { stack = B0 <>< fs :<+>: [], actor = Send ch tm actor })
-send ch (tm, term)
+send ch term (p@Process { stack = B0 :<+>: fs, ..})
+  = let a = Fail [StringPart ("Couldn't find channel " ++ rawChannel ch)]
+    in exec (p { stack = B0 <>< fs, actor = a })
+send ch term
   p@Process { stack = zf :< Spawner (Interface (childP, q) (rxs@(r, _), Hole)) :<+>: fs, ..}
   | r == ch =
-  let parentP = p { stack = fs, store = today store }
+  let parentP = p { stack = fs, store = New }
       stack' = zf :< Spawnee (Interface (Hole, q) (rxs, parentP))
                   :< Sent q ([], term) <>< stack childP
       p' = childP { stack = stack', store }
-  in debug MachineSend (rawChannel ch) p' `seq` exec p'
-send ch (tm, term)
+  in debug MachineSend (pretty ch) p' `seq` exec p'
+send ch term
   p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs@(r, xs), parentP))) :<+>: fs
             , ..}
   | ch == q =
-  let parentP' = parentP { stack = Sent r (xs, term) : stack parentP }
+  let parentP' = parentP { stack = Sent r (xs, term) : stack parentP, store = New }
       stack'   = zf :< Spawnee (Interface (Hole, q) (rxs, parentP')) <>< fs
       p' = p { stack = stack' }
-  in debug MachineSend (rawChannel ch) p' `seq` exec p'
-  | otherwise = move (p { stack = zf' <>< fs :<+>: [], actor = Send ch tm actor })
-send ch (tm, term) p@Process { stack = (zf :< f) :<+>: fs }
-  = send ch (tm, term) (p { stack = zf :<+>: (f:fs) })
+  in debug MachineSend (pretty ch) p' `seq` exec p'
+  | otherwise
+  = let a = Fail [StringPart ("Couldn't find channel " ++ rawChannel ch)]
+    in exec (p { stack = zf' <>< fs, actor = a })
+send ch term p@Process { stack = (zf :< f) :<+>: fs }
+  = send ch term (p { stack = zf :<+>: (f:fs) })
 
 recv :: Channel -> ActorMeta -> Process Store Cursor -> Process Store []
-recv ch v p | debug MachineRecv (show ch ++ " " ++ show v) p = undefined
+recv ch v p | debug MachineRecv (hsep [ pretty ch, pretty v ]) p = undefined
 -- recv ch v (zfs, _, _, _, a)
  -- | dmesg ("\nrecv " ++ show ch ++ " " ++ show v ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
 recv ch x p@Process { stack = B0 :<+>: fs, ..}
@@ -265,6 +281,10 @@ recv ch x p@Process { stack = zf :< Sent q y :<+>: fs, ..}
 recv ch x
   p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs, parentP))) :<+>: fs, ..}
   = move (p { stack = zf' <>< fs :<+>: [], actor = Recv ch (x, actor) })
+recv ch x
+  p@Process { stack = zf'@(zf :< Spawner (Interface (childP, q) ((r, xs), Hole))) :<+>: fs, ..}
+  | ch == r
+  = move (p { actor = Recv ch (x, actor) })
 recv ch x p@Process { stack = zf :< f :<+>: fs }
   = recv ch x (p { stack = zf :<+>: (f:fs) })
 
@@ -276,21 +296,21 @@ move p | debug MachineMove "" p = undefined
 
 move p@Process { stack = B0 :<+>: fs } = p { stack = fs }
 move p@Process { stack = zf :< LeftBranch Hole rp :<+>: fs, ..}
-  = let lp = p { stack = fs, store = today store }
+  = let lp = p { stack = fs, store = StuckOn (today store) }
     in exec (rp { stack = zf :< RightBranch lp Hole <>< stack rp, store })
 move p@Process { stack = zf :< RightBranch lp Hole :<+>: fs, store = st, ..}
   -- | dmesg (show (today st) ++ " " ++ show (store lp)) True
-  | today st > store lp
-  = let rp = p { stack = fs, store = today st }
+  | StuckOn (today st) > store lp
+  = let rp = p { stack = fs, store = StuckOn (today st) }
     in exec (lp { stack = zf :< LeftBranch Hole rp <>< stack lp, store = st})
 move p@Process { stack = zf :< Spawnee (Interface (Hole, q) (rxs, parentP)) :<+>: fs, ..}
-  = let childP = p { stack = fs, store = today store }
+  = let childP = p { stack = fs, store = StuckOn (today store) }
         stack' = zf :< Spawner (Interface (childP, q) (rxs, Hole)) <>< stack parentP
     in exec (parentP { stack = stack', store })
 move p@Process { stack = zf :< Spawner (Interface (childP, q) (rxs, Hole)) :<+>: fs
                , store = st, ..}
-  | today st > store childP
-  = let parentP = p { stack = fs, store = today st }
+  | StuckOn (today st) > store childP
+  = let parentP = p { stack = fs, store = StuckOn (today st) }
         stack'  = zf :< Spawnee (Interface (Hole, q) (rxs, parentP)) <>< stack childP
     in exec (childP { stack = stack', store = st })
 move p@Process { stack = zf :< UnificationProblem date s t :<+>: fs, .. }
@@ -300,11 +320,11 @@ move p@Process { stack = (zf :< f) :<+>: fs }
   = move (p { stack = zf :<+>: (f : fs) })
 
 debug :: (Show (t Frame), Traversable t, Collapse t, Display0 s)
-      => MachineStep -> String -> Process s t -> Bool
+      => MachineStep -> Doc Annotations -> Process s t -> Bool
 debug step str p | step `elem` tracing p = -- dmesg (show step ++ ": " ++ show p) $
   let (fs', store', env', a') = unsafeEvalDisplay initDEnv $ displayProcess' p
       p' = indent 2 $ vcat $ [collapse fs', store', env', a']
       step' = keyword (pretty step)
-      msg = render (initConfig 0) $ vcat [mempty, step' <+> pretty str, p']
+      msg = render (initConfig 0) $ vcat [mempty, step' <+> str, p']
   in dmesg msg False
 debug step _ p = False

@@ -114,6 +114,7 @@ instance Pretty CActor where
     Lookup tm (av, a) b -> sep
       [ hsep [ keyword "lookup", pretty tm, braces (hsep [ pretty av, "->", pretty a ]), keyword "else" ]
       , prettyPrec 1 a ]
+    Connect cnnct -> pretty cnnct
     -- final actors
     Win -> ""
     Fail fmt -> "#" <> pretty fmt
@@ -170,3 +171,6 @@ instance Pretty t => Pretty (Protocol t) where
 
 instance Pretty t => Pretty (JudgementStack t) where
   pretty stk = hsep [pretty (keyDesc stk), "->", pretty (valueDesc stk)]
+
+instance Pretty CConnect where
+  pretty (CConnect ch1 ch2) = hsep [pretty ch1, "<->", pretty ch2]

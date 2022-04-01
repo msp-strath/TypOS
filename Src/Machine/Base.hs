@@ -69,12 +69,19 @@ data Interface c p = Interface
   , spawner :: ((Channel, [String]), p)
   } deriving (Show)
 
+-- Do NOT reorder arguments: derived Ord needs to be this way
+data Status
+  = New
+  | StuckOn Date
+--  | Done
+  deriving (Show, Eq, Ord)
+
 data Frame
   = Rules JudgementForm (Channel, AActor)
-  | LeftBranch Hole (Process Date [])
-  | RightBranch (Process Date []) Hole
-  | Spawnee (Interface Hole (Process Date []))
-  | Spawner (Interface (Process Date []) Hole)
+  | LeftBranch Hole (Process Status [])
+  | RightBranch (Process Status []) Hole
+  | Spawnee (Interface Hole (Process Status []))
+  | Spawner (Interface (Process Status []) Hole)
   | Sent Channel ([String], Term)
   | Pushed JudgementForm (DB, Term)
   | Binding String

@@ -64,7 +64,7 @@ compatibleInfos desc desc' = do
   let de = infoExpand table =<< desc
   let de' = infoExpand table =<< desc'
   case de <> de' of
-    Inconsistent -> throwError (IncompatibleSyntaxDescs desc desc')
+    Inconsistent -> throwError (IncompatibleSyntaxInfos desc desc')
     d -> pure $ case (desc, desc') of
       (Known (CdB (A _) _), _) -> desc
       (_, Known (CdB (A _) _)) -> desc'
@@ -147,6 +147,7 @@ data Complaint
   | VariableShadowing Variable
   | EmptyContext
   | NotTopVariable Variable Variable
+  | IncompatibleChannelScopes ObjVars ObjVars
   -- kinding
   | NotAValidTermVariable Variable Kind
   | NotAValidPatternVariable Variable Kind
@@ -160,6 +161,9 @@ data Complaint
   | UnfinishedProtocol Channel AProtocol
   | InconsistentCommunication
   | DoomedBranchCommunicated CActor
+  | ProtocolsNotDual AProtocol AProtocol
+  | IncompatibleModes (Mode, SyntaxDesc) (Mode, SyntaxDesc)
+  | WrongDirection (Mode, SyntaxDesc) Ordering (Mode, SyntaxDesc)
   -- judgement stacks
   | PushingOnAStacklessJudgement JudgementForm
   | LookupFromAStacklessActor JudgementForm
@@ -171,7 +175,8 @@ data Complaint
   -- syntaxdesc validation
   | InconsistentSyntaxDesc
   | InvalidSyntaxDesc SyntaxDesc
-  | IncompatibleSyntaxDescs (Info SyntaxDesc) (Info SyntaxDesc)
+  | IncompatibleSyntaxInfos (Info SyntaxDesc) (Info SyntaxDesc)
+  | IncompatibleSyntaxDescs SyntaxDesc SyntaxDesc
   | ExpectedNilGot String
   | ExpectedEnumGot [String] String
   | ExpectedTagGot [String] String
@@ -202,6 +207,7 @@ data Complaint
   | PatternVariableElaboration Variable Complaint
   | TermVariableElaboration Variable Complaint
   | ProtocolElaboration CProtocol Complaint
+  | ConnectElaboration Variable Variable Complaint
   deriving (Show)
 
 data ElabState = ElabState
@@ -488,8 +494,8 @@ channelScope (Channel ch) = do
   case fromJust (focusBy (\ (y, k) -> k <$ guard (ch == y)) ds) of
     (_, AChannel sc, _) -> pure sc
 
-steppingChannel :: Channel -> (AProtocol -> Elab (SyntaxDesc, AProtocol)) ->
-                   Elab SyntaxDesc
+steppingChannel :: Channel -> (AProtocol -> Elab (a, AProtocol)) ->
+                   Elab a
 steppingChannel ch step = do
   nm <- getName
   (pnm, p) <- gets (fromJust . channelLookup ch)
@@ -533,6 +539,18 @@ guessDesc (Cons p q) = do
     (Known d1, Known d2) -> pure (Known $ Syntax.contract (VCons d1 d2))
     _ -> pure Unknown
 guessDesc _ = pure Unknown
+
+compatibleChannels :: AProtocol -> Ordering -> AProtocol -> Elab Int
+compatibleChannels [] dir [] = pure 0
+compatibleChannels (p@(m, s) : ps) dir (q@(n, t) : qs) = do
+  unless (s == t) $ throwError (IncompatibleSyntaxDescs s t)
+  when (m == n) $ throwError (IncompatibleModes p q)
+  case (m, dir) of
+    (Input, LT) -> throwError (WrongDirection p dir q)
+    (Output, GT) -> throwError (WrongDirection p dir q)
+    _ -> pure ()
+  (+1) <$> compatibleChannels ps dir qs
+compatibleChannels ps _ qs = throwError (ProtocolsNotDual ps qs)
 
 sact :: CActor -> Elab AActor
 sact = \case
@@ -589,6 +607,21 @@ sact = \case
     sc <- channelScope ch
     a <- local (declare av (ActVar (Known cat) sc)) $ sact a
     pure $ Recv ch (ActorMeta av, a)
+
+  Connect (CConnect ch1 ch2) -> during (ConnectElaboration ch1 ch2) $ do
+    ch1 <- isChannel ch1
+    ch2 <- isChannel ch2
+    p <- steppingChannel ch1 $ \ p -> pure (p, [])
+    q <- steppingChannel ch2 $ \ p -> pure (p, [])
+    sc1 <- channelScope ch1
+    sc2 <- channelScope ch2
+    (dir, th) <- case (findSub sc1 sc2, findSub sc2 sc1) of
+      (Just thl, Just thr) -> pure (EQ, thl)
+      (Just thl, _) -> pure (LT, thl)
+      (_, Just thr) -> pure (GT, thr)
+      _ -> throwError (IncompatibleChannelScopes sc1 sc2)
+    steps <- compatibleChannels p dir q
+    pure (aconnect ch1 th ch2 steps)
 
   FreshMeta desc (av, a) -> during FreshMetaElaboration $ do
     syndecls <- gets (Map.keys . syntaxCats)

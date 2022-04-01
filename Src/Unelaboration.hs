@@ -219,6 +219,11 @@ instance Unelab Debug where
   type Unelabed Debug = Debug
   unelab = pure
 
+instance Unelab AConnect where
+  type UnelabEnv AConnect = ()
+  type Unelabed AConnect = CConnect
+  unelab (AConnect ch1 _ ch2 _) = CConnect <$> unelab ch1 <*> unelab ch2
+
 instance Unelab Directive where
   type UnelabEnv Directive = ()
   type Unelabed Directive = Directive
@@ -258,6 +263,7 @@ instance Unelab AActor where
     Fail fmt -> Fail <$> traverse subunelab fmt
     Print fmt a -> Print <$> traverse subunelab fmt <*> unelab a
     Break fmt a -> Break <$> traverse subunelab fmt <*> unelab a
+    Connect cnnct -> Connect <$> subunelab cnnct
 
 instance Unelab Mode where
   type UnelabEnv Mode = ()
