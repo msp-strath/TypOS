@@ -539,8 +539,8 @@ guessDesc (Cons p q) = do
     _ -> pure Unknown
 guessDesc _ = pure Unknown
 
-compatibleChannels :: AProtocol -> Ordering -> AProtocol -> Elab ()
-compatibleChannels [] dir [] = pure ()
+compatibleChannels :: AProtocol -> Ordering -> AProtocol -> Elab Int
+compatibleChannels [] dir [] = pure 0
 compatibleChannels (p@(m, s) : ps) dir (q@(n, t) : qs) = do
   unless (s == t) $ throwError (IncompatibleSyntaxDescs s t)
   when (m == n) $ throwError (IncompatibleModes p q)
@@ -548,7 +548,8 @@ compatibleChannels (p@(m, s) : ps) dir (q@(n, t) : qs) = do
     (Input, LT) -> throwError (WrongDirection p dir q)
     (Output, GT) -> throwError (WrongDirection p dir q)
     _ -> pure ()
-  compatibleChannels ps dir qs
+  (+1) <$> compatibleChannels ps dir qs
+compatibleChannels ps _ qs = throwError (ProtocolsNotDual ps qs)
 
 sact :: CActor -> Elab AActor
 sact = \case
@@ -613,13 +614,13 @@ sact = \case
     q <- steppingChannel ch2 $ \ p -> pure (p, [])
     sc1 <- channelScope ch1
     sc2 <- channelScope ch2
-    link@(dir, _) <- case (findSub sc1 sc2, findSub sc2 sc1) of
+    (dir, th) <- case (findSub sc1 sc2, findSub sc2 sc1) of
       (Just thl, Just thr) -> pure (EQ, thl)
       (Just thl, _) -> pure (LT, thl)
       (_, Just thr) -> pure (GT, thr)
       _ -> throwError (IncompatibleChannelScopes sc1 sc2)
-    compatibleChannels p dir q
-    pure (Connect $ AConnect ch1 link ch2)
+    steps <- compatibleChannels p dir q
+    pure (aconnect ch1 th ch2 steps)
 
   FreshMeta desc (av, a) -> during FreshMetaElaboration $ do
     syndecls <- gets (Map.keys . syntaxCats)

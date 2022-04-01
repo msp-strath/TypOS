@@ -61,6 +61,8 @@ exec p@Process { actor = Send ch tm a, ..}
     in send ch term (p { stack = stack :<+>: [], root = newRoot, actor = a })
 exec p@Process { actor = Recv ch (x, a), ..}
   = recv ch x (p { stack = stack :<+>: [], actor = a })
+exec p@Process { actor = Connect ac, ..}
+  = connect ac (p { stack = stack :<+>: []})
 exec p@Process { actor = m@(Match s cls), ..}
   | Just term <- mangleActors env s
   = switch term cls
@@ -223,6 +225,16 @@ solveMeta m (CdB (S0 :^^ _) ph) tm p@Process{..} = do
   tm <- thickenCdB ph tm
   -- FIXME: do a deep occurs check here to avoid the bug from match
   return (p { store = updateStore m (objectNaming $ frDisplayEnv stack) tm store })
+
+connect :: AConnect -> Process Store Cursor -> Process Store []
+connect ac@(AConnect ch1 th ch2 n) (p@Process { stack = zf :< Sent q tm :<+>: fs, ..})
+  | q == ch1 = send ch2 (snd tm *^ th') (p { stack = zf <>< fs :<+>: [], actor = aconnect ch1 th ch2 (n-1)})
+  | q == ch2 = send ch1 (snd tm *^ th') (p { stack = zf <>< fs :<+>: [], actor = aconnect ch1 th ch2 (n-1)})
+  where th' = ones (length (globalScope env)) <> th
+connect ac p@Process { stack = zf'@(zf :< Spawnee intf) :<+>: fs, ..}
+  = move (p { stack = zf' <>< fs :<+>: []})
+connect ac (p@Process { stack = zf :< f :<+>: fs})
+  = connect ac (p { stack = zf :<+>: (f:fs) })
 
 send :: Channel -> Term -> Process Store Cursor -> Process Store []
 --send ch term (Process zfs@(zf :<+>: fs) _ _ _ a)

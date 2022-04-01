@@ -1,11 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
-
+{-# OPTIONS_GHC -Wincomplete-patterns #-}
 module Elaboration.Pretty where
 
 import Data.Foldable
 
 import Actor (ActorMeta(..), Channel(..))
 import Bwd
+import Concrete.Base (Mode)
 import Concrete.Pretty()
 import Doc
 import Doc.Render.Terminal
@@ -37,6 +38,9 @@ instance Pretty SyntaxDesc where
 
 instance Pretty ObjVar where
   pretty (x, info) = hsep [ pretty x, colon, pretty info ]
+
+instance Pretty (Mode, SyntaxDesc) where
+  pretty (m, desc) = hsep [ pretty m, prettyPrec 1 desc ]
 
 instance Pretty Complaint where
 
@@ -78,6 +82,9 @@ instance Pretty Complaint where
        hsep ["Unfinished protocol", parens (pretty p), "on channel", pretty ch]
      InconsistentCommunication -> singleton $ hsep ["Inconsistent communication"]
      DoomedBranchCommunicated a -> singleton $ hsep ["Doomed branch communicated", pretty a]
+     ProtocolsNotDual ps qs -> singleton $ hsep ["Protocols", pretty ps, "and", pretty qs, "are not dual"]
+     IncompatibleModes m1 m2 -> singleton $ hsep ["Modes", pretty m1, "and", pretty m2, "are incompatible"]
+     IncompatibleChannelScopes sc1 sc2 -> singleton $ hsep ["Channels scopes", collapse (pretty <$> sc1), "and", collapse (pretty <$> sc2), "are incompatible"]
       -- judgement stacks
      PushingOnAStacklessJudgement jd -> singleton $ hsep ["Pushing on a stackless judgement", pretty jd]
      LookupFromAStacklessActor jd -> singleton $ hsep ["Lookup from a stackless judgement", pretty jd]
@@ -87,11 +94,13 @@ instance Pretty Complaint where
      SyntaxContainsMeta x -> singleton $
        hsep ["The description of the syntactic category", pretty x, "contains meta variables"]
      InvalidSyntax x -> singleton $ hsep ["Invalid description for the syntactic category", pretty x]
+     WrongDirection m1 dir m2 -> singleton $ hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]
   -- syntaxdesc validation
      InconsistentSyntaxDesc -> singleton "Inconsistent syntactic descriptions"
      InvalidSyntaxDesc d -> singleton $ hsep ["Invalid syntax desc", pretty d]
      IncompatibleSyntaxDescs desc desc' -> singleton $
        hsep ["Incompatible syntax descriptions", prettyPrec 1 desc, "and", prettyPrec 1 desc']
+     IncompatibleSyntaxInfos info1 info2 -> singleton $ hsep ["Syntax infos", pretty info1, "and", pretty info2, "are incompatible"]
      ExpectedNilGot at -> singleton $ hsep ["Expected [] and got", squote <> pretty at]
      ExpectedEnumGot es e -> singleton $ "Expected" <+> sep
        [ hsep [ "an atom among", collapse (map pretty es)]
@@ -127,3 +136,4 @@ instance Pretty Complaint where
      PatternVariableElaboration v c -> go c :< hsep ["when elaborating the pattern variable", pretty v]
      TermVariableElaboration v c -> go c :< hsep ["when elaborating the term variable", pretty v]
      ProtocolElaboration p c -> go c :< hsep ["when elaborating the protocol", pretty p]
+     ConnectElaboration ch1 ch2 c -> go c :< hsep ["when elaborating the connection", pretty ch1, "<->", pretty ch2]

@@ -216,7 +216,7 @@ instance Unelab Debug where
 instance Unelab AConnect where
   type UnelabEnv AConnect = ()
   type Unelabed AConnect = CConnect
-  unelab (AConnect ch1 _ ch2) = CConnect <$> unelab ch1 <*> unelab ch2
+  unelab (AConnect ch1 _ ch2 _) = CConnect <$> unelab ch1 <*> unelab ch2
 
 instance Unelab Directive where
   type UnelabEnv Directive = ()
