@@ -258,7 +258,7 @@ send ch term
   p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs@(r, xs), parentP))) :<+>: fs
             , ..}
   | ch == q =
-  let parentP' = parentP { stack = Sent r (xs, term) : stack parentP }
+  let parentP' = parentP { stack = Sent r (xs, term) : stack parentP, store = New }
       stack'   = zf :< Spawnee (Interface (Hole, q) (rxs, parentP')) <>< fs
       p' = p { stack = stack' }
   in debug MachineSend (pretty ch) p' `seq` exec p'

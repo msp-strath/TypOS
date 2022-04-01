@@ -30,5 +30,4 @@ main = do
   -- putStrLn $ unsafeEvalDisplay initNaming $ collapse <$> traverse display acs
   let p = Process [] B0 initRoot (initEnv B0) initStore Win ""
   let res@(Process _ fs _ env sto Win _) = run opts p acs
-  -- putStrLn $ display initNaming res
   dmesg "" res `seq` pure ()
