@@ -42,17 +42,27 @@ class Collapse t where
 newtype BracesList t = BracesList { unBracesList :: [t] }
 
 instance Collapse BracesList where
-  collapse (BracesList ds) = braces $ hsepBy ";" ds
+  collapse (BracesList []) = "{}"
+  collapse (BracesList ds) = usingConfig $ \ cfg -> case orientation cfg of
+    Horizontal -> braces $ hsepBy ";" ds
+    Vertical -> vcat (zipWith (<>) ("{" : repeat ";") ds) <> "}"
 
 instance Collapse Bwd where
-  collapse ds = brackets ("<" <+> hsepBy "," (ds <>> []))
+  collapse B0 = "[<]"
+  collapse ds =  usingConfig $ \ cfg -> case orientation cfg of
+    Horizontal -> brackets ("<" <> hsepBy "," (ds <>> []))
+    Vertical -> vcat (zipWith (<>) ("[<" : repeat ",") (ds <>> [])) <> "]"
 
 instance Collapse [] where
-  collapse ds = brackets (hsepBy "," ds)
+  collapse [] = "[]"
+  collapse ds = usingConfig $ \ cfg -> case orientation cfg of
+    Horizontal -> brackets (hsepBy "," ds)
+    Vertical -> vcat (zipWith (<>) ("[" : repeat ",") ds) <> "]"
 
 instance Collapse Cursor where
-  collapse (lstrs :<+>: rstrs) =
-    hsep [ collapse lstrs
+  collapse (lstrs :<+>: rstrs) = usingConfig $ \ cfg ->
+    let osep = (case orientation cfg of { Horizontal -> hsep; Vertical -> vcat }) in
+    osep [ collapse lstrs
          , withANSI [SetColour Foreground Red, SetWeight Bold] ":<+>:"
          , collapse rstrs
          ]

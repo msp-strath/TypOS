@@ -98,3 +98,10 @@ deBruijnify xz = go xz `evalState` Map.empty where
     n <- new x
     xnz <- go xz
     pure (xnz :< (x, n))
+
+groupBy :: (a -> a -> Bool) -> Bwd a -> Bwd (Bwd a)
+groupBy eq B0 = B0
+groupBy eq (xz :< x) = go [x] x xz where
+
+  go acc x (yz :< y) | eq x y = go (y : acc) x yz
+  go acc _ yz = groupBy eq yz :< (B0 <>< acc)

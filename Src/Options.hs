@@ -9,13 +9,16 @@ import Pretty
 
 data Options = Options
   { filename :: String
+  , quiet :: Bool
   , tracingOption :: Maybe [MachineStep]
   }
 
 options :: Parser Options
-options = Options <$> argument str (metavar "FILE" <> showDefault <> value "examples/stlc.act" <> help "Actor file")
-                  <*> (optional $ option (str >>= (readSteps . words))
-                                             (long "tracing" <> metavar "LEVELS" <> help tracingHelp))
+options = Options
+  <$> argument str (metavar "FILE" <> showDefault <> value "examples/stlc.act" <> help "Actor file")
+  <*> flag False True (short 'q' <> long "quiet")
+  <*> (optional $ option (str >>= (readSteps . words))
+                         (long "tracing" <> metavar "LEVELS" <> help tracingHelp))
  where
    readSteps :: [String] -> ReadM [MachineStep]
    readSteps = mapM $ \case
@@ -27,8 +30,8 @@ options = Options <$> argument str (metavar "FILE" <> showDefault <> value "exam
      "break" -> pure MachineBreak
      x -> readerError $ "Unknown tracing level '" ++ x ++ "'. Accepted levels: " ++ levels
    tracingHelp = "Override tracing level (combinations of {" ++ levels ++ "} in quotes, separated by spaces, e.g. " ++ exampleLevels ++ ")"
-   levels = render 80 $ vcat $ map pretty [(minBound::MachineStep)..]
-   exampleLevels = "\"" ++ render 0 (hsep $ map pretty [minBound::MachineStep, maxBound]) ++ "\""
+   levels = render (initConfig 80) $ vcat $ map pretty [(minBound::MachineStep)..]
+   exampleLevels = "\"" ++ render (initConfig 0) (hsep $ map pretty [minBound::MachineStep, maxBound]) ++ "\""
 
 getOptions :: IO Options
 getOptions = execParser (info (options <**> helper)

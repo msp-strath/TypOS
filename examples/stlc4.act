@@ -30,4 +30,4 @@ synth@p = p?tm . lookup tm { S -> p!S. } else case tm
 
 exec  check@p. p! ['Arr 'Nat 'Nat].
               p! ['Lam \z. ['Emb ['App ['Rad ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]] ['Emb z]]]].
-      PRINTF "Store: %m\nEnv: %e\nStack:%S".
+      PRINTF "Store:\n %m\nEnv: %e\nStack:\n %S".

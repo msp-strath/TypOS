@@ -4,7 +4,7 @@ import Control.Applicative
 import Data.List
 import Data.Maybe
 
-import Doc (Doc, test, char)
+import Doc (Config(..), initConfig, Doc, test, char)
 import qualified Doc
 import ANSI (Annotation(..), Layer(..), Colour(..), Weight(..), Underlining(..))
 import qualified ANSI
@@ -14,7 +14,7 @@ data Annotations = Annotations
   , backgroundColour :: Maybe Colour
   , fontWeight       :: Maybe Weight
   , fontUnderlining  :: Maybe Underlining
-  } deriving (Show)
+  } deriving (Eq, Show)
 
 instance Semigroup Annotations where
   Annotations fg1 bg1 fw1 fu1 <> Annotations fg2 bg2 fw2 fu2
@@ -40,16 +40,16 @@ fromANSIs = foldl (\ acc ann -> acc <> fromANSI ann) mempty where
   fromANSI (SetWeight w) = mempty { fontWeight = Just w }
   fromANSI (SetUnderlining u) = mempty { fontUnderlining = Just u }
 
-render :: Int -> Doc Annotations -> String
-render i d
+render :: Config -> Doc Annotations -> String
+render cfg d
   = intercalate "\n"
   $ map (concatMap (uncurry (ANSI.withANSI . toANSIs)))
-  $ Doc.render i d
+  $ Doc.render cfg d
 
 withANSI :: [Annotation] -> Doc Annotations -> Doc Annotations
 withANSI = Doc.annotate . fromANSIs
 
-testT = test (render 80 . withANSI [ SetColour Background Blue ])
+testT = test (render (initConfig 80) . withANSI [ SetColour Background Blue ])
   (fancyChar Green '1')
   (fancyChar Red '0')
 

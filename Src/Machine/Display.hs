@@ -62,7 +62,10 @@ instance ( Display c, Forget DEnv (DisplayEnv c)
     cch' <- subdisplay cch
     pch' <- subdisplay pch
     p <- local (declareChannel pch) $ subdisplay p
-    pure $ hsep [ c, "@", cch', "|", pch', collapse (pretty <$> xs), "@", p ]
+    pure $ usingConfig $ \ cfg -> case orientation cfg of
+      Vertical -> vcat $ brackets (cch' <> pipe <> pch' <> horizontally (collapse (pretty <$> xs)))
+                       : map (indent 1) [ c, p ]
+      Horizontal -> hsep [ c, "@", cch', pipe, pch', collapse (pretty <$> xs), "@", p ]
 
 instance Display Frame where
   type DisplayEnv Frame = DEnv
@@ -83,7 +86,7 @@ instance Display Frame where
       ch' <- subdisplay ch
       t <- subpdisplay t -- pure $ show t
       pure $ withANSI [SetColour Foreground Blue, SetWeight Bold]
-           $ "!" <> ch' <> dot <+> collapse (pretty <$> xs) <+> t
+           $ "!" <> ch' <> dot <+> horizontally (collapse (pretty <$> xs)) <+> t
     Pushed jd (p, t) -> do
       p <- subdisplay p
       t <- subdisplay t
@@ -102,7 +105,9 @@ instance (Show (t Frame), Traversable t, Collapse t, Display0 s) => Display (Pro
   type DisplayEnv (Process s t) = DEnv
   display p =  do
     (fs', store', env', a') <- displayProcess' p
-    pure $ parens $ hsep [collapse fs', store', env', a']
+    pure $ parens $ usingConfig $ \ cfg ->
+      let osep = case orientation cfg of { Vertical -> sep; Horizontal -> hsep } in
+      osep ([collapse fs', store', env'] ++ case actor p of {Win -> []; _ -> [a']})
 
 displayProcess' :: (Traversable t, Collapse t, Display0 s) =>
   Process s t -> DisplayM DEnv (t (Doc Annotations), Doc Annotations, Doc Annotations, Doc Annotations)
