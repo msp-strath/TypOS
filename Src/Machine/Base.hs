@@ -21,10 +21,12 @@ data StoreF i = Store
 initStore :: StoreF i
 initStore = Store Map.empty 0
 
+tick :: StoreF i -> StoreF i
+tick st@Store{..} = st { today = today + 1 }
+
 updateStore :: Meta -> i -> Term -> StoreF i -> StoreF i
-updateStore m i t (Store{..}) = Store
-  { solutions = Map.insert m (i, t) solutions
-  , today = today + 1 }
+updateStore m i t st@Store{..} = tick $ st
+  { solutions = Map.insert m (i, t) solutions }
 
 headUp :: StoreF i -> Term -> Term
 headUp store term

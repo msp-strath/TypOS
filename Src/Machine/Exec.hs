@@ -58,7 +58,10 @@ exec p@Process { actor = Spawn jd spawnerCh actor, ..}
 exec p@Process { actor = Send ch tm a, ..}
   | Just term <- mangleActors env tm
   = let (subRoot, newRoot) = splitRoot root ""
-    in send ch term (p { stack = stack :<+>: [], root = newRoot, actor = a })
+    in send ch term (p { stack = stack :<+>: []
+                       , root = newRoot
+                       , actor = a
+                       , store = tick store })
 exec p@Process { actor = Recv ch (x, a), ..}
   = recv ch x (p { stack = stack :<+>: [], actor = a })
 exec p@Process { actor = Connect ac, ..}
