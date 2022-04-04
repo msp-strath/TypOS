@@ -47,6 +47,7 @@ library
                        Machine.Base,
                        Machine.Display,
                        Machine.Exec,
+                       Machine.Trace,
                        Main,
                        Options,
                        Parse,

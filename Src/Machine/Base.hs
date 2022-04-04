@@ -5,6 +5,7 @@ module Machine.Base where
 import qualified Data.Map as Map
 
 import Actor
+import Bwd
 import Format
 import Term
 import Thin
@@ -69,6 +70,9 @@ data Hole = Hole deriving Show
 data Interface c p = Interface
   { spawnee :: (c, Channel)
   , spawner :: ((Channel, [String]), p)
+  , judgeName :: JudgementForm
+  , judgeProtocol :: AProtocol
+  , traffic :: Bwd Term
   } deriving (Show)
 
 -- Do NOT reorder arguments: derived Ord needs to be this way
@@ -79,7 +83,7 @@ data Status
   deriving (Show, Eq, Ord)
 
 data Frame
-  = Rules JudgementForm (Channel, AActor)
+  = Rules JudgementForm AProtocol (Channel, AActor)
   | LeftBranch Hole (Process Status [])
   | RightBranch (Process Status []) Hole
   | Spawnee (Interface Hole (Process Status []))

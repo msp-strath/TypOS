@@ -14,6 +14,7 @@ import Concrete.Base
 import Display
 import Doc
 import Doc.Render.Terminal
+import Elaboration.Pretty()
 import Forget
 import Format
 import Machine.Base
@@ -64,7 +65,7 @@ declareChannel ch de@DEnv{..} = de { daEnv = A.declareChannel ch daEnv }
 instance ( Display c, Forget DEnv (DisplayEnv c)
          , Display p, Forget DEnv (DisplayEnv p)) => Display (Interface c p) where
   type DisplayEnv (Interface c p) = DEnv
-  display (Interface (c, cch) ((pch, xs), p)) = do
+  display (Interface (c, cch) ((pch, xs), p) jd _ tr) = do
     c <- local (initChildDEnv cch) $ subdisplay c
     cch' <- subdisplay cch
     pch' <- subdisplay pch
@@ -77,7 +78,7 @@ instance ( Display c, Forget DEnv (DisplayEnv c)
 instance Display Frame where
   type DisplayEnv Frame = DEnv
   display = \case
-    Rules jd (ch, a) -> do
+    Rules jd _ (ch, a) -> do
       ch' <- subdisplay ch
       a <- local (declareChannel ch) $ subpdisplay a
       pure $ pretty jd <+> "|-@" <> ch' <> " {}" -- a
@@ -173,8 +174,8 @@ frameOn de@DEnv{..} = \case
   Binding x -> de { objectNaming = objectNaming `nameOn` x
                   , daEnv = A.updateNaming (`nameOn` x) daEnv
                   }
-  Spawnee (Interface (Hole, ch) _) -> initChildDEnv ch de
-  Spawner (Interface _ ((ch, _), Hole)) -> declareChannel ch $ de
+  Spawnee (Interface (Hole, ch) _ _ _ _) -> initChildDEnv ch de
+  Spawner (Interface _ ((ch, _), Hole) _ _ _) -> declareChannel ch $ de
   _ -> de
 
 frDisplayEnv :: Foldable t => t Frame -> DEnv

@@ -99,7 +99,13 @@ equalSynthWorker@p = p?e1. p?e2. lookup e1 { S1 -> PRINTF "Var" . (e1 ~ e2 | p!S
   ; [x|y] -> # "%i not equalSynth to %i" x y
   }
 
+exec  type@p. p!['Emb
+                 ['App ['Rad
+                        ['Lam \x. ['Pi ['Emb x] \a. ['Emb x]]]
+                        ['Pi 'Ty \x. 'Ty]]
+                       ['Pi 'Ty \x. ['Emb x]]]].
 
+{-
 exec  'Synth?tm.'Synth?tm2. (tm ~ ['Rad
                   ['Lam \x. ['Emb x]]
                   ['Emb
@@ -111,7 +117,7 @@ exec  'Synth?tm.'Synth?tm2. (tm ~ ['Rad
       PRINTF "Type: %i" nty.
       evalSynth@q. q!tm2. q?ntm.
       PRINTF "Eval: %i" ntm.)
-
+-}
 {-
 exec  'Synth?tm. (tm ~ ['Rad
                   ['Lam \x. ['Emb x]]

@@ -2,7 +2,6 @@
 
 * [ ] Module system
 * [ ] Source location information
-* [ ] Tailcall (channel plumbing)
 * [ ] VM performance
    + [ ] Profiling
    + [ ] Bookkeep parts of the tree that are not stuck on new metas
@@ -16,8 +15,9 @@
 
 ### Pretty
 
-* [ ] Optimise terminal Doc renderer (merge spans with compatible annotations)
 * [ ] --no-colour CLI option
+* [ ] Performance
+* [ ] Try alternative libraries
 
 ### Cleanup
 
