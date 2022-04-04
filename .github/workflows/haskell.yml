@@ -58,7 +58,7 @@ jobs:
         cabal build all
 
     - name: Test
-      if: runner.os != 'Windows'
+      # if: runner.os != 'Windows'
       run: |
         cabal test all
 
@@ -94,6 +94,6 @@ jobs:
         stack build --system-ghc --test --bench --no-run-tests --no-run-benchmarks
 
     - name: Test
-      if: runner.os != 'Windows'
+      # if: runner.os != 'Windows'
       run: |
         stack test --system-ghc

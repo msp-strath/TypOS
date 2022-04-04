@@ -1,8 +1,6 @@
 ret > ExitFailure 1
-err > typos: [41mError[0m
-err > Pattern 'Nat does not match ['Cons 'Type 'Type]
-err > when elaborating a case branch handling the pattern 'Nat
-err > when elaborating the judgement definition for typeEq
-err > CallStack (from HasCallStack):
-err >   error, called at Src/Main.hs:25:20 in main:Main
-err >
+out > [41mError[0m
+out > Pattern 'Nat does not match ['Cons 'Type 'Type]
+out > when elaborating a case branch handling the pattern 'Nat
+out > when elaborating the judgement definition for typeEq
+out >
