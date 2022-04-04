@@ -21,7 +21,7 @@ import Pretty
 import Term.Base
 import Options
 import Command
-import Machine.Trace (Tracing(..),diagnostic)
+import Machine.Trace (diagnostic, initTracing)
 
 main :: IO ()
 main = do
@@ -36,8 +36,6 @@ main = do
     Right acs -> do
   -- putStrLn $ unsafeEvalDisplay initNaming $ collapse <$> traverse display acs
       let p = Process (fromMaybe [] (tracingOption opts)) B0 initRoot (initEnv B0) initStore Win ""
-      let res@(Process _ fs _ env sto Win _) = run opts p acs
-      unless (quiet opts) $
-        putStrLn $ diagnostic (Tracing { topLevel = []
-                              , never = ["checkEval", "evalSynth", "synthWorker", "checkWorker", "checkEqual", "equalSynth", "checkEqualWorker", "equalSynthWorker"]}) sto fs
+      let (tr, res@(Process _ fs _ env sto Win _)) = run opts initTracing p acs
+      unless (quiet opts) $ putStrLn $ diagnostic tr sto fs
       dmesg "" res `seq` pure ()

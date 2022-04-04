@@ -6,7 +6,7 @@
    + [ ] Profiling
    + [ ] Bookkeep parts of the tree that are not stuck on new metas
    + [ ] Record more precise "Date" information (e.g. sets of blocking meta)
-* [ ] Inference rules
+* [ ] Allow actors to override default ExtractMode (e.g. type silences check in mltt2)
 * [ ] Concurrent runtime
 
 ### Examples

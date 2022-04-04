@@ -116,9 +116,11 @@ extract (f : fs) = case f of
 
 data Tracing = Tracing
   { topLevel :: [JudgementForm]
-  , never    :: [JudgementForm]
+  , interesting :: [JudgementForm]
   }
 
+initTracing :: Tracing
+initTracing = Tracing [] []
 
 cleanup :: Tracing -> [Trace AStep] -> [Trace AStep]
 cleanup trac = snd . go False [] where
@@ -128,7 +130,7 @@ cleanup trac = snd . go False [] where
      -> [Trace AStep] -> (Any, [Trace AStep])
   go supp seen [] = pure []
   go supp seen (Node i@(CallingStep jd tr) ts : ats)
-    | jd `elem` never trac || jd `elem` seen
+    | jd `elem` interesting trac || jd `elem` seen
     = let (Any b, ts') = go True seen ts in
       if not supp && b
         then (Node i ts' :) <$> go supp seen ats

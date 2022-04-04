@@ -1,3 +1,4 @@
+
 syntax
   { 'Check = ['EnumOrTag ['Ty]
                          [ ['Lam ['Bind 'Synth 'Check]]
@@ -13,17 +14,17 @@ syntax
 type  : ?'Check.
 
 check : ?'Check. {- Type -} ?'Check. {- Term -}
-checkWorker : ?'Check. {- Type -} ?'Check. {- Term -}
+^checkWorker : ?'Check. {- Type -} ?'Check. {- Term -}
 synth : ?'Synth. !'Check. {-Type-}
-synthWorker : 'Synth -> 'Check {-Type-} |- ?'Synth. !'Check. {-Type-}
+^synthWorker : 'Synth -> 'Check {-Type-} |- ?'Synth. !'Check. {-Type-}
 
-checkEval : ?'Check. !'Check.
-evalSynth : ?'Synth. !'Synth.
+^checkEval : ?'Check. !'Check.
+^evalSynth : ?'Synth. !'Synth.
 
-checkEqual : ?'Check{-Type-}. ?'Check. ?'Check.
-checkEqualWorker : ?'Check{-Type-}. ?'Check. ?'Check.
-equalSynth : ?'Synth.?'Synth.!'Check{-Type-}.
-equalSynthWorker : 'Synth -> 'Check {-Type-} |- ?'Synth.?'Synth.!'Check{-Type-}.
+^checkEqual : ?'Check{-Type-}. ?'Check. ?'Check.
+^checkEqualWorker : ?'Check{-Type-}. ?'Check. ?'Check.
+^equalSynth : ?'Synth.?'Synth.!'Check{-Type-}.
+^equalSynthWorker : 'Synth -> 'Check {-Type-} |- ?'Synth.?'Synth.!'Check{-Type-}.
 
 ------------------------------------------------------------------------------
 -- Implementation
