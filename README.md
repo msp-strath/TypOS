@@ -367,8 +367,9 @@ You have been watching
 * looking: `lookup` *term* `{` *actor-variable* `->` *actor* `} else` *actor*
 * winning:
 
-and there's three more:
+and there's four more:
 
+* plumbing: *channel* `<->` *channel* connects together two channels to forward on messages in both directions
 * losing: `#` *format-string*
 * printing: `PRINTF` *format-string*
 * breaking: `BREAK` *format-string*
