@@ -2,6 +2,8 @@
 
 module Main where
 
+import Data.Maybe
+
 import ANSI hiding (withANSI)
 import Bwd
 import Concrete.Base
@@ -28,6 +30,6 @@ main = do
 
     Right acs -> pure acs
   -- putStrLn $ unsafeEvalDisplay initNaming $ collapse <$> traverse display acs
-  let p = Process [] B0 initRoot (initEnv B0) initStore Win ""
+  let p = Process (fromMaybe [] (tracingOption opts)) B0 initRoot (initEnv B0) initStore Win ""
   let res@(Process _ fs _ env sto Win _) = run opts p acs
   dmesg "" res `seq` pure ()

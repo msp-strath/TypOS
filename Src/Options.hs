@@ -16,7 +16,7 @@ data Options = Options
 options :: Parser Options
 options = Options
   <$> argument str (metavar "FILE" <> showDefault <> value "examples/stlc.act" <> help "Actor file")
-  <*> flag False True (short 'q' <> long "quiet")
+  <*> flag False True (short 'q' <> long "quiet" <> help "Silence tracing")
   <*> (optional $ option (str >>= (readSteps . words))
                          (long "tracing" <> metavar "LEVELS" <> help tracingHelp))
  where
