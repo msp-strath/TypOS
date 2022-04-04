@@ -674,6 +674,7 @@ sact = \case
   Fail fmt -> Fail <$> sformat fmt <* tell (All False)
   Print fmt a -> Print <$> sformat fmt <*> sact a
   Break fmt a -> Break <$> sformat fmt <*> sact a
+  Note a -> Note <$> sact a
 
 sformat :: [Format Directive Debug Raw] -> Elab [Format Directive Debug ACTm]
 sformat fmt = do

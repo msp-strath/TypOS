@@ -2,6 +2,8 @@
 
 module Main where
 
+
+import Control.Monad
 import Data.Maybe
 
 import System.Exit
@@ -35,6 +37,7 @@ main = do
   -- putStrLn $ unsafeEvalDisplay initNaming $ collapse <$> traverse display acs
       let p = Process (fromMaybe [] (tracingOption opts)) B0 initRoot (initEnv B0) initStore Win ""
       let res@(Process _ fs _ env sto Win _) = run opts p acs
-      putStrLn $ diagnostic (Tracing { topLevel = ["checkEval", "evalSynth"]
-                                     , never = ["synthWorker", "checkWorker", "checkEqualWorker", "equalSynthWorker"]}) sto fs
+      unless (quiet opts) $
+        putStrLn $ diagnostic (Tracing { topLevel = []
+                              , never = ["checkEval", "evalSynth", "synthWorker", "checkWorker", "checkEqual", "equalSynth", "checkEqualWorker", "equalSynthWorker"]}) sto fs
       dmesg "" res `seq` pure ()

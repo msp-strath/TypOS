@@ -93,6 +93,7 @@ pact = Under <$> pscoped pact
   <|> Push <$> pvariable <*> pcurlies (withVar "->" ptm) <* punc "." <*> pact
   <|> Lookup <$ plit "lookup" <* pspc <*> ptm <* pspc <*> pcurlies (withVar "->" pACT)
              <* pspc <* plit "else" <* pspc <*> pact
+  <|> Note <$ plit "!" <* punc "." <*> pact
   <|> pure Win
   where
     questionmark (Var c) = Recv c

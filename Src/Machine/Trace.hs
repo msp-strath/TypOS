@@ -2,6 +2,7 @@
 module Machine.Trace where
 
 import Control.Monad.Reader
+import Control.Monad.Writer
 
 import ANSI hiding (withANSI)
 import Actor (JudgementForm)
@@ -25,6 +26,7 @@ instance Show i => Show (Trace i) where
 
 data Step jd db t
   = BindingStep String
+  | NotedStep
   | PushingStep jd db t
   | CallingStep jd [(Mode,t)]
   deriving (Show)
@@ -36,6 +38,7 @@ instance Instantiable AStep where
   type Instantiated AStep = AStep
   instantiate st = \case
     BindingStep x -> BindingStep x
+    NotedStep -> NotedStep
     PushingStep jd db t -> PushingStep jd db (instantiate st t)
     CallingStep jd tr -> CallingStep jd ((instantiate st <$>) <$> tr)
 
@@ -52,6 +55,7 @@ instance Unelab (Trace AStep) where
       let y = freshen x na
       ts <- local (`nameOn` y) $ traverse unelab ts
       pure (Node (BindingStep y) ts)
+    NotedStep -> Node NotedStep <$> traverse unelab ts
     PushingStep jd db t -> do
       jd <- subunelab jd
       v <- unelab db
@@ -74,6 +78,7 @@ instance Pretty CStep where
     BindingStep x -> withANSI [ SetColour Background Magenta ] ("\\" <> pretty x <> dot)
     PushingStep jd x t -> pretty jd <+> braces (hsep [pretty x, "->", pretty t])
     CallingStep jd ts -> pretty jd <+> sep (pretty <$> ts)
+    NotedStep -> ""
 
 instance Pretty (Trace CStep) where
   pretty (Node i@(BindingStep x) ts) =
@@ -102,6 +107,7 @@ extract (f : fs) = case f of
     : extract fs
   Pushed jd (i, t) -> node (PushingStep jd i t)
   Binding x -> node (BindingStep x)
+  Noted -> Node NotedStep [] : extract fs
   _ -> extract fs
 
   where
@@ -115,17 +121,28 @@ data Tracing = Tracing
 
 
 cleanup :: Tracing -> [Trace AStep] -> [Trace AStep]
-cleanup trac = go [] where
+cleanup trac = snd . go False [] where
 
-  go :: [JudgementForm] -> [Trace AStep] -> [Trace AStep]
-  go seen [] = []
-  go seen (Node i@(CallingStep jd tr) ts : ats)
+  go :: Bool            -- ^ is the parent suppressable?
+     -> [JudgementForm] -- ^ list of toplevel judgements already seen
+     -> [Trace AStep] -> (Any, [Trace AStep])
+  go supp seen [] = pure []
+  go supp seen (Node i@(CallingStep jd tr) ts : ats)
     | jd `elem` never trac || jd `elem` seen
-    = go seen ts ++ go seen ats
+    = let (Any b, ts') = go True seen ts in
+      if not supp && b
+        then (Node i ts' :) <$> go supp seen ats
+        else (ts' ++) <$ tell (Any b) <*> go supp seen ats
     | jd `elem` topLevel trac
-    = Node i (go (jd : seen) ts) : go seen ats
-    | otherwise = Node i (go [] ts) : go seen ats
-  go seen (Node i ts : ats) = Node i (go seen ts) : go seen ats
+    = (:) <$> (censor (const (Any False)) $ Node i <$> go False (jd : seen) ts)
+          <*> go supp seen ats
+    | otherwise
+    = (:) <$> (censor (const (Any False)) $ Node i <$> go False [] ts)
+          <*> go supp seen ats
+  go supp seen (Node NotedStep _ : ats) = tell (Any True) >> go supp seen ats
+  go supp seen (Node i ts : ats) =
+    (:) <$> (censor (const (Any False)) $ Node i <$> go False seen ts)
+        <*> go supp seen ats
 
 diagnostic :: Tracing -> StoreF i -> [Frame] -> String
 diagnostic trac st fs =

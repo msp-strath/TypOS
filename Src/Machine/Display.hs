@@ -108,6 +108,7 @@ instance Display Frame where
       date <- subdisplay date
       pure $ withANSI [SetColour Background Red]
            $ s <+> "~?" <> brackets date <+> t
+    Noted -> pure "Noted"
 
 instance (Show (t Frame), Traversable t, Collapse t, Display0 s) => Display (Process s t) where
   type DisplayEnv (Process s t) = DEnv

@@ -85,6 +85,7 @@ prettyact a = go B0 B0 a where
     Recv ch (av, a) -> go ls (l `add` [pretty ch, "?", pretty av, dot]) a
     FreshMeta syn (av, a) -> go (ls :< fold (l `add` [pretty syn, "?", pretty av, dot])) B0 a
     Under (Scope x a) -> go ls (l `add` [backslash , pretty x, dot]) a
+    Note a -> go ls (l `add` ["!", dot]) a
     Push jd (x, t) a ->
       let push = hsep [pretty jd, braces (hsep [ pretty x, "->", pretty t])] <> dot in
       go (ls :< (fold (l `add` [push]))) B0 a

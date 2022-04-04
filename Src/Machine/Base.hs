@@ -92,6 +92,7 @@ data Frame
   | Pushed JudgementForm (DB, Term)
   | Binding String
   | UnificationProblem Date Term Term
+  | Noted
   deriving (Show)
 
 data MachineStep

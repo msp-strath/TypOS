@@ -193,6 +193,9 @@ exec p@Process { actor = Fail fmt, ..}
                   Right str -> render (Config 80 Vertical) str
     in alarm msg $ move (p { stack = stack :<+>: [] })
 
+exec p@Process { actor = Note a, .. }
+  = exec (p { stack = stack :< Noted, actor = a})
+
 exec p@Process {..} = move (p { stack = stack :<+>: [] })
 
 format :: [Annotation] -> Process Store Bwd -> [Format Directive Debug Term] -> String

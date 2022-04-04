@@ -65,7 +65,7 @@ synthWorker@p = p?tm . lookup tm { S -> p!S. } else case tm
 
 checkEval@p = p?tm. case tm
   { ['Emb e] -> PRINTF "Emb" . evalSynth@q. q!e. q?ne. case ne
-    { ['Rad t ty] -> PRINTF "Ups". p!t.
+    { ['Rad t ty] -> !. PRINTF "Ups". p!t.
     ; x -> p!['Emb x].
     }
   ; x -> PRINTF "Other %i" x . p!x.
@@ -74,7 +74,7 @@ checkEval@p = p?tm. case tm
 evalSynth@p = p?tm. case tm
   { ['Rad t ty] -> PRINTF "Rad" . checkEval@q. q!t. checkEval@r. r!ty. q?nt. r?nty. p!['Rad nt nty].
   ; ['App f s] -> PRINTF "App" . evalSynth@q. q!f. q?nf. case nf
-    { ['Rad ['Lam \ x. t] ['Pi S \ y. T]] -> PRINTF "Beta" . checkEval@w. w!{x=['Rad s S]}t. checkEval@v. v!{y=['Rad s S]}T. w?nt. v?NT. p!['Rad nt NT].
+    { ['Rad ['Lam \ x. t] ['Pi S \ y. T]] -> !. PRINTF "Beta" . checkEval@w. w!{x=['Rad s S]}t. checkEval@v. v!{y=['Rad s S]}T. w?nt. v?NT. p!['Rad nt NT].
     ; g -> p!['App g s].
     }
   ; x -> p!x.
@@ -99,12 +99,14 @@ equalSynthWorker@p = p?e1. p?e2. lookup e1 { S1 -> PRINTF "Var" . (e1 ~ e2 | p!S
   ; [x|y] -> # "%i not equalSynth to %i" x y
   }
 
+{-
 exec  type@p. p!['Emb
                  ['App ['Rad
                         ['Lam \x. ['Pi ['Emb x] \a. ['Emb x]]]
                         ['Pi 'Ty \x. 'Ty]]
                        ['Pi 'Ty \x. ['Emb x]]]].
 
+-}
 {-
 exec  'Synth?tm.'Synth?tm2. (tm ~ ['Rad
                   ['Lam \x. ['Emb x]]
@@ -118,7 +120,7 @@ exec  'Synth?tm.'Synth?tm2. (tm ~ ['Rad
       evalSynth@q. q!tm2. q?ntm.
       PRINTF "Eval: %i" ntm.)
 -}
-{-
+
 exec  'Synth?tm. (tm ~ ['Rad
                   ['Lam \x. ['Emb x]]
                   ['Emb
@@ -130,4 +132,3 @@ exec  'Synth?tm. (tm ~ ['Rad
       PRINTF "Type: %i" nty.
       evalSynth@q. q!tm. q?ntm.
       PRINTF "Eval: %i" ntm.)
--}

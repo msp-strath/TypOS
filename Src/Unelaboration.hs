@@ -264,6 +264,7 @@ instance Unelab AActor where
     Print fmt a -> Print <$> traverse subunelab fmt <*> unelab a
     Break fmt a -> Break <$> traverse subunelab fmt <*> unelab a
     Connect cnnct -> Connect <$> subunelab cnnct
+    Note a -> Note <$> unelab a
 
 instance Unelab Mode where
   type UnelabEnv Mode = ()

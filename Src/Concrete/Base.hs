@@ -53,6 +53,7 @@ data Actor jd ch av syn var tm pat cnnct
  | Send ch tm (Actor jd ch av syn var tm pat cnnct)
  | Recv ch (av, Actor jd ch av syn var tm pat cnnct)
  | Connect cnnct
+ | Note (Actor jd ch av syn var tm pat cnnct)
  | FreshMeta syn (av, Actor jd ch av syn var tm pat cnnct)
  | Under (Scope (Actor jd ch av syn var tm pat cnnct))
  | Match tm [(pat, Actor jd ch av syn var tm pat cnnct)]
