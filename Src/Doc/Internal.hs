@@ -82,6 +82,15 @@ data Block ann = Block
   , lastLine  :: Line ann
   } deriving (Show)
 
+instance Eq (Block ann) where
+  Block h1 _ mw1 lw1 _ == Block h2 _ mw2 lw2 _
+    = h1 == h2 && mw1 == mw2 && lw1 == lw2
+
+instance Ord (Block ann) where
+  Block h1 _ mw1 lw1 _ < Block h2 _ mw2 lw2 _
+    = h1 <= h2 && mw1 <= mw2 && lw1 <= lw2
+  b1 <= b2 = b1 == b2 || b1 < b2
+
 instance Functor Block where
   fmap f (Block h c mw lw l) = Block h (bimap (f <$>) (mapTree f) <$> c) mw lw (f <$> l)
 
