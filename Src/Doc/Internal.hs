@@ -36,7 +36,12 @@ treeAnnotate ann (Indent m t) = Indent m (treeAnnotate ann t)
 treeAnnotate ann (Annotate ann' t) = Annotate (ann <> ann') t
 treeAnnotate ann t = Annotate ann t
 
-newtype Line ann = Line { runLine :: Bwd (ann, String) }
+data Span ann
+  = Literal !ann !String
+  | Indents !Int
+  deriving (Show, Functor)
+
+newtype Line ann = Line { runLine :: Bwd (Span ann) }
   deriving (Show, Functor)
 
 instance Eq ann => Semigroup (Line ann) where
@@ -52,17 +57,18 @@ instance Eq ann => Semigroup (Line ann) where
   -- 2. alternatively, assuming both sides are already fused
   Line B0 <> Line rz = Line rz
   Line lz <> Line B0 = Line lz
-  Line llz@(lz :< (al, l)) <> Line rz = Line $
+  Line llz@(lz :< Literal al l) <> Line rz = Line $
     case rz <>> [] of
-      (ar, r):rs | al == ar -> lz :< (al, l <> r) <>< rs
+      (Literal ar r):rs | al == ar -> lz :< Literal al (l <> r) <>< rs
       _ -> llz <> rz
+  Line lz <> Line rz = Line (lz <> rz)
 
 instance Eq ann => Monoid (Line ann) where
   mempty = Line B0
 
 asLine :: (Eq ann, Monoid ann) => String -> Line ann
 asLine "" = mempty
-asLine str = Line (singleton (mempty, str))
+asLine str = Line (singleton $ Literal mempty str)
 
 -- A block has the shape
 -- ```
@@ -138,7 +144,7 @@ instance (Eq ann, Monoid ann) => Semigroup (Block ann) where
         case c2 of
           Nothing -> (c1, l1 <> l2)
           Just (f2, b2) -> ( node c1 (l1 <> f2) (treeIndent lw1 b2)
-                           , if lw1 == 0 then l2 else asLine (replicate lw1 ' ') <> l2)
+                           , if lw1 == 0 then l2 else Line (B0 :< Indents lw1) <> l2)
 
 instance (Eq ann, Monoid ann) => Monoid (Block ann) where
   mempty = text ""
@@ -154,10 +160,16 @@ render b = (<>> []) $ go B0 mempty ""
 
   where
 
+  goLine :: [(ann, String)] -> ann -> Bwd (Span ann) -> [(ann, String)]
+  goLine acc ann B0 = acc
+  goLine acc ann (spz :< sp) = case sp of
+    Literal ann' str -> goLine ((ann <> ann', str) : acc) ann spz
+    Indents n -> goLine ((mempty, replicate n ' ') : acc) ann spz
+
   go :: Bwd [(ann, String)] -> ann -> String -> Tree ann (Line ann) -> Bwd [(ann, String)]
   go acc ann ind Leaf = acc
   go acc ann ind (Annotate ann' t) = go acc (ann <> ann') ind t
   go acc ann ind (Indent m t) = go acc ann (replicate m ' ' ++ ind) t
   go acc ann ind (Node xs l ys)
-    = let l' = (ann, ind) : (runLine ((ann <>) <$> l) <>> []) in
+    = let l' = (mempty, ind) : (goLine [] ann $ runLine l) in
       go (go acc ann ind xs :< l') ann ind ys
