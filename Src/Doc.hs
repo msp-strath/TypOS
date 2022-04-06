@@ -100,7 +100,7 @@ annotate :: Semigroup ann => ann -> Doc ann -> Doc ann
 annotate ann (Doc ds) = Doc (\ i -> I.annotate ann <$> ds i)
 
 indent :: IsAnnotation ann => Int -> Doc ann -> Doc ann
-indent n d = spaces n <> d
+indent n d = Doc (\ _ -> I.indent n :| []) <> d
 
 instance IsAnnotation ann => Monoid (Doc ann) where
   mempty = empty

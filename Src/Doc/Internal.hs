@@ -111,6 +111,15 @@ annotate :: Semigroup ann => ann -> Block ann -> Block ann
 annotate ann (Block h c mw lw l)
   = Block h (bimap ((ann <>) <$>) (treeAnnotate ann) <$> c) mw lw ((ann <>) <$> l)
 
+indent :: Int -> Block ann
+indent i = Block
+  { height    = 0
+  , chunk     = Nothing
+  , maxWidth  = i
+  , lastWidth = i
+  , lastLine  = Line (B0 :< Indents i)
+  }
+
 -- A text is assumed not to contain any newline character
 text :: (HasCallStack, Eq ann, Monoid ann) => String -> Block ann
 text str | any (`elem` "\n\r") str = error ("Invalid text: " ++ show str)
