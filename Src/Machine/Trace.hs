@@ -151,5 +151,5 @@ diagnostic trac st fs =
   let ats = cleanup trac $ extract fs in
   let iats = instantiate st ats in
   let cts = traverse unelab iats in
-  render ((initConfig 0) { orientation = Vertical })
+  render ((initConfig 80) { orientation = Vertical })
     $ vcat $ map pretty $ unsafeEvalUnelab initNaming cts
