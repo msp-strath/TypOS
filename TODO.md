@@ -5,6 +5,7 @@
 
 ### Features
 
+* [ ] User-friendly syntaxes
 * [ ] Industrial-strength parsing
 * [ ] Module system
 * [ ] Source location information
