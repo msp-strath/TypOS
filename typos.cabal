@@ -43,6 +43,7 @@ library
                        Forget,
                        Format,
                        Hide,
+                       LaTeX,
                        Machine,
                        Machine.Base,
                        Machine.Display,
