@@ -29,7 +29,7 @@ synth : ?'Synth. !'Check. {-Type-}
 ------------------------------------------------------------------------------
 -- Implementation
 
-type@p = p?ty. check@q. q!'Ty. q!ty.
+type@p = p?ty. ^check@q. q!'Ty. q!ty.
 
 check@p = p?ty. checkEval@q. q!ty. q?nty. checkWorker@r. r!nty. p <-> r
 synth@p = p?tm. synthWorker@r. r!tm. r?ty.checkEval@q. q!ty. q <-> p

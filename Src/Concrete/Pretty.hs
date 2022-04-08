@@ -66,6 +66,12 @@ prettyCdrP = \case
   ConsP p q -> pretty p : prettyCdrP q
   p -> [pipe, pretty p]
 
+instance Pretty ExtractMode where
+  pretty = \case
+    AlwaysExtract -> ""
+    TopLevelExtract -> "/"
+    InterestingExtract -> "^"
+
 -- Just like we have a distinction between small and big actors in the parser,
 -- it makes sense to have one in the pretty printer too.
 prettyact :: CActor -> [Doc Annotations]
@@ -79,7 +85,7 @@ prettyact a = go B0 B0 a where
         Bwd (Doc Annotations) -> -- part of the line on our left
         CActor -> [Doc Annotations]
   go ls l = \case
-    Spawn jd p a -> go (ls :< fold (l `add` [pretty jd, "@", pretty p, dot])) B0 a
+    Spawn em jd p a -> go (ls :< fold (l `add` [pretty em, pretty jd, "@", pretty p, dot])) B0 a
     Send ch t@(Var _) a -> go ls (l `add` [pretty ch, "!", pretty t, dot]) a
     Send ch t a -> go (ls :< fold (l `add` [pretty ch, "!", pretty t, dot])) B0 a
     Recv ch (av, a) -> go ls (l `add` [pretty ch, "?", pretty av, dot]) a

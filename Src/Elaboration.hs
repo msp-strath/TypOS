@@ -76,7 +76,7 @@ type ObjVars = Bwd ObjVar
 data Kind
   = ActVar (Info SyntaxDesc) ObjVars
   | AChannel ObjVars
-  | AJudgement (Maybe AJudgementStack) AProtocol
+  | AJudgement ExtractMode (Maybe AJudgementStack) AProtocol
   deriving (Show)
 
 type Hints = Map String (Info SyntaxDesc)
@@ -482,9 +482,16 @@ isChannel ch = resolve ch >>= \case
   Just mk -> throwError (NotAValidChannel ch $ either Just (const Nothing) mk)
   Nothing -> throwError (OutOfScope ch)
 
-isJudgement :: Variable -> Elab (JudgementForm, Maybe AJudgementStack, AProtocol)
+data IsJudgement = IsJudgement
+  { judgementExtract :: ExtractMode
+  , judgementName :: JudgementForm
+  , judgementStack :: Maybe AJudgementStack
+  , judgementProtocol :: AProtocol
+  }
+
+isJudgement :: Variable -> Elab IsJudgement
 isJudgement jd = resolve jd >>= \case
-  Just (Left (AJudgement mstk p)) -> pure (getVariable jd, mstk, p)
+  Just (Left (AJudgement em mstk p)) -> pure (IsJudgement em (getVariable jd) mstk p)
   Just mk -> throwError (NotAValidJudgement jd $ either Just (const Nothing) mk)
   Nothing -> throwError (OutOfScope jd)
 
@@ -569,14 +576,18 @@ sact = \case
     b <- local (turn East) $ sact b
     pure (a :|: b)
 
-  Spawn jd ch a -> do
+  Spawn em jd ch a -> do
     -- check the channel name is fresh & initialise it
     ch <- Channel <$> isFresh ch
-    (jd, _, p) <- isJudgement jd
+    jd <- isJudgement jd
 
-    a <- withChannel ch (dual p) $ sact a
+    a <- withChannel ch (dual $ judgementProtocol jd) $ sact a
 
-    pure $ Spawn jd ch a
+    em <- pure $ case em of
+      AlwaysExtract -> judgementExtract jd
+      _ -> em
+
+    pure $ Spawn em (judgementName jd) ch a
 
   Send ch tm a -> do
     ch <- isChannel ch
@@ -646,9 +657,9 @@ sact = \case
     pure $ Match tm cls
 
   Push jd (p, t) a -> do
-    (jd, mstk, _) <- isJudgement jd
-    stk <- case mstk of
-      Nothing -> throwError (PushingOnAStacklessJudgement jd)
+    jd <- isJudgement jd
+    stk <- case judgementStack jd of
+      Nothing -> throwError (PushingOnAStacklessJudgement (judgementName jd))
       Just stk -> pure stk
 
     p <- resolve p >>= \case
@@ -657,7 +668,7 @@ sact = \case
       _ -> throwError $ OutOfScope p
     t <- during (PushTermElaboration t) $ stm (valueDesc stk) t
     a <- sact a
-    pure $ Push jd (p, t) a
+    pure $ Push (judgementName jd) (p, t) a
 
   Lookup rt@t (av, a) b -> do
     (jd, stk) <- asks currentActor >>= \case

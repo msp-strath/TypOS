@@ -75,11 +75,17 @@ pACT = pact >>= more where
 withVar :: String -> Parser a -> Parser (Variable, a)
 withVar str p = (,) <$> pvariable <* punc str <*> p
 
+pextractmode :: Parser ExtractMode
+pextractmode
+    = TopLevelExtract <$ plit "/" <* pspc
+  <|> InterestingExtract <$ plit "^" <* pspc
+  <|> pure AlwaysExtract
+
 pact :: Parser CActor
 pact = Under <$> pscoped pact
   <|> Send <$> pvariable <* punc "!" <*> ptm <* punc "." <*> pact
   <|> questionmark <$> ptm <* punc "?" <*> withVar "." pact
-  <|> Spawn <$> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
+  <|> Spawn <$> pextractmode <*> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
   <|> Constrain <$> ptm <* punc "~" <*> ptm
   <|> Connect <$> (CConnect <$> pvariable <* punc "<->" <*> pvariable)
   <|> Match <$ plit "case" <* pspc <*> ptm <* punc "{"

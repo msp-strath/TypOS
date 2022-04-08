@@ -247,7 +247,7 @@ instance Unelab AActor where
   type Unelabed AActor = CActor
   unelab = \case
     a :|: b -> (:|:) <$> unelab a <*> unelab b
-    Spawn jd ch a -> Spawn
+    Spawn em jd ch a -> Spawn em
         <$> subunelab jd
         <*> subunelab ch
         <*> local (declareChannel ch) (unelab a)

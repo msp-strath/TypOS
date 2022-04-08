@@ -65,7 +65,7 @@ declareChannel ch de@DEnv{..} = de { daEnv = A.declareChannel ch daEnv }
 instance ( Display c, Forget DEnv (DisplayEnv c)
          , Display p, Forget DEnv (DisplayEnv p)) => Display (Interface c p) where
   type DisplayEnv (Interface c p) = DEnv
-  display (Interface (c, cch) ((pch, xs), p) jd _ tr) = do
+  display (Interface (c, cch) ((pch, xs), p) jd _ _ tr) = do
     c <- local (initChildDEnv cch) $ subdisplay c
     cch' <- subdisplay cch
     pch' <- subdisplay pch
@@ -175,8 +175,8 @@ frameOn de@DEnv{..} = \case
   Binding x -> de { objectNaming = objectNaming `nameOn` x
                   , daEnv = A.updateNaming (`nameOn` x) daEnv
                   }
-  Spawnee (Interface (Hole, ch) _ _ _ _) -> initChildDEnv ch de
-  Spawner (Interface _ ((ch, _), Hole) _ _ _) -> declareChannel ch $ de
+  Spawnee (Interface (Hole, ch) _ _ _ _ _) -> initChildDEnv ch de
+  Spawner (Interface _ ((ch, _), Hole) _ _ _ _) -> declareChannel ch $ de
   _ -> de
 
 frDisplayEnv :: Foldable t => t Frame -> DEnv

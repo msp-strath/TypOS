@@ -9,7 +9,7 @@ syntax
             ]
   }
 
-type : ?'Type.
+/type : ?'Type.
 
 syntax
   { 'Check = ['EnumOrTag [] [ ['Lam ['Bind 'Synth 'Check]]

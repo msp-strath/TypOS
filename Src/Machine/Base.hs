@@ -9,6 +9,7 @@ import Bwd
 import Format
 import Term
 import Thin
+import Concrete.Base (ExtractMode)
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
@@ -72,6 +73,7 @@ data Interface c p = Interface
   , spawner :: ((Channel, [String]), p)
   , judgeName :: JudgementForm
   , judgeProtocol :: AProtocol
+  , extractionMode :: ExtractMode
   , traffic :: Bwd Term
   } deriving (Show)
 

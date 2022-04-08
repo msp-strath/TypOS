@@ -47,9 +47,15 @@ data JudgementStack t = JudgementStack
 data CConnect = CConnect Variable Variable
   deriving (Show)
 
+data ExtractMode
+  = AlwaysExtract
+  | TopLevelExtract
+  | InterestingExtract
+  deriving (Show, Eq)
+
 data Actor jd ch av syn var tm pat cnnct
  = Actor jd ch av syn var tm pat cnnct :|: Actor jd ch av syn var tm pat cnnct
- | Spawn jd ch (Actor jd ch av syn var tm pat cnnct)
+ | Spawn ExtractMode jd ch (Actor jd ch av syn var tm pat cnnct)
  | Send ch tm (Actor jd ch av syn var tm pat cnnct)
  | Recv ch (av, Actor jd ch av syn var tm pat cnnct)
  | Connect cnnct
@@ -65,7 +71,7 @@ data Actor jd ch av syn var tm pat cnnct
  | Fail  [Format Directive Debug tm]
  | Print [Format Directive Debug tm] (Actor jd ch av syn var tm pat cnnct)
  | Break [Format Directive Debug tm] (Actor jd ch av syn var tm pat cnnct)
- deriving (Show, Eq)
+ deriving (Show)
 
 type CProtocol = Protocol Raw
 type CJudgementStack = JudgementStack Raw

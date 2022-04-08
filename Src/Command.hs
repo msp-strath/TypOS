@@ -25,16 +25,13 @@ import Elaboration.Pretty()
 import Machine.Base
 import Machine.Display (Store)
 import Machine.Exec
-import Machine.Trace (Tracing(..))
+import Machine.Trace ()
 import Options
 import Parse
 import Pretty (keyword, Collapse(..), BracesList(..), Pretty(..))
 import Syntax
 import Term.Base
 import Unelaboration(Unelab(..), subunelab, withEnv, initDAEnv, Naming, declareChannel)
-
-data ExtractMode = AlwaysExtract | TopLevelExtract | InterestingExtract
-  deriving (Show)
 
 data CommandF jd p ch syn a
   = DeclJ ExtractMode jd (Maybe (JudgementStack syn)) (Protocol syn)
@@ -60,12 +57,6 @@ instance (Show t, Unelab t, Pretty (Unelabed t)) =>
   Display (Protocol t) where
   type DisplayEnv (Protocol t) = UnelabEnv t
   display = viaPretty
-
-instance Pretty ExtractMode where
-  pretty = \case
-    AlwaysExtract -> ""
-    TopLevelExtract -> "/"
-    InterestingExtract -> "^"
 
 instance Pretty CCommand where
   pretty = \case
@@ -106,12 +97,6 @@ pjudgeat = (,,) <$> pvariable <*> punc "@" <*> pvariable
 psyntax :: Parser (SyntaxCat, Raw)
 psyntax = (,) <$> patom <* punc "=" <*> psyntaxdecl
 
-pextractmode :: Parser ExtractMode
-pextractmode
-    = TopLevelExtract <$ plit "/" <* pspc
-  <|> InterestingExtract <$ plit "^" <* pspc
-  <|> pure AlwaysExtract
-
 pcommand :: Parser CCommand
 pcommand
     = DeclJ <$> pextractmode <*> pvariable <* punc ":" <*> poptional pjudgementstack <*> pprotocol
@@ -129,14 +114,14 @@ scommand = \case
     jd <- isFresh jd
     mstk <- traverse sjudgementstack mstk
     p <- sprotocol p
-    local (declare jd (AJudgement mstk p)) $
+    local (declare jd (AJudgement em mstk p)) $
       (DeclJ em jd mstk p,) <$> asks declarations
   DefnJ (jd, (), ch) a -> during (DefnJElaboration jd) $ do
     ch <- Channel <$> isFresh ch
-    (jd, mstk, p) <- isJudgement jd
-    local (setCurrentActor jd mstk) $ do
-      a <- withChannel ch p $ sact a
-      (DefnJ (jd, p, ch) a,) <$> asks declarations
+    jd <- isJudgement jd
+    local (setCurrentActor (judgementName jd) (judgementStack jd)) $ do
+      a <- withChannel ch (judgementProtocol jd) $ sact a
+      (DefnJ (judgementName jd, judgementProtocol jd, ch) a,) <$> asks declarations
   DeclS syns -> do
     oldsyndecls <- gets (Map.keys . syntaxCats)
     let newsyndecls = map fst syns
@@ -159,20 +144,15 @@ scommands (c:cs) = do
 elaborate :: [CCommand] -> Either Complaint [ACommand]
 elaborate = evalElab . scommands
 
-updateTracing :: ExtractMode -> JudgementForm -> Tracing -> Tracing
-updateTracing AlwaysExtract jd tr = tr
-updateTracing TopLevelExtract jd tr = tr { topLevel = jd : topLevel tr }
-updateTracing InterestingExtract jd tr = tr { interesting = jd : interesting tr }
-
-run :: Options -> Tracing -> Process Store Bwd -> [ACommand] -> (Tracing, Process Store [])
-run opts tr p [] = (tr, exec p)
-run opts tr p@Process{..} (c : cs) = case c of
-  DeclJ em jd _ _ -> run opts (updateTracing em jd tr) p cs
-  DefnJ (jd, jdp, ch) a -> run opts tr (p { stack = stack :< Rules jd jdp (ch, a) }) cs
+run :: Options -> Process Store Bwd -> [ACommand] -> Process Store []
+run opts p [] = exec p
+run opts p@Process{..} (c : cs) = case c of
+  DeclJ em jd _ _ -> run opts p cs
+  DefnJ (jd, jdp, ch) a -> run opts (p { stack = stack :< Rules jd jdp (ch, a) }) cs
   Go a -> -- dmesg (show a) $
           let (lroot, rroot) = splitRoot root ""
               rbranch = Process tracing [] rroot env New a ""
-          in run opts tr (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
+          in run opts (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
   Trace xs -> let trac = guard (not $ quiet opts) >> fromMaybe (xs ++ tracing) (tracingOption opts)
-              in run opts tr (p { tracing = trac }) cs
-  _ -> run opts tr p cs
+              in run opts (p { tracing = trac }) cs
+  _ -> run opts p cs

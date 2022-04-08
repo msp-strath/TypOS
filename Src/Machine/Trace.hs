@@ -13,7 +13,7 @@ import Term.Base
 import Thin (DB(..))
 import Bwd ((<>>))
 import Unelaboration
-import Concrete.Base (Variable(..), Raw, Mode(..))
+import Concrete.Base (Variable(..), Raw, Mode(..), ExtractMode(..))
 import Doc hiding (render)
 import Doc.Render.Terminal
 
@@ -31,12 +31,12 @@ data Step jd db t
   | CallingStep jd [(Mode,t)]
   deriving (Show)
 
-type AStep = Step JudgementForm DB Term
+type AStep = (ExtractMode, Step JudgementForm DB Term)
 type CStep = Step Variable Variable Raw
 
 instance Instantiable AStep where
   type Instantiated AStep = AStep
-  instantiate st = \case
+  instantiate st (em, step) = (em,) $ case step of
     BindingStep x -> BindingStep x
     NotedStep -> NotedStep
     PushingStep jd db t -> PushingStep jd db (instantiate st t)
@@ -49,7 +49,7 @@ instance Instantiable i => Instantiable (Trace i) where
 instance Unelab (Trace AStep) where
   type Unelabed (Trace AStep) = Trace CStep
   type UnelabEnv (Trace AStep) = Naming
-  unelab (Node s ts) = case s of
+  unelab (Node (em, s) ts) = case s of
     BindingStep x -> do
       na <- ask
       let y = freshen x na
@@ -100,55 +100,47 @@ extract (f : fs) = case f of
   LeftBranch Hole p -> extract fs ++ extract (stack p)
   RightBranch p Hole -> extract (stack p) ++ extract fs
   Spawnee Interface{..} ->
-    Node (CallingStep judgeName (zip (fst <$> judgeProtocol) (traffic <>> []))) (extract fs)
+    Node (extractionMode, CallingStep judgeName (zip (fst <$> judgeProtocol) (traffic <>> []))) (extract fs)
     : extract (stack (snd spawner))
   Spawner Interface{..} ->
-    Node (CallingStep judgeName (zip (fst <$> judgeProtocol) (traffic <>> []))) (extract (stack (fst spawnee)))
+    Node (extractionMode, CallingStep judgeName (zip (fst <$> judgeProtocol) (traffic <>> []))) (extract (stack (fst spawnee)))
     : extract fs
-  Pushed jd (i, t) -> node (PushingStep jd i t)
-  Binding x -> node (BindingStep x)
-  Noted -> Node NotedStep [] : extract fs
+  Pushed jd (i, t) -> node (AlwaysExtract, PushingStep jd i t)
+  Binding x -> node (AlwaysExtract, BindingStep x)
+  Noted -> Node (AlwaysExtract, NotedStep) [] : extract fs
   _ -> extract fs
 
   where
     node :: AStep -> [Trace AStep]
     node s = [Node s (extract fs)]
 
-data Tracing = Tracing
-  { topLevel :: [JudgementForm]
-  , interesting :: [JudgementForm]
-  }
-
-initTracing :: Tracing
-initTracing = Tracing [] []
-
-cleanup :: Tracing -> [Trace AStep] -> [Trace AStep]
-cleanup trac = snd . go False [] where
+cleanup :: [Trace AStep] -> [Trace AStep]
+cleanup = snd . go False [] where
 
   go :: Bool            -- ^ is the parent suppressable?
      -> [JudgementForm] -- ^ list of toplevel judgements already seen
      -> [Trace AStep] -> (Any, [Trace AStep])
   go supp seen [] = pure []
-  go supp seen (Node i@(CallingStep jd tr) ts : ats)
-    | jd `elem` interesting trac || jd `elem` seen
+  go supp seen (Node (em, i@(CallingStep jd tr)) ts : ats)
+    | em == InterestingExtract || jd `elem` seen
     = let (Any b, ts') = go True seen ts in
       if not supp && b
-        then (Node i ts' :) <$> go supp seen ats
+        then (Node (em, i) ts' :) <$> go supp seen ats
         else (ts' ++) <$ tell (Any b) <*> go supp seen ats
-    | jd `elem` topLevel trac
-    = (:) <$> (censor (const (Any False)) $ Node i <$> go False (jd : seen) ts)
+    | em == TopLevelExtract
+    = (:) <$> censor (const (Any False)) (Node (em, i) <$> go False (jd : seen) ts)
           <*> go supp seen ats
     | otherwise
-    = (:) <$> (censor (const (Any False)) $ Node i <$> go False [] ts)
+    = (:) <$> censor (const (Any False)) (Node (em, i) <$> go False [] ts)
           <*> go supp seen ats
-  go supp seen (Node NotedStep _ : ats) = tell (Any True) >> go supp seen ats
+  go supp seen (Node (em, NotedStep) _ : ats) = tell (Any True) >> go supp seen ats
   go supp seen (Node i ts : ats) =
-    (:) <$> (censor (const (Any False)) $ Node i <$> go False seen ts)
+    (:) <$> censor (const (Any False)) (Node i <$> go False seen ts)
         <*> go supp seen ats
 
-diagnostic :: Tracing -> StoreF i -> [Frame] -> String
-diagnostic trac st fs =
-  let ats = cleanup trac $ extract fs in
+diagnostic :: StoreF i -> [Frame] -> String
+diagnostic st fs =
+  let ats = cleanup $ extract fs in
   let iats = instantiate st ats in
   let cts = traverse unelab iats in
   render ((initConfig 80) { orientation = Vertical })
