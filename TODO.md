@@ -1,22 +1,32 @@
+### Documentation
+
+* [ ] Document `!.` and `^`, `/` extract modes
+* [ ] More structured documentation à la readthedocs?
+
 ### Features
 
+* [ ] Industrial-strength parsing
 * [ ] Module system
 * [ ] Source location information
 * [ ] VM performance
    + [ ] Profiling
    + [ ] Bookkeep parts of the tree that are not stuck on new metas
    + [ ] Record more precise "Date" information (e.g. sets of blocking meta)
-* [ ] Allow actors to override default ExtractMode (e.g. type silences check in mltt2)
 * [ ] Concurrent runtime
+* [ ] LaTeX output for extract mode
+
+### CLI
+
+* [ ] --no-colour CLI option
+* [ ] Hide extract mode under a CLI option
 
 ### Examples
 
 * [ ] STLC with clever lists
+* [ ] Tests for extract mode
 
 ### Pretty
 
-* [ ] --no-colour CLI option
-* [ ] Performance
 * [ ] Try alternative libraries
 
 ### Cleanup
