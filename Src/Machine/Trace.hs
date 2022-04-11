@@ -138,7 +138,7 @@ cleanup = snd . go False [] where
     (:) <$> censor (const (Any False)) (Node i <$> go False seen ts)
         <*> go supp seen ats
 
-diagnostic :: StoreF i -> [Frame] -> String
+diagnostic :: Show i => StoreF i -> [Frame] -> String
 diagnostic st fs =
   let ats = cleanup $ extract fs in
   let iats = instantiate st ats in
