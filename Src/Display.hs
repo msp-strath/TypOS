@@ -21,8 +21,6 @@ import qualified Unelaboration
 
 import GHC.Stack
 
-import Debug.Trace
-
 -- uglyprinting
 
 data DisplayComplaint

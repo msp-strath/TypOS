@@ -176,7 +176,7 @@ frameOn de@DEnv{..} = \case
                   , daEnv = A.updateNaming (`nameOn` x) daEnv
                   }
   Spawnee (Interface (Hole, ch) _ _ _ _ _) -> initChildDEnv ch de
-  Spawner (Interface _ ((ch, _), Hole) _ _ _ _) -> declareChannel ch $ de
+  Spawner (Interface _ ((ch, _), Hole) _ _ _ _) -> declareChannel ch de
   _ -> de
 
 frDisplayEnv :: Foldable t => t Frame -> DEnv
