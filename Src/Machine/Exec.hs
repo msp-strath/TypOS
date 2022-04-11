@@ -12,6 +12,7 @@ import Doc.Render.Terminal
 import Elaboration.Pretty ()
 import Format
 import Hide
+import Options
 import Pattern
 import Pretty
 import Scope
@@ -43,13 +44,13 @@ exec :: Process Store Bwd -> Process Store []
 exec p | debug MachineExec "" p = undefined
 exec p@Process { actor = a :|: b, ..} =
   let (lroot, rroot) = splitRoot root ""
-      rbranch = Process tracing [] rroot env New b judgementform
+      rbranch = Process options [] rroot env New b judgementform
   in exec (p { stack = stack :< LeftBranch Hole rbranch, root = lroot, actor = a})
 exec p@Process { actor = Spawn em jd spawnerCh actor, ..}
   | Just (jdp, (spawnedCh, spawnedActor)) <- lookupRules jd stack
 --  , dmesg (show spawnedActor) True
   = let (subRoot, newRoot) = splitRoot root jd
-        spawnee = ( Process tracing [] subRoot (childEnv env) New spawnedActor jd
+        spawnee = ( Process options [] subRoot (childEnv env) New spawnedActor jd
                   , spawnedCh)
         spawner = ((spawnerCh, localScope env <>> []), Hole)
     in exec (p { stack = stack :< Spawner (Interface spawnee spawner jd jdp em B0)
@@ -73,7 +74,7 @@ exec p@Process { actor = m@(Match s cls), ..}
 
   switch :: Term -> [(Pat, AActor)] -> Process Store []
   switch t [] =
-    let msg = render (Config 80 Vertical) $ unsafeEvalDisplay (frDisplayEnv stack) $ do
+    let msg = render (colours options) (Config 80 Vertical) $ unsafeEvalDisplay (frDisplayEnv stack) $ do
           it <- subdisplay (instantiate store t)
           t <- subdisplay t
           m <- asks daEnv >>= \ rh -> withEnv rh $ display (Match s cls)
@@ -179,7 +180,7 @@ exec p@Process { actor = Print fmt a, ..}
 
 exec p@Process { actor = Break fmt a, ..}
   = unsafePerformIO $ do
-      when (MachineBreak `elem` tracing) $ do
+      when (MachineBreak `elem` tracing p) $ do
         whenJust (traverse (traverse $ mangleActors env) fmt) $ \ fmt -> do
           putStrLn $ format [SetColour Background Red] p fmt
           () <$ getLine
@@ -190,7 +191,7 @@ exec p@Process { actor = Fail fmt, ..}
                 Just fmt -> format [] p fmt
                 Nothing -> case evalDisplay (frDisplayEnv stack) (subdisplay fmt) of
                   Left grp -> "Error " ++ show grp ++ " in the error " ++ show fmt
-                  Right str -> render (Config 80 Vertical) str
+                  Right str -> render (colours options) (Config 80 Vertical) str
     in alarm msg $ move (p { stack = stack :<+>: [] })
 
 exec p@Process { actor = Note a, .. }
@@ -200,7 +201,7 @@ exec p@Process {..} = move (p { stack = stack :<+>: [] })
 
 format :: [Annotation] -> Process Store Bwd -> [Format Directive Debug Term] -> String
 format ann p@Process{..} fmt
-  = render (Config 80 Vertical)
+  = render (colours options) (Config 80 Vertical)
   $ unsafeEvalDisplay (frDisplayEnv stack)
   $ fmap (withANSI ann)
   $ subdisplay
@@ -328,6 +329,6 @@ debug step str p | step `elem` tracing p = -- dmesg (show step ++ ": " ++ show p
   let (fs', store', env', a') = unsafeEvalDisplay initDEnv $ displayProcess' p
       p' = indent 2 $ vcat $ [collapse fs', store', env', a']
       step' = keyword (pretty step)
-      msg = render (initConfig 0) $ vcat [mempty, step' <+> str, p']
+      msg = render (colours $ options p) (initConfig 0) $ vcat [mempty, step' <+> str, p']
   in dmesg msg False
 debug step _ p = False

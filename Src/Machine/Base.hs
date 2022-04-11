@@ -3,10 +3,12 @@
 module Machine.Base where
 
 import qualified Data.Map as Map
+import Data.Maybe
 
 import Actor
 import Bwd
 import Format
+import Options
 import Term
 import Thin
 import Concrete.Base (ExtractMode)
@@ -97,18 +99,9 @@ data Frame
   | Noted
   deriving (Show)
 
-data MachineStep
-  = MachineRecv
-  | MachineSend
-  | MachineExec
-  | MachineMove
-  | MachineUnify
-  | MachineBreak
-  deriving (Eq, Show, Enum, Bounded)
-
 data Process s t
   = Process
-  { tracing :: [MachineStep]
+  { options :: Options
   , stack   :: t Frame -- Stack frames ahead of or behind us
   , root    :: Root    -- Name supply
   , env     :: Env     -- definitions in scope
@@ -116,5 +109,8 @@ data Process s t
   , actor   :: AActor  -- The thing we are
   , judgementform :: JudgementForm -- who we are
   }
+
+tracing :: Process s t -> [MachineStep]
+tracing = fromMaybe [] . tracingOption . options
 
 deriving instance (Show s, Show (t Frame)) => Show (Process s t)

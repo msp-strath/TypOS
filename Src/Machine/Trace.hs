@@ -138,10 +138,10 @@ cleanup = snd . go False [] where
     (:) <$> censor (const (Any False)) (Node i <$> go False seen ts)
         <*> go supp seen ats
 
-diagnostic :: StoreF i -> [Frame] -> String
-diagnostic st fs =
+diagnostic :: Bool -> StoreF i -> [Frame] -> String
+diagnostic colours st fs =
   let ats = cleanup $ extract fs in
   let iats = instantiate st ats in
   let cts = traverse unelab iats in
-  render ((initConfig 80) { orientation = Vertical })
+  render colours ((initConfig 80) { orientation = Vertical })
     $ vcat $ map pretty $ unsafeEvalUnelab initNaming cts

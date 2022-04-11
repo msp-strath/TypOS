@@ -1,6 +1,6 @@
 ret > ExitSuccess
-out > [45m['Pi ['Pi 'Ty \x. ['Emb x]] \_. ['Pi 'Ty \x. ['Emb x]]][0m
-out > [45m['Lam \a. ['Emb a]][0m
+out > ['Pi ['Pi 'Ty \x. ['Emb x]] \_. ['Pi 'Ty \x. ['Emb x]]]
+out > ['Lam \a. ['Emb a]]
 out >
 err >
 err >

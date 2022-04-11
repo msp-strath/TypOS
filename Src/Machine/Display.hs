@@ -18,6 +18,7 @@ import Elaboration.Pretty()
 import Forget
 import Format
 import Machine.Base
+import Options
 import Pretty
 import Term
 import Term.Display ()
@@ -155,15 +156,6 @@ instance Display Store where
       t <- withEnv na $ display t
       k <- subdisplay k
       pure $ k <+> ":=" <+> t
-
-instance Pretty MachineStep where
-  pretty = \case
-    MachineRecv -> "recv"
-    MachineSend -> "send"
-    MachineExec -> "exec"
-    MachineMove -> "move"
-    MachineUnify -> "unify"
-    MachineBreak -> "break"
 
 
 instance Display MachineStep where
