@@ -84,7 +84,7 @@ render cfg (Doc ds)
   $ L1.toList (ds cfg)
 
 instance Show (Doc ann) where
-  show = unlines . map (concatMap snd) . render (initConfig 0) . (() <$)
+  show = intercalate "\n" . map (concatMap snd) . render (initConfig 0) . (() <$)
 
 -- Should we fail or not for literals that are too big?
 text :: IsAnnotation ann => String -> Doc ann
