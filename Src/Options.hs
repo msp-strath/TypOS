@@ -47,7 +47,7 @@ poptions = Options
      "move" -> pure MachineMove
      "unify" -> pure MachineUnify
      "break" -> pure MachineBreak
-     x -> readerError $ "Unknown tracing level '" ++ x ++ "'. Accepted levels: " ++ levels
+     x -> readerError $ "Unknown tracing level '" ++ x ++ "'. Accepted levels:\n" ++ levels
    tracingHelp = "Override tracing level (combinations of {" ++ levels ++ "} in quotes, separated by spaces, e.g. " ++ exampleLevels ++ ")"
    levels = show $ vcat $ map pretty [(minBound::MachineStep)..]
    exampleLevels = "\"" ++ show (hsep $ map pretty [minBound::MachineStep, maxBound]) ++ "\""
