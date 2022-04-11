@@ -93,11 +93,11 @@ prettyact a = go B0 B0 a where
     Under (Scope x a) -> go ls (l `add` [backslash , pretty x, dot]) a
     Note a -> go ls (l `add` ["!", dot]) a
     Push jd (x, t) a ->
-      let push = hsep [pretty jd, braces (hsep [ pretty x, "->", pretty t])] <> dot in
-      go (ls :< (fold (l `add` [push]))) B0 a
-    Print [TermPart Instantiate tm] a -> go (ls :< (fold (l `add` [hsep [keyword "PRINT", pretty tm] <> dot]))) B0 a
-    Print fmt a -> go (ls :< (fold (l `add` [hsep [keyword "PRINTF", pretty fmt] <> dot]))) B0 a
-    Break fmt a -> go (ls :< (fold (l `add` [hsep [keyword "BREAK", pretty fmt] <> dot]))) B0 a
+      let push = hsep [pretty jd, braces (hsep [ pretty x, "->", pretty t]), dot] <> dot in
+      go (ls :< fold (l `add` [push])) B0 a
+    Print [TermPart Instantiate tm] a -> go (ls :< fold (l `add` [hsep [keyword "PRINT", pretty tm] <> dot])) B0 a
+    Print fmt a -> go (ls :< fold (l `add` [hsep [keyword "PRINTF", pretty fmt] <> dot])) B0 a
+    Break fmt a -> go (ls :< fold (l `add` [hsep [keyword "BREAK", pretty fmt] <> dot])) B0 a
     -- if we win, avoid generating an empty line
     Win -> case l of
              B0 -> ls <>> []

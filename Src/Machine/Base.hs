@@ -11,8 +11,6 @@ import Term
 import Thin
 import Concrete.Base (ExtractMode)
 
-import Debug.Trace
-
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
 
