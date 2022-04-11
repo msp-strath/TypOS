@@ -25,7 +25,7 @@ instance Pretty Raw where
     Var v -> pretty v
     At [] -> "[]"
     At at -> squote <> pretty at
-    Cons p q -> brackets $ sep (pretty p : prettyCdr q)
+    Cons p q -> brackets $ hsep (pretty p : prettyCdr q)
     Lam (Scope x t) -> backslash <> pretty x <> dot <+> pretty t
     Sbst B0 t -> pretty t
     Sbst sg t -> hsep [ pretty sg, pretty t ]
@@ -55,7 +55,7 @@ instance Pretty RawP where
     VarP v -> pretty v
     AtP "" -> "[]"
     AtP at -> squote <> pretty at
-    ConsP p q -> brackets $ sep (pretty p : prettyCdrP q)
+    ConsP p q -> brackets $ hsep (pretty p : prettyCdrP q)
     LamP (Scope x p) -> backslash <> pretty x <> dot <+> pretty p
     ThP (thxz, thd) p -> braces (hsep (pretty <$> thxz <>> []) <> pretty thd) <+> pretty p
     UnderscoreP -> "_"
@@ -93,11 +93,11 @@ prettyact a = go B0 B0 a where
     Under (Scope x a) -> go ls (l `add` [backslash , pretty x, dot]) a
     Note a -> go ls (l `add` ["!", dot]) a
     Push jd (x, t) a ->
-      let push = hsep [pretty jd, braces (hsep [ pretty x, "->", pretty t])] <> dot in
-      go (ls :< (fold (l `add` [push]))) B0 a
-    Print [TermPart Instantiate tm] a -> go (ls :< (fold (l `add` [hsep [keyword "PRINT", pretty tm] <> dot]))) B0 a
-    Print fmt a -> go (ls :< (fold (l `add` [hsep [keyword "PRINTF", pretty fmt] <> dot]))) B0 a
-    Break fmt a -> go (ls :< (fold (l `add` [hsep [keyword "BREAK", pretty fmt] <> dot]))) B0 a
+      let push = hsep [pretty jd, braces (hsep [ pretty x, "->", pretty t]), dot] <> dot in
+      go (ls :< fold (l `add` [push])) B0 a
+    Print [TermPart Instantiate tm] a -> go (ls :< fold (l `add` [hsep [keyword "PRINT", pretty tm] <> dot])) B0 a
+    Print fmt a -> go (ls :< fold (l `add` [hsep [keyword "PRINTF", pretty fmt] <> dot])) B0 a
+    Break fmt a -> go (ls :< fold (l `add` [hsep [keyword "BREAK", pretty fmt] <> dot])) B0 a
     -- if we win, avoid generating an empty line
     Win -> case l of
              B0 -> ls <>> []

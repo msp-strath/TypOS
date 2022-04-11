@@ -37,9 +37,7 @@ out > Rad
 out > Other ['Lam \x. ['Pi ['Emb x] \_. ['Emb x]]]
 out > Other ['Pi 'Ty \_. 'Ty]
 out > Beta
-out > Other ['Pi
-out >        ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]
-out >        \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]
+out > Other ['Pi ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]
 out > Other 'Ty
 out > Ups
 out > Emb
@@ -71,14 +69,10 @@ out > Rad
 out > Other ['Lam \x. ['Pi ['Emb x] \_. ['Emb x]]]
 out > Other ['Pi 'Ty \_. 'Ty]
 out > Beta
-out > Other ['Pi
-out >        ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]
-out >        \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]
+out > Other ['Pi ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]
 out > Other 'Ty
 out > Ups
-out > Type: ['Pi
-out >        ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]
-out >        \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]
+out > Type: ['Pi ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]
 out > Rad
 out > Other ['Lam \x. ['Emb x]]
 out > Emb
@@ -87,14 +81,10 @@ out > Rad
 out > Other ['Lam \x. ['Pi ['Emb x] \_. ['Emb x]]]
 out > Other ['Pi 'Ty \_. 'Ty]
 out > Beta
-out > Other ['Pi
-out >        ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]
-out >        \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]
+out > Other ['Pi ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]
 out > Other 'Ty
 out > Ups
-out > Eval: ['Rad ['Lam \x. ['Emb x]] ['Pi
-out >                                  ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]
-out >                                  \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]]
+out > Eval: ['Rad ['Lam \x. ['Emb x]] ['Pi ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]]
 out >
 err >
 err >

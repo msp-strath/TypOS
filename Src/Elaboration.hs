@@ -634,11 +634,13 @@ sact = \case
     steps <- compatibleChannels p dir q
     pure (aconnect ch1 th ch2 steps)
 
-  FreshMeta desc (av, a) -> during FreshMetaElaboration $ do
-    syndecls <- gets (Map.keys . syntaxCats)
-    desc <- ssyntaxdecl syndecls desc
-    av <- isFresh av
-    ovs <- asks objVars
+  FreshMeta desc (av, a) -> do
+    (desc, av, ovs) <- during FreshMetaElaboration $ do
+      syndecls <- gets (Map.keys . syntaxCats)
+      desc <- ssyntaxdecl syndecls desc
+      av <- isFresh av
+      ovs <- asks objVars
+      pure (desc, av, ovs)
     a <- local (declare av (ActVar (Known desc) ovs)) $ sact a
     pure $ FreshMeta desc (ActorMeta av, a)
 

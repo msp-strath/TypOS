@@ -51,7 +51,7 @@ instance Instantiable Term where
     s :%: t  -> instantiate store s % instantiate store t
     x :.: b  -> x \\ instantiate store b
     m :$: sg -> case Map.lookup m (solutions store) of
-      Nothing -> m $: sg
+      Nothing -> m $: sg -- TODO: instantiate sg
       Just (_, tm) -> instantiate store (tm //^ sg)
 
 instance (Show t, Instantiable t, Instantiated t ~ t) =>
