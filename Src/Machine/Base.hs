@@ -11,6 +11,8 @@ import Term
 import Thin
 import Concrete.Base (ExtractMode)
 
+import Debug.Trace
+
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
 
@@ -39,7 +41,7 @@ headUp store term
 
 class Instantiable t where
   type Instantiated t
-  instantiate :: StoreF i -> t -> Instantiated t
+  instantiate :: Show i => StoreF i -> t -> Instantiated t
 
 instance Instantiable Term where
   type Instantiated Term = Term
@@ -49,7 +51,7 @@ instance Instantiable Term where
     s :%: t  -> instantiate store s % instantiate store t
     x :.: b  -> x \\ instantiate store b
     m :$: sg -> case Map.lookup m (solutions store) of
-      Nothing -> m $: sg
+      Nothing -> m $: sg -- TODO: instantiate sg
       Just (_, tm) -> instantiate store (tm //^ sg)
 
 instance (Show t, Instantiable t, Instantiated t ~ t) =>
