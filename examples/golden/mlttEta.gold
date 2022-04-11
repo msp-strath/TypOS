@@ -1,0 +1,2848 @@
+ret > ExitSuccess
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mOther ['Pi ['Emb T_0] \_. ['Pi ['Emb T_0] \_. 'Ty]][0m
+out > [45mOther ['Pi ['Emb T_0] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb T_0] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_0][0m
+out > [45m ['Emb T_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_0[0m
+out > [45m T_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb T_0] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_0][0m
+out > [45m ['Emb T_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_0[0m
+out > [45m T_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mId : ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mOther ['Pi ['Emb T_2] \_. ['Pi ['Emb T_2] \_. 'Ty]][0m
+out > [45mOther ['Pi ['Emb T_2] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb T_2] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_2][0m
+out > [45m ['Emb T_2][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_2[0m
+out > [45m T_2[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb T_2] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_2][0m
+out > [45m ['Emb T_2][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_2[0m
+out > [45m T_2[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_0][0m
+out > [45m ['Emb T_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_0[0m
+out > [45m T_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_0][0m
+out > [45m ['Emb T_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_0[0m
+out > [45m T_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \x. ['Emb ['App ['App ['App ['Rad ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]] ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]] ['Emb T]] ['Emb x]] ['Emb x]]]]][0m
+out > [45mOther ['Pi ['Emb T_0] \x. ['Emb ['App ['App ['App ['Rad ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]] ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]] ['Emb T_0]] ['Emb x]] ['Emb x]]]][0m
+out > [45mOther ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]][0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]] \_. ['Emb ['App P ['Emb y]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty][0m
+out > [45mBeta[0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Pi ['Emb ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]] \_. ['Emb ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]][0m
+out > [45m ['Emb ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]][0m
+out > [45m ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]][0m
+out > [45mApp[0m
+out > [45mequalSynth[0m
+out > [45m P_2[0m
+out > [45m P_2[0m
+out > [45mVar[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mcheckEqual ['Emb T_0][0m
+out > [45m ['Emb x_1][0m
+out > [45m ['Emb x_1][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m x_1[0m
+out > [45m x_1[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \x. ['Emb ['App ['App ['App ['Rad ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]] ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]] ['Emb T]] ['Emb x]] ['Emb x]]]]][0m
+out > [45mrefl : ['Pi 'Ty \T. ['Pi ['Emb T] \x. ['Emb ['App ['App ['App ['Rad ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]] ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]] ['Emb T]] ['Emb x]] ['Emb x]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb A_0] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A_0]]]][0m
+out > [45mOther ['Pi ['Sg ['Emb A_0] \_. ['Emb B_1]] \_. ['Sg ['Emb B_1] \_. ['Emb A_0]]][0m
+out > [45mOther ['Sg ['Emb B_1] \_. ['Emb A_0]][0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb B_1][0m
+out > [45m ['Emb B_1][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m B_1[0m
+out > [45m B_1[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb A_0][0m
+out > [45m ['Emb A_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m A_0[0m
+out > [45m A_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mswap : ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]][0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb A_0] \_. ['Emb B]] \_. ['Sg ['Emb A_0] \_. ['Emb B]]]][0m
+out > [45mOther ['Pi ['Sg ['Emb A_0] \_. ['Emb B_1]] \_. ['Sg ['Emb A_0] \_. ['Emb B_1]]][0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb A_3] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A_3]]]][0m
+out > [45mOther ['Pi ['Sg ['Emb A_3] \_. ['Emb B_4]] \_. ['Sg ['Emb B_4] \_. ['Emb A_3]]][0m
+out > [45mOther ['Sg ['Emb B_4] \_. ['Emb A_3]][0m
+out > [45mOther ['Sg ['Emb A_3] \_. ['Emb B_4]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb B_4][0m
+out > [45m ['Emb B_4][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m B_4[0m
+out > [45m B_4[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb A_3] \_. ['Emb B_4]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb A_3][0m
+out > [45m ['Emb A_3][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m A_3[0m
+out > [45m A_3[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]] \_. ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb A_3] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A_3]]]][0m
+out > [45mOther ['Pi ['Sg ['Emb A_3] \_. ['Emb B_4]] \_. ['Sg ['Emb B_4] \_. ['Emb A_3]]][0m
+out > [45mOther ['Sg ['Emb B_4] \_. ['Emb A_3]][0m
+out > [45mOther ['Sg ['Emb A_3] \_. ['Emb B_4]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb B_4][0m
+out > [45m ['Emb B_4][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m B_4[0m
+out > [45m B_4[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb A_3] \_. ['Emb B_4]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb A_3][0m
+out > [45m ['Emb A_3][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m A_3[0m
+out > [45m A_3[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]] \_. ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45m ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb A_0][0m
+out > [45m ['Emb A_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m A_0[0m
+out > [45m A_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb B_1][0m
+out > [45m ['Emb B_1][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m B_1[0m
+out > [45m B_1[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45m ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb B_1][0m
+out > [45m ['Emb B_1][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m B_1[0m
+out > [45m B_1[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb A_0][0m
+out > [45m ['Emb A_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m A_0[0m
+out > [45m A_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45m ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb A_0][0m
+out > [45m ['Emb A_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m A_0[0m
+out > [45m A_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb B_1][0m
+out > [45m ['Emb B_1][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m B_1[0m
+out > [45m B_1[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]][0m
+out > [45mswapswap : ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mOther ['Pi ['Emb T_0] \_. ['Pi ['Emb T_0] \_. 'Ty]][0m
+out > [45mOther ['Pi ['Emb T_0] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb T_0] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_0][0m
+out > [45m ['Emb T_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_0[0m
+out > [45m T_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb T_0] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_0][0m
+out > [45m ['Emb T_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_0[0m
+out > [45m T_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty]][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg 'Ty \_. 'Ty][0m
+out > [45m ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]][0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb A_0] \_. ['Emb B]] \_. ['Sg ['Emb A_0] \_. ['Emb B]]]][0m
+out > [45mOther ['Pi ['Sg ['Emb A_0] \_. ['Emb B_1]] \_. ['Sg ['Emb A_0] \_. ['Emb B_1]]][0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb A_3] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A_3]]]][0m
+out > [45mOther ['Pi ['Sg ['Emb A_3] \_. ['Emb B_4]] \_. ['Sg ['Emb B_4] \_. ['Emb A_3]]][0m
+out > [45mOther ['Sg ['Emb B_4] \_. ['Emb A_3]][0m
+out > [45mOther ['Sg ['Emb A_3] \_. ['Emb B_4]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb B_4][0m
+out > [45m ['Emb B_4][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m B_4[0m
+out > [45m B_4[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb A_3] \_. ['Emb B_4]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb A_3][0m
+out > [45m ['Emb A_3][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m A_3[0m
+out > [45m A_3[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]] \_. ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb A_3] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A_3]]]][0m
+out > [45mOther ['Pi ['Sg ['Emb A_3] \_. ['Emb B_4]] \_. ['Sg ['Emb B_4] \_. ['Emb A_3]]][0m
+out > [45mOther ['Sg ['Emb B_4] \_. ['Emb A_3]][0m
+out > [45mOther ['Sg ['Emb A_3] \_. ['Emb B_4]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb B_4][0m
+out > [45m ['Emb B_4][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m B_4[0m
+out > [45m B_4[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb A_3] \_. ['Emb B_4]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb A_3][0m
+out > [45m ['Emb A_3][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m A_3[0m
+out > [45m A_3[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]] \_. ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45m ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb A_0][0m
+out > [45m ['Emb A_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m A_0[0m
+out > [45m A_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb B_1][0m
+out > [45m ['Emb B_1][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m B_1[0m
+out > [45m B_1[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45m ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb B_1] 'Ty]] \_. ['Emb ['Rad ['Emb A_0] 'Ty]]][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb B_1][0m
+out > [45m ['Emb B_1][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m B_1[0m
+out > [45m B_1[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb A_0][0m
+out > [45m ['Emb A_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m A_0[0m
+out > [45m A_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45m ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb A_0] 'Ty]] \_. ['Emb ['Rad ['Emb B_1] 'Ty]]][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb A_0][0m
+out > [45m ['Emb A_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m A_0[0m
+out > [45m A_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb B_1][0m
+out > [45m ['Emb B_1][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m B_1[0m
+out > [45m B_1[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb B]] \_. ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb B]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]] \_. ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]] \_. ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45m ['Pi ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]] \_. ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]]][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]] \_. ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]]][0m
+out > [45mPi[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg 'Ty \_. 'Ty][0m
+out > [45m ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg 'Ty \_. 'Ty][0m
+out > [45m ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]][0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb y]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mBeta[0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \A. ['Lam \B. ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb A]] ['Emb B]] ['Emb x]]]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]]] 'Ty] 'Ty]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mOther ['Pi ['Emb T_2] \_. ['Pi ['Emb T_2] \_. 'Ty]][0m
+out > [45mOther ['Pi ['Emb T_2] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb T_2] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_2][0m
+out > [45m ['Emb T_2][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_2[0m
+out > [45m T_2[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb T_2] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_2][0m
+out > [45m ['Emb T_2][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_2[0m
+out > [45m T_2[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_0][0m
+out > [45m ['Emb T_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_0[0m
+out > [45m T_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_0][0m
+out > [45m ['Emb T_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_0[0m
+out > [45m T_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \x. ['Emb ['App ['App ['App ['Rad ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]] ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]] ['Emb T]] ['Emb x]] ['Emb x]]]]][0m
+out > [45mOther ['Pi ['Emb T_0] \x. ['Emb ['App ['App ['App ['Rad ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]] ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]] ['Emb T_0]] ['Emb x]] ['Emb x]]]][0m
+out > [45mOther ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]][0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]] \_. ['Emb ['App P ['Emb y]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty][0m
+out > [45mBeta[0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Pi ['Emb ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]] \_. ['Emb ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]][0m
+out > [45m ['Emb ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]][0m
+out > [45m ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]][0m
+out > [45mApp[0m
+out > [45mequalSynth[0m
+out > [45m P_2[0m
+out > [45m P_2[0m
+out > [45mVar[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mcheckEqual ['Emb T_0][0m
+out > [45m ['Emb x_1][0m
+out > [45m ['Emb x_1][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m x_1[0m
+out > [45m x_1[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \x. ['Emb ['App ['App ['App ['Rad ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]] ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]] ['Emb T]] ['Emb x]] ['Emb x]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \x. ['Emb ['App ['App ['App ['Rad ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]] ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]] ['Emb x]] ['Emb x]]]][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg 'Ty \_. 'Ty][0m
+out > [45m ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]][0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]] \_. ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]] \_. 'Ty]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb y]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mBeta[0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \A. ['Lam \B. ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb A]] ['Emb B]] ['Emb x]]]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]]] 'Ty] 'Ty]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]]]][0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]]]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \A. ['Lam \B. ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb A]] ['Emb B]] ['Emb x]]]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]]] 'Ty] 'Ty]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]]]][0m
+out > [45m ['Pi ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]]]][0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \A. ['Lam \B. ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb A]] ['Emb B]] ['Emb x]]]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]]] 'Ty] 'Ty]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]]]][0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]]]][0m
+out > [45mPi[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45m ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mPi[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45m ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mPi[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg 'Ty \_. 'Ty][0m
+out > [45m ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg 'Ty \_. 'Ty][0m
+out > [45m ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb ['App P_0 ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P_0 ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \A. ['Lam \B. ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb A]] ['Emb B]] ['Emb x]]]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]]] 'Ty] 'Ty]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Pi ['Emb ['App P_0 ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P_0 ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \A. ['Lam \B. ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb A]] ['Emb B]] ['Emb x]]]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]]] 'Ty] 'Ty]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]]][0m
+out > [45m ['Pi ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['App P_0 ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P_0 ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \A. ['Lam \B. ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb A]] ['Emb B]] ['Emb x]]]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]]] 'Ty] 'Ty]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]]][0m
+out > [45mPi[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb ['App P_0 ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]][0m
+out > [45m ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m ['App P_0 ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]][0m
+out > [45m ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]][0m
+out > [45mApp[0m
+out > [45mequalSynth[0m
+out > [45m P_0[0m
+out > [45m P_0[0m
+out > [45mVar[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Lam \x. ['Emb x]][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mOther ['Lam \x. ['Emb x]][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mcheckEqual ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45m ['Lam \x. ['Emb x]][0m
+out > [45m ['Lam \x. ['Emb x]][0m
+out > [45mEta Pi[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Lam \x. ['Emb x]][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mBeta[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mUps[0m
+out > [45mOther ['Lam \x. ['Emb x]][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mBeta[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mUps[0m
+out > [45mcheckEqual ['Sg 'Ty \_. 'Ty][0m
+out > [45m ['Emb ab_1][0m
+out > [45m ['Emb ab_1][0m
+out > [45mEta Sg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]] 'Fst]][0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]] 'Fst]][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mEmb[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mequalSynth[0m
+out > [45m ['App ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]] 'Fst][0m
+out > [45m ['App ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]] 'Fst][0m
+out > [45mApp[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mequalSynth[0m
+out > [45m ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]][0m
+out > [45m ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]][0m
+out > [45mRad-L[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mequalSynth[0m
+out > [45m ab_1[0m
+out > [45m ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]][0m
+out > [45mVar[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]] 'Snd]][0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]] 'Snd]][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mEmb[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mequalSynth[0m
+out > [45m ['App ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]] 'Snd][0m
+out > [45m ['App ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]] 'Snd][0m
+out > [45mApp[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mequalSynth[0m
+out > [45m ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]][0m
+out > [45m ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]][0m
+out > [45mRad-L[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mequalSynth[0m
+out > [45m ab_1[0m
+out > [45m ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]][0m
+out > [45mVar[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb ['App P_0 ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \A. ['Lam \B. ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb A]] ['Emb B]] ['Emb x]]]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]]] 'Ty] 'Ty]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]][0m
+out > [45m ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]]][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m ['App P_0 ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \A. ['Lam \B. ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb A]] ['Emb B]] ['Emb x]]]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]]] 'Ty] 'Ty]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]][0m
+out > [45m ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] 'Ty]]]]][0m
+out > [45mApp[0m
+out > [45mequalSynth[0m
+out > [45m P_0[0m
+out > [45m P_0[0m
+out > [45mVar[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Lam \A. ['Lam \B. ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb A]] ['Emb B]] ['Emb x]]]]]]]][0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \B. ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb B]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb B]] ['Emb x]]]]]]][0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb B]] \_. ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb B]]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb x]]]]]][0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]] \_. ['Sg ['Emb ['Rad 'Ty 'Ty]] \_. ['Emb ['Rad 'Ty 'Ty]]]][0m
+out > [45mUps[0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mOther ['Lam \x. ['Emb x]][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mcheckEqual ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45m ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb x]]]]]][0m
+out > [45m ['Lam \x. ['Emb x]][0m
+out > [45mEta Pi[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb x]]]]]][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]][0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]][0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]][0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]] \_. ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Pair ['Emb ['App ['Rad ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]]]] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Snd]] ['Emb ['App ['Rad ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]]]] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Fst]]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]][0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mUps[0m
+out > [45mOther ['Lam \x. ['Emb x]][0m
+out > [45mOther ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]][0m
+out > [45mBeta[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mUps[0m
+out > [45mcheckEqual ['Sg 'Ty \_. 'Ty][0m
+out > [45m ['Pair ['Emb ['App ['Rad ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]]]] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Snd]] ['Emb ['App ['Rad ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]]]] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Fst]]][0m
+out > [45m ['Emb ab_2][0m
+out > [45mEta Sg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pair ['Emb ['App ['Rad ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]]]] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Snd]] ['Emb ['App ['Rad ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]]]] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Fst]]][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mFst[0m
+out > [45mOther ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]][0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]][0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]][0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]] \_. ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Pair ['Emb ['App ['Rad ['Emb ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Snd]] ['Emb ['App ['Rad ['Emb ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Fst]]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]][0m
+out > [45mUps[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]][0m
+out > [45mSnd[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mUps[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Fst]][0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]] 'Fst]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mEmb[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mequalSynth[0m
+out > [45m ['App ['Rad ['Emb ab_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Fst][0m
+out > [45m ['App ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]] 'Fst][0m
+out > [45mApp[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mequalSynth[0m
+out > [45m ['Rad ['Emb ab_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]][0m
+out > [45m ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]][0m
+out > [45mRad-L[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mequalSynth[0m
+out > [45m ab_2[0m
+out > [45m ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]][0m
+out > [45mVar[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pair ['Emb ['App ['Rad ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]]]] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Snd]] ['Emb ['App ['Rad ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad 'Ty 'Ty]]] ['Emb ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]]]] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Fst]]][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mSnd[0m
+out > [45mOther ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]][0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]][0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]][0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]] \_. ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Pair ['Emb ['App ['Rad ['Emb ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Snd]] ['Emb ['App ['Rad ['Emb ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Fst]]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]][0m
+out > [45mUps[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]][0m
+out > [45mFst[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mUps[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Snd]][0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]] 'Snd]][0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mEmb[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mequalSynth[0m
+out > [45m ['App ['Rad ['Emb ab_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Snd][0m
+out > [45m ['App ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]] 'Snd][0m
+out > [45mApp[0m
+out > [45mOther ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mequalSynth[0m
+out > [45m ['Rad ['Emb ab_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]] \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]][0m
+out > [45m ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]][0m
+out > [45mRad-L[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mequalSynth[0m
+out > [45m ab_2[0m
+out > [45m ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]][0m
+out > [45mVar[0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther ['Sg 'Ty \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]][0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb y]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mBeta[0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \A. ['Lam \B. ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb A]] ['Emb B]] ['Emb x]]]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]]] 'Ty] 'Ty]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mrefl swapswap : ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \A. ['Lam \B. ['Lam \x. ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] ['Emb A]] ['Emb B]] ['Emb x]]]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb A] \_. ['Emb B]]]]]] 'Ty] 'Ty]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mOther ['Pi ['Emb T_0] \_. ['Pi ['Emb T_0] \_. 'Ty]][0m
+out > [45mOther ['Pi ['Emb T_0] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb T_0] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_0][0m
+out > [45m ['Emb T_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_0[0m
+out > [45m T_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb T_0] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_0][0m
+out > [45m ['Emb T_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_0[0m
+out > [45m T_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty]][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg 'One \_. 'One][0m
+out > [45m ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'One[0m
+out > [45m 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOne[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'One[0m
+out > [45m 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOne[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb A_0] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A_0]]]][0m
+out > [45mOther ['Pi ['Sg ['Emb A_0] \_. ['Emb B_1]] \_. ['Sg ['Emb B_1] \_. ['Emb A_0]]][0m
+out > [45mOther ['Sg ['Emb B_1] \_. ['Emb A_0]][0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb B_1][0m
+out > [45m ['Emb B_1][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m B_1[0m
+out > [45m B_1[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg ['Emb A_0] \_. ['Emb B_1]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb A_0][0m
+out > [45m ['Emb A_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m A_0[0m
+out > [45m A_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb ['Rad 'One 'Ty]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]] \_. ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]] \_. ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45m ['Pi ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]] \_. ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]]][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]] \_. ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]]][0m
+out > [45mPi[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg 'One \_. 'One][0m
+out > [45m ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'One[0m
+out > [45m 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOne[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'One[0m
+out > [45m 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOne[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg 'One \_. 'One][0m
+out > [45m ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'One[0m
+out > [45m 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOne[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'One[0m
+out > [45m 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOne[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]][0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb y]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty][0m
+out > [45mBeta[0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] 'One] 'One]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mOther ['Pi ['Emb T_2] \_. ['Pi ['Emb T_2] \_. 'Ty]][0m
+out > [45mOther ['Pi ['Emb T_2] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb T_2] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_2][0m
+out > [45m ['Emb T_2][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_2[0m
+out > [45m T_2[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb T_2] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_2][0m
+out > [45m ['Emb T_2][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_2[0m
+out > [45m T_2[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_0][0m
+out > [45m ['Emb T_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_0[0m
+out > [45m T_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb T_0][0m
+out > [45m ['Emb T_0][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m T_0[0m
+out > [45m T_0[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \x. ['Emb ['App ['App ['App ['Rad ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]] ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]] ['Emb T]] ['Emb x]] ['Emb x]]]]][0m
+out > [45mOther ['Pi ['Emb T_0] \x. ['Emb ['App ['App ['App ['Rad ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]] ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]] ['Emb T_0]] ['Emb x]] ['Emb x]]]][0m
+out > [45mOther ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]][0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]] \_. ['Emb ['App P ['Emb y]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty][0m
+out > [45mBeta[0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Pi ['Emb ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]] \_. ['Emb ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]][0m
+out > [45m ['Emb ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]]][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]][0m
+out > [45m ['App P_2 ['Emb ['Rad ['Emb x_1] ['Emb ['Rad ['Emb T_0] 'Ty]]]]][0m
+out > [45mApp[0m
+out > [45mequalSynth[0m
+out > [45m P_2[0m
+out > [45m P_2[0m
+out > [45mVar[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb T_0] 'Ty]] \_. 'Ty][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mcheckEqual ['Emb T_0][0m
+out > [45m ['Emb x_1][0m
+out > [45m ['Emb x_1][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m x_1[0m
+out > [45m x_1[0m
+out > [45mVar[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \x. ['Emb ['App ['App ['App ['Rad ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]] ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]] ['Emb T]] ['Emb x]] ['Emb x]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \x. ['Emb ['App ['App ['App ['Rad ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]] ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]] ['Emb x]] ['Emb x]]]][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg 'One \_. 'One][0m
+out > [45m ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'One[0m
+out > [45m 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOne[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'One[0m
+out > [45m 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOne[0m
+out > [45mOther ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]][0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]] \_. ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]] \_. 'Ty]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb y]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mBeta[0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] 'One] 'One]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]]]][0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]]]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] 'One] 'One]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]]]][0m
+out > [45m ['Pi ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]]]][0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] 'One] 'One]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]]]][0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]]]][0m
+out > [45mPi[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty][0m
+out > [45m ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]] \_. 'Ty][0m
+out > [45mPi[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45m ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mPi[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg 'One \_. 'One][0m
+out > [45m ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'One[0m
+out > [45m 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOne[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'One[0m
+out > [45m 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOne[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Sg 'One \_. 'One][0m
+out > [45m ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mSg[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'One[0m
+out > [45m 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOne[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'One[0m
+out > [45m 'One[0m
+out > [45mOther 'One[0m
+out > [45mOther 'One[0m
+out > [45mOne[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m 'Ty[0m
+out > [45m 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mTy[0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Pi ['Emb ['App P_0 ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]] \_. ['Emb ['App P_0 ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] 'One] 'One]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]]][0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Pi ['Emb ['App P_0 ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]] \_. ['Emb ['App P_0 ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] 'One] 'One]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]]][0m
+out > [45m ['Pi ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['App P_0 ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]] \_. ['Emb ['App P_0 ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] 'One] 'One]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]] \_. ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]]][0m
+out > [45mPi[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb ['App P_0 ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]][0m
+out > [45m ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m ['App P_0 ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]][0m
+out > [45m ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]][0m
+out > [45mApp[0m
+out > [45mequalSynth[0m
+out > [45m P_0[0m
+out > [45m P_0[0m
+out > [45mVar[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Lam \x. ['Emb x]][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mOther ['Lam \x. ['Emb x]][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mcheckEqual ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45m ['Lam \x. ['Emb x]][0m
+out > [45m ['Lam \x. ['Emb x]][0m
+out > [45mEta Pi[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Lam \x. ['Emb x]][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mBeta[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mUps[0m
+out > [45mOther ['Lam \x. ['Emb x]][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mBeta[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mUps[0m
+out > [45mcheckEqual ['Sg 'One \_. 'One][0m
+out > [45m ['Emb ab_1][0m
+out > [45m ['Emb ab_1][0m
+out > [45mEta Sg[0m
+out > [45mOther 'One[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mcheckEqual 'One[0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_1] ['Sg 'One \_. 'One]] 'Fst]][0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_1] ['Sg 'One \_. 'One]] 'Fst]][0m
+out > [45mOther 'One[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mcheckEqual 'One[0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_1] ['Sg 'One \_. 'One]] 'Snd]][0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_1] ['Sg 'One \_. 'One]] 'Snd]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther 'Ty[0m
+out > [45mcheckEqual 'Ty[0m
+out > [45m ['Emb ['App P_0 ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] 'One] 'One]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]][0m
+out > [45m ['Emb ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]][0m
+out > [45mEmb[0m
+out > [45mequalSynth[0m
+out > [45m ['App P_0 ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] 'One] 'One]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]][0m
+out > [45m ['App P_0 ['Emb ['Rad ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]] ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]][0m
+out > [45mApp[0m
+out > [45mequalSynth[0m
+out > [45m P_0[0m
+out > [45m P_0[0m
+out > [45mVar[0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]][0m
+out > [45mOther ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]][0m
+out > [45mOther ['Pi 'Ty \B. ['Pi ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb ['Rad 'One 'Ty]]]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]][0m
+out > [45mOther ['Pi ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]] \_. ['Sg ['Emb ['Rad 'One 'Ty]] \_. ['Emb ['Rad 'One 'Ty]]]][0m
+out > [45mUps[0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mOther ['Lam \x. ['Emb x]][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mUps[0m
+out > [45mcheckEqual ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45m ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]][0m
+out > [45m ['Lam \x. ['Emb x]][0m
+out > [45mEta Pi[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mBeta[0m
+out > [45mOther ['Pair ['Emb ['App ['Rad ['Emb ab_2] ['Sg 'One \_. 'One]] 'Snd]] ['Emb ['App ['Rad ['Emb ab_2] ['Sg 'One \_. 'One]] 'Fst]]][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mUps[0m
+out > [45mOther ['Lam \x. ['Emb x]][0m
+out > [45mOther ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]][0m
+out > [45mBeta[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mUps[0m
+out > [45mcheckEqual ['Sg 'One \_. 'One][0m
+out > [45m ['Pair ['Emb ['App ['Rad ['Emb ab_2] ['Sg 'One \_. 'One]] 'Snd]] ['Emb ['App ['Rad ['Emb ab_2] ['Sg 'One \_. 'One]] 'Fst]]][0m
+out > [45m ['Emb ab_2][0m
+out > [45mEta Sg[0m
+out > [45mOther 'One[0m
+out > [45mOther ['Pair ['Emb ['App ['Rad ['Emb ab_2] ['Sg 'One \_. 'One]] 'Snd]] ['Emb ['App ['Rad ['Emb ab_2] ['Sg 'One \_. 'One]] 'Fst]]][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mFst[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther 'One[0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mcheckEqual 'One[0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_2] ['Sg 'One \_. 'One]] 'Snd]][0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_2] ['Sg 'One \_. 'One]] 'Fst]][0m
+out > [45mOther 'One[0m
+out > [45mOther ['Pair ['Emb ['App ['Rad ['Emb ab_2] ['Sg 'One \_. 'One]] 'Snd]] ['Emb ['App ['Rad ['Emb ab_2] ['Sg 'One \_. 'One]] 'Fst]]][0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mSnd[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mOther 'One[0m
+out > [45mUps[0m
+out > [45mOther ['Sg 'One \_. 'One][0m
+out > [45mcheckEqual 'One[0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_2] ['Sg 'One \_. 'One]] 'Fst]][0m
+out > [45m ['Emb ['App ['Rad ['Emb ab_2] ['Sg 'One \_. 'One]] 'Snd]][0m
+out > [45mOther 'Ty[0m
+out > [45mOther ['Lam \T. ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb T] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]][0m
+out > [45mOther ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \x. ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty]][0m
+out > [45mBeta[0m
+out > [45mOther ['Lam \y. ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb y]]]]]][0m
+out > [45mOther ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty][0m
+out > [45mBeta[0m
+out > [45mOther ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] 'One] 'One]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]]]][0m
+out > [45mOther 'Ty[0m
+out > [45mUps[0m
+out > [45mrefl swap One : ['Pi ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty] \P. ['Pi ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]] \_. ['Emb ['App P ['Emb ['Rad ['Emb ['App ['App ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]] ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]] \_. ['Sg ['Emb B] \_. ['Emb A]]]]]] 'One] 'One]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]]]][0m
+out >
+err >
+err >

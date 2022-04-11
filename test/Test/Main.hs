@@ -30,7 +30,7 @@ typosExamples = do
   let extension = ".act"
   let goldenExt = ".gold"
   let folder    = "examples"
-  let excluded  = ["mlttEta.act"]
+  let excluded  = []
   ioTests TestConfig{..}
 
 

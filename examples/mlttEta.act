@@ -36,8 +36,8 @@ type@p = p?ty. ^check@q. q!'Ty. q!ty.
 check@p = p?ty. checkEval@q. q!ty. q?nty. checkWorker@r. r!nty. p <-> r
 synth@p = p?tm. synthWorker@r. r!tm. r?ty.checkEval@q. q!ty. q <-> p
 
-checkEqual@p = p?ty. checkEval@q. q!ty. q?nty. checkEqualWorker@r. r!nty. p <-> r
-equalSynth@p = p?tm. p?tm2. evalSynth@q. q!tm. evalSynth@r. r!tm2. q?ntm. r?ntm2. equalSynthWorker@u. u!ntm. u!ntm2.u?ty.checkEval@v. v!ty. v <-> p
+checkEqual@p = p?ty. p?tm1. p?tm2. checkEval@qty. qty!ty. checkEval@q. q!tm1. checkEval@r. r!tm2. qty?nty. q?ntm1. r?ntm2. checkEqualWorker@w. w!nty. w!ntm1. w!ntm2.
+equalSynth@p = p?tm1. p?tm2. evalSynth@q. q!tm1. evalSynth@r. r!tm2. q?ntm1. r?ntm2. equalSynthWorker@u. u!ntm1. u!ntm2.u?ty.checkEval@v. v!ty. v <-> p
 
 -- type assumed to be head normal
 checkWorker@p = p?ty. p?tm. case tm
@@ -83,17 +83,17 @@ synthWorker@p = p?tm . lookup tm { S -> p!S. } else case tm
    }
 
 checkEval@p = p?tm. case tm
-  { ['Emb e] -> PRINTF "Emb" . evalSynth@q. q!e. q?ne. case ne
-    { ['Rad t ty] -> !. PRINTF "%m" . PRINTF "Ups %i" tm. p!t.
+  { ['Emb e] -> {-PRINTF "Emb" .-} evalSynth@q. q!e. q?ne. case ne
+    { ['Rad t ty] -> !. PRINTF "Ups". p!t.
     ; x -> p!['Emb x].
     }
-  ; x -> {-PRINTF "Other %i" x .-} p!x.
+  ; x -> PRINTF "Other %i" x . p!x.
   }
 
 -- types in radicals are head normal
 evalSynth@p = p?tm. case tm
-  { ['Rad t ty] -> PRINTF "Rad" . checkEval@q. q!t. checkEval@r. r!ty. q?nt. r?nty. p!['Rad nt nty].
-  ; ['App f s] -> PRINTF "App" . evalSynth@q. q!f. q?nf. case nf
+  { ['Rad t ty] -> {-PRINTF "Rad" .-} checkEval@q. q!t. checkEval@r. r!ty. q?nt. r?nty. p!['Rad nt nty].
+  ; ['App f s] -> {-PRINTF "App" .-} evalSynth@q. q!f. q?nf. case nf
     { ['Rad ['Lam \ x. t] ['Pi S \ x. T]] -> !. PRINTF "Beta" . evalSynth@w. w!{x=['Rad s S]}['Rad t T]. w <-> p
     ; ['Rad ['Pair a b] ['Sg S \ x. T]] -> !. case s
       { 'Fst -> PRINTF "Fst" . evalSynth@w. w!['Rad a S]. w <-> p
@@ -105,7 +105,7 @@ evalSynth@p = p?tm. case tm
   ; x -> p!x.
   }
 
-checkEqualWorker@p = p?ty. p?tm1. p?tm2. PRINTF "checkEqual %i" ty. case ty
+checkEqualWorker@p = p?ty. p?tm1. p?tm2. PRINTF "checkEqual %i\n %i\n %i" ty tm1 tm2. case ty
   { ['Pi S \x. T] -> PRINTF "Eta Pi" . \x. equalSynthWorker {x -> S}. checkEqual@q. q!T. q!['Emb ['App ['Rad tm1 ty] ['Emb x]]]. q!['Emb ['App ['Rad tm2 ty] ['Emb x]]].
   ; ['Sg S \x. T] -> PRINTF "Eta Sg" . (checkEqual@q. q!S. q!['Emb ['App ['Rad tm1 ty] 'Fst]]. q!['Emb ['App ['Rad tm2 ty] 'Fst]].
                                        |checkEqual@q. q!{x=['App ['Rad tm1 ty] 'Fst]}T. q!['Emb ['App ['Rad tm1 ty] 'Snd]]. q!['Emb ['App ['Rad tm2 ty] 'Snd]].)
@@ -115,14 +115,15 @@ checkEqualWorker@p = p?ty. p?tm1. p?tm2. PRINTF "checkEqual %i" ty. case ty
     ; [['Pi S1 \x. T1] | ['Pi S2 \x. T2]] -> PRINTF "Pi" . (checkEqual@w. w!'Ty. w!S1. w!S2. | \ x. equalSynthWorker {x -> S1}. checkEqual@u. u!'Ty. u!T1. u!T2.)
     ; [['Sg S1 \x. T1] | ['Sg S2 \x. T2]] -> PRINTF "Sg" . (checkEqual@w. w!'Ty. w!S1. w!S2. | \ x. equalSynthWorker {x -> S1}. checkEqual@u. u!'Ty. u!T1. u!T2.)
     ; ['One|'One] -> PRINTF "One" .
-    ; [['Emb e1] | ['Emb e2] ] -> PRINTF "Emb" .equalSynthWorker@w. w!e1.w!e2.w?ety. -- we don't care about the type
+    ; [['Emb e1] | ['Emb e2] ] -> PRINTF "Emb" .equalSynth@w. w!e1.w!e2.w?ety.
     ; [x|y] -> # "%i not checkEqual to %i" x y
     }
   }
 
-equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n%i\n%i" e1 e2. lookup e1 { S1 -> PRINTF "Var" . (e1 ~ e2 | p!S1.)} else case [e1|e2]
-  { [['Rad t1 ty1] | _ ] -> PRINTF "Rad-L" . (checkEqual@q. q!ty1. q!t1. q!['Emb e2].|p!ty1.)
-  ; [ _ | ['Rad t2 ty2] ] -> PRINTF "Rad-R" . (checkEqual@q. q!ty2. q!['Emb e1].q!t2.|p!ty2.)
+equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %i\n %i" e1 e2. lookup e1 { S1 -> PRINTF "Var" . (e1 ~ e2 | p!S1.)} else case [e1|e2]
+  { [['Rad ['Emb e1'] ty1] | _ ] -> PRINTF "Rad-L" . equalSynth@q. q!e1'. q!e2. p <-> q
+  ; [_  | ['Rad ['Emb e2'] ty2]] -> PRINTF "Rad-R" . equalSynth@q. q!e1. q!e2'. p <-> q
+  ; [['Rad t1 ty1] | ['Rad t2 ty2]] -> PRINTF "Rad-Rad" . (checkEqual@q. q!'Ty. q!ty1. q!ty2. | checkEqual@r. r!ty1. r!t1. r!t2.|p!ty1.)
   ; [['App f1 s1] | ['App f2 s2] ] -> PRINTF "App" . equalSynth@q. q!f1. q!f2. q?ty. case ty
     { ['Pi S \ x. T] -> (checkEqual@r. r!S. r!s1. r!s2.|p!{x=['Rad s1 S]}T.)
     ; ['Sg S \ x. T] -> s1 ~ s2 | case s1
@@ -148,18 +149,16 @@ exec  'Synth?Id.'Synth?refl.'Synth?swap.'Synth?swapswap.
                       ['Lam \A. ['Lam \B. ['Lam \x . ['Emb ['App ['App ['App swap ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App swap ['Emb A]] ['Emb B]] ['Emb x]]]]]]]]
                       ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \x. ['Emb B] ] \ab. ['Sg ['Emb A] \x. ['Emb B] ]]]]]
          |
---         synth@p. p!Id. p?ity. PRINTF "Id : %i" ity.
---         synth@q. q!refl. q?rty. PRINTF "refl : %i" rty.
---         synth@r. r!swap. r?sty. PRINTF "swap : %i" sty.
---         synth@r2. r2!swapswap. r2?sty2. PRINTF "swapswap : %i" sty2.
+         synth@p. p!Id. p?ity. PRINTF "Id : %i" ity.
+         synth@q. q!refl. q?rty. PRINTF "refl : %i" rty.
+         synth@r. r!swap. r?sty. PRINTF "swap : %i" sty.
+         synth@r2. r2!swapswap. r2?sty2. PRINTF "swapswap : %i" sty2.
          synth@e1. e1!['Rad ['Emb ['App ['App refl ['Pi ['Sg 'Ty \x. 'Ty ] \ab. ['Sg 'Ty \x. 'Ty]]] ['Lam \x . ['Emb x]]]]
                             ['Emb ['App ['App ['App Id ['Pi ['Sg 'Ty \x. 'Ty ] \ab. ['Sg 'Ty \x. 'Ty]]]
                                                        ['Lam \x . ['Emb x]]]
                                                        ['Emb ['App ['App swapswap 'Ty] 'Ty]]]]]. e1?ety1. PRINTF "refl swapswap : %i" ety1.
+         synth@e2. e2!['Rad ['Emb ['App ['App refl ['Pi ['Sg 'One \x. 'One ] \ab. ['Sg 'One \x. 'One]]] ['Lam \x . ['Emb x]]]]
+                            ['Emb ['App ['App ['App Id ['Pi ['Sg 'One \x. 'One ] \ab. ['Sg 'One \x. 'One]]]
+                                                       ['Lam \x . ['Emb x]]]
+                                                       ['Emb ['App ['App swap 'One] 'One]]]]]. e2?ety2. PRINTF "refl swap One : %i" ety2.
       )
-{-
-      synth@p. p!tm. p?nty.
-      PRINTF "Type: %i" nty.
-      evalSynth@q. q!tm. q?ntm.
-      PRINTF "Eval: %i" ntm.)
--}
