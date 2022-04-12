@@ -25,7 +25,7 @@ instance Pretty Raw where
     Var v -> pretty v
     At [] -> "[]"
     At at -> squote <> pretty at
-    Cons p q -> brackets $ hsep (pretty p : prettyCdr q)
+    Cons p q -> brackets $ sep (pretty p : prettyCdr q)
     Lam (Scope x t) -> backslash <> pretty x <> dot <+> pretty t
     Sbst B0 t -> pretty t
     Sbst sg t -> hsep [ pretty sg, pretty t ]
@@ -55,7 +55,7 @@ instance Pretty RawP where
     VarP v -> pretty v
     AtP "" -> "[]"
     AtP at -> squote <> pretty at
-    ConsP p q -> brackets $ hsep (pretty p : prettyCdrP q)
+    ConsP p q -> brackets $ sep (pretty p : prettyCdrP q)
     LamP (Scope x p) -> backslash <> pretty x <> dot <+> pretty p
     ThP (thxz, thd) p -> braces (hsep (pretty <$> thxz <>> []) <> pretty thd) <+> pretty p
     UnderscoreP -> "_"

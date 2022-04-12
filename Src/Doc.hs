@@ -177,7 +177,10 @@ vcat = foldDoc ($$)
 sep :: IsAnnotation ann => [Doc ann] -> Doc ann
 sep [] = empty
 sep [d] = d
-sep ds = alts [hsep ds, vcat ds]
+sep ds = bests $ Doc $ \ cfg ->
+  let docs = traverse (`runDoc` cfg) ds in
+  (I.foldBlock (\ d e -> d <> I.spaces 1 <> e) <$> docs)
+  <> (I.foldBlock (\ d e -> I.flush d <> e) <$> docs)
 
 between :: IsAnnotation ann => Doc ann -> Doc ann -> Doc ann -> Doc ann
 between d f e = d <> e <> f
