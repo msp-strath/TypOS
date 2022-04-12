@@ -74,7 +74,7 @@ exec p@Process { actor = m@(Match s cls), ..}
 
   switch :: Term -> [(Pat, AActor)] -> Process Store []
   switch t [] =
-    let msg = render (colours options) (Config 80 Vertical) $ unsafeEvalDisplay (frDisplayEnv stack) $ do
+    let msg = render (colours options) (Config (termWidth options) Vertical) $ unsafeEvalDisplay (frDisplayEnv stack) $ do
           it <- subdisplay (instantiate store t)
           t <- subdisplay t
           m <- asks daEnv >>= \ rh -> withEnv rh $ display (Match s cls)
@@ -191,7 +191,7 @@ exec p@Process { actor = Fail fmt, ..}
                 Just fmt -> format [] p fmt
                 Nothing -> case evalDisplay (frDisplayEnv stack) (subdisplay fmt) of
                   Left grp -> "Error " ++ show grp ++ " in the error " ++ show fmt
-                  Right str -> render (colours options) (Config 80 Vertical) str
+                  Right str -> render (colours options) (Config (termWidth options) Vertical) str
     in alarm msg $ move (p { stack = stack :<+>: [] })
 
 exec p@Process { actor = Note a, .. }
@@ -201,7 +201,7 @@ exec p@Process {..} = move (p { stack = stack :<+>: [] })
 
 format :: [Annotation] -> Process Store Bwd -> [Format Directive Debug Term] -> String
 format ann p@Process{..} fmt
-  = render (colours options) (Config 80 Vertical)
+  = render (colours options) (Config (termWidth options) Vertical)
   $ unsafeEvalDisplay (frDisplayEnv stack)
   $ fmap (withANSI ann)
   $ subdisplay

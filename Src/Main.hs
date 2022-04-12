@@ -28,12 +28,12 @@ main = do
   let ccs = parse pfile txt
   case elaborate ccs of
     Left err -> do
-      putStrLn $ render (colours opts) (Config 80 Vertical) $
+      putStrLn $ render (colours opts) (Config (termWidth opts) Vertical) $
         vcat [ withANSI [ SetColour Background Red ] "Error" , pretty err ]
       exitFailure
     Right acs -> do
   -- putStrLn $ unsafeEvalDisplay initNaming $ collapse <$> traverse display acs
       let p = Process opts B0 initRoot (initEnv B0) initStore Win ""
       let res@(Process _ fs _ env sto Win _) = run opts p acs
-      unless (quiet opts) $ putStrLn $ diagnostic (colours opts) sto fs
+      unless (quiet opts) $ putStrLn $ diagnostic opts sto fs
       dmesg "" res `seq` pure ()

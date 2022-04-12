@@ -2,8 +2,10 @@
 
 module Options where
 
-import Doc
 import Options.Applicative
+import System.Console.Terminal.Size (size, width)
+
+import Doc
 import Pretty
 
 data MachineStep
@@ -29,6 +31,7 @@ data Options = Options
   , quiet :: Bool
   , colours :: Bool
   , tracingOption :: Maybe [MachineStep]
+  , termWidth :: Int
   } deriving (Show)
 
 poptions :: Parser Options
@@ -38,6 +41,7 @@ poptions = Options
   <*> flag True False (long "no-colour" <> help "Do not use colours in the output")
   <*> optional (option (str >>= readSteps . words)
                        (long "tracing" <> metavar "LEVELS" <> help tracingHelp))
+  <*> pure 80 -- dummy value
  where
    readSteps :: [String] -> ReadM [MachineStep]
    readSteps = mapM $ \case
@@ -53,6 +57,10 @@ poptions = Options
    exampleLevels = "\"" ++ show (hsep $ map pretty [minBound::MachineStep, maxBound]) ++ "\""
 
 getOptions :: IO Options
-getOptions = execParser (info (poptions <**> helper)
-                         (fullDesc <> progDesc "Execute actors in FILE"
-                                       <> header "typOS - an operating system for typechecking processes"))
+getOptions = do
+  opts <- execParser (info (poptions <**> helper)
+                     (fullDesc <> progDesc "Execute actors in FILE"
+                               <> header "typOS - an operating system for typechecking processes"))
+  termSize <- size
+  let w = maybe 80 width termSize
+  pure $ opts { termWidth = w }

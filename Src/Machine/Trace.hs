@@ -8,6 +8,7 @@ import ANSI hiding (withANSI)
 import Actor (JudgementForm)
 import Concrete.Pretty()
 import Machine.Base
+import Options
 import Pretty
 import Term.Base
 import Thin (DB(..))
@@ -138,10 +139,10 @@ cleanup = snd . go False [] where
     (:) <$> censor (const (Any False)) (Node i <$> go False seen ts)
         <*> go supp seen ats
 
-diagnostic :: Bool -> StoreF i -> [Frame] -> String
-diagnostic colours st fs =
+diagnostic :: Options -> StoreF i -> [Frame] -> String
+diagnostic opts st fs =
   let ats = cleanup $ extract fs in
   let iats = instantiate st ats in
   let cts = traverse unelab iats in
-  render colours ((initConfig 80) { orientation = Vertical })
+  render (colours opts) ((initConfig (termWidth opts)) { orientation = Vertical })
     $ vcat $ map pretty $ unsafeEvalUnelab initNaming cts
