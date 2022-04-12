@@ -47,27 +47,23 @@ out >                   ['App
 out >                    ['App
 out >                     ['App
 out >                      ['Rad
-out >                       ['Lam \T. ['Lam
-out >                                  \x. ['Lam
-out >                                       \y. ['Pi
-out >                                            ['Pi ['Emb T] \_. 'Ty]
-out >                                            \P. ['Pi
-out >                                                 ['Emb ['App P ['Emb x]]]
-out >                                                 \_. ['Emb
-out >                                                      ['App P ['Emb y]]]]]]]]
+out >                       ['Lam
+out >                        \T. ['Lam
+out >                             \x. ['Lam
+out >                                  \y. ['Pi ['Pi ['Emb T] \_. 'Ty]
+out >                                           \P. ['Pi ['Emb ['App P ['Emb x]]]
+out >                                                    \_. ['Emb ['App
+out >                                                               P ['Emb y]]]]]]]]
 out >                       ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]]
-out >                      ['Emb T]]
-out >                     ['Emb x]]
-out >                    ['Emb x]]]]]
+out >                      ['Emb T]] ['Emb x]] ['Emb x]]]]]
 out > equalSynth
 out >  B_1
 out >  B_1
 out > equalSynth
 out >  A_0
 out >  A_0
-out > swap : ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi
-out >                                   ['Sg ['Emb A] \_. ['Emb B]]
-out >                                   \_. ['Sg ['Emb B] \_. ['Emb A]]]]]
+out > swap : ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]]
+out >                                       \_. ['Sg ['Emb B] \_. ['Emb A]]]]]
 out > equalSynth
 out >  B_4
 out >  B_4
@@ -106,9 +102,8 @@ out > Ups
 out > equalSynth
 out >  B_1
 out >  B_1
-out > swapswap : ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi
-out >                                       ['Sg ['Emb A] \_. ['Emb B]]
-out >                                       \_. ['Sg ['Emb A] \_. ['Emb B]]]]]
+out > swapswap : ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]]
+out >                                           \_. ['Sg ['Emb A] \_. ['Emb B]]]]]
 out > equalSynth
 out >  T_0
 out >  T_0
@@ -204,19 +199,16 @@ out > Ups
 out > Ups
 out > Ups
 out > equalSynth
+out >  ['App P_0 ['Emb ['Rad ['Lam \x. ['Emb x]]
+out >                        ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty]
+out >                                         \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]
 out >  ['App P_0 ['Emb ['Rad
-out >                   ['Lam \x. ['Emb x]]
-out >                   ['Emb
-out >                    ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]
-out >  ['App P_0 ['Emb
-out >             ['Rad
-out >              ['Emb ['Rad
-out >                     ['Lam \x. ['Emb x]]
-out >                     ['Emb
-out >                      ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]
-out >              ['Emb ['Rad ['Emb ['Rad
-out >                                 ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]]
-out >                                 'Ty]] 'Ty]]]]]
+out >                   ['Emb ['Rad ['Lam \x. ['Emb x]]
+out >                               ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty]
+out >                                                \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]
+out >                   ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty]
+out >                                                \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]
+out >                               'Ty]]]]]
 out > equalSynth
 out >  P_0
 out >  P_0
@@ -275,14 +267,12 @@ out >                             ['Lam \_. ['Lam \_. ['Lam
 out >                                                  \x. ['Pair
 out >                                                       ['Emb ['App x 'Snd]]
 out >                                                       ['Emb ['App x 'Fst]]]]]]
-out >                             ['Pi 'Ty \A. ['Pi
-out >                                           'Ty
-out >                                           \B. ['Pi
-out >                                                ['Sg ['Emb A] \_. ['Emb B]]
-out >                                                \_. ['Sg ['Emb
-out >                                                          B] \_. ['Emb A]]]]]]
-out >                            ['Emb B]]
-out >                           ['Emb A]]
+out >                             ['Pi 'Ty \A. ['Pi 'Ty
+out >                                               \B. ['Pi
+out >                                                    ['Sg ['Emb A] \_. ['Emb B]]
+out >                                                    \_. ['Sg ['Emb B]
+out >                                                             \_. ['Emb A]]]]]]
+out >                            ['Emb B]] ['Emb A]]
 out >                          ['Emb
 out >                           ['App
 out >                            ['App
@@ -292,30 +282,22 @@ out >                               ['Lam \_. ['Lam \_. ['Lam
 out >                                                    \x. ['Pair
 out >                                                         ['Emb ['App x 'Snd]]
 out >                                                         ['Emb ['App x 'Fst]]]]]]
-out >                               ['Pi 'Ty \A. ['Pi
-out >                                             'Ty
-out >                                             \B. ['Pi
-out >                                                  ['Sg ['Emb A] \_. ['Emb B]]
-out >                                                  \_. ['Sg ['Emb
-out >                                                            B] \_. ['Emb A]]]]]]
-out >                              ['Emb A]]
-out >                             ['Emb B]]
-out >                            ['Emb x]]]]]]]]
-out >         ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi
-out >                                    ['Sg ['Emb A] \_. ['Emb B]]
-out >                                    \_. ['Sg ['Emb A] \_. ['Emb B]]]]]]
-out >        'Ty]
-out >       'Ty]]
-out >     ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]
-out >  ['App P_0 ['Emb
-out >             ['Rad
-out >              ['Emb ['Rad
-out >                     ['Lam \x. ['Emb x]]
-out >                     ['Emb
-out >                      ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]
-out >              ['Emb ['Rad ['Emb ['Rad
-out >                                 ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]]
-out >                                 'Ty]] 'Ty]]]]]
+out >                               ['Pi 'Ty \A. ['Pi 'Ty
+out >                                                 \B. ['Pi
+out >                                                      ['Sg ['Emb A] \_. ['Emb B]]
+out >                                                      \_. ['Sg ['Emb B]
+out >                                                               \_. ['Emb A]]]]]]
+out >                              ['Emb A]] ['Emb B]] ['Emb x]]]]]]]]
+out >         ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]]
+out >                                        \_. ['Sg ['Emb A] \_. ['Emb B]]]]]] 'Ty]
+out >       'Ty]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]
+out >  ['App P_0 ['Emb ['Rad
+out >                   ['Emb ['Rad ['Lam \x. ['Emb x]]
+out >                               ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty]
+out >                                                \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]
+out >                   ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty]
+out >                                                \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]
+out >                               'Ty]]]]]
 out > equalSynth
 out >  P_0
 out >  P_0
@@ -353,14 +335,13 @@ out > Ups
 out > Ups
 out > Ups
 out > equalSynth
-out >  ['App ['Rad ['Emb ab_2] ['Sg
-out >                           ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
-out >                           \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Fst]
+out >  ['App ['Rad ['Emb ab_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
+out >                               \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]]
+out >                                               'Ty]]]] 'Fst]
 out >  ['App ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]] 'Fst]
 out > equalSynth
-out >  ['Rad ['Emb ab_2] ['Sg
-out >                     ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
-out >                     \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]]
+out >  ['Rad ['Emb ab_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
+out >                         \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]]
 out >  ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]
 out > equalSynth
 out >  ab_2
@@ -377,14 +358,13 @@ out > Ups
 out > Ups
 out > Ups
 out > equalSynth
-out >  ['App ['Rad ['Emb ab_2] ['Sg
-out >                           ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
-out >                           \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Snd]
+out >  ['App ['Rad ['Emb ab_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
+out >                               \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]]
+out >                                               'Ty]]]] 'Snd]
 out >  ['App ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]] 'Snd]
 out > equalSynth
-out >  ['Rad ['Emb ab_2] ['Sg
-out >                     ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
-out >                     \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]]
+out >  ['Rad ['Emb ab_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
+out >                         \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]]
 out >  ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]
 out > equalSynth
 out >  ab_2
@@ -396,11 +376,10 @@ out > Ups
 out > refl swapswap : ['Pi
 out >                  ['Pi ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]] \_. 'Ty]
 out >                  \P. ['Pi
-out >                       ['Emb ['App P ['Emb ['Rad
-out >                                            ['Lam \x. ['Emb x]]
-out >                                            ['Emb ['Rad ['Pi
-out >                                                         ['Sg 'Ty \_. 'Ty]
-out >                                                         \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]]
+out >                       ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]]
+out >                                                 ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty]
+out >                                                                  \_. ['Sg 'Ty \_. 'Ty]]
+out >                                                             'Ty]]]]]]
 out >                       \_. ['Emb
 out >                            ['App
 out >                             P
@@ -424,16 +403,14 @@ out >                                                             \_. ['Lam
 out >                                                                  \x. ['Pair
 out >                                                                       ['Emb ['App x 'Snd]]
 out >                                                                       ['Emb ['App x 'Fst]]]]]]
-out >                                                       ['Pi
-out >                                                        'Ty
-out >                                                        \A. ['Pi
-out >                                                             'Ty
-out >                                                             \B. ['Pi
-out >                                                                  ['Sg ['Emb A] \_. ['Emb B]]
-out >                                                                  \_. ['Sg ['Emb
-out >                                                                            B] \_. ['Emb A]]]]]]
-out >                                                      ['Emb B]]
-out >                                                     ['Emb A]]
+out >                                                       ['Pi 'Ty
+out >                                                            \A. ['Pi
+out >                                                                 'Ty
+out >                                                                 \B. ['Pi
+out >                                                                      ['Sg ['Emb A] \_. ['Emb B]]
+out >                                                                      \_. ['Sg ['Emb B]
+out >                                                                               \_. ['Emb A]]]]]]
+out >                                                      ['Emb B]] ['Emb A]]
 out >                                                    ['Emb
 out >                                                     ['App
 out >                                                      ['App
@@ -451,19 +428,14 @@ out >                                                          \A. ['Pi
 out >                                                               'Ty
 out >                                                               \B. ['Pi
 out >                                                                    ['Sg ['Emb A] \_. ['Emb B]]
-out >                                                                    \_. ['Sg
-out >                                                                         ['Emb B]
-out >                                                                         \_. ['Emb A]]]]]]
-out >                                                        ['Emb A]]
-out >                                                       ['Emb B]]
-out >                                                      ['Emb x]]]]]]]]
-out >                                   ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi
-out >                                                              ['Sg ['Emb A] \_. ['Emb B]]
-out >                                                              \_. ['Sg ['Emb A] \_. ['Emb B]]]]]]
-out >                                  'Ty]
-out >                                 'Ty]]
-out >                               ['Emb
-out >                                ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]] 'Ty]]]]]]]]
+out >                                                                    \_. ['Sg ['Emb B]
+out >                                                                             \_. ['Emb A]]]]]]
+out >                                                        ['Emb A]] ['Emb B]] ['Emb x]]]]]]]]
+out >                                   ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]]
+out >                                                                  \_. ['Sg ['Emb A]
+out >                                                                           \_. ['Emb B]]]]]] 'Ty]
+out >                                 'Ty]] ['Emb ['Rad ['Pi ['Sg 'Ty \_. 'Ty] \_. ['Sg 'Ty \_. 'Ty]]
+out >                                                   'Ty]]]]]]]]
 out > equalSynth
 out >  T_0
 out >  T_0
@@ -527,21 +499,16 @@ out > Ups
 out > Ups
 out > Ups
 out > equalSynth
+out >  ['App P_0 ['Emb ['Rad ['Lam \x. ['Emb x]]
+out >                        ['Emb ['Rad ['Pi ['Sg 'One \_. 'One]
+out >                                         \_. ['Sg 'One \_. 'One]] 'Ty]]]]]
 out >  ['App P_0 ['Emb ['Rad
-out >                   ['Lam \x. ['Emb x]]
-out >                   ['Emb ['Rad ['Pi
-out >                                ['Sg 'One \_. 'One]
-out >                                \_. ['Sg 'One \_. 'One]] 'Ty]]]]]
-out >  ['App P_0 ['Emb ['Rad
-out >                   ['Emb ['Rad
-out >                          ['Lam \x. ['Emb x]]
-out >                          ['Emb ['Rad ['Pi
-out >                                       ['Sg 'One \_. 'One]
-out >                                       \_. ['Sg 'One \_. 'One]] 'Ty]]]]
-out >                   ['Emb ['Rad ['Emb
-out >                                ['Rad ['Pi
-out >                                       ['Sg 'One \_. 'One]
-out >                                       \_. ['Sg 'One \_. 'One]] 'Ty]] 'Ty]]]]]
+out >                   ['Emb ['Rad ['Lam \x. ['Emb x]]
+out >                               ['Emb ['Rad ['Pi ['Sg 'One \_. 'One]
+out >                                                \_. ['Sg 'One \_. 'One]] 'Ty]]]]
+out >                   ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One]
+out >                                                \_. ['Sg 'One \_. 'One]] 'Ty]]
+out >                               'Ty]]]]]
 out > equalSynth
 out >  P_0
 out >  P_0
@@ -563,29 +530,25 @@ out > Ups
 out > Eta Sg
 out > equalSynth
 out >  ['App
-out >   P_0
-out >   ['Emb
-out >    ['Rad
-out >     ['Emb ['App ['App
-out >                  ['Rad
-out >                   ['Lam \_. ['Lam \_. ['Lam \x. ['Pair
-out >                                                  ['Emb ['App x 'Snd]]
-out >                                                  ['Emb ['App x 'Fst]]]]]]
-out >                   ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi
-out >                                              ['Sg ['Emb A] \_. ['Emb B]]
-out >                                              \_. ['Sg ['Emb B] \_. ['Emb A]]]]]]
-out >                  'One] 'One]]
-out >     ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]]
-out >  ['App
-out >   P_0
-out >   ['Emb
-out >    ['Rad
-out >     ['Emb ['Rad
-out >            ['Lam \x. ['Emb x]]
-out >            ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]]]
-out >     ['Emb ['Rad
-out >            ['Emb ['Rad ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]] 'Ty]]
-out >            'Ty]]]]]
+out >   P_0 ['Emb
+out >        ['Rad
+out >         ['Emb
+out >          ['App
+out >           ['App
+out >            ['Rad ['Lam \_. ['Lam \_. ['Lam \x. ['Pair ['Emb ['App x 'Snd]]
+out >                                                       ['Emb ['App x 'Fst]]]]]]
+out >                  ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B]]
+out >                                                 \_. ['Sg ['Emb B]
+out >                                                          \_. ['Emb A]]]]]]
+out >            'One] 'One]] ['Emb ['Rad ['Pi ['Sg 'One \_. 'One]
+out >                                          \_. ['Sg 'One \_. 'One]] 'Ty]]]]]
+out >  ['App P_0 ['Emb ['Rad
+out >                   ['Emb ['Rad ['Lam \x. ['Emb x]]
+out >                               ['Emb ['Rad ['Pi ['Sg 'One \_. 'One]
+out >                                                \_. ['Sg 'One \_. 'One]] 'Ty]]]]
+out >                   ['Emb ['Rad ['Emb ['Rad ['Pi ['Sg 'One \_. 'One]
+out >                                                \_. ['Sg 'One \_. 'One]] 'Ty]]
+out >                               'Ty]]]]]
 out > equalSynth
 out >  P_0
 out >  P_0
@@ -616,16 +579,14 @@ out > Beta
 out > Beta
 out > Ups
 out > refl swap One : ['Pi
-out >                  ['Pi ['Emb ['Rad
-out >                              ['Pi ['Sg 'One \_. 'One] \_. ['Sg 'One \_. 'One]]
-out >                              'Ty]] \_. 'Ty]
+out >                  ['Pi ['Emb ['Rad ['Pi ['Sg 'One \_. 'One]
+out >                                        \_. ['Sg 'One \_. 'One]] 'Ty]] \_. 'Ty]
 out >                  \P. ['Pi
-out >                       ['Emb ['App P ['Emb ['Rad
-out >                                            ['Lam \x. ['Emb x]]
-out >                                            ['Emb ['Rad
-out >                                                   ['Pi
-out >                                                    ['Sg 'One \_. 'One]
-out >                                                    \_. ['Sg 'One \_. 'One]]
+out >                       ['Emb ['App P ['Emb ['Rad ['Lam \x. ['Emb x]]
+out >                                                 ['Emb
+out >                                                  ['Rad
+out >                                                   ['Pi ['Sg 'One \_. 'One]
+out >                                                        \_. ['Sg 'One \_. 'One]]
 out >                                                   'Ty]]]]]]
 out >                       \_. ['Emb
 out >                            ['App
@@ -645,14 +606,12 @@ out >                                   ['Pi 'Ty \A. ['Pi
 out >                                                 'Ty
 out >                                                 \B. ['Pi
 out >                                                      ['Sg ['Emb A] \_. ['Emb B]]
-out >                                                      \_. ['Sg
-out >                                                           ['Emb B]
-out >                                                           \_. ['Emb A]]]]]]
-out >                                  'One]
-out >                                 'One]]
-out >                               ['Emb ['Rad ['Pi
-out >                                            ['Sg 'One \_. 'One]
-out >                                            \_. ['Sg 'One \_. 'One]] 'Ty]]]]]]]]
+out >                                                      \_. ['Sg ['Emb B]
+out >                                                               \_. ['Emb A]]]]]]
+out >                                  'One] 'One]]
+out >                               ['Emb ['Rad ['Pi ['Sg 'One \_. 'One]
+out >                                                \_. ['Sg 'One \_. 'One]]
+out >                                           'Ty]]]]]]]]
 out >
 err >
 err >

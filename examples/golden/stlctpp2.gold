@@ -2,9 +2,9 @@ ret > ExitSuccess
 out > Result:
 out > [0,1] ++ [2]
 out >   : ['List ['List 'One]]
-out >   = ['Rad ['Cons 'Nil ['Cons ['Cons 'Nil 'Nil] ['Cons
-out >                                                 ['Cons 'Nil ['Cons 'Nil 'Nil]]
-out >                                                 'Nil]]] ['List ['List 'One]]]
+out >   = ['Rad ['Cons 'Nil ['Cons ['Cons 'Nil 'Nil]
+out >                              ['Cons ['Cons 'Nil ['Cons 'Nil 'Nil]] 'Nil]]]
+out >           ['List ['List 'One]]]
 out >
 err >
 err >
