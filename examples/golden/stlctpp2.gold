@@ -1,8 +1,10 @@
 ret > ExitSuccess
-out > [45mResult:[0m
-out > [45m[0,1] ++ [2][0m
-out > [45m  : ['List ['List 'One]][0m
-out > [45m  = ['Rad ['Cons 'Nil ['Cons ['Cons 'Nil 'Nil] ['Cons ['Cons 'Nil ['Cons 'Nil 'Nil]] 'Nil]]] ['List ['List 'One]]][0m
+out > Result:
+out > [0,1] ++ [2]
+out >   : ['List ['List 'One]]
+out >   = ['Rad ['Cons 'Nil ['Cons ['Cons 'Nil 'Nil]
+out >                              ['Cons ['Cons 'Nil ['Cons 'Nil 'Nil]] 'Nil]]]
+out >           ['List ['List 'One]]]
 out >
 err >
 err >

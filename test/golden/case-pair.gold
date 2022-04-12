@@ -1,5 +1,5 @@
 ret > ExitFailure 1
-out > [41mError[0m
+out > Error
 out > Pattern 'Nat does not match ['Cons 'Type 'Type]
 out > when elaborating a case branch handling the pattern 'Nat
 out > when elaborating the judgement definition for typeEq

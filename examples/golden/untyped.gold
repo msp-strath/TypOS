@@ -1,5 +1,5 @@
 ret > ExitSuccess
-out > [45m['Lam \x. ['Lam \y. ['App x ['App x ['App x ['App x y]]]]]][0m
+out > ['Lam \x. ['Lam \y. ['App x ['App x ['App x ['App x y]]]]]]
 out >
 err >
 err >

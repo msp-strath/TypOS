@@ -19,7 +19,6 @@
 
 ### CLI
 
-* [ ] --no-colour CLI option
 * [ ] Hide extract mode under a CLI option
 
 ### Examples

@@ -40,16 +40,16 @@ fromANSIs = foldl (\ acc ann -> acc <> fromANSI ann) mempty where
   fromANSI (SetWeight w) = mempty { fontWeight = Just w }
   fromANSI (SetUnderlining u) = mempty { fontUnderlining = Just u }
 
-render :: Config -> Doc Annotations -> String
-render cfg d
+render :: Bool -> Config -> Doc Annotations -> String
+render colours cfg d
   = intercalate "\n"
-  $ map (concatMap (uncurry (ANSI.withANSI . toANSIs)))
+  $ map (concatMap $ \ (ann, str) -> if colours then ANSI.withANSI (toANSIs ann) str else str)
   $ Doc.render cfg d
 
 withANSI :: [Annotation] -> Doc Annotations -> Doc Annotations
 withANSI = Doc.annotate . fromANSIs
 
-testT = test (render (initConfig 80) . withANSI [ SetColour Background Blue ])
+testT = test (render True (initConfig 80) . withANSI [ SetColour Background Blue ])
   (fancyChar Green '1')
   (fancyChar Red '0')
 
