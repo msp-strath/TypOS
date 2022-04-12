@@ -76,14 +76,14 @@ instance Pretty (Mode, Raw) where
 instance Pretty CStep where
   pretty = \case
     BindingStep x -> withANSI [ SetColour Background Magenta ] ("\\" <> pretty x <> dot)
-    PushingStep jd x t -> pretty jd <+> braces (hsep [pretty x, "->", pretty t])
+    PushingStep jd x t -> pretty jd <+> braces (hsep [pretty x, "->", pretty t]) <> dot
     CallingStep jd ts -> pretty jd <+> sep (pretty <$> ts)
     NotedStep -> ""
 
 instance Pretty (Trace CStep) where
   pretty (Node i@(BindingStep x) ts) =
     let (prf, suf) = getPushes ts in
-    vcat ( hsep (pretty <$> i:prf) : map (indent 1 . pretty) suf)
+    vcat ((pretty i <+> vcat (pretty <$> prf)) : map (indent 1 . pretty) suf)
 
     where
     getPushes [Node i@(PushingStep _ y _) ts] | Variable x == y =
