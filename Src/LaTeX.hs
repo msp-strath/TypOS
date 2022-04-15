@@ -56,7 +56,9 @@ toLaTeXCdr d p = do
 instance LaTeX Raw where
   type Format Raw = SyntaxDesc
   toLaTeX d = \case
-    Var v -> toLaTeX () v
+    Var v -> do
+      v <- toLaTeX () v
+      pure $ call False "mathit" [v]
     At "" -> pure $ call False "typosNil" []
     At a -> ask >>= \ table -> pure $ case expand table d of
       Just VEnumOrTag{} -> call False (text ("enum" ++ a)) [] -- as enum

@@ -198,6 +198,12 @@ mkNewCommand :: String -> Int -> String -> String
 mkNewCommand cmd ar body
   = "\\newcommand{\\" <> cmd <> "}[" <> show ar <> "]{" <> body <> "}"
 
+mkTag :: String -> String
+mkTag e = "\\mathsf{" ++ e ++ "}"
+
+nArgs :: Int -> [String]
+nArgs n = map (("\\ #" ++) . show) [1..n]
+
 syntaxPreamble :: SyntaxTable -> SyntaxCat -> [Doc ()]
 syntaxPreamble table cat = go (fromJust $ Map.lookup cat table) where
 
@@ -205,15 +211,15 @@ syntaxPreamble table cat = go (fromJust $ Map.lookup cat table) where
   go t = case Syntax.expand Map.empty t of
     Just (VCons d e) -> go d ++ go e
     Just (VEnumOrTag es tds) ->
-        map (\ e -> text $ mkNewCommand ("enum" ++ e) 0 e) es ++
+        map (\ e -> text $ mkNewCommand ("enum" ++ e) 0 (mkTag e)) es ++
         map (\ (t, ds) -> text $ mkNewCommand ("tag" ++ t) (length ds)
-                               $ unwords (t: map (("\\ #" ++) . show) [1..length ds])) tds
+                               $ unwords ("[" : (mkTag t) : nArgs (length ds) ++ ["]"])) tds
     _ -> []
 
 judgementPreamble :: Frame -> [Doc ()]
 judgementPreamble (Rules jd jp _)
   = [text $ mkNewCommand ("calling" ++ jd) (length jp)
-          $ "\\textsc{" ++ jd ++ "}" ++ unwords (map (("\\ #" ++) . show) [1..length jp])
+          $ "\\textsc{" ++ jd ++ "}" ++ unwords (nArgs (length jp))
     ]
 judgementPreamble _ = []
 
@@ -222,6 +228,8 @@ ldiagnostic table st fs =
   let ats = cleanup $ extract fs in
   let iats = instantiate st ats in
   let cts = traverse unelab iats in
+  let rts = unsafeEvalUnelab initNaming cts in
+  let dts = (`evalLaTeXM` table) (traverse (toLaTeX ()) rts) in
   show $ vcat $
    [ "\\documentclass{article}"
    , "\\newcommand{\\typosBinding}[1]{#1 \\vdash}"
@@ -243,11 +251,12 @@ ldiagnostic table st fs =
    ++
    [ "\\include{notations}"
    , "\\begin{document}"
-   , "$$"
-   , "\\begin{array}{l}"
    ] ++
-   (`evalLaTeXM` table) (traverse (toLaTeX ()) $ unsafeEvalUnelab initNaming cts)
-   ++
-   ["\\end{array}"
-   , "$$"
-   , "\\end{document}"]
+   (dts >>= \ der ->
+      [ "\\["
+      , "\\begin{array}{l}"
+      , der
+      , "\\end{array}"
+      , "\\]"
+      ])
+   ++ [ "\\end{document}"]
