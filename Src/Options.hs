@@ -31,6 +31,7 @@ data Options = Options
   , quiet :: Bool
   , colours :: Bool
   , tracingOption :: Maybe [MachineStep]
+  , latex :: Maybe FilePath
   , termWidth :: Int
   } deriving (Show)
 
@@ -39,8 +40,9 @@ poptions = Options
   <$> argument str (metavar "FILE" <> showDefault <> value "examples/stlc.act" <> help "Actor file")
   <*> flag False True (short 'q' <> long "quiet" <> help "Silence tracing")
   <*> flag True False (long "no-colour" <> help "Do not use colours in the output")
-  <*> optional (option (str >>= readSteps . words)
-                       (long "tracing" <> metavar "LEVELS" <> help tracingHelp))
+  <*> (optional $ option (str >>= (readSteps . words))
+                         (long "tracing" <> metavar "LEVELS" <> help tracingHelp))
+  <*> optional (option str (metavar "FILE" <> long "latex" <> help "Output LaTeX derivation to file"))
   <*> pure 80 -- dummy value
  where
    readSteps :: [String] -> ReadM [MachineStep]

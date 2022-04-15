@@ -43,6 +43,7 @@ library
                        Forget,
                        Format,
                        Hide,
+                       LaTeX,
                        Machine,
                        Machine.Base,
                        Machine.Display,
@@ -66,6 +67,7 @@ library
 
   build-depends:       base <5
                      , containers
+                     , filepath
                      , mtl
                      , optparse-applicative
                      , terminal-size
@@ -79,6 +81,7 @@ executable typos
   main-is:             Src/Main.hs
   build-depends:       base <5
                      , mtl
+                     , filepath
                      , containers
                      , optparse-applicative
                      , terminal-size

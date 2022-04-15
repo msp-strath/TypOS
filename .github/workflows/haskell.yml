@@ -47,7 +47,7 @@ jobs:
       name: Cache ~/.cabal/store
       with:
         path: ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
-        key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
+        key: ${{ runner.os }}-${{ matrix.ghc }}-${{ secrets.CACHE_CABAL_VERSION }}-${{ hashFiles('cabal.project.freeze') }}
 
     - name: Install dependencies
       run: |
@@ -83,7 +83,7 @@ jobs:
       name: Cache ~/.stack
       with:
         path: ~/.stack
-        key: ${{ runner.os }}-${{ matrix.ghc }}-stack
+        key: ${{ runner.os }}-${{ matrix.ghc }}-${{ secrets.CACHE_STACK_VERSION }}-stack
 
     - name: Install dependencies
       run: |

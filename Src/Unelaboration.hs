@@ -255,7 +255,7 @@ instance Unelab AActor where
     Recv ch (av, a) -> Recv <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
     FreshMeta desc (av, a) -> FreshMeta <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
     Under (Scope x a) -> Under . Scope x <$> local (updateNaming (`nameOn` unhide x)) (unelab a)
-    Push jd (p, t) a -> Push <$> subunelab jd <*> ((,) <$> subunelab p <*> subunelab t) <*> unelab a
+    Push jd (p, _, t) a -> Push <$> subunelab jd <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
     Lookup t (av, a) b -> Lookup <$> subunelab t <*> ((,) <$> subunelab av <*> unelab a) <*> unelab b
     Match tm pts -> Match <$> subunelab tm <*> traverse unelab pts
     Constrain s t -> Constrain <$> subunelab s <*> subunelab t

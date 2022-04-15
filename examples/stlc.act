@@ -58,10 +58,9 @@ synth@p = p?tm . lookup tm { S -> p!S. } else case tm
 
 ------------------------------------------------------------------------------
 -- Examples
-{-
 exec  check@p. p! ['Arr 'Nat ['Arr 'Nat 'Nat]].
               p! ['Lam \z. ['Lam \y. ['Emb z]]].
--}
+
 {-
 exec  check@p. p! ['Arr 'Nat 'Nat].
               p! ['Lam \z. ['Emb z]].

@@ -212,7 +212,7 @@ data Complaint
 
 data ElabState = ElabState
   { channelStates :: Map Channel ([Turn], AProtocol)
-  , syntaxCats    :: Map SyntaxCat SyntaxDesc
+  , syntaxCats    :: SyntaxTable
   } deriving (Eq)
 
 addHint :: String -> Info SyntaxDesc -> Context -> Context
@@ -658,7 +658,7 @@ sact = \case
     during (MatchElaboration rtm) $ consistentCommunication sts
     pure $ Match tm cls
 
-  Push jd (p, t) a -> do
+  Push jd (p, (), t) a -> do
     jd <- isJudgement jd
     stk <- case judgementStack jd of
       Nothing -> throwError (PushingOnAStacklessJudgement (judgementName jd))
@@ -670,7 +670,7 @@ sact = \case
       _ -> throwError $ OutOfScope p
     t <- during (PushTermElaboration t) $ stm (valueDesc stk) t
     a <- sact a
-    pure $ Push (judgementName jd) (p, t) a
+    pure $ Push (judgementName jd) (p, valueDesc stk, t) a
 
   Lookup rt@t (av, a) b -> do
     (jd, stk) <- asks currentActor >>= \case

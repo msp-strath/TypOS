@@ -96,7 +96,7 @@ pact = Under <$> pscoped pact
   <|> Print <$ plit "PRINT" <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
   <|> Print <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Fail <$ pch (== '#') <* pspc <*> (pformat >>= pargs)
-  <|> Push <$> pvariable <*> pcurlies (withVar "->" ptm) <* punc "." <*> pact
+  <|> Push <$> pvariable <*> pcurlies ((\ (a, b) -> (a, (), b)) <$> withVar "->" ptm) <* punc "." <*> pact
   <|> Lookup <$ plit "lookup" <* pspc <*> ptm <* pspc <*> pcurlies (withVar "->" pACT)
              <* pspc <* plit "else" <* pspc <*> pact
   <|> Note <$ plit "!" <* punc "." <*> pact

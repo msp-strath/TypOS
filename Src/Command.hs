@@ -141,8 +141,11 @@ scommands (c:cs) = do
   cs <- local (setDecls ds) $ scommands cs
   pure (c:cs)
 
-elaborate :: [CCommand] -> Either Complaint [ACommand]
-elaborate = evalElab . scommands
+elaborate :: [CCommand] -> Either Complaint ([ACommand], SyntaxTable)
+elaborate ccs = evalElab $ do
+  acs <- scommands ccs
+  table <- gets syntaxCats
+  pure (acs, table)
 
 run :: Options -> Process Store Bwd -> [ACommand] -> Process Store []
 run opts p [] = exec p

@@ -149,9 +149,9 @@ exec p@Process { actor = Under (Scope (Hide x) a), ..}
         actor' = a
     in exec (p { stack = stack', env = env', actor = actor' })
 
-exec p@Process { actor = Push jd (pv, t) a, ..}
+exec p@Process { actor = Push jd (pv, d, t) a, ..}
   | Just t' <- mangleActors env t
-  = let stack' = stack :< Pushed jd (pv, t')
+  = let stack' = stack :< Pushed jd (pv, d, t')
     in exec (p { stack = stack', actor = a })
 
 exec p@Process { actor = Lookup t (av, a) b, ..}
@@ -169,7 +169,7 @@ exec p@Process { actor = Lookup t (av, a) b, ..}
     search (zf :< f) i jd bd = case f of
       Binding x | i <= 0 -> Nothing
                 | otherwise -> search zf (i-1) jd (bd + 1)
-      Pushed jd' (DB i', t) | jd == jd' && i == i' -> Just (weaks bd t)
+      Pushed jd' (DB i', _, t) | jd == jd' && i == i' -> Just (weaks bd t)
       _ -> search zf i jd bd
 
 exec p@Process { actor = Print fmt a, ..}

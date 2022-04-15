@@ -96,7 +96,7 @@ instance Display Frame where
       t <- subpdisplay t -- pure $ show t
       pure $ withANSI [SetColour Foreground Blue, SetWeight Bold]
            $ "!" <> ch' <> dot <+> horizontally (collapse (pretty <$> xs)) <+> t
-    Pushed jd (p, t) -> do
+    Pushed jd (p, _, t) -> do
       p <- subdisplay p
       t <- subdisplay t
       pure $ hsep [pretty jd, "{", p, "->", t, "}. "]
