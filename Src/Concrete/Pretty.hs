@@ -25,7 +25,9 @@ instance Pretty Raw where
     Var v -> pretty v
     At [] -> "[]"
     At at -> squote <> pretty at
-    Cons p q -> brackets $ sep (pretty p : prettyCdr q)
+    Cons p q -> brackets $ case pretty p : prettyCdr q of
+      (d : ds@(_:_)) -> alts [flush d, d <> space] <> sep ds
+      ds -> hsep ds
     Lam (Scope x t) -> backslash <> pretty x <> dot <+> pretty t
     Sbst B0 t -> pretty t
     Sbst sg t -> hsep [ pretty sg, pretty t ]
@@ -75,7 +77,7 @@ instance Pretty ExtractMode where
 -- Just like we have a distinction between small and big actors in the parser,
 -- it makes sense to have one in the pretty printer too.
 prettyact :: CActor -> [Doc Annotations]
-prettyact a = go B0 B0 a where
+prettyact = go B0 B0 where
 
   add :: Bwd (Doc Annotations) -> [Doc Annotations] -> Bwd (Doc Annotations)
   add B0 ds = B0 <>< ds
@@ -93,11 +95,11 @@ prettyact a = go B0 B0 a where
     Under (Scope x a) -> go ls (l `add` [backslash , pretty x, dot]) a
     Note a -> go ls (l `add` ["!", dot]) a
     Push jd (x, _, t) a ->
-      let push = hsep [pretty jd, braces (hsep [ pretty x, "->", pretty t])] <> dot in
-      go (ls :< (fold (l `add` [push]))) B0 a
-    Print [TermPart Instantiate tm] a -> go (ls :< (fold (l `add` [hsep [keyword "PRINT", pretty tm] <> dot]))) B0 a
-    Print fmt a -> go (ls :< (fold (l `add` [hsep [keyword "PRINTF", pretty fmt] <> dot]))) B0 a
-    Break fmt a -> go (ls :< (fold (l `add` [hsep [keyword "BREAK", pretty fmt] <> dot]))) B0 a
+      let push = hsep [pretty jd, braces (hsep [ pretty x, "->", pretty t]), dot] <> dot in
+      go (ls :< fold (l `add` [push])) B0 a
+    Print [TermPart Instantiate tm] a -> go (ls :< fold (l `add` [hsep [keyword "PRINT", pretty tm] <> dot])) B0 a
+    Print fmt a -> go (ls :< fold (l `add` [hsep [keyword "PRINTF", pretty fmt] <> dot])) B0 a
+    Break fmt a -> go (ls :< fold (l `add` [hsep [keyword "BREAK", pretty fmt] <> dot])) B0 a
     -- if we win, avoid generating an empty line
     Win -> case l of
              B0 -> ls <>> []

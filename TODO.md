@@ -15,10 +15,10 @@
    + [ ] Record more precise "Date" information (e.g. sets of blocking meta)
 * [ ] Concurrent runtime
 * [ ] LaTeX output for extract mode
+* [ ] underscore patterns in bindings and recvs
 
 ### CLI
 
-* [ ] --no-colour CLI option
 * [ ] Hide extract mode under a CLI option
 
 ### Examples

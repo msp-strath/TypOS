@@ -18,6 +18,7 @@ import Elaboration.Pretty()
 import Forget
 import Format
 import Machine.Base
+import Options
 import Pretty
 import Term
 import Term.Display ()
@@ -156,15 +157,6 @@ instance Display Store where
       k <- subdisplay k
       pure $ k <+> ":=" <+> t
 
-instance Pretty MachineStep where
-  pretty = \case
-    MachineRecv -> "recv"
-    MachineSend -> "send"
-    MachineExec -> "exec"
-    MachineMove -> "move"
-    MachineUnify -> "unify"
-    MachineBreak -> "break"
-
 
 instance Display MachineStep where
   type DisplayEnv MachineStep = ()
@@ -176,7 +168,7 @@ frameOn de@DEnv{..} = \case
                   , daEnv = A.updateNaming (`nameOn` x) daEnv
                   }
   Spawnee (Interface (Hole, ch) _ _ _ _ _) -> initChildDEnv ch de
-  Spawner (Interface _ ((ch, _), Hole) _ _ _ _) -> declareChannel ch $ de
+  Spawner (Interface _ ((ch, _), Hole) _ _ _ _) -> declareChannel ch de
   _ -> de
 
 frDisplayEnv :: Foldable t => t Frame -> DEnv

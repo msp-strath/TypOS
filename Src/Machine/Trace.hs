@@ -11,6 +11,7 @@ import ANSI hiding (withANSI)
 import Actor (JudgementForm)
 import Concrete.Pretty()
 import Machine.Base
+import Options
 import Pretty
 import Term.Base
 import Thin (DB(..))
@@ -83,9 +84,15 @@ instance Pretty (Mode, Raw) where
 instance Pretty CStep where
   pretty = \case
     BindingStep x -> withANSI [ SetColour Background Magenta ] ("\\" <> pretty x <> dot)
-    PushingStep jd x (_, t) -> pretty jd <+> braces (hsep [pretty x, "->", pretty t])
+    PushingStep jd x (_, t) -> pretty jd <+> braces (hsep [pretty x, "->", pretty t]) <> dot
     CallingStep jd pts -> pretty jd <+> sep (pretty <$> map (first fst) pts)
     NotedStep -> ""
+
+instance Pretty (Trace CStep) where
+  pretty (Node i@(BindingStep x) ts) =
+    let (prf, suf) = getPushes (Variable x) ts in
+    vcat ( hsep (pretty <$> i:prf) : map (indent 1 . pretty) suf)
+  pretty (Node i ts) = vcat (pretty i : map (indent 1 . pretty) ts)
 
 instance LaTeX CStep where
   type Format CStep = ()
@@ -133,14 +140,6 @@ getPushes x [Node i@(PushingStep _ y _) ts] | x == y =
       (i:prf, suf)
 getPushes _ ts = ([], ts)
 
-
-instance Pretty (Trace CStep) where
-  pretty (Node i@(BindingStep x) ts) =
-    let (prf, suf) = getPushes (Variable x) ts in
-    vcat ( hsep (pretty <$> i:prf) : map (indent 1 . pretty) suf)
-  pretty (Node i ts) = vcat (pretty i : map (indent 1 . pretty) ts)
-
-
 extract :: [Frame] -> [Trace AStep]
 extract [] = []
 extract (f : fs) = case f of
@@ -185,12 +184,12 @@ cleanup = snd . go False [] where
     (:) <$> censor (const (Any False)) (Node i <$> go False seen ts)
         <*> go supp seen ats
 
-diagnostic :: StoreF i -> [Frame] -> String
-diagnostic st fs =
+diagnostic :: Options -> StoreF i -> [Frame] -> String
+diagnostic opts st fs =
   let ats = cleanup $ extract fs in
   let iats = instantiate st ats in
   let cts = traverse unelab iats in
-  render ((initConfig 80) { orientation = Vertical })
+  render (colours opts) ((initConfig (termWidth opts)) { orientation = Vertical })
     $ vcat $ map pretty $ unsafeEvalUnelab initNaming cts
 
 

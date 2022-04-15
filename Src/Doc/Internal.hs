@@ -131,6 +131,9 @@ text str = let n = length str in Block
   , lastLine  = asLine str
   }
 
+spaces :: (Eq ann, Monoid ann) => Int -> Block ann
+spaces i = text (replicate i ' ')
+
 -- We can't "unlines lines" because that would introduce extra newlines
 para :: (HasCallStack, Eq ann, Monoid ann) => String -> Block ann
 para = go mempty where
@@ -161,6 +164,12 @@ instance (Eq ann, Monoid ann) => Monoid (Block ann) where
 -- introduce a new line at the end
 flush :: Eq ann => Block ann -> Block ann
 flush (Block h c mw lw l) = Block (1+h) (node c l Leaf) mw 0 mempty
+
+foldBlock :: (Eq ann, Monoid ann) => (Block ann -> Block ann -> Block ann) ->
+           [Block ann] -> Block ann
+foldBlock c [] = mempty
+foldBlock c [x] = x
+foldBlock c (x : xs) = c x (foldBlock c xs)
 
 render :: forall ann. Monoid ann => Block ann -> [[(ann, String)]]
 render b = (<>> []) $ go B0 mempty ""
