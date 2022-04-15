@@ -23,9 +23,9 @@ class LaTeX a where
   type Format a
   toLaTeX :: Format a -> a -> LaTeXM (Doc ())
 
-call :: Doc () -> [Doc ()] -> Doc ()
-call d [] = backslash <> d
-call d (x : xs) = call (d <> braces x) xs
+call :: Bool -> Doc () -> [Doc ()] -> Doc ()
+call b d [] = backslash <> d
+call b d (x : xs) = call b ((if b && not (null xs) then flush else id) (d <> braces x)) xs
 
 instance LaTeX Variable where
   type Format Variable = ()
@@ -36,8 +36,11 @@ asList (At "") = []
 asList (Cons p q) = p : asList q
 asList p = [p]
 
+latexspace :: Doc ()
+latexspace = "\\ "
+
 toLaTeXCdr :: SyntaxDesc -> Raw -> LaTeXM (Doc ())
-toLaTeXCdr _ (At "") = pure $ call "typosListEnd" []
+toLaTeXCdr _ (At "") = pure $ call False "typosListEnd" []
 toLaTeXCdr d (Cons p q) = do
   (dp, dq) <- ask >>= \ table -> pure $ case expand table d of
       Just (VCons dp dq) -> (dp, dq)
@@ -45,43 +48,46 @@ toLaTeXCdr d (Cons p q) = do
       _ -> (contract VWildcard, contract VWildcard)
   p <- toLaTeX dp p
   q <- toLaTeXCdr dq q
-  pure $ p <+> q
+  pure $ latexspace <> p <> q
 toLaTeXCdr d p = do
   p <- toLaTeX d p
-  pure $ call "typosListTail" [p]
+  pure $ call False "typosListTail" [p]
 
 instance LaTeX Raw where
   type Format Raw = SyntaxDesc
   toLaTeX d = \case
     Var v -> toLaTeX () v
-    At "" -> pure $ call "typosNil" []
+    At "" -> pure $ call False "typosNil" []
     At a -> ask >>= \ table -> pure $ case expand table d of
-      Just VEnumOrTag{} -> call (text ("enum" ++ a)) [] -- as enum
-      _ -> call "typosAtom" [text a] -- as atom
+      Just VEnumOrTag{} -> call False (text ("enum" ++ a)) [] -- as enum
+      _ -> call False "typosAtom" [text a] -- as atom
     Cons p q -> ask >>= \ table -> case expand table d of
       Just (VEnumOrTag _ ts) -> do
         let At a = p
         let Just ds = lookup a ts
         let qs = asList q
-        call (text ("tag" ++ a)) <$> traverse (uncurry toLaTeX) (zip ds qs) -- as tags
+        call False (text ("tag" ++ a)) <$> traverse (uncurry toLaTeX) (zip ds qs) -- as tags
       Just (VCons dp dq) -> do
         p <- toLaTeX dp p
         q <- toLaTeXCdr dq q
-        pure $ call "typosListStart" [p, q]
+        pure $ call False "typosListStart" [p, q]
       Just (VNilOrCons dp dq) ->  do
         p <- toLaTeX dp p
         q <- toLaTeXCdr dq q
-        pure $ call "typosListStart" [p, q]
+        pure $ call False "typosListStart" [p, q]
       _ -> do
         p <- toLaTeX (contract VWildcard) p
         q <- toLaTeXCdr (contract VWildcard) q
-        pure $ call "typosListStart" [p, q]
+        pure $ call False "typosListStart" [p, q]
     Lam (Scope x sc) -> do
       d <- ask >>= \ table -> pure $ case expand table d of
         Just (VBind s cb) -> cb
         _ -> contract VWildcard
       sc <- toLaTeX d sc
-      pure $ call "typosScope" [text (unhide x), sc]
+      let bd = case unhide x of
+                 "_" -> "\\_"
+                 y -> y
+      pure $ call False "typosScope" [text bd, sc]
     Sbst bwd raw -> pure ""
 
 test =
@@ -102,7 +108,7 @@ test =
 
   , "\\newcommand{\\typosAtom}[1]{'#1}"
   , "\\newcommand{\\typosNil}{[]}"
-  , "\\newcommand{\\typosListStart}[2]{[#1 #2}"
+  , "\\newcommand{\\typosListStart}[2]{[#1#2}"
   , "\\newcommand{\\typosListEnd}{]}"
   , "\\newcommand{\\typosListTail}[1]{\\textbar #1]}"
   , "\\newcommand{\\typosScope}[2]{[\\textbackslash #1. #2]}"

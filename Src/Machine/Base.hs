@@ -10,6 +10,7 @@ import Format
 import Term
 import Thin
 import Concrete.Base (ExtractMode)
+import Syntax (SyntaxDesc)
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
@@ -91,7 +92,7 @@ data Frame
   | Spawnee (Interface Hole (Process Status []))
   | Spawner (Interface (Process Status []) Hole)
   | Sent Channel ([String], Term)
-  | Pushed JudgementForm (DB, Term)
+  | Pushed JudgementForm (DB, SyntaxDesc, Term)
   | Binding String
   | UnificationProblem Date Term Term
   | Noted

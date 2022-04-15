@@ -11,6 +11,7 @@ data Options = Options
   { filename :: String
   , quiet :: Bool
   , tracingOption :: Maybe [MachineStep]
+  , latex :: Maybe FilePath
   }
 
 options :: Parser Options
@@ -19,6 +20,7 @@ options = Options
   <*> flag False True (short 'q' <> long "quiet" <> help "Silence tracing")
   <*> (optional $ option (str >>= (readSteps . words))
                          (long "tracing" <> metavar "LEVELS" <> help tracingHelp))
+  <*> optional (option str (metavar "FILE" <> long "latex" <> help "Output LaTeX derivation to file"))
  where
    readSteps :: [String] -> ReadM [MachineStep]
    readSteps = mapM $ \case

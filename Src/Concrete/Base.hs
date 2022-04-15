@@ -53,26 +53,26 @@ data ExtractMode
   | InterestingExtract
   deriving (Show, Eq)
 
-data Actor jd ch av syn var tm pat cnnct
- = Actor jd ch av syn var tm pat cnnct :|: Actor jd ch av syn var tm pat cnnct
- | Spawn ExtractMode jd ch (Actor jd ch av syn var tm pat cnnct)
- | Send ch tm (Actor jd ch av syn var tm pat cnnct)
- | Recv ch (av, Actor jd ch av syn var tm pat cnnct)
+data Actor jd ch av syn var tm pat cnnct stk
+ = Actor jd ch av syn var tm pat cnnct stk :|: Actor jd ch av syn var tm pat cnnct stk
+ | Spawn ExtractMode jd ch (Actor jd ch av syn var tm pat cnnct stk)
+ | Send ch tm (Actor jd ch av syn var tm pat cnnct stk)
+ | Recv ch (av, Actor jd ch av syn var tm pat cnnct stk)
  | Connect cnnct
- | Note (Actor jd ch av syn var tm pat cnnct)
- | FreshMeta syn (av, Actor jd ch av syn var tm pat cnnct)
- | Under (Scope (Actor jd ch av syn var tm pat cnnct))
- | Match tm [(pat, Actor jd ch av syn var tm pat cnnct)]
+ | Note (Actor jd ch av syn var tm pat cnnct stk)
+ | FreshMeta syn (av, Actor jd ch av syn var tm pat cnnct stk)
+ | Under (Scope (Actor jd ch av syn var tm pat cnnct stk))
+ | Match tm [(pat, Actor jd ch av syn var tm pat cnnct stk)]
  -- This is going to bite us when it comes to dependent types
  | Constrain tm tm
- | Push jd (var, tm) (Actor jd ch av syn var tm pat cnnct)
- | Lookup tm (av, Actor jd ch av syn var tm pat cnnct) (Actor jd ch av syn var tm pat cnnct)
+ | Push jd (var, stk, tm) (Actor jd ch av syn var tm pat cnnct stk)
+ | Lookup tm (av, Actor jd ch av syn var tm pat cnnct stk) (Actor jd ch av syn var tm pat cnnct stk)
  | Win
  | Fail  [Format Directive Debug tm]
- | Print [Format Directive Debug tm] (Actor jd ch av syn var tm pat cnnct)
- | Break [Format Directive Debug tm] (Actor jd ch av syn var tm pat cnnct)
+ | Print [Format Directive Debug tm] (Actor jd ch av syn var tm pat cnnct stk)
+ | Break [Format Directive Debug tm] (Actor jd ch av syn var tm pat cnnct stk)
  deriving (Show)
 
 type CProtocol = Protocol Raw
 type CJudgementStack = JudgementStack Raw
-type CActor = Actor Variable Variable Variable Raw Variable Raw RawP CConnect
+type CActor = Actor Variable Variable Variable Raw Variable Raw RawP CConnect ()

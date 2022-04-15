@@ -9,6 +9,7 @@ import Data.Maybe
 import System.Exit
 
 import ANSI hiding (withANSI)
+import qualified ANSI
 import Bwd
 import Concrete.Base
 import Doc (vcat, Config(..), Orientation(..))
@@ -21,7 +22,8 @@ import Pretty
 import Term.Base
 import Options
 import Command
-import Machine.Trace (diagnostic)
+import Machine.Trace (diagnostic, ldiagnostic)
+import Utils
 
 main :: IO ()
 main = do
@@ -33,9 +35,12 @@ main = do
       putStrLn $ render (Config 80 Vertical) $
         vcat [ withANSI [ SetColour Background Red ] "Error" , pretty err ]
       exitFailure
-    Right acs -> do
+    Right (acs, table) -> do
   -- putStrLn $ unsafeEvalDisplay initNaming $ collapse <$> traverse display acs
       let p = Process (fromMaybe [] (tracingOption opts)) B0 initRoot (initEnv B0) initStore Win ""
       let res@(Process _ fs _ env sto Win _) = run opts p acs
       unless (quiet opts) $ putStrLn $ diagnostic sto fs
+      whenJust (latex opts) $ \ file -> do
+        writeFile file $ ldiagnostic table sto fs
+        putStrLn (ANSI.withANSI [ SetColour Background Green ] "Success:" ++ " wrote latex derivation to " ++ file)
       dmesg "" res `seq` pure ()
