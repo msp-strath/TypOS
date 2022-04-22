@@ -20,8 +20,8 @@ pscoped px pa = Scope . Hide <$ pch (== '\\') <* pspc <*> px <* punc "." <*> pa
 pvariable :: Parser Variable
 pvariable = Variable <$> pnom
 
-pbinder :: Parser Binder
-pbinder = Used <$> pnom
+pbinder :: Parser (Binder Variable)
+pbinder = Used <$> pvariable
       <|> Unused <$ plit "_"
 
 ptm :: Parser Raw
@@ -76,8 +76,8 @@ pACT = pact >>= more where
   more act = (act :|:) <$ punc "|" <*> pACT
     <|> pure act
 
-withVar :: String -> Parser a -> Parser (Variable, a)
-withVar str p = (,) <$> pvariable <* punc str <*> p
+withVar :: Parser x -> String -> Parser a -> Parser (x, a)
+withVar px str p = (,) <$> px <* punc str <*> p
 
 pextractmode :: Parser ExtractMode
 pextractmode
@@ -88,7 +88,11 @@ pextractmode
 pact :: Parser CActor
 pact = Under <$> pscoped pnom pact
   <|> Send <$> pvariable <* punc "!" <*> ptm <* punc "." <*> pact
-  <|> questionmark <$> ptm <* punc "?" <*> withVar "." pact
+  <|> do tm <- ptm
+         punc "?"
+         case tm of
+           Var c -> Recv c <$> withVar pbinder "." pact
+           t -> FreshMeta t <$> withVar pvariable "." pact
   <|> Spawn <$> pextractmode <*> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
   <|> Constrain <$> ptm <* punc "~" <*> ptm
   <|> Connect <$> (CConnect <$> pvariable <* punc "<->" <*> pvariable)
@@ -100,8 +104,8 @@ pact = Under <$> pscoped pnom pact
   <|> Print <$ plit "PRINT" <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
   <|> Print <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Fail <$ pch (== '#') <* pspc <*> (pformat >>= pargs)
-  <|> Push <$> pvariable <*> pcurlies ((\ (a, b) -> (a, (), b)) <$> withVar "->" ptm) <* punc "." <*> pact
-  <|> Lookup <$ plit "lookup" <* pspc <*> ptm <* pspc <*> pcurlies (withVar "->" pACT)
+  <|> Push <$> pvariable <*> pcurlies ((\ (a, b) -> (a, (), b)) <$> withVar pvariable "->" ptm) <* punc "." <*> pact
+  <|> Lookup <$ plit "lookup" <* pspc <*> ptm <* pspc <*> pcurlies (withVar pbinder "->" pACT)
              <* pspc <* plit "else" <* pspc <*> pact
   <|> Note <$ plit "!" <* punc "." <*> pact
   <|> pure Win

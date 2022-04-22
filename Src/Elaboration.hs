@@ -107,8 +107,9 @@ setObjVars ovs ctx = ctx { objVars = ovs }
 instance Selable Context where
   th ^? ctxt = ctxt { objVars = th ^? objVars ctxt }
 
-declare :: String -> Kind -> Context -> Context
-declare x k ctx = ctx { declarations = declarations ctx :< (x, k) }
+declare :: Binder String -> Kind -> Context -> Context
+declare Unused k ctx = ctx
+declare (Used x) k ctx = ctx { declarations = declarations ctx :< (x, k) }
 
 turn :: Turn -> Context -> Context
 turn t ds = ds { location = location ds :< t }
@@ -156,7 +157,7 @@ data Complaint
   | NotAValidBoundVar Variable
   -- protocol
   | InvalidSend Channel Raw
-  | InvalidRecv Channel String
+  | InvalidRecv Channel (Binder String)
   | NonLinearChannelUse Channel
   | UnfinishedProtocol Channel AProtocol
   | InconsistentCommunication
@@ -397,7 +398,7 @@ stm desc rt = do
           _ -> throwError (SyntaxError desc rt)
         case x of
           Used x -> do
-            x <- isFresh (Variable x)
+            x <- isFresh x
             sc <- local (declareObjVar (x, s)) $ stm desc sc
             pure (x \\ sc)
           Unused -> do
@@ -483,9 +484,9 @@ spat desc rp = do
             (p, ds, hs) <- spat desc p
             pure (BP (Hide "_") p, ds, hs)
           Used x -> do
-            v <- isFresh (Variable x)
+            x <- isFresh x
             (p, ds, hs) <- local (declareObjVar (x, s) . addHint x s) $ spat desc p
-            pure (BP (Hide v) p, ds, hs)
+            pure (BP (Hide x) p, ds, hs)
 
 isChannel :: Variable -> Elab Channel
 isChannel ch = resolve ch >>= \case
@@ -541,7 +542,7 @@ withChannel ch@(Channel rch) p ma = do
   open ch p
   -- run the actor in the extended context
   ovs <- asks objVars
-  a <- local (declare rch (AChannel ovs)) $ ma
+  a <- local (declare (Used rch) (AChannel ovs)) $ ma
   close ch
   pure a
 
@@ -619,7 +620,7 @@ sact = \case
 
   Recv ch (av, a) -> do
     ch <- isChannel ch
-    av <- during (RecvMetaElaboration ch) $ isFresh av
+    av <- during (RecvMetaElaboration ch) $ traverse isFresh av
     -- Check the channel is in receiving mode & step it
     cat <- steppingChannel ch $ \case
       (Input, cat) : p -> pure (cat, p)
@@ -628,7 +629,7 @@ sact = \case
     -- Receive
     sc <- channelScope ch
     a <- local (declare av (ActVar (Known cat) sc)) $ sact a
-    pure $ Recv ch (ActorMeta av, a)
+    pure $ Recv ch (ActorMeta <$> av, a)
 
   Connect (CConnect ch1 ch2) -> during (ConnectElaboration ch1 ch2) $ do
     ch1 <- isChannel ch1
@@ -652,7 +653,7 @@ sact = \case
       av <- isFresh av
       ovs <- asks objVars
       pure (desc, av, ovs)
-    a <- local (declare av (ActVar (Known desc) ovs)) $ sact a
+    a <- local (declare (Used av) (ActVar (Known desc) ovs)) $ sact a
     pure $ FreshMeta desc (ActorMeta av, a)
 
   Under (Scope v@(Hide x) a) -> do
@@ -688,12 +689,12 @@ sact = \case
       (jd, Nothing) -> throwError (LookupFromAStacklessActor jd)
       (jd, Just stk) -> pure (jd, stk)
     t <- during (LookupTermElaboration t) $ stm (keyDesc stk) t
-    av <- isFresh av
+    av <- traverse isFresh av
     ovs <- asks objVars
     (a, mcha) <- local (declare av (ActVar (Known $ valueDesc stk) ovs)) $ sbranch a
     (b, mchb) <- sbranch b
     during (LookupHandlersElaboration rt) $ consistentCommunication [mcha, mchb]
-    pure $ Lookup t (ActorMeta av, a) b
+    pure $ Lookup t (ActorMeta <$> av, a) b
 
   Fail fmt -> Fail <$> sformat fmt <* tell (All False)
   Print fmt a -> Print <$> sformat fmt <*> sact a

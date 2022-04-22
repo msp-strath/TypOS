@@ -28,7 +28,7 @@ type Gripe = String
 data AConnect = AConnect Channel Th Channel Int deriving (Show)
 type AProtocol = Protocol SyntaxDesc
 type AJudgementStack = JudgementStack SyntaxDesc
-type AActor = Actor JudgementForm Channel ActorMeta SyntaxDesc DB (CdB (Tm ActorMeta)) Pat AConnect SyntaxDesc
+type AActor = Actor JudgementForm Channel (Binder ActorMeta) ActorMeta SyntaxDesc DB (CdB (Tm ActorMeta)) Pat AConnect SyntaxDesc
 
 aconnect :: Channel -> Th -> Channel -> Int -> AActor
 aconnect ch1 th ch2 n
