@@ -36,7 +36,12 @@ treeAnnotate ann (Indent m t) = Indent m (treeAnnotate ann t)
 treeAnnotate ann (Annotate ann' t) = Annotate (ann <> ann') t
 treeAnnotate ann t = Annotate ann t
 
-newtype Line ann = Line { runLine :: Bwd (ann, String) }
+data Span ann
+  = Literal !ann !String
+  | Indents !Int
+  deriving (Show, Functor)
+
+newtype Line ann = Line { runLine :: Bwd (Span ann) }
   deriving (Show, Functor)
 
 instance Eq ann => Semigroup (Line ann) where
@@ -52,17 +57,18 @@ instance Eq ann => Semigroup (Line ann) where
   -- 2. alternatively, assuming both sides are already fused
   Line B0 <> Line rz = Line rz
   Line lz <> Line B0 = Line lz
-  Line llz@(lz :< (al, l)) <> Line rz = Line $
+  Line llz@(lz :< Literal al l) <> Line rz = Line $
     case rz <>> [] of
-      (ar, r):rs | al == ar -> lz :< (al, l <> r) <>< rs
+      (Literal ar r):rs | al == ar -> lz :< Literal al (l <> r) <>< rs
       _ -> llz <> rz
+  Line lz <> Line rz = Line (lz <> rz)
 
 instance Eq ann => Monoid (Line ann) where
   mempty = Line B0
 
 asLine :: (Eq ann, Monoid ann) => String -> Line ann
 asLine "" = mempty
-asLine str = Line (singleton (mempty, str))
+asLine str = Line (singleton $ Literal mempty str)
 
 -- A block has the shape
 -- ```
@@ -82,6 +88,15 @@ data Block ann = Block
   , lastLine  :: Line ann
   } deriving (Show)
 
+instance Eq (Block ann) where
+  Block h1 _ mw1 lw1 _ == Block h2 _ mw2 lw2 _
+    = h1 == h2 && mw1 == mw2 && lw1 == lw2
+
+instance Ord (Block ann) where
+  Block h1 _ mw1 lw1 _ < Block h2 _ mw2 lw2 _
+    = h1 <= h2 && mw1 <= mw2 && lw1 <= lw2
+  b1 <= b2 = b1 == b2 || b1 < b2
+
 instance Functor Block where
   fmap f (Block h c mw lw l) = Block h (bimap (f <$>) (mapTree f) <$> c) mw lw (f <$> l)
 
@@ -96,6 +111,15 @@ annotate :: Semigroup ann => ann -> Block ann -> Block ann
 annotate ann (Block h c mw lw l)
   = Block h (bimap ((ann <>) <$>) (treeAnnotate ann) <$> c) mw lw ((ann <>) <$> l)
 
+indent :: Int -> Block ann
+indent i = Block
+  { height    = 0
+  , chunk     = Nothing
+  , maxWidth  = i
+  , lastWidth = i
+  , lastLine  = Line (B0 :< Indents i)
+  }
+
 -- A text is assumed not to contain any newline character
 text :: (HasCallStack, Eq ann, Monoid ann) => String -> Block ann
 text str | any (`elem` "\n\r") str = error ("Invalid text: " ++ show str)
@@ -106,6 +130,9 @@ text str = let n = length str in Block
   , lastWidth = n
   , lastLine  = asLine str
   }
+
+spaces :: (Eq ann, Monoid ann) => Int -> Block ann
+spaces i = text (replicate i ' ')
 
 -- We can't "unlines lines" because that would introduce extra newlines
 para :: (HasCallStack, Eq ann, Monoid ann) => String -> Block ann
@@ -129,7 +156,7 @@ instance (Eq ann, Monoid ann) => Semigroup (Block ann) where
         case c2 of
           Nothing -> (c1, l1 <> l2)
           Just (f2, b2) -> ( node c1 (l1 <> f2) (treeIndent lw1 b2)
-                           , if lw1 == 0 then l2 else asLine (replicate lw1 ' ') <> l2)
+                           , if lw1 == 0 then l2 else Line (B0 :< Indents lw1) <> l2)
 
 instance (Eq ann, Monoid ann) => Monoid (Block ann) where
   mempty = text ""
@@ -138,6 +165,12 @@ instance (Eq ann, Monoid ann) => Monoid (Block ann) where
 flush :: Eq ann => Block ann -> Block ann
 flush (Block h c mw lw l) = Block (1+h) (node c l Leaf) mw 0 mempty
 
+foldBlock :: (Eq ann, Monoid ann) => (Block ann -> Block ann -> Block ann) ->
+           [Block ann] -> Block ann
+foldBlock c [] = mempty
+foldBlock c [x] = x
+foldBlock c (x : xs) = c x (foldBlock c xs)
+
 render :: forall ann. Monoid ann => Block ann -> [[(ann, String)]]
 render b = (<>> []) $ go B0 mempty ""
          $ maybe Leaf (uncurry (Node Leaf))
@@ -145,10 +178,16 @@ render b = (<>> []) $ go B0 mempty ""
 
   where
 
+  goLine :: [(ann, String)] -> ann -> Bwd (Span ann) -> [(ann, String)]
+  goLine acc ann B0 = acc
+  goLine acc ann (spz :< sp) = case sp of
+    Literal ann' str -> goLine ((ann <> ann', str) : acc) ann spz
+    Indents n -> goLine ((mempty, replicate n ' ') : acc) ann spz
+
   go :: Bwd [(ann, String)] -> ann -> String -> Tree ann (Line ann) -> Bwd [(ann, String)]
   go acc ann ind Leaf = acc
   go acc ann ind (Annotate ann' t) = go acc (ann <> ann') ind t
   go acc ann ind (Indent m t) = go acc ann (replicate m ' ' ++ ind) t
   go acc ann ind (Node xs l ys)
-    = let l' = (ann, ind) : (runLine ((ann <>) <$> l) <>> []) in
+    = let l' = (mempty, ind) : (goLine [] ann $ runLine l) in
       go (go acc ann ind xs :< l') ann ind ys

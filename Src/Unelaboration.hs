@@ -247,7 +247,7 @@ instance Unelab AActor where
   type Unelabed AActor = CActor
   unelab = \case
     a :|: b -> (:|:) <$> unelab a <*> unelab b
-    Spawn jd ch a -> Spawn
+    Spawn em jd ch a -> Spawn em
         <$> subunelab jd
         <*> subunelab ch
         <*> local (declareChannel ch) (unelab a)
@@ -255,7 +255,7 @@ instance Unelab AActor where
     Recv ch (av, a) -> Recv <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
     FreshMeta desc (av, a) -> FreshMeta <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
     Under (Scope x a) -> Under . Scope x <$> local (updateNaming (`nameOn` unhide x)) (unelab a)
-    Push jd (p, t) a -> Push <$> subunelab jd <*> ((,) <$> subunelab p <*> subunelab t) <*> unelab a
+    Push jd (p, _, t) a -> Push <$> subunelab jd <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
     Lookup t (av, a) b -> Lookup <$> subunelab t <*> ((,) <$> subunelab av <*> unelab a) <*> unelab b
     Match tm pts -> Match <$> subunelab tm <*> traverse unelab pts
     Constrain s t -> Constrain <$> subunelab s <*> subunelab t
@@ -264,6 +264,7 @@ instance Unelab AActor where
     Print fmt a -> Print <$> traverse subunelab fmt <*> unelab a
     Break fmt a -> Break <$> traverse subunelab fmt <*> unelab a
     Connect cnnct -> Connect <$> subunelab cnnct
+    Note a -> Note <$> unelab a
 
 instance Unelab Mode where
   type UnelabEnv Mode = ()

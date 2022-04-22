@@ -25,6 +25,7 @@ import Elaboration.Pretty()
 import Machine.Base
 import Machine.Display (Store)
 import Machine.Exec
+import Machine.Trace ()
 import Options
 import Parse
 import Pretty (keyword, Collapse(..), BracesList(..), Pretty(..))
@@ -32,16 +33,16 @@ import Syntax
 import Term.Base
 import Unelaboration(Unelab(..), subunelab, withEnv, initDAEnv, Naming, declareChannel)
 
-data CommandF jd ch syn a
-  = DeclJ jd (Maybe (JudgementStack syn)) (Protocol syn)
-  | DefnJ (jd, ch) a
+data CommandF jd p ch syn a
+  = DeclJ ExtractMode jd (Maybe (JudgementStack syn)) (Protocol syn)
+  | DefnJ (jd, p, ch) a
   | DeclS [(SyntaxCat, syn)]
   | Go a
   | Trace [MachineStep]
   deriving (Show)
 
-type CCommand = CommandF Variable Variable Raw CActor
-type ACommand = CommandF JudgementForm Channel SyntaxDesc AActor
+type CCommand = CommandF Variable () Variable Raw CActor
+type ACommand = CommandF JudgementForm AProtocol Channel SyntaxDesc AActor
 
 instance Display Mode where
   type DisplayEnv Mode = ()
@@ -59,8 +60,8 @@ instance (Show t, Unelab t, Pretty (Unelabed t)) =>
 
 instance Pretty CCommand where
   pretty = \case
-    DeclJ jd mstk p -> pretty jd <> maybe "" (\ stk -> space <> pretty stk <+> "|-") mstk <+> pretty p
-    DefnJ (jd, ch) a -> hsep [pretty jd <> "@" <> pretty ch, equal, pretty a]
+    DeclJ em jd mstk p -> pretty em <> pretty jd <> maybe "" (\ stk -> space <> pretty stk <+> "|-") mstk <+> pretty p
+    DefnJ (jd, _, ch) a -> hsep [pretty jd <> "@" <> pretty ch, equal, pretty a]
     DeclS s -> let docs = fmap (\ (cat, desc) -> pretty cat <+> equal <+> pretty desc) s in
                keyword "syntax" <+> collapse (BracesList docs)
     Go a -> keyword "exec" <+> pretty a
@@ -70,8 +71,8 @@ instance Unelab ACommand where
   type UnelabEnv ACommand = Naming
   type Unelabed ACommand = CCommand
   unelab = \case
-    DeclJ jd mstk p -> DeclJ <$> subunelab jd <*> traverse unelab mstk <*> unelab p
-    DefnJ (jd, ch) a -> DefnJ <$> ((,) <$> subunelab jd <*> subunelab ch)
+    DeclJ em jd mstk a -> DeclJ em <$> subunelab jd <*> traverse unelab mstk <*> unelab a
+    DefnJ (jd, _, ch) a -> DefnJ <$> ((,,) <$> subunelab jd <*> pure () <*> subunelab ch)
                               <*> withEnv (declareChannel ch initDAEnv) (unelab a)
     DeclS s -> DeclS <$> traverse (traverse unelab) s
     Go a -> Go <$> withEnv initDAEnv (unelab a)
@@ -90,15 +91,15 @@ pmachinestep =
   <|> MachineUnify <$ plit "unify"
   <|> MachineBreak <$ plit "break"
 
-pjudgeat :: Parser (Variable, Variable)
-pjudgeat = (,) <$> pvariable <* punc "@" <*> pvariable
+pjudgeat :: Parser (Variable, (), Variable)
+pjudgeat = (,,) <$> pvariable <*> punc "@" <*> pvariable
 
 psyntax :: Parser (SyntaxCat, Raw)
 psyntax = (,) <$> patom <* punc "=" <*> psyntaxdecl
 
 pcommand :: Parser CCommand
 pcommand
-    = DeclJ <$> pvariable <* punc ":" <*> poptional pjudgementstack <*> pprotocol
+    = DeclJ <$> pextractmode <*> pvariable <* punc ":" <*> poptional pjudgementstack <*> pprotocol
   <|> DefnJ <$> pjudgeat <* punc "=" <*> pACT
   <|> DeclS <$ plit "syntax" <*> pcurlies (psep (punc ";") psyntax)
   <|> Go <$ plit "exec" <* pspc <*> pACT
@@ -109,18 +110,18 @@ pfile = id <$ pspc <*> psep pspc pcommand <* pspc
 
 scommand :: CCommand -> Elab (ACommand, Decls)
 scommand = \case
-  DeclJ jd mstk p -> during (DeclJElaboration jd) $ do
+  DeclJ em jd mstk p -> during (DeclJElaboration jd) $ do
     jd <- isFresh jd
     mstk <- traverse sjudgementstack mstk
     p <- sprotocol p
-    local (declare jd (AJudgement mstk p)) $
-      (DeclJ jd mstk p,) <$> asks declarations
-  DefnJ (jd, ch) a -> during (DefnJElaboration jd) $ do
+    local (declare jd (AJudgement em mstk p)) $
+      (DeclJ em jd mstk p,) <$> asks declarations
+  DefnJ (jd, (), ch) a -> during (DefnJElaboration jd) $ do
     ch <- Channel <$> isFresh ch
-    (jd, mstk, p) <- isJudgement jd
-    local (setCurrentActor jd mstk) $ do
-      a <- withChannel ch p $ sact a
-      (DefnJ (jd, ch) a,) <$> asks declarations
+    jd <- isJudgement jd
+    local (setCurrentActor (judgementName jd) (judgementStack jd)) $ do
+      a <- withChannel ch (judgementProtocol jd) $ sact a
+      (DefnJ (judgementName jd, judgementProtocol jd, ch) a,) <$> asks declarations
   DeclS syns -> do
     oldsyndecls <- gets (Map.keys . syntaxCats)
     let newsyndecls = map fst syns
@@ -140,17 +141,21 @@ scommands (c:cs) = do
   cs <- local (setDecls ds) $ scommands cs
   pure (c:cs)
 
-elaborate :: [CCommand] -> Either Complaint [ACommand]
-elaborate = evalElab . scommands
+elaborate :: [CCommand] -> Either Complaint ([ACommand], SyntaxTable)
+elaborate ccs = evalElab $ do
+  acs <- scommands ccs
+  table <- gets syntaxCats
+  pure (acs, table)
 
 run :: Options -> Process Store Bwd -> [ACommand] -> Process Store []
 run opts p [] = exec p
 run opts p@Process{..} (c : cs) = case c of
-  DefnJ (jd, ch) a -> run opts (p { stack = stack :< Rules jd (ch, a) }) cs
+  DeclJ em jd _ _ -> run opts p cs
+  DefnJ (jd, jdp, ch) a -> run opts (p { stack = stack :< Rules jd jdp (ch, a) }) cs
   Go a -> -- dmesg (show a) $
           let (lroot, rroot) = splitRoot root ""
-              rbranch = Process tracing [] rroot env New a ""
+              rbranch = Process opts [] rroot env New a ""
           in run opts (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
-  Trace xs -> let tr = guard (not $ quiet opts) >> fromMaybe (xs ++ tracing) (tracingOption opts)
-              in run opts (p { tracing = tr }) cs
+  Trace xs -> let trac = guard (not $ quiet opts) >> fromMaybe (xs ++ tracing p) (tracingOption opts)
+              in run opts (p { options = opts { tracingOption = Just trac } }) cs
   _ -> run opts p cs

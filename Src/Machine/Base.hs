@@ -3,11 +3,16 @@
 module Machine.Base where
 
 import qualified Data.Map as Map
+import Data.Maybe
 
 import Actor
+import Bwd
 import Format
+import Options
 import Term
 import Thin
+import Concrete.Base (ExtractMode)
+import Syntax (SyntaxDesc)
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
@@ -47,7 +52,7 @@ instance Instantiable Term where
     s :%: t  -> instantiate store s % instantiate store t
     x :.: b  -> x \\ instantiate store b
     m :$: sg -> case Map.lookup m (solutions store) of
-      Nothing -> m $: sg
+      Nothing -> m $: sg -- TODO: instantiate sg
       Just (_, tm) -> instantiate store (tm //^ sg)
 
 instance (Show t, Instantiable t, Instantiated t ~ t) =>
@@ -69,6 +74,10 @@ data Hole = Hole deriving Show
 data Interface c p = Interface
   { spawnee :: (c, Channel)
   , spawner :: ((Channel, [String]), p)
+  , judgeName :: JudgementForm
+  , judgeProtocol :: AProtocol
+  , extractionMode :: ExtractMode
+  , traffic :: Bwd Term
   } deriving (Show)
 
 -- Do NOT reorder arguments: derived Ord needs to be this way
@@ -79,29 +88,21 @@ data Status
   deriving (Show, Eq, Ord)
 
 data Frame
-  = Rules JudgementForm (Channel, AActor)
+  = Rules JudgementForm AProtocol (Channel, AActor)
   | LeftBranch Hole (Process Status [])
   | RightBranch (Process Status []) Hole
   | Spawnee (Interface Hole (Process Status []))
   | Spawner (Interface (Process Status []) Hole)
   | Sent Channel ([String], Term)
-  | Pushed JudgementForm (DB, Term)
+  | Pushed JudgementForm (DB, SyntaxDesc, Term)
   | Binding String
   | UnificationProblem Date Term Term
+  | Noted
   deriving (Show)
-
-data MachineStep
-  = MachineRecv
-  | MachineSend
-  | MachineExec
-  | MachineMove
-  | MachineUnify
-  | MachineBreak
-  deriving (Eq, Show, Enum, Bounded)
 
 data Process s t
   = Process
-  { tracing :: [MachineStep]
+  { options :: Options
   , stack   :: t Frame -- Stack frames ahead of or behind us
   , root    :: Root    -- Name supply
   , env     :: Env     -- definitions in scope
@@ -109,5 +110,8 @@ data Process s t
   , actor   :: AActor  -- The thing we are
   , judgementform :: JudgementForm -- who we are
   }
+
+tracing :: Process s t -> [MachineStep]
+tracing = fromMaybe [] . tracingOption . options
 
 deriving instance (Show s, Show (t Frame)) => Show (Process s t)

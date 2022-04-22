@@ -1,203 +1,96 @@
 ret > ExitSuccess
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther ['Pi 'Ty \_. 'Ty][0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mTy[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mTy[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mTy[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mTy[0m
-out > [45mOther ['Pi 'Ty \_. 'Ty][0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mTy[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mTy[0m
-out > [45mEmb[0m
-out > [45mApp[0m
-out > [45mRad[0m
-out > [45mOther ['Lam \x. ['Pi ['Pi ['Emb x] \_. ['Emb x]] \_. ['Pi ['Emb x] \_. ['Emb[0m
-out > [45m                                                                        x]]]][0m
-out > [45mOther ['Pi 'Ty \_. 'Ty][0m
-out > [45mBeta[0m
-out > [45mOther ['Pi[0m
-out > [45m       ['Pi ['Emb ['Rad[0m
-out > [45m                   ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                   'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]][0m
-out > [45m       \_. ['Pi ['Emb ['Rad[0m
-out > [45m                       ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                       'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]][0m
-out > [45mOther 'Ty[0m
-out > [45mUps[0m
-out > [45mOther ['Pi ['Emb ['Rad[0m
-out > [45m                  ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                  'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]][0m
-out > [45mOther ['Pi ['Emb ['Rad[0m
-out > [45m                  ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                  'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]][0m
-out > [45mOther 'Ty[0m
-out > [45mOther ['Pi ['Emb ['Rad[0m
-out > [45m                  ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                  'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]][0m
-out > [45mOther ['Pi ['Emb ['Rad[0m
-out > [45m                  ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                  'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]][0m
-out > [45mPi[0m
-out > [45mOther 'Ty[0m
-out > [45mEmb[0m
-out > [45mRad[0m
-out > [45mOther ['Pi 'Ty \x. ['Emb x]][0m
-out > [45mOther 'Ty[0m
-out > [45mUps[0m
-out > [45mEmb[0m
-out > [45mRad[0m
-out > [45mOther ['Pi 'Ty \x. ['Emb x]][0m
-out > [45mOther 'Ty[0m
-out > [45mUps[0m
-out > [45mPi[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mTy[0m
-out > [45mOther 'Ty[0m
-out > [45mEmb[0m
-out > [45mEmb[0m
-out > [45mEmb[0m
-out > [45mVar[0m
-out > [45mOther 'Ty[0m
-out > [45mEmb[0m
-out > [45mRad[0m
-out > [45mOther ['Pi 'Ty \x. ['Emb x]][0m
-out > [45mOther 'Ty[0m
-out > [45mUps[0m
-out > [45mEmb[0m
-out > [45mRad[0m
-out > [45mOther ['Pi 'Ty \x. ['Emb x]][0m
-out > [45mOther 'Ty[0m
-out > [45mUps[0m
-out > [45mPi[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mTy[0m
-out > [45mOther 'Ty[0m
-out > [45mEmb[0m
-out > [45mEmb[0m
-out > [45mEmb[0m
-out > [45mVar[0m
-out > [45mEmb[0m
-out > [45mApp[0m
-out > [45mRad[0m
-out > [45mOther ['Lam \x. ['Pi ['Pi ['Emb x] \_. ['Emb x]] \_. ['Pi ['Emb x] \_. ['Emb[0m
-out > [45m                                                                        x]]]][0m
-out > [45mOther ['Pi 'Ty \_. 'Ty][0m
-out > [45mBeta[0m
-out > [45mOther ['Pi[0m
-out > [45m       ['Pi ['Emb ['Rad[0m
-out > [45m                   ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                   'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]][0m
-out > [45m       \_. ['Pi ['Emb ['Rad[0m
-out > [45m                       ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                       'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]][0m
-out > [45mOther 'Ty[0m
-out > [45mUps[0m
-out > [45mOther ['Pi ['Emb ['Rad[0m
-out > [45m                  ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                  'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]][0m
-out > [45mEmb[0m
-out > [45mRad[0m
-out > [45mOther ['Pi 'Ty \x. ['Emb x]][0m
-out > [45mOther 'Ty[0m
-out > [45mUps[0m
-out > [45mEmb[0m
-out > [45mRad[0m
-out > [45mOther ['Pi 'Ty \x. ['Emb x]][0m
-out > [45mOther 'Ty[0m
-out > [45mUps[0m
-out > [45mOther 'Ty[0m
-out > [45mOther ['Pi 'Ty \x. ['Emb x]][0m
-out > [45mOther ['Pi 'Ty \x. ['Emb x]][0m
-out > [45mPi[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mOther 'Ty[0m
-out > [45mTy[0m
-out > [45mOther 'Ty[0m
-out > [45mEmb[0m
-out > [45mEmb[0m
-out > [45mEmb[0m
-out > [45mVar[0m
-out > [45mOther ['Pi ['Emb ['Rad[0m
-out > [45m                  ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                  'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]][0m
-out > [45mType: ['Pi ['Emb ['Rad[0m
-out > [45m                  ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                  'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]][0m
-out > [45mApp[0m
-out > [45mRad[0m
-out > [45mOther ['Lam \x. ['Emb x]][0m
-out > [45mEmb[0m
-out > [45mApp[0m
-out > [45mRad[0m
-out > [45mOther ['Lam \x. ['Pi ['Pi ['Emb x] \_. ['Emb x]] \_. ['Pi ['Emb x] \_. ['Emb[0m
-out > [45m                                                                        x]]]][0m
-out > [45mOther ['Pi 'Ty \_. 'Ty][0m
-out > [45mBeta[0m
-out > [45mOther ['Pi[0m
-out > [45m       ['Pi ['Emb ['Rad[0m
-out > [45m                   ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                   'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]][0m
-out > [45m       \_. ['Pi ['Emb ['Rad[0m
-out > [45m                       ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                       'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]][0m
-out > [45mOther 'Ty[0m
-out > [45mUps[0m
-out > [45mBeta[0m
-out > [45mEmb[0m
-out > [45mRad[0m
-out > [45mOther ['Lam \x. ['Emb x]][0m
-out > [45mOther ['Pi ['Emb ['Rad[0m
-out > [45m                  ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                  'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]][0m
-out > [45mUps[0m
-out > [45mOther ['Pi ['Emb ['Rad[0m
-out > [45m                  ['Pi 'Ty \x. ['Emb x]][0m
-out > [45m                  'Ty]] \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]][0m
-out > [45mEval: ['Rad ['Lam \x. ['Emb x]] ['Pi[0m
-out > [45m                                 ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]][0m
-out > [45m                                 \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]][0m
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Other ['Pi 'Ty \_. 'Ty]
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Ty
+out > Other ['Pi 'Ty \_. 'Ty]
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Ty
+out > Emb
+out > App
+out > Rad
+out > Other ['Lam \x. ['Pi ['Emb x] \_. ['Emb x]]]
+out > Other ['Pi 'Ty \_. 'Ty]
+out > Beta
+out > Other ['Pi ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]
+out >            \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]
+out > Other 'Ty
+out > Ups
+out > Emb
+out > Rad
+out > Other ['Pi 'Ty \x. ['Emb x]]
+out > Other 'Ty
+out > Ups
+out > Emb
+out > Rad
+out > Other ['Pi 'Ty \x. ['Emb x]]
+out > Other 'Ty
+out > Ups
+out > Other 'Ty
+out > Other ['Pi 'Ty \x. ['Emb x]]
+out > Other ['Pi 'Ty \x. ['Emb x]]
+out > Pi
+out > Other 'Ty
+out > Other 'Ty
+out > Other 'Ty
+out > Ty
+out > Other 'Ty
+out > Emb
+out > Emb
+out > Emb
+out > Var
+out > Emb
+out > App
+out > Rad
+out > Other ['Lam \x. ['Pi ['Emb x] \_. ['Emb x]]]
+out > Other ['Pi 'Ty \_. 'Ty]
+out > Beta
+out > Other ['Pi ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]
+out >            \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]
+out > Other 'Ty
+out > Ups
+out > Type: ['Pi ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]
+out >            \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]
+out > Rad
+out > Other ['Lam \x. ['Emb x]]
+out > Emb
+out > App
+out > Rad
+out > Other ['Lam \x. ['Pi ['Emb x] \_. ['Emb x]]]
+out > Other ['Pi 'Ty \_. 'Ty]
+out > Beta
+out > Other ['Pi ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]
+out >            \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]
+out > Other 'Ty
+out > Ups
+out > Eval: ['Rad ['Lam \x. ['Emb x]]
+out >             ['Pi ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]
+out >                  \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]]
 out >
 err >
 err >
