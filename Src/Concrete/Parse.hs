@@ -14,16 +14,20 @@ instance Lisp Raw where
   mkCons = Cons
   pCar = ptm
 
-pscoped :: Parser a -> Parser (Scope a)
-pscoped p = Scope . Hide <$ pch (== '\\') <* pspc <*> pnom <* punc "." <*> p
+pscoped :: Parser x -> Parser a -> Parser (Scope x a)
+pscoped px pa = Scope . Hide <$ pch (== '\\') <* pspc <*> px <* punc "." <*> pa
 
 pvariable :: Parser Variable
 pvariable = Variable <$> pnom
 
+pbinder :: Parser Binder
+pbinder = Used <$> pnom
+      <|> Unused <$ plit "_"
+
 ptm :: Parser Raw
 ptm = Var <$> pvariable
   <|> At <$> patom
-  <|> Lam <$> pscoped ptm
+  <|> Lam <$> pscoped pbinder ptm
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> id <$ pch (== '(') <* pspc <*> ptm <* pspc <* pch (== ')')
   <|> Sbst <$ pch (== '{') <* pspc <*> ppes (punc ",") psbstC <* punc "}" <*> ptm
@@ -44,7 +48,7 @@ ppat = VarP <$> pvariable
   <|> AtP <$> patom
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pch (== ')')
-  <|> LamP <$> pscoped ppat
+  <|> LamP <$> pscoped pbinder ppat
   <|> ThP <$ pch (== '{') <* pspc <*> pth <* punc "}" <*> ppat
   <|> UnderscoreP <$ pch (== '_')
 
@@ -82,7 +86,7 @@ pextractmode
   <|> pure AlwaysExtract
 
 pact :: Parser CActor
-pact = Under <$> pscoped pact
+pact = Under <$> pscoped pnom pact
   <|> Send <$> pvariable <* punc "!" <*> ptm <* punc "." <*> pact
   <|> questionmark <$> ptm <* punc "?" <*> withVar "." pact
   <|> Spawn <$> pextractmode <*> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact

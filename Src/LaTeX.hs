@@ -7,9 +7,9 @@ import Control.Monad.Reader
 
 import Concrete.Base
 import Doc
+import Hide
 import Syntax
 import Scope
-import Hide (unhide)
 
 import Unelaboration
 
@@ -26,6 +26,15 @@ class LaTeX a where
 call :: Bool -> Doc () -> [Doc ()] -> Doc ()
 call b d [] = backslash <> d
 call b d (x : xs) = call b ((if b && not (null xs) then flush else id) (d <> braces x)) xs
+
+instance LaTeX x => LaTeX (Hide x) where
+  type Format (Hide x) = Format x
+  toLaTeX d (Hide x) = toLaTeX d x
+
+instance LaTeX Binder where
+  type Format Binder = ()
+  toLaTeX _ Unused = pure "\\_"
+  toLaTeX _ (Used v) = pure (text v)
 
 instance LaTeX Variable where
   type Format Variable = ()
@@ -86,10 +95,8 @@ instance LaTeX Raw where
         Just (VBind s cb) -> cb
         _ -> contract VWildcard
       sc <- toLaTeX d sc
-      let bd = case unhide x of
-                 "_" -> "\\_"
-                 y -> y
-      pure $ call False "typosScope" [text bd, sc]
+      bd <- toLaTeX () x
+      pure $ call False "typosScope" [bd, sc]
     Sbst bwd raw -> pure ""
 
 test =
