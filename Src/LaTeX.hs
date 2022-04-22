@@ -31,10 +31,10 @@ instance LaTeX x => LaTeX (Hide x) where
   type Format (Hide x) = Format x
   toLaTeX d (Hide x) = toLaTeX d x
 
-instance LaTeX Binder where
-  type Format Binder = ()
+instance LaTeX (Binder Variable) where
+  type Format (Binder Variable) = ()
   toLaTeX _ Unused = pure "\\_"
-  toLaTeX _ (Used v) = pure (text v)
+  toLaTeX _ (Used v) = toLaTeX () v
 
 instance LaTeX Variable where
   type Format Variable = ()

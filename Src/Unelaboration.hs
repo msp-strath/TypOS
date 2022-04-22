@@ -111,7 +111,7 @@ instance UnelabMeta m => Unelab (Tm m) where
             True -> do
               na <- ask
               let y = freshen (unhide x) na
-              local (`nameOn` y) $ (Used y,) <$> unelab t
+              local (`nameOn` y) $ (Used (Variable y),) <$> unelab t
     m :$ sg -> do
       sg <- unelab sg
       m <- Var <$> subunelab m
@@ -144,13 +144,6 @@ instance UnelabMeta m => Unelab (Sbst m) where
              _ -> throwError $ InvalidNaming na
         _ -> throwError $ InvalidNaming na
 
-instance Unelab (Hide String) where
-  type UnelabEnv (Hide String) = ()
-  type Unelabed (Hide String) = Binder
-  unelab x = pure $ case unhide x of
-    "_" -> Unused
-    x -> Used x
-
 instance Unelab Pat where
   type UnelabEnv Pat = Naming
   type Unelabed Pat = RawP
@@ -159,9 +152,8 @@ instance Unelab Pat where
     AP str -> pure (AtP str)
     PP p q -> ConsP <$> unelab p <*> unelab q
     BP x p -> do
-      bd <- subunelab x
       p <- local (`nameOn` unhide x) (unelab p)
-      pure (LamP (Scope (Hide bd) p))
+      pure (LamP (Scope (mkBinder . Variable <$> x) p))
     MP m th -> {- TODO: insert ThP -} pure (VarP (Variable m))
     HP -> pure UnderscoreP
 
@@ -261,12 +253,12 @@ instance Unelab AActor where
         <$> subunelab jd
         <*> subunelab ch
         <*> local (declareChannel ch) (unelab a)
-    Send ch tm a -> Send <$> subunelab ch <*> (inChannel ch $ subunelab tm) <*> unelab a
-    Recv ch (av, a) -> Recv <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
+    Send ch tm a -> Send <$> subunelab ch <*> inChannel ch (subunelab tm) <*> unelab a
+    Recv ch (av, a) -> Recv <$> subunelab ch <*> ((,) <$> traverse subunelab av <*> unelab a)
     FreshMeta desc (av, a) -> FreshMeta <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
     Under (Scope x a) -> Under . Scope x <$> local (updateNaming (`nameOn` unhide x)) (unelab a)
     Push jd (p, _, t) a -> Push <$> subunelab jd <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
-    Lookup t (av, a) b -> Lookup <$> subunelab t <*> ((,) <$> subunelab av <*> unelab a) <*> unelab b
+    Lookup t (av, a) b -> Lookup <$> subunelab t <*> ((,) <$> traverse subunelab av <*> unelab a) <*> unelab b
     Match tm pts -> Match <$> subunelab tm <*> traverse unelab pts
     Constrain s t -> Constrain <$> subunelab s <*> subunelab t
     Win -> pure Win

@@ -1,0 +1,21 @@
+sink : ?'Wildcard.
+emit : !'Wildcard.
+
+push :
+pop : 'Wildcard -> 'Nil |- ?'Wildcard.
+
+play :
+
+sink@p = p?_. PRINTF "Sunk".
+emit@p = p!\_.[]. PRINTF "Emited".
+
+push@p = \x. pop { x -> [] }. PRINTF "Pushd". pop@q. q!x.
+
+pop@p = p?x. lookup x { _ -> PRINTF "Popd". } else
+
+play@p =
+  ( emit@q. sink@r. q <-> r
+  | push@q.
+  )
+
+exec play@p.

@@ -158,7 +158,9 @@ exec p@Process { actor = Lookup t (av, a) b, ..}
   | Just t' <- mangleActors env t
   = case expand (headUp store t') of
       VX (DB i) _ | Just t' <- search stack i judgementform 0 ->
-        let env' = newActorVar av (localScope env <>> [], t') env
+        let env' = case av of
+                     Unused -> env
+                     Used av -> newActorVar av (localScope env <>> [], t') env
         in exec (p {actor = a, env = env'})
       _ :$: _ -> move (p { stack = stack :<+>: [] })
       _ -> exec (p {actor = b})
@@ -275,14 +277,16 @@ send ch term
 send ch term p@Process { stack = (zf :< f) :<+>: fs }
   = send ch term (p { stack = zf :<+>: (f:fs) })
 
-recv :: Channel -> ActorMeta -> Process Store Cursor -> Process Store []
+recv :: Channel -> Binder ActorMeta -> Process Store Cursor -> Process Store []
 recv ch v p | debug MachineRecv (hsep [ pretty ch, pretty v ]) p = undefined
 recv ch x p@Process { stack = B0 :<+>: fs, ..}
   = move (p { stack = B0 <>< fs :<+>: [], actor = Recv ch (x, actor) })
 recv ch x p@Process { stack = zf :< Sent q y :<+>: fs, ..}
   | ch == q
-  = let env' = newActorVar x y env in -- TODO: is this right?
-    exec (p { stack = zf <>< fs, env = env' })
+  = let env' = case x of
+                 Unused -> env
+                 Used x -> newActorVar x y env
+    in exec (p { stack = zf <>< fs, env = env' })
 recv ch x
   p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs, parentP) _ _ _ _)) :<+>: fs, ..}
   = move (p { stack = zf' <>< fs :<+>: [], actor = Recv ch (x, actor) })

@@ -114,7 +114,7 @@ scommand = \case
     jd <- isFresh jd
     mstk <- traverse sjudgementstack mstk
     p <- sprotocol p
-    local (declare jd (AJudgement em mstk p)) $
+    local (declare (Used jd) (AJudgement em mstk p)) $
       (DeclJ em jd mstk p,) <$> asks declarations
   DefnJ (jd, (), ch) a -> during (DefnJElaboration jd) $ do
     ch <- Channel <$> isFresh ch
