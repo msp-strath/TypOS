@@ -107,11 +107,11 @@ instance UnelabMeta m => Unelab (Tm m) where
     A a -> pure (At a)
     P (s :<>: t) -> Cons <$> unelab s <*> unelab t
     (x := b) :. t -> Lam . uncurry (Scope . Hide) <$> case b of
-            False -> ("_",) <$> unelab t
+            False -> (Unused,) <$> unelab t
             True -> do
               na <- ask
               let y = freshen (unhide x) na
-              local (`nameOn` y) $ (y,) <$> unelab t
+              local (`nameOn` y) $ (Used y,) <$> unelab t
     m :$ sg -> do
       sg <- unelab sg
       m <- Var <$> subunelab m
@@ -144,6 +144,13 @@ instance UnelabMeta m => Unelab (Sbst m) where
              _ -> throwError $ InvalidNaming na
         _ -> throwError $ InvalidNaming na
 
+instance Unelab (Hide String) where
+  type UnelabEnv (Hide String) = ()
+  type Unelabed (Hide String) = Binder
+  unelab x = pure $ case unhide x of
+    "_" -> Unused
+    x -> Used x
+
 instance Unelab Pat where
   type UnelabEnv Pat = Naming
   type Unelabed Pat = RawP
@@ -151,7 +158,10 @@ instance Unelab Pat where
     VP n -> VarP <$> unelab n
     AP str -> pure (AtP str)
     PP p q -> ConsP <$> unelab p <*> unelab q
-    BP x p -> LamP . Scope x <$> local (`nameOn` unhide x) (unelab p)
+    BP x p -> do
+      bd <- subunelab x
+      p <- local (`nameOn` unhide x) (unelab p)
+      pure (LamP (Scope (Hide bd) p))
     MP m th -> {- TODO: insert ThP -} pure (VarP (Variable m))
     HP -> pure UnderscoreP
 

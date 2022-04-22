@@ -8,11 +8,15 @@ newtype Variable = Variable { getVariable :: String }
   deriving (Show, Eq)
 type Atom = String
 
+data Binder
+  = Used String
+  | Unused
+
 data Raw
   = Var Variable
   | At Atom
   | Cons Raw Raw
-  | Lam (Scope Raw)
+  | Lam (Scope Binder Raw)
   | Sbst (Bwd SbstC) Raw
   deriving (Show)
 
@@ -26,7 +30,7 @@ data RawP
   = VarP Variable
   | AtP Atom
   | ConsP RawP RawP
-  | LamP (Scope RawP)
+  | LamP (Scope Binder RawP)
   | ThP (Bwd Variable, ThDirective) RawP
   | UnderscoreP
   deriving (Show)
@@ -61,7 +65,7 @@ data Actor jd ch av syn var tm pat cnnct stk
  | Connect cnnct
  | Note (Actor jd ch av syn var tm pat cnnct stk)
  | FreshMeta syn (av, Actor jd ch av syn var tm pat cnnct stk)
- | Under (Scope (Actor jd ch av syn var tm pat cnnct stk))
+ | Under (Scope String (Actor jd ch av syn var tm pat cnnct stk))
  | Match tm [(pat, Actor jd ch av syn var tm pat cnnct stk)]
  -- This is going to bite us when it comes to dependent types
  | Constrain tm tm

@@ -14,11 +14,15 @@ import Hide
 import Scope
 import Pretty
 
-instance Pretty (Hide String) where
+instance Pretty x => Pretty (Hide x) where
   pretty (Hide x) = pretty x
 
 instance Pretty Variable where
   pretty (Variable v) = pretty v
+
+instance Pretty Binder where
+  pretty (Used v) = pretty v
+  pretty Unused = "_"
 
 instance Pretty Raw where
   pretty = \case

@@ -390,13 +390,19 @@ stm desc rt = do
             Just descs -> (%) <$> stm (atom "Atom" 0) p <*> stms descs q
           _ -> throwError (SyntaxError desc rt)
         _ -> throwError (SyntaxError desc rt)
-      Lam (Scope (Hide x) sc) -> (x \\) <$> do
+      Lam (Scope (Hide x) sc) -> do
         (s, desc) <- case vdesc of
           VWildcard -> pure (Unknown, desc)
           VBind cat desc -> pure (Known (catToDesc cat), desc)
           _ -> throwError (SyntaxError desc rt)
-        x <- isFresh (Variable x)
-        local (declareObjVar (x, s)) $ stm desc sc
+        case x of
+          Used x -> do
+            x <- isFresh (Variable x)
+            sc <- local (declareObjVar (x, s)) $ stm desc sc
+            pure (x \\ sc)
+          Unused -> do
+            sc <- stm desc sc
+            pure ((Hide "_" := False :.) $^ sc)
 
 spats :: [SyntaxDesc] -> RawP -> Elab (Pat, Decls, Hints)
 spats [] (AtP "") = (AP "",,) <$> asks declarations <*> asks binderHints
@@ -472,9 +478,14 @@ spat desc rp = do
           VBind cat desc -> pure (Known (catToDesc cat), desc)
           _ -> throwError (SyntaxPError desc rp)
 
-        () <$ isFresh (Variable x)
-        (p, ds, hs) <- local (declareObjVar (x, s) . addHint x s) $ spat desc p
-        pure (BP v p, ds, hs)
+        case x of
+          Unused -> do
+            (p, ds, hs) <- spat desc p
+            pure (BP (Hide "_") p, ds, hs)
+          Used x -> do
+            v <- isFresh (Variable x)
+            (p, ds, hs) <- local (declareObjVar (x, s) . addHint x s) $ spat desc p
+            pure (BP (Hide v) p, ds, hs)
 
 isChannel :: Variable -> Elab Channel
 isChannel ch = resolve ch >>= \case
