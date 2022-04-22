@@ -1,0 +1,187 @@
+
+syntax
+  { 'Check = ['EnumOrTag ['Ty 'One 'Tt 'Fst 'Snd 'Null]
+                         [ ['Lam ['Bind 'Synth 'Check]]
+                           ['Pair 'Check 'Check]
+                           ['Pi  'Check ['Bind 'Synth 'Check]]
+                           ['Sg  'Check ['Bind 'Synth 'Check]]
+                           ['List 'Check]
+			   ['Sing 'Check]
+			   ['Plus 'Check 'Check]
+			   ['Emb 'Synth]
+                         ]
+             ]
+  ; 'Synth = ['Tag [ ['Rad 'Check 'Check]
+                     ['App 'Synth 'Check]
+             ]]
+  }
+
+type  : ?'Check.
+
+check : ?'Check. {- Type -} ?'Check. {- Term -}
+^checkWorker : ?'Check. {- Type -} ?'Check. {- Term -}
+synth : ?'Synth. !'Check. {-Type-}
+^synthWorker : 'Synth -> 'Check {-Type-} |- ?'Synth. !'Check. {-Type-}
+
+^checkEval : ?'Check. !'Check.
+^evalSynth : ?'Synth. !'Synth.
+
+checkEqual : ?'Check{-Type-}. ?'Check. ?'Check.
+^checkEqualWorker : ?'Check{-Type-}. ?'Check. ?'Check.
+^equalSynth : ?'Synth.?'Synth.!'Check{-Type-}.
+^equalSynthWorker : 'Synth -> 'Check {-Type-} |- ?'Synth.?'Synth.!'Check{-Type-}.
+
+------------------------------------------------------------------------------
+-- Implementation
+
+type@p = p?ty. ^check@q. q!'Ty. q!ty.
+
+check@p = p?ty. checkEval@q. q!ty. q?nty. checkWorker@r. r!nty. p <-> r
+synth@p = p?tm. synthWorker@r. r!tm. r?ty.checkEval@q. q!ty. q <-> p
+
+checkEqual@p = p?ty. p?tm1. p?tm2. checkEval@qty. qty!ty. checkEval@q. q!tm1. checkEval@r. r!tm2. qty?nty. q?ntm1. r?ntm2. checkEqualWorker@w. w!nty. w!ntm1. w!ntm2.
+equalSynth@p = p?tm1. p?tm2. evalSynth@q. q!tm1. evalSynth@r. r!tm2. q?ntm1. r?ntm2. equalSynthWorker@u. u!ntm1. u!ntm2.u?ty.checkEval@v. v!ty. v <-> p
+
+-- type assumed to be head normal
+checkWorker@p = p?ty. p?tm. case tm
+  { 'Ty -> ty ~ 'Ty
+  ; 'One -> ty ~ 'Ty
+  ; ['Pi S \x. T] ->
+    (ty ~ 'Ty
+    |type@q. q!S.
+    | \x. synthWorker {x -> S}. equalSynthWorker {x -> S}. type@r. r!T.
+    )
+  ; ['Sg S \x. T] ->
+    (ty ~ 'Ty
+    |type@q. q!S.
+    | \x. synthWorker {x -> S}. equalSynthWorker {x -> S}. type@r. r!T.
+    )
+  ; ['List T] -> 
+    (ty ~ 'Ty
+    | type@q. q!T.)
+  ; ['Pair s t] -> case ty
+    { ['Sg S \x. T] -> (check@q. q!S. q!s. | check@r. r!{x=['Rad s S]}T. r!t.)
+    ; _ -> #"Expected Sg; got %i" ty
+    }
+  ; 'Tt -> ty ~ 'One
+  ; ['Lam \x. body] -> case ty
+    { ['Pi S \x. T] -> \x. synthWorker {x -> S}. equalSynthWorker {x -> S}.
+                       check@q. q!T. q!body.
+    ; _ -> #"Expected Pi; got %i" ty
+    }
+  ; ['Emb e] -> synth@q. q!e. q?ety. checkEqual@r. r!'Ty. r!ty. r!ety.
+  ; _ -> case ty
+    { ['List T] -> case tm
+      { 'Null ->
+      ; ['Sing t] -> check@q. q!T. q!t.
+      ; ['Plus s t] -> 
+        ( check@q. q!ty. q!s.
+        | check@r. r!ty. r!t.)
+      }
+    }
+  }
+
+synthWorker@p = p?tm . lookup tm { S -> p!S. } else case tm
+   { ['Rad t ty] -> ( type@q. q!ty.
+                    | check@r. r!ty. r!t.
+                    | p!ty.)
+   ; ['App f s] -> synth@q. q!f. q?ty. case ty
+     { ['Pi S \v. T] -> ( check@r. r!S. r!s.
+                        | p!{v=['Rad s S]}T.)
+     ; ['Sg S \v. T] -> case s
+       { 'Fst -> p!S.
+       ; 'Snd -> p!{v=['App f 'Fst]}T.
+       ; _ -> #"Expected Fst or Snd; got %i" s
+       }
+     ; _ -> #"Expected Pi or Sg; got %i" ty
+     }
+   }
+
+-- never returns a left-nested 'Plus
+checkEval@p = p?tm. case tm
+  { ['Plus s t] -> checkEval@q. q!s. q?ns. case ns
+    { 'Null -> checkEval@r. r!t. p <-> r
+    ; ['Plus x xs] -> p!['Plus x ['Plus xs t]].
+    ; _ -> checkEval@r. r!t. r?nt. case nt
+      { 'Null -> p!ns.
+      ;  _ -> p!['Plus ns nt].
+      }
+    }
+  ; ['Emb e] -> {-PRINTF "Emb" .-} evalSynth@q. q!e. q?ne. case ne
+    { ['Rad t ty] -> !. PRINTF "Ups". p!t.
+    ; x -> p!['Emb x].
+    }
+  ; x -> {- PRINTF "Other %i" x . -} p!x.
+  }
+
+-- types in radicals are head normal
+evalSynth@p = p?tm. case tm
+  { ['Rad t ty] -> {-PRINTF "Rad" .-} checkEval@q. q!t. checkEval@r. r!ty. q?nt. r?nty. p!['Rad nt nty].
+  ; ['App f s] -> {-PRINTF "App" .-} evalSynth@q. q!f. q?nf. case nf
+    { ['Rad ['Lam \ x. t] ['Pi S \ x. T]] -> !. PRINTF "Beta" . evalSynth@w. w!{x=['Rad s S]}['Rad t T]. w <-> p
+    ; ['Rad ['Pair a b] ['Sg S \ x. T]] -> !. case s
+      { 'Fst -> PRINTF "Fst" . evalSynth@w. w!['Rad a S]. w <-> p
+      ; 'Snd -> PRINTF "Snd" . evalSynth@w. w!['Rad b {x=['Rad a S]}T]. w <-> p
+      ; _ -> #"Expected Fst or Snd; got %i" s
+      }
+    ; g -> p!['App g s].
+    }
+  ; x -> p!x.
+  }
+
+checkEqualWorker@p = p?ty. p?tm1. p?tm2. {- PRINTF "checkEqual %i\n %i\n %i" ty tm1 tm2. -} case ty
+  { ['Pi S \x. T] -> PRINTF "Eta Pi" . \x. equalSynthWorker {x -> S}. checkEqual@q. q!T. q!['Emb ['App ['Rad tm1 ty] ['Emb x]]]. q!['Emb ['App ['Rad tm2 ty] ['Emb x]]].
+  ; ['Sg S \x. T] -> PRINTF "Eta Sg" . (checkEqual@q. q!S. q!['Emb ['App ['Rad tm1 ty] 'Fst]]. q!['Emb ['App ['Rad tm2 ty] 'Fst]].
+                                       |checkEqual@q. q!{x=['App ['Rad tm1 ty] 'Fst]}T. q!['Emb ['App ['Rad tm1 ty] 'Snd]]. q!['Emb ['App ['Rad tm2 ty] 'Snd]].)
+  ; 'One ->
+  ; _ -> case [tm1|tm2]
+    { ['Ty|'Ty] -> {- PRINTF "Ty" . -}
+    ; [['Pi S1 \x. T1] | ['Pi S2 \x. T2]] -> {- PRINTF "Pi" . -} (checkEqual@w. w!'Ty. w!S1. w!S2. | \ x. equalSynthWorker {x -> S1}. checkEqual@u. u!'Ty. u!T1. u!T2.)
+    ; [['Sg S1 \x. T1] | ['Sg S2 \x. T2]] -> {- PRINTF "Sg" . -} (checkEqual@w. w!'Ty. w!S1. w!S2. | \ x. equalSynthWorker {x -> S1}. checkEqual@u. u!'Ty. u!T1. u!T2.)
+    ; ['One|'One] -> {- PRINTF "One" . -}
+    ; ['Null|'Null] ->
+    ; [['Sing t1]|['Sing t2]] -> case ty
+        { ['List T] -> checkEqual@q. q!T. q!t1. q!t2.
+        ; _ -> # "Expected a list type, got %i" ty
+        }
+    ; [['Plus s1 t1]|['Plus s2 t2]] -> ( checkEqual@q. q!ty. q!s1. q!s2.
+                                       | checkEqual@r. r!ty. r!t1. r!t2.)
+    ; [['Emb e1] | ['Emb e2] ] -> {- PRINTF "Emb" . -} equalSynth@w. w!e1.w!e2.w?ety.
+    ; [x|y] -> # "%i not checkEqual to %i" x y
+    }
+  }
+
+equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %i\n %i" e1 e2.
+  lookup e1 { S1 -> {- PRINTF "Var" . -}(e1 ~ e2 | p!S1.)} else case [e1|e2]
+  { [['Rad ['Emb e1'] ty1] | _ ] -> {- PRINTF "Rad-L" . -} equalSynth@q. q!e1'. q!e2. p <-> q
+  ; [_  | ['Rad ['Emb e2'] ty2]] -> {- PRINTF "Rad-R" . -} equalSynth@q. q!e1. q!e2'. p <-> q
+  ; [['Rad t1 ty1] | ['Rad t2 ty2]] -> {- PRINTF "Rad-Rad" . -} (checkEqual@q. q!'Ty. q!ty1. q!ty2. | checkEqual@r. r!ty1. r!t1. r!t2.|p!ty1.)
+  ; [['App f1 s1] | ['App f2 s2] ] -> {- PRINTF "App" . -} equalSynth@q. q!f1. q!f2. q?ty. case ty
+    { ['Pi S \ x. T] -> (checkEqual@r. r!S. r!s1. r!s2.|p!{x=['Rad s1 S]}T.)
+    ; ['Sg S \ x. T] -> s1 ~ s2 | case s1
+      { 'Fst -> p!S.
+      ; 'Snd -> p!{x=['App f1 'Fst]}T.
+      ; _ -> #"Expected Fst or Snd; got %i" s1
+      }
+    }
+  ; [x|y] -> # "%i not equalSynth to %i" x y
+  }
+
+
+{-
+-- FIXME: the order of parallel branches matters (but it shouldn't)
+exec checkEval@p. 'Check?two. 
+       ( two ~ ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt] 'Null]]
+       | p!['Plus two two]. p?s. PRINTF "two plus two: %i" s.)
+-}
+{-
+exec checkEqual@p. p!['List 'One]. 'Check?two. 'Check?four.
+       ( two ~ ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt] 'Null]]
+       | four ~ ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt] ['Sing 'Tt]]]]
+       | p!['Plus two two]. p!four. PRINTF "two plus two is four.".)
+-}
+
+
+exec checkEqual@p. p!['Pi 'Ty \X.['Pi ['List ['Emb X]] \xs.['List ['Emb X]]]].
+       p!['Lam \X.['Lam \xs.['Plus ['Plus ['Emb xs]['Plus ['Emb xs] 'Null]]['Plus ['Emb xs]['Plus 'Null ['Emb xs]]]]]].
+       p!['Lam \X.['Lam \xs.['Plus ['Emb xs] ['Plus ['Emb xs] ['Plus ['Emb xs] ['Emb xs]]]]]].
