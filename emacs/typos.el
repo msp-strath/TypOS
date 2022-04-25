@@ -7,7 +7,7 @@
                         "Wildcard" "EnumOrTag" "Enum" "Tag" "Cons" "Nil" "NilOrCons" "Fix"
                         "BREAK" "PRINT" "PRINTF"))
 (setq typos-operators '("@" "!" "?" "~" "#"))
-(setq typos-symbols   '("|-" "|" "->" ";" "=" "{" "}"))
+(setq typos-symbols   '("|-" "|" "<->" "->" ";" "=" "{" "}"))
 
 ;; create the regex string for each class of keywords
 (setq typos-keywords-regexp  (regexp-opt typos-keywords 'words))
