@@ -19,6 +19,7 @@
 * [ ] Concurrent runtime
 * [ ] Construct error messages from unfinished runs
 * [ ] Deadlock detection
+* [ ] Coverage checker for `case`
 
 ### CLI
 
