@@ -169,18 +169,17 @@ equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %i\n %i" e1 e2.
 
 
 {-
--- FIXME: the order of parallel branches matters (but it shouldn't)
-exec checkEval@p. 'Check?two. 
-       ( two ~ ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt] 'Null]]
-       | p!['Plus two two]. p?s. PRINTF "two plus two: %i" s.)
+exec checkEval@p. 'Check?two.
+       (p!['Plus two two]. p?s. PRINTF "two plus two: %i" s.
+       | two ~ ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt] 'Null]] )
 -}
+
 {-
 exec checkEqual@p. p!['List 'One]. 'Check?two. 'Check?four.
        ( two ~ ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt] 'Null]]
        | four ~ ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt] ['Sing 'Tt]]]]
        | p!['Plus two two]. p!four. PRINTF "two plus two is four.".)
 -}
-
 
 exec checkEqual@p. p!['Pi 'Ty \X.['Pi ['List ['Emb X]] \xs.['List ['Emb X]]]].
        p!['Lam \X.['Lam \xs.['Plus ['Plus ['Emb xs]['Plus ['Emb xs] 'Null]]['Plus ['Emb xs]['Plus 'Null ['Emb xs]]]]]].
