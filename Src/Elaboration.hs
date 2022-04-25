@@ -546,18 +546,20 @@ withChannel ch@(Channel rch) p ma = do
   close ch
   pure a
 
-guessDesc :: Raw -> Elab (Info SyntaxDesc)
-guessDesc (Var v) = resolve v >>= \case
+guessDesc :: Bool -> -- is this in tail position?
+             Raw -> Elab (Info SyntaxDesc)
+guessDesc b (Var v) = resolve v >>= \case
   Just (Right (info, i)) -> pure info
   Just (Left (ActVar info _)) -> pure info
   _ -> pure Unknown
-guessDesc (Cons p q) = do
-  dp <- guessDesc p
-  dq <- guessDesc q
+guessDesc b (Cons p q) = do
+  dp <- guessDesc False p
+  dq <- guessDesc True q
   case (dp, dq) of
     (Known d1, Known d2) -> pure (Known $ Syntax.contract (VCons d1 d2))
     _ -> pure Unknown
-guessDesc _ = pure Unknown
+guessDesc True (At "") = pure (Known $ Syntax.contract VNil)
+guessDesc _ _ = pure Unknown
 
 compatibleChannels :: AProtocol -> Ordering -> AProtocol -> Elab Int
 compatibleChannels [] dir [] = pure 0
@@ -575,8 +577,8 @@ sact :: CActor -> Elab AActor
 sact = \case
   Win -> pure Win
   Constrain s t -> do
-    infoS <- guessDesc s
-    infoT <- guessDesc t
+    infoS <- guessDesc False s
+    infoT <- guessDesc False t
     desc <- during (ConstrainSyntaxCatGuess s t) $
       fromInfo =<< compatibleInfos infoS infoT
     s <- during (ConstrainTermElaboration s) $ stm desc s
@@ -662,7 +664,7 @@ sact = \case
     pure $ Under (Scope v a)
 
   Match rtm@tm cls -> do
-    desc <- fromInfo =<< guessDesc rtm
+    desc <- fromInfo =<< guessDesc False rtm
     tm <- during (MatchTermElaboration tm) $ stm desc tm
     chs <- get
     clsts <- traverse (sclause desc) cls

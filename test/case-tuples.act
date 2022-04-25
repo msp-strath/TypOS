@@ -1,10 +1,10 @@
 syntax { 'Type = ['Enum ['Nat 'Bool]] }
 
 typeEq : ?'Type. ?'Type.
-typeEq@p = p?a. p?b. case [a|b]
-  { ['Bool|'Bool] -> PRINTF "Happy Bools".
-  ; ['Nat|'Nat] -> PRINTF "Happy Nats".
-  ; [l|r] -> PRINTF "%i is not equal to %i" l r.
+typeEq@p = p?a. p?b. case [a b]
+  { ['Bool 'Bool] -> PRINTF "Happy Bools".
+  ; ['Nat 'Nat] -> PRINTF "Happy Nats".
+  ; [l r] -> PRINTF "%i is not equal to %i" l r.
   }
 
 exec typeEq@p. p!'Bool. p!'Bool.
