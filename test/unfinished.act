@@ -1,0 +1,4 @@
+stuck :
+stuck@p = 'a ~ 'b
+
+exec (stuck@p. | PRINTF "%S".)

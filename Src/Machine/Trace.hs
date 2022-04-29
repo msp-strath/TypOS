@@ -20,17 +20,20 @@ import Unelaboration
 import Concrete.Base (Variable(..), Raw, Mode(..), ExtractMode(..))
 import Doc hiding (render)
 import Doc.Render.Terminal
-import Syntax (SyntaxDesc, SyntaxTable, SyntaxCat, expand, VSyntaxDesc (..))
+import Syntax (SyntaxDesc, SyntaxTable, SyntaxCat, expand, VSyntaxDesc (..), contract)
 import LaTeX
 import qualified Data.Map as Map
 import Data.List (intersperse)
 
-data Trace i = Node i [Trace i]
+data Trace e i
+   = Node i [Trace e i]
+   | Error e
 
-instance Show i => Show (Trace i) where
+instance (Show e, Show i) => Show (Trace e i) where
   show = unlines . go "" where
 
     go indt (Node i ts) = (indt ++ show i) : concatMap (go (' ':indt)) ts
+    go indt (Error e)   = [indt ++ show e]
 
 data Step jd db t
   = BindingStep String
@@ -50,13 +53,26 @@ instance Instantiable AStep where
     PushingStep jd db t -> PushingStep jd db (instantiate st <$> t)
     CallingStep jd tr -> CallingStep jd ((instantiate st <$>) <$> tr)
 
-instance Instantiable i => Instantiable (Trace i) where
-  type Instantiated (Trace i) = Trace (Instantiated i)
-  instantiate st (Node i ts) = Node (instantiate st i) (instantiate st <$> ts)
+data Error t
+  = StuckUnifying t t
+  deriving (Show)
 
-instance Unelab (Trace AStep) where
-  type Unelabed (Trace AStep) = Trace CStep
-  type UnelabEnv (Trace AStep) = Naming
+type AError = Error Term
+type CError = Error Raw
+
+instance Instantiable AError where
+  type Instantiated AError = AError
+  instantiate st = \case
+    StuckUnifying s t -> StuckUnifying (instantiate st s) (instantiate st t)
+
+instance (Instantiable e, Instantiable i) => Instantiable (Trace e i) where
+  type Instantiated (Trace e i) = Trace (Instantiated e) (Instantiated i)
+  instantiate st (Node i ts) = Node (instantiate st i) (instantiate st <$> ts)
+  instantiate st (Error e)   = Error (instantiate st e)
+
+instance Unelab (Trace AError AStep) where
+  type Unelabed (Trace AError AStep) = Trace CError CStep
+  type UnelabEnv (Trace AError AStep) = Naming
   unelab (Node (em, s) ts) = case s of
     BindingStep x -> do
       na <- ask
@@ -73,6 +89,11 @@ instance Unelab (Trace AStep) where
       jd <- subunelab jd
       tr <- traverse (traverse unelab) tr
       Node (CallingStep jd tr) <$> traverse unelab ts
+  unelab (Error e) = case e of
+    StuckUnifying s t -> do
+      s <- unelab s
+      t <- unelab t
+      pure $ Error (StuckUnifying s t)
 
 instance Pretty (Mode, Raw) where
   pretty (m, t) = withANSI [ SetColour Background (pick m) ] (pretty t) where
@@ -88,11 +109,17 @@ instance Pretty CStep where
     CallingStep jd pts -> pretty jd <+> sep (pretty <$> map (first fst) pts)
     NotedStep -> ""
 
-instance Pretty (Trace CStep) where
+instance Pretty CError where
+  pretty = \case
+    StuckUnifying s t -> withANSI [ SetColour Background Yellow ]
+                          (pretty s <+> "/~" <+> pretty t)
+
+instance Pretty (Trace CError CStep) where
   pretty (Node i@(BindingStep x) ts) =
     let (prf, suf) = getPushes (Variable x) ts in
     vcat ( hsep (pretty <$> i:prf) : map (indent 1 . pretty) suf)
   pretty (Node i ts) = vcat (pretty i : map (indent 1 . pretty) ts)
+  pretty (Error e) = pretty e
 
 instance LaTeX CStep where
   type Format CStep = ()
@@ -109,8 +136,17 @@ instance LaTeX CStep where
       pure $ call False ("calling" <> jd) pts
     NotedStep -> pure ""
 
-instance LaTeX (Trace CStep) where
-  type Format (Trace CStep) = ()
+instance LaTeX CError where
+  type Format CError = ()
+  toLaTeX _ = \case
+    StuckUnifying s t -> do
+      let d = Syntax.contract VWildcard
+      s <- toLaTeX d s
+      t <- toLaTeX d t
+      pure $ call False "typosStuckUnifying" [s, t]
+
+instance LaTeX (Trace CError CStep) where
+  type Format (Trace CError CStep) = ()
   toLaTeX n (Node i []) = do
     i <- toLaTeX () i
     pure $ call False "typosAxiom" [i]
@@ -126,6 +162,10 @@ instance LaTeX (Trace CStep) where
     ts <- traverse (toLaTeX ()) ts
     pure $ typosDerivation i ts
 
+  toLaTeX n (Error e) = do
+    e <- toLaTeX () e
+    pure $ call False "typosError" [e]
+
 typosDerivation :: Doc () -> [Doc ()] -> Doc ()
 typosDerivation i ts =
    call True "typosDerivation"
@@ -134,13 +174,13 @@ typosDerivation i ts =
             : intersperse (call False "typosBetweenPrems" []) ts
             ++ [call False "typosEndPrems" []])]
 
-getPushes :: Variable -> [Trace CStep] -> ([CStep], [Trace CStep])
+getPushes :: Variable -> [Trace CError CStep] -> ([CStep], [Trace CError CStep])
 getPushes x [Node i@(PushingStep _ y _) ts] | x == y =
       let (prf, suf) = getPushes x ts in
       (i:prf, suf)
 getPushes _ ts = ([], ts)
 
-extract :: [Frame] -> [Trace AStep]
+extract :: [Frame] -> [Trace AError AStep]
 extract [] = []
 extract (f : fs) = case f of
   LeftBranch Hole p -> extract fs ++ extract (stack p)
@@ -154,18 +194,19 @@ extract (f : fs) = case f of
   Pushed jd (i, d, t) -> node (AlwaysExtract, PushingStep jd i (d, t))
   Binding x -> node (AlwaysExtract, BindingStep x)
   Noted -> Node (AlwaysExtract, NotedStep) [] : extract fs
+  UnificationProblem date s t -> Error (StuckUnifying s t) : extract fs
   _ -> extract fs
 
   where
-    node :: AStep -> [Trace AStep]
+    node :: AStep -> [Trace AError AStep]
     node s = [Node s (extract fs)]
 
-cleanup :: [Trace AStep] -> [Trace AStep]
+cleanup :: [Trace AError AStep] -> [Trace AError AStep]
 cleanup = snd . go False [] where
 
   go :: Bool            -- ^ is the parent suppressable?
      -> [JudgementForm] -- ^ list of toplevel judgements already seen
-     -> [Trace AStep] -> (Any, [Trace AStep])
+     -> [Trace AError AStep] -> (Any, [Trace AError AStep])
   go supp seen [] = pure []
   go supp seen (Node (em, i@(CallingStep jd tr)) ts : ats)
     | em == InterestingExtract || jd `elem` seen
@@ -183,6 +224,8 @@ cleanup = snd . go False [] where
   go supp seen (Node i ts : ats) =
     (:) <$> censor (const (Any False)) (Node i <$> go False seen ts)
         <*> go supp seen ats
+  go supp seen (Error e : ats) =
+    (Error e :) <$> go supp seen ats
 
 diagnostic :: Options -> StoreF i -> [Frame] -> String
 diagnostic opts st fs =
@@ -230,32 +273,47 @@ ldiagnostic table st fs =
   let rts = unsafeEvalUnelab initNaming cts in
   let dts = (`evalLaTeXM` table) (traverse (toLaTeX ()) rts) in
   show $ vcat $
-   [ "\\documentclass{article}"
+   [ "\\documentclass{standalone}"
+   , ""
+   , "%%%%%%%%%%% Packages %%%%%%%%%%%%%%%%%%%"
+   , "\\usepackage{xcolor}"
+   , "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+   , ""
+   , "%%%%%%%%%%% Notations %%%%%%%%%%%%%%%%%%"
    , "\\newcommand{\\typosBinding}[1]{#1 \\vdash}"
    , "\\newcommand{\\typosPushing}[3]{\\textsc{#1} \\lbrace #2 \\to #3 \\rbrace.}"
-   , "\\newcommand{\\typosAtom}[1]{'#1}"
+   , "\\newcommand{\\typosStuckUnifying}[2]{#1 \\not\\sim #2}"
+   , "\\newcommand{\\typosAtom}[1]{\\tt`#1}"
    , "\\newcommand{\\typosNil}{[]}"
    , "\\newcommand{\\typosListStart}[2]{[#1#2}"
    , "\\newcommand{\\typosListEnd}{]}"
    , "\\newcommand{\\typosListTail}[1]{\\textbar #1]}"
    , "\\newcommand{\\typosScope}[2]{\\backslash #1. #2}"
    , "\\newcommand{\\typosAxiom}[1]{#1}"
+   , "\\newcommand{\\typosError}[1]{\\colorbox{red}{\\ensuremath{#1}}}"
    , "\\newcommand{\\typosDerivation}[2]{#1 \\\\ #2}"
    , "\\newcommand{\\typosBeginPrems}{\\begin{array}{|@{\\ }l@{}}}"
    , "\\newcommand{\\typosBetweenPrems}{\\\\}"
    , "\\newcommand{\\typosEndPrems}{\\end{array}}"
+   , "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+   , ""
    ] ++
    concatMap (syntaxPreamble table) (Map.keys table)
    ++ concatMap judgementPreamble fs
    ++
-   [ "\\include{notations}"
+   [ "%\\include{notations}"
+   , "%%%%%%%%%%% Derivations %%%%%%%%%%%%%%%%"
    , "\\begin{document}"
+   , "$\\displaystyle"
+   , "\\begin{array}{l}"
    ] ++
    (dts >>= \ der ->
-      [ "\\["
-      , "\\begin{array}{l}"
+      [ "\\begin{array}{l}"
       , der
-      , "\\end{array}"
-      , "\\]"
-      ])
-   ++ [ "\\end{document}"]
+      , "\\end{array} \\\\"
+      , "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
+      , ""
+      ]) ++
+   [ "\\end{array}"
+   , "$"
+   , "\\end{document}"]

@@ -82,6 +82,10 @@ data Actor jd ch bd av syn var tm pat cnnct stk
  | Break [Format Directive Debug tm] (Actor jd ch bd av syn var tm pat cnnct stk)
  deriving (Show)
 
+isWin :: Actor jd ch bd av syn var tm pat cnnct stk -> Bool
+isWin Win = True
+isWin _ = False
+
 type CProtocol = Protocol Raw
 type CJudgementStack = JudgementStack Raw
 type CActor = Actor Variable Variable (Binder Variable) Variable Raw Variable Raw RawP CConnect ()
