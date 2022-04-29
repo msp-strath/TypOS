@@ -4,6 +4,7 @@ import Control.Monad
 
 import Data.List ((\\))
 
+import System.Directory
 import System.FilePath
 
 import Test.Tasty (TestTree,testGroup)
@@ -51,4 +52,7 @@ ioTests TestConfig{..} = testGroup name <$> do
     let dir  = takeDirectory file
     let name = takeBaseName file
     let gold = dir </> "golden" </> addExtension name goldenExt
-    pure $ goldenVsProg name gold "typos" ["-q", "--no-colour", file] ""
+    let flgs = dir </> addExtension name "flags"
+    b <- doesFileExist flgs
+    flags <- if b then words <$> readFile flgs else pure ["-q", "--no-colour"]
+    pure $ goldenVsProg name gold "typos" (flags ++ [file]) ""

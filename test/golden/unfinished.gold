@@ -4,6 +4,8 @@ out > ,([] 0 ) | <>
 out > ,([[p|p[]]
 out >     (['a ~?[0] 'b] 0 )
 out >     <>] 0 ) | <>]
+out > stuck 
+out >  'a /~ 'b
 out >
 err >
 err >

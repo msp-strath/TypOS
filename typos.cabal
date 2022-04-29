@@ -93,6 +93,7 @@ test-suite typos-tests
   hs-source-dirs:      test/
   main-is:             Test/Main.hs
   build-depends:       base <5
+                     , directory
                      , filepath
                      , tasty
                      , tasty-silver
