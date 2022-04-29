@@ -229,23 +229,23 @@ out > Ups
 out > Ups
 out > Eta Sg
 out > equalSynth
-out >  ['App ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]] 'Fst]
-out >  ['App ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]] 'Fst]
+out >  ['App ['Rad ['Emb x_1] ['Sg 'Ty \_. 'Ty]] 'Fst]
+out >  ['App ['Rad ['Emb x_1] ['Sg 'Ty \_. 'Ty]] 'Fst]
 out > equalSynth
-out >  ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]]
-out >  ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]]
+out >  ['Rad ['Emb x_1] ['Sg 'Ty \_. 'Ty]]
+out >  ['Rad ['Emb x_1] ['Sg 'Ty \_. 'Ty]]
 out > equalSynth
-out >  ab_1
-out >  ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]]
+out >  x_1
+out >  ['Rad ['Emb x_1] ['Sg 'Ty \_. 'Ty]]
 out > equalSynth
-out >  ['App ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]] 'Snd]
-out >  ['App ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]] 'Snd]
+out >  ['App ['Rad ['Emb x_1] ['Sg 'Ty \_. 'Ty]] 'Snd]
+out >  ['App ['Rad ['Emb x_1] ['Sg 'Ty \_. 'Ty]] 'Snd]
 out > equalSynth
-out >  ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]]
-out >  ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]]
+out >  ['Rad ['Emb x_1] ['Sg 'Ty \_. 'Ty]]
+out >  ['Rad ['Emb x_1] ['Sg 'Ty \_. 'Ty]]
 out > equalSynth
-out >  ab_1
-out >  ['Rad ['Emb ab_1] ['Sg 'Ty \_. 'Ty]]
+out >  x_1
+out >  ['Rad ['Emb x_1] ['Sg 'Ty \_. 'Ty]]
 out > equalSynth
 out >  ['App
 out >   P_0
@@ -335,17 +335,16 @@ out > Ups
 out > Ups
 out > Ups
 out > equalSynth
-out >  ['App ['Rad ['Emb ab_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
-out >                               \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]]
-out >                                               'Ty]]]] 'Fst]
-out >  ['App ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]] 'Fst]
+out >  ['App ['Rad ['Emb x_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
+out >                              \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Fst]
+out >  ['App ['Rad ['Emb x_2] ['Sg 'Ty \_. 'Ty]] 'Fst]
 out > equalSynth
-out >  ['Rad ['Emb ab_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
-out >                         \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]]
-out >  ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]
+out >  ['Rad ['Emb x_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
+out >                        \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]]
+out >  ['Rad ['Emb x_2] ['Sg 'Ty \_. 'Ty]]
 out > equalSynth
-out >  ab_2
-out >  ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]
+out >  x_2
+out >  ['Rad ['Emb x_2] ['Sg 'Ty \_. 'Ty]]
 out > Snd
 out > Beta
 out > Beta
@@ -358,17 +357,16 @@ out > Ups
 out > Ups
 out > Ups
 out > equalSynth
-out >  ['App ['Rad ['Emb ab_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
-out >                               \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]]
-out >                                               'Ty]]]] 'Snd]
-out >  ['App ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]] 'Snd]
+out >  ['App ['Rad ['Emb x_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
+out >                              \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]] 'Snd]
+out >  ['App ['Rad ['Emb x_2] ['Sg 'Ty \_. 'Ty]] 'Snd]
 out > equalSynth
-out >  ['Rad ['Emb ab_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
-out >                         \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]]
-out >  ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]
+out >  ['Rad ['Emb x_2] ['Sg ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]
+out >                        \_. ['Emb ['Rad ['Emb ['Rad 'Ty 'Ty]] 'Ty]]]]
+out >  ['Rad ['Emb x_2] ['Sg 'Ty \_. 'Ty]]
 out > equalSynth
-out >  ab_2
-out >  ['Rad ['Emb ab_2] ['Sg 'Ty \_. 'Ty]]
+out >  x_2
+out >  ['Rad ['Emb x_2] ['Sg 'Ty \_. 'Ty]]
 out > Beta
 out > Beta
 out > Beta

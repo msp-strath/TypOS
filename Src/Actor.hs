@@ -48,6 +48,8 @@ tryAlpha :: Env -> String -> String
 tryAlpha rho x = maybe x unhide (Map.lookup x (alphaRenamings rho))
 
 declareAlpha :: (String, Hide String) -> Env -> Env
+declareAlpha (x, Hide "_") rho = rho
+declareAlpha ("_", y) rho = rho
 declareAlpha (x, y) rho =
   rho { alphaRenamings = Map.insert x y (alphaRenamings rho) }
 

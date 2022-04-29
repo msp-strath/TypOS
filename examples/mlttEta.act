@@ -138,28 +138,28 @@ equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %i\n %i" e1 e2.
 
 exec  'Synth?Id.'Synth?refl.'Synth?swap.'Synth?swapswap.
          (Id ~ ['Rad ['Lam \T. ['Lam \x. ['Lam \y.
-                       ['Pi ['Pi ['Emb T] \ t. 'Ty] \P.
-                       ['Pi ['Emb ['App P ['Emb x]]] \px. ['Emb ['App P ['Emb y]]]]]]]]
-                     ['Pi 'Ty \T. ['Pi ['Emb T] \x. ['Pi ['Emb T] \y. 'Ty]]]]
+                       ['Pi ['Pi ['Emb T] \_. 'Ty] \P.
+                       ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]]
+                     ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]]
          |refl ~ ['Rad ['Lam \T. ['Lam \x. ['Lam \P. ['Lam \px. ['Emb px]]]]]
                        ['Pi 'Ty \T. ['Pi ['Emb T] \x. ['Emb ['App ['App ['App Id ['Emb T]] ['Emb x]] ['Emb x]]]]]]
          |swap ~ ['Rad
                   ['Lam \A. ['Lam \B. ['Lam \x . ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]]
-                  ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \x. ['Emb B] ] \ab. ['Sg ['Emb B] \x. ['Emb A] ]]]]]
+                  ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B] ] \_. ['Sg ['Emb B] \_. ['Emb A] ]]]]]
          |swapswap ~ ['Rad
                       ['Lam \A. ['Lam \B. ['Lam \x . ['Emb ['App ['App ['App swap ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App swap ['Emb A]] ['Emb B]] ['Emb x]]]]]]]]
-                      ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \x. ['Emb B] ] \ab. ['Sg ['Emb A] \x. ['Emb B] ]]]]]
+                      ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B] ] \_. ['Sg ['Emb A] \_. ['Emb B] ]]]]]
          |
          synth@p. p!Id. p?ity. PRINTF "Id : %i" ity.
          synth@q. q!refl. q?rty. PRINTF "refl : %i" rty.
          synth@r. r!swap. r?sty. PRINTF "swap : %i" sty.
          synth@r2. r2!swapswap. r2?sty2. PRINTF "swapswap : %i" sty2.
-         synth@e1. e1!['Rad ['Emb ['App ['App refl ['Pi ['Sg 'Ty \x. 'Ty ] \ab. ['Sg 'Ty \x. 'Ty]]] ['Lam \x . ['Emb x]]]]
-                            ['Emb ['App ['App ['App Id ['Pi ['Sg 'Ty \x. 'Ty ] \ab. ['Sg 'Ty \x. 'Ty]]]
+         synth@e1. e1!['Rad ['Emb ['App ['App refl ['Pi ['Sg 'Ty \_. 'Ty ] \_. ['Sg 'Ty \_. 'Ty]]] ['Lam \x . ['Emb x]]]]
+                            ['Emb ['App ['App ['App Id ['Pi ['Sg 'Ty \_. 'Ty ] \_. ['Sg 'Ty \_. 'Ty]]]
                                                        ['Lam \x . ['Emb x]]]
                                                        ['Emb ['App ['App swapswap 'Ty] 'Ty]]]]]. e1?ety1. PRINTF "refl swapswap : %i" ety1.
-         synth@e2. e2!['Rad ['Emb ['App ['App refl ['Pi ['Sg 'One \x. 'One ] \ab. ['Sg 'One \x. 'One]]] ['Lam \x . ['Emb x]]]]
-                            ['Emb ['App ['App ['App Id ['Pi ['Sg 'One \x. 'One ] \ab. ['Sg 'One \x. 'One]]]
+         synth@e2. e2!['Rad ['Emb ['App ['App refl ['Pi ['Sg 'One \_. 'One ] \_. ['Sg 'One \_. 'One]]] ['Lam \x . ['Emb x]]]]
+                            ['Emb ['App ['App ['App Id ['Pi ['Sg 'One \_. 'One ] \_. ['Sg 'One \_. 'One]]]
                                                        ['Lam \x . ['Emb x]]]
                                                        ['Emb ['App ['App swap 'One] 'One]]]]]. e2?ety2. PRINTF "refl swap One : %i" ety2.
       )

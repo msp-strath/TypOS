@@ -31,13 +31,15 @@ instance LaTeX x => LaTeX (Hide x) where
   type Format (Hide x) = Format x
   toLaTeX d (Hide x) = toLaTeX d x
 
-instance LaTeX (Binder Variable) where
-  type Format (Binder Variable) = ()
-  toLaTeX _ Unused = pure "\\_"
-  toLaTeX _ (Used v) = toLaTeX () v
+instance LaTeX a => LaTeX (Binder a) where
+  type Format (Binder a) = Format a
+  toLaTeX d = \case
+    Unused -> pure "\\_"
+    Used x -> toLaTeX d x
 
 instance LaTeX Variable where
   type Format Variable = ()
+  toLaTeX _ (Variable ('_':cs)) = pure $ text ("\\_" ++ cs) -- hack for now
   toLaTeX _ (Variable str) = pure $ text str
 
 asList :: Raw -> [Raw]

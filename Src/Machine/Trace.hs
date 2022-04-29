@@ -36,7 +36,7 @@ instance (Show e, Show i) => Show (Trace e i) where
     go indt (Error e)   = [indt ++ show e]
 
 data Step jd db t
-  = BindingStep String
+  = BindingStep Variable
   | NotedStep
   | PushingStep jd db (SyntaxDesc, t)
   | CallingStep jd [((Mode,SyntaxDesc), t)]
@@ -74,11 +74,11 @@ instance Unelab (Trace AError AStep) where
   type Unelabed (Trace AError AStep) = Trace CError CStep
   type UnelabEnv (Trace AError AStep) = Naming
   unelab (Node (em, s) ts) = case s of
-    BindingStep x -> do
+    BindingStep (Variable x) -> do
       na <- ask
       let y = freshen x na
       ts <- local (`nameOn` y) $ traverse unelab ts
-      pure (Node (BindingStep y) ts)
+      pure (Node (BindingStep (Variable y)) ts)
     NotedStep -> Node NotedStep <$> traverse unelab ts
     PushingStep jd db (d, t) -> do
       jd <- subunelab jd
@@ -116,7 +116,7 @@ instance Pretty CError where
 
 instance Pretty (Trace CError CStep) where
   pretty (Node i@(BindingStep x) ts) =
-    let (prf, suf) = getPushes (Variable x) ts in
+    let (prf, suf) = getPushes x ts in
     vcat ( hsep (pretty <$> i:prf) : map (indent 1 . pretty) suf)
   pretty (Node i ts) = vcat (pretty i : map (indent 1 . pretty) ts)
   pretty (Error e) = pretty e
@@ -124,7 +124,9 @@ instance Pretty (Trace CError CStep) where
 instance LaTeX CStep where
   type Format CStep = ()
   toLaTeX _ = \case
-    BindingStep x -> pure $ call False "typosBinding" [text x]
+    BindingStep x -> do
+      x <- toLaTeX () x
+      pure $ call False "typosBinding" [x]
     PushingStep jd x (d, t) -> do
       jd <- toLaTeX () jd
       x <- toLaTeX () x
@@ -151,7 +153,7 @@ instance LaTeX (Trace CError CStep) where
     i <- toLaTeX () i
     pure $ call False "typosAxiom" [i]
   toLaTeX n (Node i@(BindingStep x) ts) = do
-    let (prf, suf) = getPushes (Variable x) ts
+    let (prf, suf) = getPushes x ts
     i <- toLaTeX () i
     prf <- traverse (toLaTeX ()) prf
     suf <- traverse (toLaTeX ()) suf
@@ -192,7 +194,7 @@ extract (f : fs) = case f of
     Node (extractionMode, CallingStep judgeName (zip judgeProtocol (traffic <>> []))) (extract (stack (fst spawnee)))
     : extract fs
   Pushed jd (i, d, t) -> node (AlwaysExtract, PushingStep jd i (d, t))
-  Binding x -> node (AlwaysExtract, BindingStep x)
+  Binding x -> node (AlwaysExtract, BindingStep (Variable x))
   Noted -> Node (AlwaysExtract, NotedStep) [] : extract fs
   UnificationProblem date s t -> Error (StuckUnifying s t) : extract fs
   _ -> extract fs
@@ -273,7 +275,7 @@ ldiagnostic table st fs =
   let rts = unsafeEvalUnelab initNaming cts in
   let dts = (`evalLaTeXM` table) (traverse (toLaTeX ()) rts) in
   show $ vcat $
-   [ "\\documentclass{standalone}"
+   [ "\\documentclass[multi=page]{standalone}"
    , ""
    , "%%%%%%%%%%% Packages %%%%%%%%%%%%%%%%%%%"
    , "\\usepackage{xcolor}"
@@ -288,7 +290,7 @@ ldiagnostic table st fs =
    , "\\newcommand{\\typosListStart}[2]{[#1#2}"
    , "\\newcommand{\\typosListEnd}{]}"
    , "\\newcommand{\\typosListTail}[1]{\\textbar #1]}"
-   , "\\newcommand{\\typosScope}[2]{\\backslash #1. #2}"
+   , "\\newcommand{\\typosScope}[2]{\\lambda #1. #2}"
    , "\\newcommand{\\typosAxiom}[1]{#1}"
    , "\\newcommand{\\typosError}[1]{\\colorbox{red}{\\ensuremath{#1}}}"
    , "\\newcommand{\\typosDerivation}[2]{#1 \\\\ #2}"
@@ -301,19 +303,20 @@ ldiagnostic table st fs =
    concatMap (syntaxPreamble table) (Map.keys table)
    ++ concatMap judgementPreamble fs
    ++
-   [ "%\\include{notations}"
+   [ "%\\input{notations}"
+   , ""
    , "%%%%%%%%%%% Derivations %%%%%%%%%%%%%%%%"
    , "\\begin{document}"
-   , "$\\displaystyle"
-   , "\\begin{array}{l}"
    ] ++
    (dts >>= \ der ->
-      [ "\\begin{array}{l}"
+      [ "\\begin{page}"
+      , "$\\displaystyle"
+      , "\\begin{array}{l}"
       , der
-      , "\\end{array} \\\\"
+      , "\\end{array}"
+      , "$"
+      , "\\end{page}"
       , "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
       , ""
       ]) ++
-   [ "\\end{array}"
-   , "$"
-   , "\\end{document}"]
+   [ "\\end{document}"]

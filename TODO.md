@@ -8,6 +8,7 @@
 * [ ] User-friendly syntaxes
 * [ ] Industrial-strength parsing
 * [ ] Source location information
+* [ ] Let binders
 
 ### Features
 
@@ -29,6 +30,11 @@
 
 * [ ] STLC with clever lists
 * [ ] Tests for extract mode
+
+### Refactoring
+
+* [ ] More structured type of names
+* [ ] Make sure LaTeX output is valid LaTeX
 
 ### Pretty
 
