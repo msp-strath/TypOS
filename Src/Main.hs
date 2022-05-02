@@ -23,13 +23,14 @@ import Command
 import Machine.Trace (diagnostic, ldiagnostic)
 import Utils
 import Display (unsafeEvalDisplay)
+import Location
 
 main :: IO ()
 main = do
   opts <- getOptions
   let cfg = Config (termWidth opts) Vertical
   txt <- readFile (filename opts)
-  let ccs = parse pfile txt
+  let ccs = parse pfile (Source txt $ initLocation (filename opts))
   case elaborate ccs of
     Left err -> do
       putStrLn $ render (colours opts) cfg $
@@ -37,7 +38,7 @@ main = do
       exitFailure
     Right (acs, table) -> do
   -- putStrLn $ unsafeEvalDisplay initNaming $ collapse <$> traverse display acs
-      let p = Process opts B0 initRoot (initEnv B0) initStore Win ""
+      let p = Process opts B0 initRoot (initEnv B0) initStore (Win unknown) ""
       let res@(Process _ fs _ env sto a _) = run opts p acs
       unless (isWin a) $ do
          putStrLn $ ANSI.withANSI [SetColour Background Red] "Error: Did not win"

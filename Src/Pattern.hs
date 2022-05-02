@@ -5,10 +5,8 @@ import qualified Data.Map as Map
 
 import Control.Applicative
 
-import Bwd
 import Thin
 import Hide
-import Parse
 
 import Term.Base
 
@@ -22,12 +20,6 @@ data Pat
   | GP -- grumpy pattern
   | HP -- happy pattern
   deriving (Show, Eq)
-
-bound :: Bwd String -> Pat -> MetaScopes
-bound xz (PP l r) = bound xz l <> bound xz r
-bound xz (BP (Hide x) b) = bound (xz :< x) b
-bound xz (MP m th) = Map.singleton m (th ^? xz)
-bound _ _ = mempty
 
 instance Thable Pat where
   VP v *^ th = VP (v *^ th)
@@ -70,42 +62,3 @@ match r p t = case (p, expand t) of
     return (r, m <> n)
   (BP _ p, _ :.: t) -> match r p t
   _ -> empty
-
--- Parsing
-
-instance Lisp Pat where
-  mkNil = const (AP "")
-  mkCons = PP
-  pCar = ppat
-
-ppat :: Parser Pat
-ppat = pvar (\ str -> MP str . ones <$> plen) (pure . VP)
-  <|> AP <$> patom
-  <|> id <$ pch (== '[') <* pspc <*> plisp
-  <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pch (== ')')
-  <|> id <$ pch (== '\\') <* pspc <*> (do
-    x <- pnom
-    pspc
-    pch (== '.')
-    pspc
-    BP (Hide x) <$> pbind x ppat)
-  <|> id <$ pch (== '{') <*> do
-    (th, xz) <- pth
-    pspc
-    (*^ th) <$> plocal xz ppat
-  <|> HP <$ pch (== '_')
-
-pth :: Parser (Th, Bwd String)
-pth = do
-  (xns, b) <- raw
-  xz <- pscope
-  let xnz = deBruijnify xz
-  let th = (if b then comp else id) (which (`elem` xns) xnz)
-  pure (th, th ^? xz)
-
-  where
-
-  raw :: Parser ([(String, Int)], Bool)
-  raw = (,) <$> many (id <$ pspc <*> pvar') <* pspc
-            <*> (True <$ pch (== '*') <* pspc <|> pure False)
-            <* pch (== '}')

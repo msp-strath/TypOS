@@ -12,6 +12,7 @@ import Doc.Render.Terminal
 import Elaboration.Pretty ()
 import Format
 import Hide
+import Location (unknown)
 import Options
 import Pattern
 import Pretty
@@ -42,11 +43,11 @@ exec :: Process Store Bwd -> Process Store []
 --   | dmesg ("\nexec\n  " ++ unlines (map ("  " ++) [show a])) False
 --   = undefined
 exec p | debug MachineExec "" p = undefined
-exec p@Process { actor = a :|: b, ..} =
+exec p@Process { actor = Branch _ a b, ..} =
   let (lroot, rroot) = splitRoot root ""
       rbranch = Process options [] rroot env New b judgementform
   in exec (p { stack = stack :< LeftBranch Hole rbranch, root = lroot, actor = a})
-exec p@Process { actor = Spawn em jd spawnerCh actor, ..}
+exec p@Process { actor = Spawn _ em jd spawnerCh actor, ..}
   | Just (jdp, (spawnedCh, spawnedActor)) <- lookupRules jd stack
 --  , dmesg (show spawnedActor) True
   = let (subRoot, newRoot) = splitRoot root jd
@@ -56,18 +57,18 @@ exec p@Process { actor = Spawn em jd spawnerCh actor, ..}
     in exec (p { stack = stack :< Spawner (Interface spawnee spawner jd jdp em B0)
                , root = newRoot
                , actor })
-exec p@Process { actor = Send ch tm a, ..}
+exec p@Process { actor = Send _ ch tm a, ..}
   | Just term <- mangleActors env tm
   = let (subRoot, newRoot) = splitRoot root ""
     in send ch term (p { stack = stack :<+>: []
                        , root = newRoot
                        , actor = a
                        , store = tick store })
-exec p@Process { actor = Recv ch (x, a), ..}
+exec p@Process { actor = Recv _ ch (x, a), ..}
   = recv ch x (p { stack = stack :<+>: [], actor = a })
-exec p@Process { actor = Connect ac, ..}
+exec p@Process { actor = Connect _ ac, ..}
   = connect ac (p { stack = stack :<+>: []})
-exec p@Process { actor = m@(Match s cls), ..}
+exec p@Process { actor = m@(Match _ s cls), ..}
   | Just term <- mangleActors env s
   = switch term cls
  where
@@ -77,7 +78,7 @@ exec p@Process { actor = m@(Match s cls), ..}
     let msg = render (colours options) (Config (termWidth options) Vertical) $ unsafeEvalDisplay (frDisplayEnv stack) $ do
           it <- subdisplay (instantiate store t)
           t <- subdisplay t
-          m <- asks daEnv >>= \ rh -> withEnv rh $ display (Match s cls)
+          m <- asks daEnv >>= \ rh -> withEnv rh $ display m
           pure $ vcat $
                 [ "No matching clause for:" <+> it
                 , parens ("raw term:" <+> t)
@@ -130,31 +131,31 @@ exec p@Process { actor = m@(Match s cls), ..}
 
 
 
-exec p@Process { actor = FreshMeta cat (av@(ActorMeta x), a), ..} =
+exec p@Process { actor = FreshMeta _ cat (av@(ActorMeta x), a), ..} =
   let (xm, root') = meta root x
       xt = xm $: sbstI (length (globalScope env) + length (localScope env))
       env' = newActorVar av (localScope env <>> [], xt) env
   in exec (p { env = env', root = root', actor = a })
-exec p@Process { actor = Constrain s t, ..}
+exec p@Process { actor = Constrain _ s t, ..}
   | Just s' <- mangleActors env s
   , Just t' <- mangleActors env t
   -- , dmesg "HERE" True
   -- , dmesg (show env) True
   -- , dmesg (show s ++ " ----> " ++ show s') True
   -- , dmesg (show t ++ " ----> " ++ show t') True
-  = unify (p { stack = stack :<+>: [UnificationProblem (today store) s' t'], actor = Win })
-exec p@Process { actor = Under (Scope (Hide x) a), ..}
+  = unify (p { stack = stack :<+>: [UnificationProblem (today store) s' t'], actor = Win unknown })
+exec p@Process { actor = Under _ (Scope (Hide x) a), ..}
   = let stack' = stack :< Binding (tryAlpha env x ++ "_" ++ show (length (globalScope env <> localScope env)))
         env'   = env { localScope = localScope env :< tryAlpha env x }
         actor' = a
     in exec (p { stack = stack', env = env', actor = actor' })
 
-exec p@Process { actor = Push jd (pv, d, t) a, ..}
+exec p@Process { actor = Push _ jd (pv, d, t) a, ..}
   | Just t' <- mangleActors env t
   = let stack' = stack :< Pushed jd (pv, d, t')
     in exec (p { stack = stack', actor = a })
 
-exec p@Process { actor = Lookup t (av, a) b, ..}
+exec p@Process { actor = Lookup _ t (av, a) b, ..}
   | Just t' <- mangleActors env t
   = case expand (headUp store t') of
       VX (DB i) _ | Just t' <- search stack i judgementform 0 ->
@@ -174,13 +175,13 @@ exec p@Process { actor = Lookup t (av, a) b, ..}
       Pushed jd' (DB i', _, t) | jd == jd' && i == i' -> Just (weaks bd t)
       _ -> search zf i jd bd
 
-exec p@Process { actor = Print fmt a, ..}
+exec p@Process { actor = Print _ fmt a, ..}
   | Just fmt <- traverse (traverse $ mangleActors env) fmt
   =  unsafePerformIO $ do
       putStrLn $ format [SetColour Background Magenta] p fmt
       pure (exec (p { actor = a }))
 
-exec p@Process { actor = Break fmt a, ..}
+exec p@Process { actor = Break _ fmt a, ..}
   = unsafePerformIO $ do
       when (MachineBreak `elem` tracing p) $ do
         whenJust (traverse (traverse $ mangleActors env) fmt) $ \ fmt -> do
@@ -188,7 +189,7 @@ exec p@Process { actor = Break fmt a, ..}
           () <$ getLine
       pure (exec (p { actor = a }))
 
-exec p@Process { actor = Fail fmt, ..}
+exec p@Process { actor = Fail _ fmt, ..}
   = let msg = case traverse (traverse $ mangleActors env) fmt of
                 Just fmt -> format [] p fmt
                 Nothing -> case evalDisplay (frDisplayEnv stack) (subdisplay fmt) of
@@ -196,7 +197,7 @@ exec p@Process { actor = Fail fmt, ..}
                   Right str -> render (colours options) (Config (termWidth options) Vertical) str
     in alarm msg $ move (p { stack = stack :<+>: [] })
 
-exec p@Process { actor = Note a, .. }
+exec p@Process { actor = Note _ a, .. }
   = exec (p { stack = stack :< Noted, actor = a})
 
 exec p@Process {..} = move (p { stack = stack :<+>: [] })
@@ -237,8 +238,8 @@ solveMeta m (CdB (S0 :^^ _) ph) tm p@Process{..} = do
 
 connect :: AConnect -> Process Store Cursor -> Process Store []
 connect ac@(AConnect ch1 th ch2 n) p@Process { stack = zf :< Sent q tm :<+>: fs, ..}
-  | q == ch1 = send ch2 (snd tm *^ th') (p { stack = zf <>< fs :<+>: [], actor = aconnect ch1 th ch2 (n-1)})
-  | q == ch2 = send ch1 (snd tm *^ th') (p { stack = zf <>< fs :<+>: [], actor = aconnect ch1 th ch2 (n-1)})
+  | q == ch1 = send ch2 (snd tm *^ th') (p { stack = zf <>< fs :<+>: [], actor = aconnect unknown ch1 th ch2 (n-1)})
+  | q == ch2 = send ch1 (snd tm *^ th') (p { stack = zf <>< fs :<+>: [], actor = aconnect unknown ch1 th ch2 (n-1)})
   where th' = ones (length (globalScope env)) <> th
 connect ac p@Process { stack = zf'@(zf :< Spawnee intf) :<+>: fs, ..}
   = move (p { stack = zf' <>< fs :<+>: []})
@@ -253,7 +254,8 @@ send :: Channel -> Term -> Process Store Cursor -> Process Store []
 --   = undefined
 
 send ch term p@Process { stack = B0 :<+>: fs, ..}
-  = let a = Fail [StringPart ("Couldn't find channel " ++ rawChannel ch)]
+  -- TODO: use the range of the send?
+  = let a = Fail unknown [StringPart ("Couldn't find channel " ++ rawChannel ch)]
     in exec (p { stack = B0 <>< fs, actor = a })
 send ch term
   p@Process { stack = zf :< Spawner (Interface (childP, q) (rxs@(r, _), Hole) jd jdp em tr) :<+>: fs, ..}
@@ -272,7 +274,7 @@ send ch term
       p' = p { stack = stack' }
   in debug MachineSend (pretty ch) p' `seq` exec p'
   | otherwise
-  = let a = Fail [StringPart ("Couldn't find channel " ++ rawChannel ch)]
+  = let a = Fail unknown [StringPart ("Couldn't find channel " ++ rawChannel ch)]
     in exec (p { stack = zf' <>< fs, actor = a })
 send ch term p@Process { stack = (zf :< f) :<+>: fs }
   = send ch term (p { stack = zf :<+>: (f:fs) })
@@ -280,7 +282,7 @@ send ch term p@Process { stack = (zf :< f) :<+>: fs }
 recv :: Channel -> Binder ActorMeta -> Process Store Cursor -> Process Store []
 recv ch v p | debug MachineRecv (hsep [ pretty ch, pretty v ]) p = undefined
 recv ch x p@Process { stack = B0 :<+>: fs, ..}
-  = move (p { stack = B0 <>< fs :<+>: [], actor = Recv ch (x, actor) })
+  = move (p { stack = B0 <>< fs :<+>: [], actor = Recv unknown ch (x, actor) })
 recv ch x p@Process { stack = zf :< Sent q y :<+>: fs, ..}
   | ch == q
   = let env' = case x of
@@ -289,11 +291,11 @@ recv ch x p@Process { stack = zf :< Sent q y :<+>: fs, ..}
     in exec (p { stack = zf <>< fs, env = env' })
 recv ch x
   p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs, parentP) _ _ _ _)) :<+>: fs, ..}
-  = move (p { stack = zf' <>< fs :<+>: [], actor = Recv ch (x, actor) })
+  = move (p { stack = zf' <>< fs :<+>: [], actor = Recv unknown ch (x, actor) })
 recv ch x
   p@Process { stack = zf'@(zf :< Spawner (Interface (childP, q) ((r, xs), Hole) _ _ _ _)) :<+>: fs, ..}
   | ch == r
-  = move (p { stack = zf' <>< fs :<+>: [], actor = Recv ch (x, actor) })
+  = move (p { stack = zf' <>< fs :<+>: [], actor = Recv unknown ch (x, actor) })
 recv ch x p@Process { stack = zf :< f :<+>: fs }
   = recv ch x (p { stack = zf :<+>: (f:fs) })
 

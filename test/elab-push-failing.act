@@ -1,0 +1,5 @@
+nopush :
+
+nopush@p = \x. nopush
+  { x -> []
+  }.

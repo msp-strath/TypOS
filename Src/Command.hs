@@ -99,7 +99,7 @@ psyntax = (,) <$> patom <* punc "=" <*> psyntaxdecl
 
 pcommand :: Parser CCommand
 pcommand
-    = DeclJ <$> pextractmode <*> pvariable <* punc ":" <*> poptional pjudgementstack <*> pprotocol
+    = DeclJ <$> pextractmode <*> pvariable <* punc ":" <*> optional pjudgementstack <*> pprotocol
   <|> DefnJ <$> pjudgeat <* punc "=" <*> pACT
   <|> DeclS <$ plit "syntax" <*> pcurlies (psep (punc ";") psyntax)
   <|> Go <$ plit "exec" <* pspc <*> pACT

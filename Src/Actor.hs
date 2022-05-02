@@ -6,6 +6,7 @@ import ANSI
 import Bwd
 import Concrete.Base
 import Hide
+import Location
 import Pattern
 import Syntax (SyntaxDesc)
 import Term
@@ -30,10 +31,10 @@ type AProtocol = Protocol SyntaxDesc
 type AJudgementStack = JudgementStack SyntaxDesc
 type AActor = Actor JudgementForm Channel (Binder ActorMeta) ActorMeta SyntaxDesc DB (CdB (Tm ActorMeta)) Pat AConnect SyntaxDesc
 
-aconnect :: Channel -> Th -> Channel -> Int -> AActor
-aconnect ch1 th ch2 n
-  | n > 0 = Connect (AConnect ch1 th ch2 n)
-  | otherwise = Win
+aconnect :: Range -> Channel -> Th -> Channel -> Int -> AActor
+aconnect r ch1 th ch2 n
+  | n > 0 = Connect r (AConnect ch1 th ch2 n)
+  | otherwise = Win r
 
 
 data Env = Env

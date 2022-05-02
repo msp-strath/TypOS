@@ -21,6 +21,7 @@ import Pattern
 import Scope
 import Term.Base
 import Thin
+import Location (unknown)
 
 type Naming =
   ( Bwd String  -- what's in the support
@@ -102,11 +103,11 @@ instance UnelabMeta m => Unelab (Tm m) where
   type Unelabed (Tm m) = Raw
   unelab = \case
     V -> ask >>= \case
-           (B0 :< x, _, _) -> pure (Var (Variable x))
+           (B0 :< x, _, _) -> pure (Var unknown (Variable x))
            na              -> throwError (VarOutOfScope na)
-    A a -> pure (At a)
-    P (s :<>: t) -> Cons <$> unelab s <*> unelab t
-    (x := b) :. t -> Lam . uncurry (Scope . Hide) <$> case b of
+    A a -> pure (At unknown a)
+    P (s :<>: t) -> Cons unknown <$> unelab s <*> unelab t
+    (x := b) :. t -> Lam unknown . uncurry (Scope . Hide) <$> case b of
             False -> (Unused,) <$> unelab t
             True -> do
               na <- ask
@@ -114,10 +115,10 @@ instance UnelabMeta m => Unelab (Tm m) where
               local (`nameOn` y) $ (Used (Variable y),) <$> unelab t
     m :$ sg -> do
       sg <- unelab sg
-      m <- Var <$> subunelab m
+      m <- Var unknown <$> subunelab m
       pure $ case sg of
         B0 -> m
-        _ -> Sbst sg m
+        _ -> Sbst unknown sg m
 
 instance UnelabMeta m => Unelab (Sbst m) where
   type UnelabEnv (Sbst m) = Naming
@@ -129,18 +130,18 @@ instance UnelabMeta m => Unelab (Sbst m) where
       (ST (CdB sg th :<>: CdB (Hide x := t) ph) :^^ 0) -> do
         t <- unelab (CdB t ph)
         sg <- local (nameSel th) $ unelab sg
-        pure (sg :< Assign (Variable x) t)
+        pure (sg :< Assign unknown (Variable x) t)
       (sg :^^ w) -> case na of
         (_, th, _) | bigEnd th <= 0 -> throwError (UnexpectedEmptyThinning na)
         (xz, th, yz :< y) -> case thun th of
          (th, False) -> do
            sg <- local (const (xz, th, yz)) $ unelab (sg :^^ w)
-           pure (sg :< Drop (Variable y))
+           pure (sg :< Drop unknown (Variable y))
          (th, True) ->
            case xz of
              xz :< x -> do
                sg <- local (const (xz, th, yz)) $ unelab (sg :^^ (w - 1))
-               pure (sg :< Keep (Variable x))
+               pure (sg :< Keep unknown (Variable x))
              _ -> throwError $ InvalidNaming na
         _ -> throwError $ InvalidNaming na
 
@@ -148,14 +149,14 @@ instance Unelab Pat where
   type UnelabEnv Pat = Naming
   type Unelabed Pat = RawP
   unelab = \case
-    VP n -> VarP <$> unelab n
-    AP str -> pure (AtP str)
-    PP p q -> ConsP <$> unelab p <*> unelab q
+    VP n -> VarP unknown <$> unelab n
+    AP str -> pure (AtP unknown str)
+    PP p q -> ConsP unknown <$> unelab p <*> unelab q
     BP x p -> do
       p <- local (`nameOn` unhide x) (unelab p)
-      pure (LamP (Scope (mkBinder . Variable <$> x) p))
-    MP m th -> {- TODO: insert ThP -} pure (VarP (Variable m))
-    HP -> pure UnderscoreP
+      pure (LamP unknown (Scope (mkBinder . Variable <$> x) p))
+    MP m th -> {- TODO: insert ThP -} pure (VarP unknown (Variable m))
+    HP -> pure (UnderscoreP unknown)
 
 instance Unelab (Pat, AActor) where
   type UnelabEnv (Pat, AActor) = DAEnv
@@ -248,25 +249,25 @@ instance Unelab AActor where
   type UnelabEnv AActor = DAEnv
   type Unelabed AActor = CActor
   unelab = \case
-    a :|: b -> (:|:) <$> unelab a <*> unelab b
-    Spawn em jd ch a -> Spawn em
+    Branch r a b -> Branch r <$> unelab a <*> unelab b
+    Spawn r em jd ch a -> Spawn r em
         <$> subunelab jd
         <*> subunelab ch
         <*> local (declareChannel ch) (unelab a)
-    Send ch tm a -> Send <$> subunelab ch <*> inChannel ch (subunelab tm) <*> unelab a
-    Recv ch (av, a) -> Recv <$> subunelab ch <*> ((,) <$> traverse subunelab av <*> unelab a)
-    FreshMeta desc (av, a) -> FreshMeta <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
-    Under (Scope x a) -> Under . Scope x <$> local (updateNaming (`nameOn` unhide x)) (unelab a)
-    Push jd (p, _, t) a -> Push <$> subunelab jd <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
-    Lookup t (av, a) b -> Lookup <$> subunelab t <*> ((,) <$> traverse subunelab av <*> unelab a) <*> unelab b
-    Match tm pts -> Match <$> subunelab tm <*> traverse unelab pts
-    Constrain s t -> Constrain <$> subunelab s <*> subunelab t
-    Win -> pure Win
-    Fail fmt -> Fail <$> traverse subunelab fmt
-    Print fmt a -> Print <$> traverse subunelab fmt <*> unelab a
-    Break fmt a -> Break <$> traverse subunelab fmt <*> unelab a
-    Connect cnnct -> Connect <$> subunelab cnnct
-    Note a -> Note <$> unelab a
+    Send r ch tm a -> Send r <$> subunelab ch <*> inChannel ch (subunelab tm) <*> unelab a
+    Recv r ch (av, a) -> Recv r <$> subunelab ch <*> ((,) <$> traverse subunelab av <*> unelab a)
+    FreshMeta r desc (av, a) -> FreshMeta r <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
+    Under r (Scope x a) -> Under r. Scope x <$> local (updateNaming (`nameOn` unhide x)) (unelab a)
+    Push r jd (p, _, t) a -> Push r <$> subunelab jd <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
+    Lookup r t (av, a) b -> Lookup r <$> subunelab t <*> ((,) <$> traverse subunelab av <*> unelab a) <*> unelab b
+    Match r tm pts -> Match r <$> subunelab tm <*> traverse unelab pts
+    Constrain r s t -> Constrain r <$> subunelab s <*> subunelab t
+    Win r -> pure (Win r)
+    Fail r fmt -> Fail r <$> traverse subunelab fmt
+    Print r fmt a -> Print r <$> traverse subunelab fmt <*> unelab a
+    Break r fmt a -> Break r <$> traverse subunelab fmt <*> unelab a
+    Connect r cnnct -> Connect r <$> subunelab cnnct
+    Note r a -> Note r <$> unelab a
 
 instance Unelab Mode where
   type UnelabEnv Mode = ()

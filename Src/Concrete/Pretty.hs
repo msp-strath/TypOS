@@ -26,30 +26,30 @@ instance Pretty x => Pretty (Binder x) where
 
 instance Pretty Raw where
   pretty = \case
-    Var v -> pretty v
-    At [] -> "[]"
-    At at -> squote <> pretty at
-    Cons p q -> brackets $ case pretty p : prettyCdr q of
+    Var _ v -> pretty v
+    At _ [] -> "[]"
+    At _ at -> squote <> pretty at
+    Cons _ p q -> brackets $ case pretty p : prettyCdr q of
       (d : ds@(_:_)) -> alts [flush d, d <> space] <> sep ds
       ds -> hsep ds
-    Lam (Scope x t) -> backslash <> pretty x <> dot <+> pretty t
-    Sbst B0 t -> pretty t
-    Sbst sg t -> hsep [ pretty sg, pretty t ]
+    Lam _ (Scope x t) -> backslash <> pretty x <> dot <+> pretty t
+    Sbst _ B0 t -> pretty t
+    Sbst _ sg t -> hsep [ pretty sg, pretty t ]
 
 instance Pretty (Bwd SbstC) where
   pretty sg = braces (hsepBy "," $ pretty <$> sg <>> [])
 
 prettyCdr :: Raw -> [Doc Annotations]
 prettyCdr = \case
-  At [] -> []
-  Cons p q -> pretty p : prettyCdr q
+  At _ [] -> []
+  Cons _ p q -> pretty p : prettyCdr q
   p -> [pipe, pretty p]
 
 instance Pretty SbstC where
   pretty = \case
-    Keep x -> pretty x
-    Drop x -> pretty x <> "*"
-    Assign x t -> pretty x <> equal <> pretty t
+    Keep _ x -> pretty x
+    Drop _ x -> pretty x <> "*"
+    Assign _ x t -> pretty x <> equal <> pretty t
 
 instance Pretty ThDirective where
   pretty = \case
@@ -58,18 +58,18 @@ instance Pretty ThDirective where
 
 instance Pretty RawP where
   prettyPrec d = \case
-    VarP v -> pretty v
-    AtP "" -> "[]"
-    AtP at -> squote <> pretty at
-    ConsP p q -> brackets $ sep (pretty p : prettyCdrP q)
-    LamP (Scope x p) -> backslash <> pretty x <> dot <+> pretty p
-    ThP (thxz, thd) p -> braces (hsep (pretty <$> thxz <>> []) <> pretty thd) <+> pretty p
-    UnderscoreP -> "_"
+    VarP _ v -> pretty v
+    AtP _ "" -> "[]"
+    AtP _ at -> squote <> pretty at
+    ConsP _ p q -> brackets $ sep (pretty p : prettyCdrP q)
+    LamP _ (Scope x p) -> backslash <> pretty x <> dot <+> pretty p
+    ThP _ (thxz, thd) p -> braces (hsep (pretty <$> thxz <>> []) <> pretty thd) <+> pretty p
+    UnderscoreP _ -> "_"
 
 prettyCdrP :: RawP -> [Doc Annotations]
 prettyCdrP = \case
-  AtP [] -> []
-  ConsP p q -> pretty p : prettyCdrP q
+  AtP _ [] -> []
+  ConsP _ p q -> pretty p : prettyCdrP q
   p -> [pipe, pretty p]
 
 instance Pretty ExtractMode where
@@ -91,21 +91,21 @@ prettyact = go B0 B0 where
         Bwd (Doc Annotations) -> -- part of the line on our left
         CActor -> [Doc Annotations]
   go ls l = \case
-    Spawn em jd p a -> go (ls :< fold (l `add` [pretty em, pretty jd, "@", pretty p, dot])) B0 a
-    Send ch t@(Var _) a -> go ls (l `add` [pretty ch, "!", pretty t, dot]) a
-    Send ch t a -> go (ls :< fold (l `add` [pretty ch, "!", pretty t, dot])) B0 a
-    Recv ch (av, a) -> go ls (l `add` [pretty ch, "?", pretty av, dot]) a
-    FreshMeta syn (av, a) -> go (ls :< fold (l `add` [pretty syn, "?", pretty av, dot])) B0 a
-    Under (Scope x a) -> go ls (l `add` [backslash , pretty x, dot]) a
-    Note a -> go ls (l `add` ["!", dot]) a
-    Push jd (x, _, t) a ->
+    Spawn r em jd p a -> go (ls :< fold (l `add` [pretty em, pretty jd, "@", pretty p, dot])) B0 a
+    Send r ch t@(Var _ _) a -> go ls (l `add` [pretty ch, "!", pretty t, dot]) a
+    Send r ch t a -> go (ls :< fold (l `add` [pretty ch, "!", pretty t, dot])) B0 a
+    Recv r ch (av, a) -> go ls (l `add` [pretty ch, "?", pretty av, dot]) a
+    FreshMeta r syn (av, a) -> go (ls :< fold (l `add` [pretty syn, "?", pretty av, dot])) B0 a
+    Under r (Scope x a) -> go ls (l `add` [backslash , pretty x, dot]) a
+    Note r a -> go ls (l `add` ["!", dot]) a
+    Push r jd (x, _, t) a ->
       let push = hsep [pretty jd, braces (hsep [ pretty x, "->", pretty t]), dot] <> dot in
       go (ls :< fold (l `add` [push])) B0 a
-    Print [TermPart Instantiate tm] a -> go (ls :< fold (l `add` [hsep [keyword "PRINT", pretty tm] <> dot])) B0 a
-    Print fmt a -> go (ls :< fold (l `add` [hsep [keyword "PRINTF", pretty fmt] <> dot])) B0 a
-    Break fmt a -> go (ls :< fold (l `add` [hsep [keyword "BREAK", pretty fmt] <> dot])) B0 a
+    Print r [TermPart Instantiate tm] a -> go (ls :< fold (l `add` [hsep [keyword "PRINT", pretty tm] <> dot])) B0 a
+    Print r fmt a -> go (ls :< fold (l `add` [hsep [keyword "PRINTF", pretty fmt] <> dot])) B0 a
+    Break r fmt a -> go (ls :< fold (l `add` [hsep [keyword "BREAK", pretty fmt] <> dot])) B0 a
     -- if we win, avoid generating an empty line
-    Win -> case l of
+    Win r -> case l of
              B0 -> ls <>> []
              _ -> ls <>> [fold l]
     a -> ls <>> [fold (l `add` [prettyPrec 1 a])] -- either a big one or a final one
@@ -113,8 +113,8 @@ prettyact = go B0 B0 where
 instance Pretty CActor where
   prettyPrec d = \case
     -- big ones
-    a :|: b -> parenthesise (d > 0) $ sep [ prettyPrec 1 a, pipe <+> pretty b ]
-    Match tm pts ->
+    Branch r a b -> parenthesise (d > 0) $ sep [ prettyPrec 1 a, pipe <+> pretty b ]
+    Match r tm pts ->
       let match = hsep [ keyword "case", pretty tm ]
           cls   = map pretty pts
       in alts
@@ -124,14 +124,14 @@ instance Pretty CActor where
              ]
       , hsep [ match , braces (sep $ intersperse ";" cls) ]
       ]
-    Lookup tm (av, a) b -> sep
+    Lookup r tm (av, a) b -> sep
       [ hsep [ keyword "lookup", pretty tm, braces (hsep [ pretty av, "->", pretty a ]), keyword "else" ]
       , prettyPrec 1 a ]
-    Connect cnnct -> pretty cnnct
+    Connect r cnnct -> pretty cnnct
     -- final actors
-    Win -> ""
-    Fail fmt -> "#" <> pretty fmt
-    Constrain s t -> hsep [ pretty s, "~", pretty t ]
+    Win r -> ""
+    Fail r fmt -> "#" <> pretty fmt
+    Constrain r s t -> hsep [ pretty s, "~", pretty t ]
     -- right nested small actors
     a -> sep (prettyact a)
 

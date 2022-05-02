@@ -1,0 +1,6 @@
+ret > ExitFailure 1
+out > Error
+out > elab-send-failing.act:2:11-16
+out > Invalid send of [] on channel p
+out > when elaborating the judgement definition for silent
+out >

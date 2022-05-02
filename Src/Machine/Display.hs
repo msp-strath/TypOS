@@ -117,7 +117,7 @@ instance (Show (t Frame), Traversable t, Collapse t, Display0 s) => Display (Pro
     (fs', store', env', a') <- displayProcess' p
     pure $ parens $ usingConfig $ \ cfg ->
       let osep = case orientation cfg of { Vertical -> sep; Horizontal -> hsep } in
-      osep ([collapse fs', store', env'] ++ case actor p of {Win -> []; _ -> [a']})
+      osep ([collapse fs', store', env'] ++ case actor p of {Win{} -> []; _ -> [a']})
 
 displayProcess' :: (Traversable t, Collapse t, Display0 s) =>
   Process s t -> DisplayM DEnv (t (Doc Annotations), Doc Annotations, Doc Annotations, Doc Annotations)
@@ -128,7 +128,7 @@ displayProcess' Process{..} = do
     store' <- subdisplay store
     env' <- subpdisplay env
     a' <- subpdisplay actor
-    pure (fs', store', case actor of Win -> ""; _ -> env', a')
+    pure (fs', store', case actor of Win{} -> ""; _ -> env', a')
 
     where
 
