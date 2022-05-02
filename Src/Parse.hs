@@ -174,7 +174,8 @@ class Lisp t where
   mkCons :: t -> t -> t
   pCar   :: Parser t
 
-plisp :: Lisp t => Parser t
-plisp = mkNil <$ pch (== ']')
-    <|> id <$ pch (== '|') <* pspc <*> pCar <* pspc <* pch (== ']')
-    <|> mkCons <$> pCar <* pspc <*> plisp
+plisp :: (Lisp t, HasRange t) => Parser t
+plisp = withRange $
+  mkNil <$ pch (== ']')
+  <|> id <$ pch (== '|') <* pspc <*> pCar <* pspc <* pch (== ']')
+  <|> mkCons <$> pCar <* pspc <*> plisp

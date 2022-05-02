@@ -8,10 +8,11 @@ import Format
 import Hide
 import Parse
 import Scope
+import Location
 
 instance Lisp Raw where
-  mkNil = At ""
-  mkCons = Cons
+  mkNil = At unknown ""
+  mkCons = Cons unknown
   pCar = ptm
 
 pscoped :: Parser x -> Parser a -> Parser (Scope x a)
@@ -27,12 +28,13 @@ pbinder = Used <$> pvariable
       <|> Unused <$ plit "_"
 
 ptm :: Parser Raw
-ptm = Var <$> pvariable
-  <|> At <$> patom
-  <|> Lam <$> pscoped pbinder ptm
+ptm = withRange $
+  Var unknown <$> pvariable
+  <|> At unknown <$> patom
+  <|> Lam unknown <$> pscoped pbinder ptm
   <|> id <$ pch (== '[') <* pspc <*> pmustwork "Expected a list" plisp
   <|> id <$ pch (== '(') <* pspc <*> ptm <* pspc <* pch (== ')')
-  <|> Sbst <$ pch (== '{') <* pspc <*> ppes (punc ",") psbstC <* punc "}" <*> ptm
+  <|> Sbst unknown <$ pch (== '{') <* pspc <*> ppes (punc ",") psbstC <* punc "}" <*> ptm
 
 psbstC :: Parser SbstC
 psbstC = pvariable >>= \ x ->
@@ -41,18 +43,19 @@ psbstC = pvariable >>= \ x ->
   <|> pure (Keep x)
 
 instance Lisp RawP where
-  mkNil = AtP ""
-  mkCons = ConsP
+  mkNil = AtP unknown ""
+  mkCons = ConsP unknown
   pCar = ppat
 
 ppat :: Parser RawP
-ppat = VarP <$> pvariable
-  <|> AtP <$> patom
+ppat = withRange $
+  VarP unknown <$> pvariable
+  <|> AtP unknown <$> patom
   <|> id <$ pch (== '[') <* pspc <*> pmustwork "Expected a list pattern" plisp
   <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pmustwork "Expected a closing parens" (pch (== ')'))
-  <|> LamP <$> pscoped pbinder ppat
-  <|> ThP <$ pch (== '{') <* pspc <*> pth <* punc "}" <*> ppat
-  <|> UnderscoreP <$ pch (== '_')
+  <|> LamP unknown <$> pscoped pbinder ppat
+  <|> ThP unknown <$ pch (== '{') <* pspc <*> pth <* punc "}" <*> ppat
+  <|> UnderscoreP unknown <$ pch (== '_')
 
 pth :: Parser (Bwd Variable, ThDirective)
 pth = (,) <$> ppes pspc pvariable
@@ -99,7 +102,7 @@ pact = Under <$> pscoped pnom pact
   <|> do tm <- ptm
          punc "?"
          case tm of
-           Var c -> Recv c <$> withVar pbinder "." pact
+           Var _ c -> Recv c <$> withVar pbinder "." pact
            t -> FreshMeta t <$> withVar pvariable "." pact
   <|> Spawn <$> pextractmode <*> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
   <|> Constrain <$> ptm <* punc "~" <*> pmustwork "Expected a term" ptm
@@ -117,9 +120,6 @@ pact = Under <$> pscoped pnom pact
              <* pspc <* pmustwork "Expected an else branch" (plit "else") <* pspc <*> pact
   <|> Note <$ plit "!" <* punc "." <*> pact
   <|> pure Win
-  where
-    questionmark (Var c) = Recv c
-    questionmark t       = FreshMeta t
 
 pargs :: [Format dir dbg ()] -> Parser [Format dir dbg Raw]
 pargs = traverse $ traverse (\ () -> id <$ pspc <*> pmustwork "Expected a term" ptm)

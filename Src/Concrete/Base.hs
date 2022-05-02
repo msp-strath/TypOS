@@ -3,6 +3,7 @@ module Concrete.Base where
 import Bwd
 import Format
 import Scope
+import Location
 
 newtype Variable = Variable { getVariable :: String }
   deriving (Show, Eq)
@@ -18,12 +19,27 @@ mkBinder (Variable "_") = Unused
 mkBinder v = Used v
 
 data Raw
-  = Var Variable
-  | At Atom
-  | Cons Raw Raw
-  | Lam (Scope (Binder Variable) Raw)
-  | Sbst (Bwd SbstC) Raw
+  = Var Range Variable
+  | At Range Atom
+  | Cons Range Raw Raw
+  | Lam Range (Scope (Binder Variable) Raw)
+  | Sbst Range (Bwd SbstC) Raw
   deriving (Show)
+
+instance HasRange Raw where
+  setRange r = \case
+    Var _ v -> Var r v
+    At _ a -> At r a
+    Cons _ p q -> Cons r p q
+    Lam _ sc -> Lam r sc
+    Sbst _ sg t -> Sbst r sg t
+
+  getRange = \case
+    Var r v -> r
+    At r a -> r
+    Cons r p q -> r
+    Lam r sc -> r
+    Sbst r sg t -> r
 
 data SbstC
   = Keep Variable
@@ -32,13 +48,30 @@ data SbstC
   deriving (Show)
 
 data RawP
-  = VarP Variable
-  | AtP Atom
-  | ConsP RawP RawP
-  | LamP (Scope (Binder Variable) RawP)
-  | ThP (Bwd Variable, ThDirective) RawP
-  | UnderscoreP
+  = VarP Range Variable
+  | AtP Range Atom
+  | ConsP Range RawP RawP
+  | LamP Range (Scope (Binder Variable) RawP)
+  | ThP Range (Bwd Variable, ThDirective) RawP
+  | UnderscoreP Range
   deriving (Show)
+
+instance HasRange RawP where
+  setRange r = \case
+    VarP _ v -> VarP r v
+    AtP _ a -> AtP r a
+    ConsP _ p q -> ConsP r p q
+    LamP _ sc -> LamP r sc
+    ThP _ sg t -> ThP r sg t
+    UnderscoreP _ -> UnderscoreP r
+
+  getRange = \case
+    VarP r v -> r
+    AtP r a -> r
+    ConsP r p q -> r
+    LamP r sc -> r
+    ThP r sg t -> r
+    UnderscoreP r -> r
 
 data ThDirective = ThKeep | ThDrop
   deriving (Show)

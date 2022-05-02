@@ -21,6 +21,7 @@ import Pattern
 import Scope
 import Term.Base
 import Thin
+import Location (unknown)
 
 type Naming =
   ( Bwd String  -- what's in the support
@@ -102,11 +103,11 @@ instance UnelabMeta m => Unelab (Tm m) where
   type Unelabed (Tm m) = Raw
   unelab = \case
     V -> ask >>= \case
-           (B0 :< x, _, _) -> pure (Var (Variable x))
+           (B0 :< x, _, _) -> pure (Var unknown (Variable x))
            na              -> throwError (VarOutOfScope na)
-    A a -> pure (At a)
-    P (s :<>: t) -> Cons <$> unelab s <*> unelab t
-    (x := b) :. t -> Lam . uncurry (Scope . Hide) <$> case b of
+    A a -> pure (At unknown a)
+    P (s :<>: t) -> Cons unknown <$> unelab s <*> unelab t
+    (x := b) :. t -> Lam unknown . uncurry (Scope . Hide) <$> case b of
             False -> (Unused,) <$> unelab t
             True -> do
               na <- ask
@@ -114,10 +115,10 @@ instance UnelabMeta m => Unelab (Tm m) where
               local (`nameOn` y) $ (Used (Variable y),) <$> unelab t
     m :$ sg -> do
       sg <- unelab sg
-      m <- Var <$> subunelab m
+      m <- Var unknown <$> subunelab m
       pure $ case sg of
         B0 -> m
-        _ -> Sbst sg m
+        _ -> Sbst unknown sg m
 
 instance UnelabMeta m => Unelab (Sbst m) where
   type UnelabEnv (Sbst m) = Naming
@@ -148,14 +149,14 @@ instance Unelab Pat where
   type UnelabEnv Pat = Naming
   type Unelabed Pat = RawP
   unelab = \case
-    VP n -> VarP <$> unelab n
-    AP str -> pure (AtP str)
-    PP p q -> ConsP <$> unelab p <*> unelab q
+    VP n -> VarP unknown <$> unelab n
+    AP str -> pure (AtP unknown str)
+    PP p q -> ConsP unknown <$> unelab p <*> unelab q
     BP x p -> do
       p <- local (`nameOn` unhide x) (unelab p)
-      pure (LamP (Scope (mkBinder . Variable <$> x) p))
-    MP m th -> {- TODO: insert ThP -} pure (VarP (Variable m))
-    HP -> pure UnderscoreP
+      pure (LamP unknown (Scope (mkBinder . Variable <$> x) p))
+    MP m th -> {- TODO: insert ThP -} pure (VarP unknown (Variable m))
+    HP -> pure (UnderscoreP unknown)
 
 instance Unelab (Pat, AActor) where
   type UnelabEnv (Pat, AActor) = DAEnv

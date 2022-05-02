@@ -27,11 +27,11 @@ data Range = Range
   { source :: FilePath
   , start  :: !(Int, Int)
   , end    :: !(Int, Int)
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord)
 
 class HasRange t where
   setRange :: Range -> t -> t
---  killRange :: t -> t
+  getRange :: t -> Range
 
 fromLocations :: Location -> Location -> Range
 fromLocations s e = Range (file s) (row s, col s) (row e, col e)
@@ -42,3 +42,8 @@ addRange s e = setRange (fromLocations s e)
 unknown :: Range
 unknown = fromLocations invalid invalid where
   invalid = Location "" 0 0
+
+instance Show Range where
+  show r | r == unknown = "Unknown"
+  show (Range fp (sr, sc) (er, ec)) =
+    concat [fp, ":", show sr, ":", show sc, "-", show er, ":", show ec]

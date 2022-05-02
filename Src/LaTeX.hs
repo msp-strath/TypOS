@@ -43,16 +43,16 @@ instance LaTeX Variable where
   toLaTeX _ (Variable str) = pure $ text str
 
 asList :: Raw -> [Raw]
-asList (At "") = []
-asList (Cons p q) = p : asList q
+asList (At _ "") = []
+asList (Cons _ p q) = p : asList q
 asList p = [p]
 
 latexspace :: Doc ()
 latexspace = "\\ "
 
 toLaTeXCdr :: SyntaxDesc -> Raw -> LaTeXM (Doc ())
-toLaTeXCdr _ (At "") = pure $ call False "typosListEnd" []
-toLaTeXCdr d (Cons p q) = do
+toLaTeXCdr _ (At _ "") = pure $ call False "typosListEnd" []
+toLaTeXCdr d (Cons _ p q) = do
   (dp, dq) <- ask >>= \ table -> pure $ case expand table d of
       Just (VCons dp dq) -> (dp, dq)
       Just (VNilOrCons dp dq) -> (dp, dq)
@@ -67,16 +67,16 @@ toLaTeXCdr d p = do
 instance LaTeX Raw where
   type Format Raw = SyntaxDesc
   toLaTeX d = \case
-    Var v -> do
+    Var _ v -> do
       v <- toLaTeX () v
       pure $ call False "mathit" [v]
-    At "" -> pure $ call False "typosNil" []
-    At a -> ask >>= \ table -> pure $ case expand table d of
+    At _ "" -> pure $ call False "typosNil" []
+    At _ a -> ask >>= \ table -> pure $ case expand table d of
       Just VEnumOrTag{} -> call False (text ("enum" ++ a)) [] -- as enum
       _ -> call False "typosAtom" [text a] -- as atom
-    Cons p q -> ask >>= \ table -> case expand table d of
+    Cons _ p q -> ask >>= \ table -> case expand table d of
       Just (VEnumOrTag _ ts) -> do
-        let At a = p
+        let At _ a = p
         let Just ds = lookup a ts
         let qs = asList q
         call False (text ("tag" ++ a)) <$> traverse (uncurry toLaTeX) (zip ds qs) -- as tags
@@ -92,14 +92,14 @@ instance LaTeX Raw where
         p <- toLaTeX (contract VWildcard) p
         q <- toLaTeXCdr (contract VWildcard) q
         pure $ call False "typosListStart" [p, q]
-    Lam (Scope x sc) -> do
+    Lam _ (Scope x sc) -> do
       d <- ask >>= \ table -> pure $ case expand table d of
         Just (VBind s cb) -> cb
         _ -> contract VWildcard
       sc <- toLaTeX d sc
       bd <- toLaTeX () x
       pure $ call False "typosScope" [bd, sc]
-    Sbst bwd raw -> pure ""
+    Sbst _ bwd raw -> pure ""
 
 test =
   putStrLn $

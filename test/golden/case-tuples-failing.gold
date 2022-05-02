@@ -1,5 +1,6 @@
 ret > ExitFailure 1
 out > Error
+out > test/case-tuples-failing.act:7:4-7:8
 out > Pattern 'Nat does not match ['Cons 'Type ['Cons 'Type 'Nil]]
 out > when elaborating a case branch handling the pattern 'Nat
 out > when elaborating the judgement definition for typeEq

@@ -25,6 +25,7 @@ import Utils
 import Term.Base
 import Term.Substitution
 import Pattern as P
+import Location
 
 dual :: Protocol t -> Protocol t
 dual = map $ \case
@@ -151,7 +152,7 @@ data Complaint
   | IncompatibleChannelScopes ObjVars ObjVars
   -- kinding
   | NotAValidTermVariable Variable Kind
-  | NotAValidPatternVariable Variable Kind
+  | NotAValidPatternVariable Range Variable Kind
   | NotAValidJudgement Variable (Maybe Kind)
   | NotAValidChannel Variable (Maybe Kind)
   | NotAValidBoundVar Variable
@@ -178,16 +179,18 @@ data Complaint
   | InvalidSyntaxDesc SyntaxDesc
   | IncompatibleSyntaxInfos (Info SyntaxDesc) (Info SyntaxDesc)
   | IncompatibleSyntaxDescs SyntaxDesc SyntaxDesc
-  | ExpectedNilGot String
-  | ExpectedEnumGot [String] String
-  | ExpectedTagGot [String] String
-  | ExpectedANilGot Raw
-  | ExpectedANilPGot RawP
-  | ExpectedAConsGot Raw
-  | ExpectedAConsPGot RawP
-  | SyntaxError SyntaxDesc Raw
-  | SyntaxPError SyntaxDesc RawP
+  | ExpectedNilGot Range String
+  | ExpectedEnumGot Range [String] String
+  | ExpectedTagGot Range [String] String
+  | ExpectedANilGot Range Raw
+  | ExpectedANilPGot Range RawP
+  | ExpectedAConsGot Range Raw
+  | ExpectedAConsPGot Range RawP
+  | SyntaxError Range SyntaxDesc Raw
+  | SyntaxPError Range SyntaxDesc RawP
   -- contextual info
+  -- shouldn't contain ranges because there should be a more precise one
+  -- on the decorated complaint
   | SendTermElaboration Channel Raw Complaint
   | MatchTermElaboration Raw Complaint
   | MatchElaboration Raw Complaint
@@ -351,19 +354,19 @@ sth (xz, b) = do
     ThDrop -> comp th
 
 stms :: [SyntaxDesc] -> Raw -> Elab ACTm
-stms [] (At "") = atom "" <$> asks (length . objVars)
-stms [] (At a) = throwError (ExpectedNilGot a)
-stms [] t = throwError (ExpectedANilGot t)
-stms (d:ds) (Cons p q) = (%) <$> stm d p <*> stms ds q
-stms _ t = throwError (ExpectedAConsGot t)
+stms [] (At r "") = atom "" <$> asks (length . objVars)
+stms [] (At r a) = throwError (ExpectedNilGot r a)
+stms [] t = throwError (ExpectedANilGot (getRange t) t)
+stms (d:ds) (Cons r p q) = (%) <$> stm d p <*> stms ds q
+stms _ t = throwError (ExpectedAConsGot (getRange t) t)
 
 stm :: SyntaxDesc -> Raw -> Elab ACTm
-stm desc (Var v) = during (TermVariableElaboration v) $ do
+stm desc (Var r v) = during (TermVariableElaboration v) $ do
   table <- gets syntaxCats
   (desc', t) <- svar v
   compatibleInfos (Known desc) desc'
   pure t
-stm desc (Sbst sg t) = do
+stm desc (Sbst r sg t) = do
     (sg, ovs) <- during (SubstitutionElaboration sg) $ ssbst sg
     t <- local (setObjVars ovs) (stm desc t)
     pure (t //^ sg)
@@ -372,30 +375,30 @@ stm desc rt = do
   case Syntax.expand table desc of
     Nothing -> throwError (InvalidSyntaxDesc desc)
     Just vdesc -> case rt of
-      At a -> do
+      At r a -> do
         case vdesc of
           VAtom -> pure ()
-          VNil -> unless (a == "") $ throwError (ExpectedNilGot a)
-          VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot a)
-          VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot es a)
+          VNil -> unless (a == "") $ throwError (ExpectedNilGot r a)
+          VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot r a)
+          VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
           VWildcard -> pure ()
-          _ -> throwError (SyntaxError desc rt)
+          _ -> throwError (SyntaxError r desc rt)
         atom a <$> asks (length . objVars)
-      Cons p q -> case vdesc of
+      Cons r p q -> case vdesc of
         VNilOrCons d1 d2 -> (%) <$> stm d1 p <*> stm d2 q
         VCons d1 d2 -> (%) <$> stm d1 p <*> stm d2 q
         VWildcard -> (%) <$> stm desc p <*> stm desc q
         VEnumOrTag _ ds -> case p of
-          At a -> case lookup a ds of
-            Nothing -> throwError (ExpectedTagGot (fst <$> ds) a)
+          At r a -> case lookup a ds of
+            Nothing -> throwError (ExpectedTagGot r (fst <$> ds) a)
             Just descs -> (%) <$> stm (atom "Atom" 0) p <*> stms descs q
-          _ -> throwError (SyntaxError desc rt)
-        _ -> throwError (SyntaxError desc rt)
-      Lam (Scope (Hide x) sc) -> do
+          _ -> throwError (SyntaxError r desc rt)
+        _ -> throwError (SyntaxError r desc rt)
+      Lam r (Scope (Hide x) sc) -> do
         (s, desc) <- case vdesc of
           VWildcard -> pure (Unknown, desc)
           VBind cat desc -> pure (Known (catToDesc cat), desc)
-          _ -> throwError (SyntaxError desc rt)
+          _ -> throwError (SyntaxError r desc rt)
         case x of
           Used x -> do
             x <- isFresh x
@@ -406,23 +409,23 @@ stm desc rt = do
             pure ((Hide "_" := False :.) $^ sc)
 
 spats :: [SyntaxDesc] -> RawP -> Elab (Pat, Decls, Hints)
-spats [] (AtP "") = (AP "",,) <$> asks declarations <*> asks binderHints
-spats [] (AtP a) = throwError (ExpectedNilGot a)
-spats [] t = throwError (ExpectedANilPGot t)
-spats (d:ds) (ConsP p q) = do
+spats [] (AtP r "") = (AP "",,) <$> asks declarations <*> asks binderHints
+spats [] (AtP r a) = throwError (ExpectedNilGot r a)
+spats [] t = throwError (ExpectedANilPGot (getRange t) t)
+spats (d:ds) (ConsP r p q) = do
   (p, decls, hints) <- spat d p
   (q, decls, hints) <- local (setDecls decls . setHints hints) $ spats ds q
   pure (PP p q, decls, hints)
-spats _ t = throwError (ExpectedAConsPGot t)
+spats _ t = throwError (ExpectedAConsPGot (getRange t) t)
 
 spat :: SyntaxDesc -> RawP -> Elab (Pat, Decls, Hints)
-spat desc (VarP v) = during (PatternVariableElaboration v) $ do
+spat desc (VarP r v) = during (PatternVariableElaboration v) $ do
   table <- gets syntaxCats
   ds <- asks declarations
   hs <- asks binderHints
   res <- resolve v
   case res of
-    Just (Left k)  -> throwError (NotAValidPatternVariable v k)
+    Just (Left k)  -> throwError (NotAValidPatternVariable r v k)
     Just (Right (desc', i)) -> do
       compatibleInfos (Known desc) desc'
       pure (VP i, ds, hs)
@@ -430,27 +433,27 @@ spat desc (VarP v) = during (PatternVariableElaboration v) $ do
       ovs <- asks objVars
       v <- pure (getVariable v)
       pure (MP v (ones (length ovs)), ds :< (v, ActVar (Known desc) ovs), hs)
-spat desc (ThP th p) = do
+spat desc (ThP r th p) = do
   th <- sth th
   (p, ds, hs) <- local (th ^?) $ spat desc p
   pure (p *^ th, ds, hs)
-spat desc UnderscoreP = (HP,,) <$> asks declarations <*> asks binderHints
+spat desc (UnderscoreP r) = (HP,,) <$> asks declarations <*> asks binderHints
 spat desc rp = do
   table <- gets syntaxCats
   case Syntax.expand table desc of
     Nothing -> throwError (InvalidSyntaxDesc desc)
     Just vdesc -> case rp of
-      AtP a -> do
+      AtP r a -> do
         case vdesc of
           VAtom -> pure ()
-          VNil -> unless (a == "") $ throwError (ExpectedNilGot a)
-          VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot a)
-          VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot es a)
+          VNil -> unless (a == "") $ throwError (ExpectedNilGot r a)
+          VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot r a)
+          VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
           VWildcard -> pure ()
-          _ -> throwError (SyntaxPError desc rp)
+          _ -> throwError (SyntaxPError r desc rp)
         (AP a,,) <$> asks declarations <*> asks binderHints
 
-      ConsP p q -> case vdesc of
+      ConsP r p q -> case vdesc of
         VNilOrCons d1 d2 -> do
           (p, ds, hs) <- spat d1 p
           (q, ds, hs) <- local (setDecls ds . setHints hs) (spat d2 q)
@@ -464,20 +467,20 @@ spat desc rp = do
           (q, ds, hs) <- local (setDecls ds . setHints hs) (spat desc q)
           pure (PP p q, ds, hs)
         VEnumOrTag _ ds -> case p of
-          AtP a -> case lookup a ds of
-            Nothing -> throwError (ExpectedTagGot (fst <$> ds) a)
+          AtP r a -> case lookup a ds of
+            Nothing -> throwError (ExpectedTagGot r (fst <$> ds) a)
             Just descs ->  do
               (p, ds, hs) <- spat (atom "Atom" 0) p
               (q, ds, hs) <- local (setDecls ds . setHints hs) (spats descs q)
               pure (PP p q, ds, hs)
-          _ -> throwError (SyntaxPError desc rp)
-        _ -> throwError (SyntaxPError desc rp)
+          _ -> throwError (SyntaxPError r desc rp)
+        _ -> throwError (SyntaxPError r desc rp)
 
-      LamP (Scope v@(Hide x) p) -> do
+      LamP r (Scope v@(Hide x) p) -> do
         (s, desc) <- case vdesc of
           VWildcard -> pure (Unknown, desc)
           VBind cat desc -> pure (Known (catToDesc cat), desc)
-          _ -> throwError (SyntaxPError desc rp)
+          _ -> throwError (SyntaxPError r desc rp)
 
         case x of
           Unused -> do
@@ -548,17 +551,17 @@ withChannel ch@(Channel rch) p ma = do
 
 guessDesc :: Bool -> -- is this in tail position?
              Raw -> Elab (Info SyntaxDesc)
-guessDesc b (Var v) = resolve v >>= \case
+guessDesc b (Var _ v) = resolve v >>= \case
   Just (Right (info, i)) -> pure info
   Just (Left (ActVar info _)) -> pure info
   _ -> pure Unknown
-guessDesc b (Cons p q) = do
+guessDesc b (Cons _ p q) = do
   dp <- guessDesc False p
   dq <- guessDesc True q
   case (dp, dq) of
     (Known d1, Known d2) -> pure (Known $ Syntax.contract (VCons d1 d2))
     _ -> pure Unknown
-guessDesc True (At "") = pure (Known $ Syntax.contract VNil)
+guessDesc True (At _ "") = pure (Known $ Syntax.contract VNil)
 guessDesc _ _ = pure Unknown
 
 compatibleChannels :: AProtocol -> Ordering -> AProtocol -> Elab Int
@@ -680,7 +683,7 @@ sact = \case
 
     p <- resolve p >>= \case
       Just (Right (cat, i)) -> i <$ compatibleInfos cat (Known $ keyDesc stk)
-      Just (Left k) -> throwError $ NotAValidPatternVariable p k
+      Just (Left k) -> throwError $ NotAValidPatternVariable unknown p k -- TODO: when pushes get ranges
       _ -> throwError $ OutOfScope p
     t <- during (PushTermElaboration t) $ stm (valueDesc stk) t
     a <- sact a
