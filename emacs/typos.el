@@ -1,3 +1,6 @@
+
+(require 'compile)
+
 ;; based on: http://ergoemacs.org/emacs/elisp_syntax_coloring.html
 
 ;; define several class of keywords
@@ -43,7 +46,7 @@
 
 ;; define the mode
 (define-derived-mode typos-mode fundamental-mode
-  "TYPOS mode"
+  "TypOS mode"
   ;; handling comments
   :syntax-table typos-syntax-table
   ;; code for syntax highlighting
@@ -53,5 +56,58 @@
   (setq typos-keywords-regexp nil)
   (setq typos-operators-regexp nil)
 )
+
+;; Customisation options
+
+(defgroup typos nil
+  "An operating system for typechecking processes."
+  :group 'languages)
+
+(defcustom typos-command "typos"
+  "The path to the typOS command to run."
+  :type 'string
+  :group 'typos)
+
+(defcustom typos-options nil
+  "Command line options to pass to typOS."
+  :type 'string
+  :group 'typos)
+
+;; Compilation mode for running typOS
+;; (based on https://spin.atomicobject.com/2016/05/27/write-emacs-package/ )
+
+(defun typos-compilation-filter ()
+  "Filter function for compilation output."
+  (ansi-color-apply-on-region compilation-filter-start (point-max)))
+
+(define-compilation-mode typos-compilation-mode "TypOS"
+  "TypOS compilation mode."
+  (progn
+    (set (make-local-variable 'compilation-error-regexp-alist)
+         '(("\\(^[^[:space:]]*\\):\\([0-9]+\\):\\([0-9]+\\)-\\(\\([0-9]+\\):\\)?\\([0-9]+\\)$"
+            1 (2 . 5) (3 . 6))))
+    (add-hook 'compilation-filter-hook 'typos-compilation-filter nil t)
+  ))
+
+(defun typos-run-on-file (typos-file options)
+  "Run typOS in a compilation buffer on TYPOS-FILE."
+  (save-some-buffers (not compilation-ask-about-save)
+                     (when (boundp 'compilation-save-buffers-predicate)
+                       compilation-save-buffers-predicate))
+
+  (when (get-buffer "*typos output*")
+    (kill-buffer "*typos output*"))
+  (let ((typos-command-to-run (concat typos-command " " options " " typos-file)))
+    (with-current-buffer (get-buffer-create "*typos output*")
+      (compilation-start typos-command-to-run 'typos-compilation-mode (lambda (m) (buffer-name))))))
+
+;;;###autoload
+(defun typos-run (override-options)
+  "Run typOS on the current file."
+  (interactive "P")
+  (let ((opts (if override-options (read-string "Options:") typos-options)))
+    (typos-run-on-file (buffer-file-name) opts)))
+
+(define-key typos-mode-map (kbd "C-c C-l") 'typos-run)
 
 (provide 'typos-mode)
