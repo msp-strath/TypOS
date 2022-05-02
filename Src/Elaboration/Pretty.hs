@@ -17,7 +17,8 @@ import Syntax
 import Unelaboration (unsafeEvalUnelab, unelab, initNaming)
 
 instance Pretty Range where
-  pretty = flush . pretty . show
+  pretty r | r == unknown = ""
+  pretty r = flush (pretty $ show r)
 
 instance Pretty Channel where
   pretty (Channel ch) = pretty ch

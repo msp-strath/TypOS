@@ -1,5 +1,7 @@
 module Location where
+
 import Data.List (foldl')
+import System.FilePath
 
 data Location = Location
   { file :: FilePath
@@ -8,7 +10,7 @@ data Location = Location
   } deriving (Eq, Ord)
 
 instance Show Location where
-  show (Location fp row col) = concat [fp, ":", show row, ":", show col]
+  show (Location fp row col) = concat [takeFileName fp, ":", show row, ":", show col]
 
 initLocation :: FilePath -> Location
 initLocation fp = Location fp 1 0
@@ -46,4 +48,6 @@ unknown = fromLocations invalid invalid where
 instance Show Range where
   show r | r == unknown = "Unknown"
   show (Range fp (sr, sc) (er, ec)) =
-    concat [fp, ":", show sr, ":", show sc, "-", show er, ":", show ec]
+    if sr == er
+    then concat [takeFileName fp, ":", show sr, ":", show sc, "-", show ec]
+    else concat [takeFileName fp, ":", show sr, ":", show sc, "-", show er, ":", show ec]
