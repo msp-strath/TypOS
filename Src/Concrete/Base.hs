@@ -106,8 +106,6 @@ data ExtractMode
   | InterestingExtract
   deriving (Show, Eq)
 
-data Phase = Concrete | Abstract
-
 data Actor jd ch bd av syn var tm pat cnnct stk
  = Branch Range (Actor jd ch bd av syn var tm pat cnnct stk) (Actor jd ch bd av syn var tm pat cnnct stk)
  | Spawn Range ExtractMode jd ch (Actor jd ch bd av syn var tm pat cnnct stk)
