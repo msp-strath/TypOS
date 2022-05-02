@@ -35,6 +35,7 @@
 
 * [ ] More structured type of names
 * [ ] Make sure LaTeX output is valid LaTeX
+* [ ] `data Actor (ph :: Phase)`?
 
 ### Pretty
 

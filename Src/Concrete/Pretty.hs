@@ -91,21 +91,21 @@ prettyact = go B0 B0 where
         Bwd (Doc Annotations) -> -- part of the line on our left
         CActor -> [Doc Annotations]
   go ls l = \case
-    Spawn em jd p a -> go (ls :< fold (l `add` [pretty em, pretty jd, "@", pretty p, dot])) B0 a
-    Send ch t@(Var _ _) a -> go ls (l `add` [pretty ch, "!", pretty t, dot]) a
-    Send ch t a -> go (ls :< fold (l `add` [pretty ch, "!", pretty t, dot])) B0 a
-    Recv ch (av, a) -> go ls (l `add` [pretty ch, "?", pretty av, dot]) a
-    FreshMeta syn (av, a) -> go (ls :< fold (l `add` [pretty syn, "?", pretty av, dot])) B0 a
-    Under (Scope x a) -> go ls (l `add` [backslash , pretty x, dot]) a
-    Note a -> go ls (l `add` ["!", dot]) a
-    Push jd (x, _, t) a ->
+    Spawn r em jd p a -> go (ls :< fold (l `add` [pretty em, pretty jd, "@", pretty p, dot])) B0 a
+    Send r ch t@(Var _ _) a -> go ls (l `add` [pretty ch, "!", pretty t, dot]) a
+    Send r ch t a -> go (ls :< fold (l `add` [pretty ch, "!", pretty t, dot])) B0 a
+    Recv r ch (av, a) -> go ls (l `add` [pretty ch, "?", pretty av, dot]) a
+    FreshMeta r syn (av, a) -> go (ls :< fold (l `add` [pretty syn, "?", pretty av, dot])) B0 a
+    Under r (Scope x a) -> go ls (l `add` [backslash , pretty x, dot]) a
+    Note r a -> go ls (l `add` ["!", dot]) a
+    Push r jd (x, _, t) a ->
       let push = hsep [pretty jd, braces (hsep [ pretty x, "->", pretty t]), dot] <> dot in
       go (ls :< fold (l `add` [push])) B0 a
-    Print [TermPart Instantiate tm] a -> go (ls :< fold (l `add` [hsep [keyword "PRINT", pretty tm] <> dot])) B0 a
-    Print fmt a -> go (ls :< fold (l `add` [hsep [keyword "PRINTF", pretty fmt] <> dot])) B0 a
-    Break fmt a -> go (ls :< fold (l `add` [hsep [keyword "BREAK", pretty fmt] <> dot])) B0 a
+    Print r [TermPart Instantiate tm] a -> go (ls :< fold (l `add` [hsep [keyword "PRINT", pretty tm] <> dot])) B0 a
+    Print r fmt a -> go (ls :< fold (l `add` [hsep [keyword "PRINTF", pretty fmt] <> dot])) B0 a
+    Break r fmt a -> go (ls :< fold (l `add` [hsep [keyword "BREAK", pretty fmt] <> dot])) B0 a
     -- if we win, avoid generating an empty line
-    Win -> case l of
+    Win r -> case l of
              B0 -> ls <>> []
              _ -> ls <>> [fold l]
     a -> ls <>> [fold (l `add` [prettyPrec 1 a])] -- either a big one or a final one
@@ -113,8 +113,8 @@ prettyact = go B0 B0 where
 instance Pretty CActor where
   prettyPrec d = \case
     -- big ones
-    a :|: b -> parenthesise (d > 0) $ sep [ prettyPrec 1 a, pipe <+> pretty b ]
-    Match tm pts ->
+    Branch r a b -> parenthesise (d > 0) $ sep [ prettyPrec 1 a, pipe <+> pretty b ]
+    Match r tm pts ->
       let match = hsep [ keyword "case", pretty tm ]
           cls   = map pretty pts
       in alts
@@ -124,14 +124,14 @@ instance Pretty CActor where
              ]
       , hsep [ match , braces (sep $ intersperse ";" cls) ]
       ]
-    Lookup tm (av, a) b -> sep
+    Lookup r tm (av, a) b -> sep
       [ hsep [ keyword "lookup", pretty tm, braces (hsep [ pretty av, "->", pretty a ]), keyword "else" ]
       , prettyPrec 1 a ]
-    Connect cnnct -> pretty cnnct
+    Connect r cnnct -> pretty cnnct
     -- final actors
-    Win -> ""
-    Fail fmt -> "#" <> pretty fmt
-    Constrain s t -> hsep [ pretty s, "~", pretty t ]
+    Win r -> ""
+    Fail r fmt -> "#" <> pretty fmt
+    Constrain r s t -> hsep [ pretty s, "~", pretty t ]
     -- right nested small actors
     a -> sep (prettyact a)
 

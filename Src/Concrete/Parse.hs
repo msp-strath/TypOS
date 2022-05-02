@@ -81,10 +81,10 @@ pjudgementstack = JudgementStack
   <* pmustwork "Expected \"|-\"" (punc "|-")
 
 pACT :: Parser CActor
-pACT = pact >>= more where
+pACT = withRange (pact >>= more) where
 
   more :: CActor -> Parser CActor
-  more act = (act :|:) <$ punc "|" <*> pmustwork "Expected an actor" pACT
+  more act = Branch unknown act <$ punc "|" <*> pmustwork "Expected an actor" pACT
     <|> pure act
 
 withVar :: Parser x -> String -> Parser a -> Parser (x, a)
@@ -97,29 +97,30 @@ pextractmode
   <|> pure AlwaysExtract
 
 pact :: Parser CActor
-pact = Under <$> pscoped pnom pact
-  <|> Send <$> pvariable <* punc "!" <*> pmustwork "Expected a term" ptm <* punc "." <*> pact
+pact = withRange $
+  Under unknown <$> pscoped pnom pact
+  <|> Send unknown <$> pvariable <* punc "!" <*> pmustwork "Expected a term" ptm <* punc "." <*> pact
   <|> do tm <- ptm
          punc "?"
          case tm of
-           Var _ c -> Recv c <$> withVar pbinder "." pact
-           t -> FreshMeta t <$> withVar pvariable "." pact
-  <|> Spawn <$> pextractmode <*> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
-  <|> Constrain <$> ptm <* punc "~" <*> pmustwork "Expected a term" ptm
-  <|> Connect <$> (CConnect <$> pvariable <* punc "<->" <*> pvariable)
-  <|> Match <$ plit "case" <* pspc <*> ptm <* punc "{"
+           Var _ c -> Recv unknown c <$> withVar pbinder "." pact
+           t -> FreshMeta unknown t <$> withVar pvariable "." pact
+  <|> Spawn unknown <$> pextractmode <*> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
+  <|> Constrain unknown <$> ptm <* punc "~" <*> pmustwork "Expected a term" ptm
+  <|> Connect unknown <$> (CConnect <$> pvariable <* punc "<->" <*> pvariable)
+  <|> Match unknown <$ plit "case" <* pspc <*> ptm <* punc "{"
        <*> psep (punc ";") ((,) <$> ppat <* punc "->" <*> pACT)
        <* pspc <* pch (== '}')
   <|> id <$ pch (== '(') <* pspc <*> pACT <* pspc <* pch (== ')')
-  <|> Break <$ plit "BREAK" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
-  <|> Print <$ plit "PRINT" <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
-  <|> Print <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
-  <|> Fail <$ pch (== '#') <* pspc <*> (pformat >>= pargs)
-  <|> Push <$> pvariable <*> pcurlies ((\ (a, b) -> (a, (), b)) <$> withVar pvariable "->" ptm) <* punc "." <*> pact
-  <|> Lookup <$ plit "lookup" <* pspc <*> ptm <* pspc <*> pcurlies (withVar pbinder "->" pACT)
+  <|> Break unknown <$ plit "BREAK" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
+  <|> Print unknown <$ plit "PRINT" <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
+  <|> Print unknown <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
+  <|> Fail unknown <$ pch (== '#') <* pspc <*> (pformat >>= pargs)
+  <|> Push unknown <$> pvariable <*> pcurlies ((\ (a, b) -> (a, (), b)) <$> withVar pvariable "->" ptm) <* punc "." <*> pact
+  <|> Lookup unknown <$ plit "lookup" <* pspc <*> ptm <* pspc <*> pcurlies (withVar pbinder "->" pACT)
              <* pspc <* pmustwork "Expected an else branch" (plit "else") <* pspc <*> pact
-  <|> Note <$ plit "!" <* punc "." <*> pact
-  <|> pure Win
+  <|> Note unknown <$ plit "!" <* punc "." <*> pact
+  <|> pure (Win unknown)
 
 pargs :: [Format dir dbg ()] -> Parser [Format dir dbg Raw]
 pargs = traverse $ traverse (\ () -> id <$ pspc <*> pmustwork "Expected a term" ptm)

@@ -249,25 +249,25 @@ instance Unelab AActor where
   type UnelabEnv AActor = DAEnv
   type Unelabed AActor = CActor
   unelab = \case
-    a :|: b -> (:|:) <$> unelab a <*> unelab b
-    Spawn em jd ch a -> Spawn em
+    Branch r a b -> Branch r <$> unelab a <*> unelab b
+    Spawn r em jd ch a -> Spawn r em
         <$> subunelab jd
         <*> subunelab ch
         <*> local (declareChannel ch) (unelab a)
-    Send ch tm a -> Send <$> subunelab ch <*> inChannel ch (subunelab tm) <*> unelab a
-    Recv ch (av, a) -> Recv <$> subunelab ch <*> ((,) <$> traverse subunelab av <*> unelab a)
-    FreshMeta desc (av, a) -> FreshMeta <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
-    Under (Scope x a) -> Under . Scope x <$> local (updateNaming (`nameOn` unhide x)) (unelab a)
-    Push jd (p, _, t) a -> Push <$> subunelab jd <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
-    Lookup t (av, a) b -> Lookup <$> subunelab t <*> ((,) <$> traverse subunelab av <*> unelab a) <*> unelab b
-    Match tm pts -> Match <$> subunelab tm <*> traverse unelab pts
-    Constrain s t -> Constrain <$> subunelab s <*> subunelab t
-    Win -> pure Win
-    Fail fmt -> Fail <$> traverse subunelab fmt
-    Print fmt a -> Print <$> traverse subunelab fmt <*> unelab a
-    Break fmt a -> Break <$> traverse subunelab fmt <*> unelab a
-    Connect cnnct -> Connect <$> subunelab cnnct
-    Note a -> Note <$> unelab a
+    Send r ch tm a -> Send r <$> subunelab ch <*> inChannel ch (subunelab tm) <*> unelab a
+    Recv r ch (av, a) -> Recv r <$> subunelab ch <*> ((,) <$> traverse subunelab av <*> unelab a)
+    FreshMeta r desc (av, a) -> FreshMeta r <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
+    Under r (Scope x a) -> Under r. Scope x <$> local (updateNaming (`nameOn` unhide x)) (unelab a)
+    Push r jd (p, _, t) a -> Push r <$> subunelab jd <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
+    Lookup r t (av, a) b -> Lookup r <$> subunelab t <*> ((,) <$> traverse subunelab av <*> unelab a) <*> unelab b
+    Match r tm pts -> Match r <$> subunelab tm <*> traverse unelab pts
+    Constrain r s t -> Constrain r <$> subunelab s <*> subunelab t
+    Win r -> pure (Win r)
+    Fail r fmt -> Fail r <$> traverse subunelab fmt
+    Print r fmt a -> Print r <$> traverse subunelab fmt <*> unelab a
+    Break r fmt a -> Break r <$> traverse subunelab fmt <*> unelab a
+    Connect r cnnct -> Connect r <$> subunelab cnnct
+    Note r a -> Note r <$> unelab a
 
 instance Unelab Mode where
   type UnelabEnv Mode = ()

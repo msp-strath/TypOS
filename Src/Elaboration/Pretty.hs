@@ -80,8 +80,8 @@ instance Pretty Complaint where
      NotAValidBoundVar x -> singleton $
        hsep ["Invalid bound variable", pretty x]
      -- protocol
-     InvalidSend ch tm -> singleton $ hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
-     InvalidRecv ch v -> singleton $ hsep ["Invalid receive of", pretty v, "on channel", pretty ch]
+     InvalidSend r ch tm -> singleton $ pretty r <> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
+     InvalidRecv r ch v -> singleton $ pretty r <> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]
      NonLinearChannelUse ch -> singleton $ hsep ["Non linear use of channel", pretty ch]
      UnfinishedProtocol ch p -> singleton $
        hsep ["Unfinished protocol", parens (pretty p), "on channel", pretty ch]
@@ -89,10 +89,10 @@ instance Pretty Complaint where
      DoomedBranchCommunicated a -> singleton $ hsep ["Doomed branch communicated", pretty a]
      ProtocolsNotDual ps qs -> singleton $ hsep ["Protocols", pretty ps, "and", pretty qs, "are not dual"]
      IncompatibleModes m1 m2 -> singleton $ hsep ["Modes", pretty m1, "and", pretty m2, "are incompatible"]
-     IncompatibleChannelScopes sc1 sc2 -> singleton $ hsep ["Channels scopes", collapse (pretty <$> sc1), "and", collapse (pretty <$> sc2), "are incompatible"]
+     IncompatibleChannelScopes r sc1 sc2 -> singleton $ pretty r <> hsep ["Channels scopes", collapse (pretty <$> sc1), "and", collapse (pretty <$> sc2), "are incompatible"]
       -- judgement stacks
-     PushingOnAStacklessJudgement jd -> singleton $ hsep ["Pushing on a stackless judgement", pretty jd]
-     LookupFromAStacklessActor jd -> singleton $ hsep ["Lookup from a stackless judgement", pretty jd]
+     PushingOnAStacklessJudgement r jd -> singleton $ pretty r <> hsep ["Pushing on a stackless judgement", pretty jd]
+     LookupFromAStacklessActor r jd -> singleton $ pretty r <> hsep ["Lookup from a stackless judgement", pretty jd]
      -- syntaxes
      NotAValidSyntaxCat x -> singleton $ hsep ["Invalid syntactic category", pretty x]
      AlreadyDeclaredSyntaxCat x -> singleton $ hsep ["The syntactic category", pretty x, "is already defined"]

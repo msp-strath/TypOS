@@ -106,28 +106,67 @@ data ExtractMode
   | InterestingExtract
   deriving (Show, Eq)
 
+data Phase = Concrete | Abstract
+
 data Actor jd ch bd av syn var tm pat cnnct stk
- = Actor jd ch bd av syn var tm pat cnnct stk :|: Actor jd ch bd av syn var tm pat cnnct stk
- | Spawn ExtractMode jd ch (Actor jd ch bd av syn var tm pat cnnct stk)
- | Send ch tm (Actor jd ch bd av syn var tm pat cnnct stk)
- | Recv ch (bd, Actor jd ch bd av syn var tm pat cnnct stk)
- | Connect cnnct
- | Note (Actor jd ch bd av syn var tm pat cnnct stk)
- | FreshMeta syn (av, Actor jd ch bd av syn var tm pat cnnct stk)
- | Under (Scope String (Actor jd ch bd av syn var tm pat cnnct stk))
- | Match tm [(pat, Actor jd ch bd av syn var tm pat cnnct stk)]
+ = Branch Range (Actor jd ch bd av syn var tm pat cnnct stk) (Actor jd ch bd av syn var tm pat cnnct stk)
+ | Spawn Range ExtractMode jd ch (Actor jd ch bd av syn var tm pat cnnct stk)
+ | Send Range ch tm (Actor jd ch bd av syn var tm pat cnnct stk)
+ | Recv Range ch (bd, Actor jd ch bd av syn var tm pat cnnct stk)
+ | Connect Range cnnct
+ | Note Range (Actor jd ch bd av syn var tm pat cnnct stk)
+ | FreshMeta Range syn (av, Actor jd ch bd av syn var tm pat cnnct stk)
+ | Under Range (Scope String (Actor jd ch bd av syn var tm pat cnnct stk))
+ | Match Range tm [(pat, Actor jd ch bd av syn var tm pat cnnct stk)]
  -- This is going to bite us when it comes to dependent types
- | Constrain tm tm
- | Push jd (var, stk, tm) (Actor jd ch bd av syn var tm pat cnnct stk)
- | Lookup tm (bd, Actor jd ch bd av syn var tm pat cnnct stk) (Actor jd ch bd av syn var tm pat cnnct stk)
- | Win
- | Fail  [Format Directive Debug tm]
- | Print [Format Directive Debug tm] (Actor jd ch bd av syn var tm pat cnnct stk)
- | Break [Format Directive Debug tm] (Actor jd ch bd av syn var tm pat cnnct stk)
+ | Constrain Range tm tm
+ | Push Range jd (var, stk, tm) (Actor jd ch bd av syn var tm pat cnnct stk)
+ | Lookup Range tm (bd, Actor jd ch bd av syn var tm pat cnnct stk) (Actor jd ch bd av syn var tm pat cnnct stk)
+ | Win Range
+ | Fail  Range [Format Directive Debug tm]
+ | Print Range [Format Directive Debug tm] (Actor jd ch bd av syn var tm pat cnnct stk)
+ | Break Range [Format Directive Debug tm] (Actor jd ch bd av syn var tm pat cnnct stk)
  deriving (Show)
 
+instance HasRange (Actor jd ch bd av syn var tm pat cnnct stk) where
+  setRange r = \case
+    Branch _ a b -> Branch r a b
+    Spawn _ em jd ch ac -> Spawn r em jd ch ac
+    Send _ ch tm ac -> Send r ch tm ac
+    Recv _ ch x0 -> Recv r ch x0
+    Connect _ cnnct -> Connect r cnnct
+    Note _ ac -> Note r ac
+    FreshMeta _ syn x0 -> FreshMeta r syn x0
+    Under _ sc -> Under r sc
+    Match _ tm x0 -> Match r tm x0
+    Constrain _ tm tm' -> Constrain r tm tm'
+    Push _ jd x0 ac -> Push r jd x0 ac
+    Lookup _ tm x0 ac -> Lookup r tm x0 ac
+    Win _ -> Win r
+    Fail _ fors -> Fail r fors
+    Print _ fors ac -> Print r fors ac
+    Break _ fors ac -> Break r fors ac
+
+  getRange = \case
+    Branch r a b -> r
+    Spawn r em jd ch ac -> r
+    Send r ch tm ac -> r
+    Recv r ch x0 -> r
+    Connect r cnnct -> r
+    Note r ac -> r
+    FreshMeta r syn x0 -> r
+    Under r sc -> r
+    Match r tm x0 -> r
+    Constrain r tm tm' -> r
+    Push r jd x0 ac -> r
+    Lookup r tm x0 ac -> r
+    Win r -> r
+    Fail r fors -> r
+    Print r fors ac -> r
+    Break r fors ac -> r
+
 isWin :: Actor jd ch bd av syn var tm pat cnnct stk -> Bool
-isWin Win = True
+isWin (Win _) = True
 isWin _ = False
 
 type CProtocol = Protocol Raw
