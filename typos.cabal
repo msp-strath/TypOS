@@ -44,6 +44,7 @@ library
                        Format,
                        Hide,
                        LaTeX,
+                       Location,
                        Machine,
                        Machine.Base,
                        Machine.Display,

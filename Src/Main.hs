@@ -23,13 +23,14 @@ import Command
 import Machine.Trace (diagnostic, ldiagnostic)
 import Utils
 import Display (unsafeEvalDisplay)
+import Location
 
 main :: IO ()
 main = do
   opts <- getOptions
   let cfg = Config (termWidth opts) Vertical
   txt <- readFile (filename opts)
-  let ccs = parse pfile txt
+  let ccs = parse pfile (Source txt $ initLocation (filename opts))
   case elaborate ccs of
     Left err -> do
       putStrLn $ render (colours opts) cfg $

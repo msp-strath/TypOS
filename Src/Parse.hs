@@ -2,19 +2,17 @@ module Parse where
 
 import Control.Applicative
 import Control.Monad
+
+import Data.Bifunctor
 import Data.Char
 
-import Data.Map (Map)
-import qualified Data.Map as Map
-
 import Bwd
-import Thin
+import Location
+import System.IO.Unsafe (unsafePerformIO)
+import System.Exit (exitFailure)
 
 -- parsers, by convention, do not consume either leading
 -- or trailing space
-
-poptional :: Parser a -> Parser (Maybe a)
-poptional p = Just <$> p <|> pure Nothing
 
 plit :: String -> Parser ()
 plit = mapM_ (pch . (==))
@@ -26,61 +24,77 @@ pcurlies :: Parser a -> Parser a
 pcurlies p = id <$ punc "{" <*> p <* pspc <* pch (== '}')
 
 pstring :: Parser String
-pstring = Parser $ \ env str -> case str of
-  '"' : str -> case span ('"' /=) str of
-    (str, _:end) -> pure (str, end)
-    _ -> []
+pstring = Parser $ \ (Source str loc) -> case str of
+  '"' : str -> go str (tick loc '"')
   _ -> []
 
+  where
+
+  go :: String -> Location -> [(String, Source)]
+  go str loc =
+    let (pref, end) = span (`notElem` "\\\"") str in
+    let loc' = ticks loc pref in
+    case end of
+      '\\':'"':end -> first ((pref ++) . ('"' :)) <$> go end (ticks loc "\\\"")
+      '\\':end -> first ((pref ++) . ('\\' :)) <$> go end (tick loc' '\\')
+      '"':end -> pure (pref, Source end (tick loc' '\"'))
+      _ -> []
+
+
 pnat :: Parser Int
-pnat = Parser $ \ env str -> case span isDigit str of
-  (ds@(_:_), str) -> [(read ds, str)]
+pnat = Parser $ \ (Source str loc) -> case span isDigit str of
+  (ds@(_:_), str) -> [(read ds, Source str (ticks loc ds))]
   _ -> []
 
 pnom :: Parser String
 pnom = Parser $
   let isMo c = isAlphaNum c || elem c "_'" in
-  \ env str -> case str of
+  \ (Source str loc) -> case str of
   c : cs | isAlpha c -> case span isMo cs of
-      (nm, str) -> [(c:nm, str)]
+      (nm, str) -> [(c:nm, Source str (ticks loc (c : nm)))]
   _ -> []
-
-pvar' :: Parser (String, Int)
-pvar' = (,) <$> pnom <*> ((id <$ pch (== '^') <*> pnat) <|> pure 0)
-
-pvar :: (String -> Parser a) -> (DB -> Parser a) -> Parser a
-pvar str int = (either str int <=< pseek) =<< pvar'
 
 patom :: Parser String
 patom = pch (== '\'') *> pnom
 
 -- | Returns whether a comment was found
 pcom :: Parser Bool
-pcom = Parser $ \ xs str -> pure $ case str of
-  '{':'-':str -> (True, multiLine 1 str)
-  '-':'-':str -> (True, singleLine str)
-  _ -> (False, str)
+pcom = Parser $ \ i@(Source str loc) -> pure $ case str of
+  '{':'-':str -> (True, multiLine 1 str (ticks loc "{-"))
+  '-':'-':str -> (True, singleLine str (ticks loc "--"))
+  _ -> (False, i)
 
   where
 
-  multiLine 0 str = str
-  multiLine n str = case dropWhile (`notElem` "{-") str of
-    -- closing
-    '-':'}':str -> multiLine (n-1) str
-    -- starting
-    '{':'-':str -> multiLine (1+n) str
-    '-':'-':str -> multiLine n (singleLine str)
-    -- false alarm: ignore the unrelated '-'/'{'
-    _:str -> multiLine n str
-    -- unclosed bracket which is fine by us
-    [] -> []
+  multiLine :: Int -> String -> Location -> Source
+  multiLine 0 str loc = Source str loc
+  multiLine n str loc =
+    let (pref, rest) = span (`notElem` "{-") str in
+    let loc' = ticks loc pref in
+    case rest of
+      -- closing
+      '-':'}':str -> multiLine (n-1) str (ticks loc' "-}")
+      -- starting
+      '{':'-':str -> multiLine (1+n) str (ticks loc' "{-")
+      '-':'-':str ->
+        let Source end loc'' = singleLine str (ticks loc' "--") in
+        multiLine n end loc''
+      -- false alarm: ignore the unrelated '-'/'{'
+      c:str -> multiLine n str (tick loc' c)
+      -- unclosed bracket which is fine by us
+      [] -> Source [] loc'
 
-  singleLine str = drop 1 $ dropWhile (/= '\n') str
+  singleLine :: String -> Location -> Source
+  singleLine str loc = case span (/= '\n') str of
+    (cs, []) -> Source [] (ticks loc cs)
+    (cs, d:ds) -> Source ds (tick (ticks loc cs) d)
 
 -- Remove leading spaces, an optional comment, and repeat
 pspc :: Parser ()
 pspc = do
-  Parser $ \ xs str -> [((),snd (span isSpace str))]
+  Parser $ \ (Source str loc) ->
+           let (cs, rest) = span isSpace str in
+           [((), Source rest (ticks loc cs))]
   b <- pcom
   if b then pspc else pure ()
 
@@ -94,98 +108,73 @@ psep s p = (:) <$> p <*> many (id <$ s <*> p)
 ppes :: Parser () -> Parser a -> Parser (Bwd a)
 ppes s p = (B0 <><) <$> psep s p
 
-data ParserEnv
-  = ParserEnv
-  { objScope :: Bwd String
-  , metaScopes :: MetaScopes
-  }
-type MetaScopes = Map String (Bwd String)
+data Source = Source
+  { content :: String
+  , location :: Location
+  } deriving (Show)
 
-initParserEnv :: ParserEnv
-initParserEnv = ParserEnv B0 Map.empty
-
-data Parser a = Parser
-  { parser :: ParserEnv -> String -> [(a, String)]
+newtype Parser a = Parser
+  { parser :: Source -> [(a, Source)]
   }
 
-penv :: Parser ParserEnv
-penv = Parser $ \ env s -> [(env, s)]
+ploc :: Parser Location
+ploc = Parser $ \ i@(Source str loc) -> pure (loc, i)
+
+withRange :: HasRange t => Parser t -> Parser t
+withRange p = do
+   start <- ploc
+   x <- p
+   end <- ploc
+   pure $ addRange start end x
 
 instance Monad Parser where
-  Parser f >>= k = Parser $ \ env s -> do
-    (a, s) <- f env s
-    parser (k a) env s
+  Parser f >>= k = Parser $ \ s -> do
+    (a, s) <- f s
+    parser (k a) s
 
 instance Applicative Parser where
-  pure a = Parser $ \ env s -> [(a, s)]
+  pure a = Parser $ \ s -> [(a, s)]
   (<*>) = ap
 
 instance Functor Parser where
   fmap = ap . return
 
 instance Alternative Parser where
-  empty = Parser $ \ _ _ -> []
-  Parser f <|> Parser g = Parser $ \ env s ->
-    f env s ++ g env s
-
-pbind :: String -> Parser a -> Parser a
-pbind x (Parser p) = Parser $ \ env s ->
-  p (env { objScope = objScope env :< x }) s
-
-pmetasbind :: MetaScopes -> Parser a -> Parser a
-pmetasbind als (Parser p) = Parser $ \ env s ->
-  p (env { metaScopes = Map.union als (metaScopes env) }) s
-
-pscope :: Parser (Bwd String)
-pscope = objScope <$> penv
-
-plen :: Parser Int
-plen = length <$> pscope
-
-plocal :: Bwd String -> Parser x -> Parser x
-plocal xz (Parser p) = Parser $ \ env s -> p (env { objScope = xz }) s
-
-ppop :: String -> Parser x -> Parser x
-ppop x p = pscope >>= \case
-  env :< y | x == y -> plocal env p
-  _ -> empty
-
-pmeta :: String -> Parser (Bwd String)
-pmeta m = do
-  ms <- metaScopes <$> penv
-  case Map.lookup m ms of
-    Just xz -> pure xz
-    Nothing -> empty
-
-pseek :: (String, Int) -> Parser (Either String DB)
-pseek (x, n) = Parser $ \ env s -> let
-  chug B0 n = [Left x]
-  chug (xz :< y) n
-    | y == x = if n == 0 then [Right (DB 0)] else fmap scc <$> chug xz (n - 1)
-    | otherwise = fmap scc <$> chug xz n
-  in (, s) <$> chug (objScope env) n
+  empty = Parser $ const []
+  Parser f <|> Parser g = Parser $ \ s ->
+    f s ++ g s
 
 pch :: (Char -> Bool) -> Parser Char
-pch p = Parser $ \ xz s -> case s of
-  c : cs | p c -> [(c, cs)]
+pch p = Parser $ \ (Source s loc) -> case s of
+  c : cs | p c -> [(c, Source cs (tick loc c))]
   _ -> []
 
 pend :: Parser ()
-pend = Parser $ \ xz s -> case s of
-  [] -> [((), "")]
+pend = Parser $ \ i@(Source s loc) -> case s of
+  [] -> [((), i)]
   _ -> []
 
-parse :: Show x => Parser x -> String -> x
-parse p s = case parser (id <$> p <* pend) initParserEnv s of
+parseError :: Maybe Location -> String -> x
+parseError mloc str = unsafePerformIO $ do
+  putStrLn ("Parse error " ++ maybe ":\n" (\ loc -> "at location: " ++ show loc ++ "\n") mloc ++ str)
+  exitFailure
+
+parse :: Show x => Parser x -> Source -> x
+parse p s = case parser (id <$> p <* pend) s of
   [(x, _)] -> x
-  x -> error (unlines $ "" : (show <$> x))
+  x -> parseError Nothing (unlines $ "" : (show <$> x))
+
+pmustwork :: String -> Parser x -> Parser x
+pmustwork str p = Parser $ \ i -> case parser p i of
+  [] -> parseError (Just $ location i) str
+  res -> res
 
 class Lisp t where
-  mkNil  :: Int -> t
+  mkNil  :: t
   mkCons :: t -> t -> t
   pCar   :: Parser t
 
 plisp :: Lisp t => Parser t
-plisp = mkNil <$ pch (== ']') <*> plen
+plisp = mkNil <$ pch (== ']')
     <|> id <$ pch (== '|') <* pspc <*> pCar <* pspc <* pch (== ']')
     <|> mkCons <$> pCar <* pspc <*> plisp

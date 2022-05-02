@@ -10,7 +10,7 @@ import Parse
 import Scope
 
 instance Lisp Raw where
-  mkNil = const (At "")
+  mkNil = At ""
   mkCons = Cons
   pCar = ptm
 
@@ -39,7 +39,7 @@ psbstC = pvariable >>= \ x ->
   <|> pure (Keep x)
 
 instance Lisp RawP where
-  mkNil = const (AtP "")
+  mkNil = AtP ""
   mkCons = ConsP
   pCar = ppat
 
@@ -63,7 +63,7 @@ pprotocol :: Parser (Protocol Raw)
 pprotocol = psep pspc ((,) <$> pmode <* pspc <*> psyntaxdecl <* pspc <* pch (== '.'))
 
 psyntaxdecl :: Parser Raw
-psyntaxdecl = plocal B0 ptm
+psyntaxdecl = ptm
 
 pjudgementstack :: Parser (JudgementStack Raw)
 pjudgementstack =
