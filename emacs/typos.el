@@ -85,7 +85,9 @@
   (progn
     (set (make-local-variable 'compilation-error-regexp-alist)
          '(("\\(^[^[:space:]]*\\):\\([0-9]+\\):\\([0-9]+\\)-\\(\\([0-9]+\\):\\)?\\([0-9]+\\)$"
-            1 (2 . 5) (3 . 6))))
+            1 (2 . 5) (3 . 6))
+           ("^Parse error at location: \\([^[:space:]]*\\):\\([0-9]+\\):\\([0-9]+\\)"
+            1 2 (3 . 4))))
     (add-hook 'compilation-filter-hook 'typos-compilation-filter nil t)
   ))
 
