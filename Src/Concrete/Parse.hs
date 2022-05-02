@@ -37,10 +37,10 @@ ptm = withRange $
   <|> Sbst unknown <$ pch (== '{') <* pspc <*> ppes (punc ",") psbstC <* punc "}" <*> ptm
 
 psbstC :: Parser SbstC
-psbstC = pvariable >>= \ x ->
-  Assign x <$ punc "=" <*> ptm
-  <|> Drop x <$ pspc <* pch (== '*')
-  <|> pure (Keep x)
+psbstC = withRange $ pvariable >>= \ x ->
+  Assign unknown x <$ punc "=" <*> ptm
+  <|> Drop unknown x <$ pspc <* pch (== '*')
+  <|> pure (Keep unknown x)
 
 instance Lisp RawP where
   mkNil = AtP unknown ""

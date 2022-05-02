@@ -63,7 +63,7 @@ instance Pretty Complaint where
                              , collapse (pretty <$> sc2) ])]
      VariableShadowing x -> singleton $ hsep [pretty x, "is already defined"]
      EmptyContext -> singleton "Tried to pop an empty context"
-     NotTopVariable x y -> singleton $
+     NotTopVariable r x y -> singleton $ pretty r <>
            hsep [ "Expected", pretty x, "to be the top variable"
                 , "but found", pretty y, "instead"]
      -- kinding

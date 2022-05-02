@@ -42,10 +42,21 @@ instance HasRange Raw where
     Sbst r sg t -> r
 
 data SbstC
-  = Keep Variable
-  | Drop Variable
-  | Assign Variable Raw
+  = Keep Range Variable
+  | Drop Range Variable
+  | Assign Range Variable Raw
   deriving (Show)
+
+instance HasRange SbstC where
+  setRange r = \case
+    Keep _ v -> Keep r v
+    Drop _ v -> Drop r v
+    Assign _ v t -> Assign r v t
+
+  getRange = \case
+    Keep r v -> r
+    Drop r v -> r
+    Assign r v t -> r
 
 data RawP
   = VarP Range Variable

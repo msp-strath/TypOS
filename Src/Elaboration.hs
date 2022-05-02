@@ -148,7 +148,7 @@ data Complaint
   | MetaScopeTooBig Variable ObjVars ObjVars
   | VariableShadowing Variable
   | EmptyContext
-  | NotTopVariable Variable Variable
+  | NotTopVariable Range Variable Variable
   | IncompatibleChannelScopes ObjVars ObjVars
   -- kinding
   | NotAValidTermVariable Variable Kind
@@ -327,17 +327,17 @@ ssbst B0 = do
     ovs <- asks objVars
     pure (sbstI (length ovs), ovs)
 ssbst (sg :< sgc) = case sgc of
-    Keep v -> do
+    Keep r v -> do
       (xz, (w, cat)) <- spop
-      when (v /= w) $ throwError (NotTopVariable v w)
+      when (v /= w) $ throwError (NotTopVariable r v w)
       (sg, ovs) <- local (setObjVars xz) (ssbst sg)
       pure (sbstW sg (ones 1), ovs :< (getVariable w, cat))
-    Drop v -> do
+    Drop r v -> do
       (xz, (w, cat)) <- spop
-      when (v /= w) $ throwError (NotTopVariable v w)
+      when (v /= w) $ throwError (NotTopVariable r v w)
       (sg, ovs) <- local (setObjVars xz) (ssbst sg)
       pure (weak sg, ovs)
-    Assign v t -> do
+    Assign r v t -> do
       info <- getHint (getVariable v)
       desc <- fromInfo info
       t <- stm desc t

@@ -47,9 +47,9 @@ prettyCdr = \case
 
 instance Pretty SbstC where
   pretty = \case
-    Keep x -> pretty x
-    Drop x -> pretty x <> "*"
-    Assign x t -> pretty x <> equal <> pretty t
+    Keep _ x -> pretty x
+    Drop _ x -> pretty x <> "*"
+    Assign _ x t -> pretty x <> equal <> pretty t
 
 instance Pretty ThDirective where
   pretty = \case

@@ -130,18 +130,18 @@ instance UnelabMeta m => Unelab (Sbst m) where
       (ST (CdB sg th :<>: CdB (Hide x := t) ph) :^^ 0) -> do
         t <- unelab (CdB t ph)
         sg <- local (nameSel th) $ unelab sg
-        pure (sg :< Assign (Variable x) t)
+        pure (sg :< Assign unknown (Variable x) t)
       (sg :^^ w) -> case na of
         (_, th, _) | bigEnd th <= 0 -> throwError (UnexpectedEmptyThinning na)
         (xz, th, yz :< y) -> case thun th of
          (th, False) -> do
            sg <- local (const (xz, th, yz)) $ unelab (sg :^^ w)
-           pure (sg :< Drop (Variable y))
+           pure (sg :< Drop unknown (Variable y))
          (th, True) ->
            case xz of
              xz :< x -> do
                sg <- local (const (xz, th, yz)) $ unelab (sg :^^ (w - 1))
-               pure (sg :< Keep (Variable x))
+               pure (sg :< Keep unknown (Variable x))
              _ -> throwError $ InvalidNaming na
         _ -> throwError $ InvalidNaming na
 
