@@ -87,8 +87,8 @@ instance Pretty Complaint where
        hsep ["Unfinished protocol", parens (pretty p), "on channel", pretty ch]
      InconsistentCommunication -> singleton $ hsep ["Inconsistent communication"]
      DoomedBranchCommunicated a -> singleton $ hsep ["Doomed branch communicated", pretty a]
-     ProtocolsNotDual ps qs -> singleton $ hsep ["Protocols", pretty ps, "and", pretty qs, "are not dual"]
-     IncompatibleModes m1 m2 -> singleton $ hsep ["Modes", pretty m1, "and", pretty m2, "are incompatible"]
+     ProtocolsNotDual r ps qs -> singleton $ pretty r <> hsep ["Protocols", pretty ps, "and", pretty qs, "are not dual"]
+     IncompatibleModes r m1 m2 -> singleton $ pretty r <> hsep ["Modes", pretty m1, "and", pretty m2, "are incompatible"]
      IncompatibleChannelScopes r sc1 sc2 -> singleton $ pretty r <> hsep ["Channels scopes", collapse (pretty <$> sc1), "and", collapse (pretty <$> sc2), "are incompatible"]
       -- judgement stacks
      PushingOnAStacklessJudgement r jd -> singleton $ pretty r <> hsep ["Pushing on a stackless judgement", pretty jd]
@@ -99,11 +99,11 @@ instance Pretty Complaint where
      SyntaxContainsMeta x -> singleton $
        hsep ["The description of the syntactic category", pretty x, "contains meta variables"]
      InvalidSyntax x -> singleton $ hsep ["Invalid description for the syntactic category", pretty x]
-     WrongDirection m1 dir m2 -> singleton $ hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]
+     WrongDirection r m1 dir m2 -> singleton $ pretty r <> hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]
   -- syntaxdesc validation
      InconsistentSyntaxDesc -> singleton "Inconsistent syntactic descriptions"
      InvalidSyntaxDesc d -> singleton $ hsep ["Invalid syntax desc", pretty d]
-     IncompatibleSyntaxDescs desc desc' -> singleton $
+     IncompatibleSyntaxDescs r desc desc' -> singleton $ pretty r <>
        hsep ["Incompatible syntax descriptions", prettyPrec 1 desc, "and", prettyPrec 1 desc']
      IncompatibleSyntaxInfos info1 info2 -> singleton $ hsep ["Syntax infos", pretty info1, "and", pretty info2, "are incompatible"]
      ExpectedNilGot r at -> singleton $ pretty r <> hsep ["Expected [] and got", squote <> pretty at]

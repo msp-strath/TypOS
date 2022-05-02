@@ -1,0 +1,6 @@
+ret > ExitFailure 1
+out > Error
+out > elab-push-failing.act:3:15-5:4
+out > Pushing on a stackless judgement nopush
+out > when elaborating the judgement definition for nopush
+out >

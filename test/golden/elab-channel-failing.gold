@@ -1,0 +1,7 @@
+ret > ExitFailure 1
+out > Error
+out > elab-channel-failing.act:11:4-11
+out > Wrong direction LT between ? 'Wildcard and ! 'Wildcard
+out > when elaborating the connection p <-> q
+out > when elaborating the judgement definition for parent
+out >

@@ -163,9 +163,9 @@ data Complaint
   | UnfinishedProtocol Channel AProtocol
   | InconsistentCommunication
   | DoomedBranchCommunicated CActor
-  | ProtocolsNotDual AProtocol AProtocol
-  | IncompatibleModes (Mode, SyntaxDesc) (Mode, SyntaxDesc)
-  | WrongDirection (Mode, SyntaxDesc) Ordering (Mode, SyntaxDesc)
+  | ProtocolsNotDual Range AProtocol AProtocol
+  | IncompatibleModes Range (Mode, SyntaxDesc) (Mode, SyntaxDesc)
+  | WrongDirection Range (Mode, SyntaxDesc) Ordering (Mode, SyntaxDesc)
   -- judgement stacks
   | PushingOnAStacklessJudgement Range JudgementForm
   | LookupFromAStacklessActor Range JudgementForm
@@ -178,7 +178,7 @@ data Complaint
   | InconsistentSyntaxDesc
   | InvalidSyntaxDesc SyntaxDesc
   | IncompatibleSyntaxInfos (Info SyntaxDesc) (Info SyntaxDesc)
-  | IncompatibleSyntaxDescs SyntaxDesc SyntaxDesc
+  | IncompatibleSyntaxDescs Range SyntaxDesc SyntaxDesc
   | ExpectedNilGot Range String
   | ExpectedEnumGot Range [String] String
   | ExpectedTagGot Range [String] String
@@ -564,17 +564,17 @@ guessDesc b (Cons _ p q) = do
 guessDesc True (At _ "") = pure (Known $ Syntax.contract VNil)
 guessDesc _ _ = pure Unknown
 
-compatibleChannels :: AProtocol -> Ordering -> AProtocol -> Elab Int
-compatibleChannels [] dir [] = pure 0
-compatibleChannels (p@(m, s) : ps) dir (q@(n, t) : qs) = do
-  unless (s == t) $ throwError (IncompatibleSyntaxDescs s t)
-  when (m == n) $ throwError (IncompatibleModes p q)
+compatibleChannels :: Range -> AProtocol -> Ordering -> AProtocol -> Elab Int
+compatibleChannels r [] dir [] = pure 0
+compatibleChannels r (p@(m, s) : ps) dir (q@(n, t) : qs) = do
+  unless (s == t) $ throwError (IncompatibleSyntaxDescs r s t)
+  when (m == n) $ throwError (IncompatibleModes r p q)
   case (m, dir) of
-    (Input, LT) -> throwError (WrongDirection p dir q)
-    (Output, GT) -> throwError (WrongDirection p dir q)
+    (Input, LT) -> throwError (WrongDirection r p dir q)
+    (Output, GT) -> throwError (WrongDirection r p dir q)
     _ -> pure ()
-  (+1) <$> compatibleChannels ps dir qs
-compatibleChannels ps _ qs = throwError (ProtocolsNotDual ps qs)
+  (+1) <$> compatibleChannels r ps dir qs
+compatibleChannels r ps _ qs = throwError (ProtocolsNotDual r ps qs)
 
 sact :: CActor -> Elab AActor
 sact = \case
@@ -648,7 +648,7 @@ sact = \case
       (Just thl, _) -> pure (LT, thl)
       (_, Just thr) -> pure (GT, thr)
       _ -> throwError (IncompatibleChannelScopes r sc1 sc2)
-    steps <- compatibleChannels p dir q
+    steps <- compatibleChannels r p dir q
     pure (aconnect r ch1 th ch2 steps)
 
   FreshMeta r desc (av, a) -> do

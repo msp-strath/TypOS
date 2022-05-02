@@ -93,7 +93,7 @@
 
 (defun typos-run-on-file (typos-file options)
   "Run typOS in a compilation buffer on TYPOS-FILE."
-  (save-some-buffers (not compilation-ask-about-save)
+  (save-some-buffers compilation-ask-about-save
                      (when (boundp 'compilation-save-buffers-predicate)
                        compilation-save-buffers-predicate))
 
