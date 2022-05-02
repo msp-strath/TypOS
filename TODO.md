@@ -33,6 +33,7 @@
 
 ### Refactoring
 
+* [ ] Add range information to Variable
 * [ ] More structured type of names
 * [ ] Make sure LaTeX output is valid LaTeX
 * [ ] `data Actor (ph :: Phase)`?
