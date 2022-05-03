@@ -1,0 +1,9 @@
+ignore-project: False
+library-vanilla: False
+executable-dynamic: True
+
+package *
+  ghc-options: -j +RTS -A128m -RTS
+
+program-options
+  ghc-options: -j +RTS -A128m -RTS

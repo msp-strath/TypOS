@@ -1,4 +1,7 @@
-.PHONY: install clean install-hasktags TAGS test
+.PHONY: build install clean install-hasktags TAGS test
+
+build:
+	cabal build
 
 install:
 	cabal install
