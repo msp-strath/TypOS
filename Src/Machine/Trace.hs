@@ -297,6 +297,7 @@ ldiagnostic table st fs =
    , ""
    , "%%%%%%%%%%% Packages %%%%%%%%%%%%%%%%%%%"
    , "\\usepackage{xcolor}"
+   , "\\usepackage{amsmath}"
    , "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
    , ""
    , "%%%%%%%%%%% Notations %%%%%%%%%%%%%%%%%%"
