@@ -1,0 +1,5 @@
+ret > ExitFailure 1
+out > Parse error at location: parse-fail.act:7:0
+out >
+out >
+out >

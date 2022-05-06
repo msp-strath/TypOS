@@ -5,6 +5,7 @@ import Control.Monad
 
 import Data.Bifunctor
 import Data.Char
+import Data.Semigroup
 
 import Bwd
 import Location
@@ -25,12 +26,12 @@ pcurlies p = id <$ punc "{" <*> p <* pspc <* pch (== '}')
 
 pstring :: Parser String
 pstring = Parser $ \ (Source str loc) -> case str of
-  '"' : str -> go str (tick loc '"')
-  _ -> []
+  '"' : str -> maybe (notHere loc) here (go str (tick loc '"'))
+  _ -> notHere loc
 
   where
 
-  go :: String -> Location -> [(String, Source)]
+  go :: String -> Location -> Maybe (String, Source)
   go str loc =
     let (pref, end) = span (`notElem` "\\\"") str in
     let loc' = ticks loc pref in
@@ -38,28 +39,28 @@ pstring = Parser $ \ (Source str loc) -> case str of
       '\\':'"':end -> first ((pref ++) . ('"' :)) <$> go end (ticks loc "\\\"")
       '\\':end -> first ((pref ++) . ('\\' :)) <$> go end (tick loc' '\\')
       '"':end -> pure (pref, Source end (tick loc' '\"'))
-      _ -> []
+      _ -> Nothing
 
 
 pnat :: Parser Int
 pnat = Parser $ \ (Source str loc) -> case span isDigit str of
-  (ds@(_:_), str) -> [(read ds, Source str (ticks loc ds))]
-  _ -> []
+  (ds@(_:_), str) -> here (read ds, Source str (ticks loc ds))
+  _ -> notHere loc
 
 pnom :: Parser String
 pnom = Parser $
   let isMo c = isAlphaNum c || elem c "_'" in
   \ (Source str loc) -> case str of
   c : cs | isAlpha c -> case span isMo cs of
-      (nm, str) -> [(c:nm, Source str (ticks loc (c : nm)))]
-  _ -> []
+      (nm, str) -> here (c:nm, Source str (ticks loc (c : nm)))
+  _ -> notHere loc
 
 patom :: Parser String
 patom = pch (== '\'') *> pnom
 
 -- | Returns whether a comment was found
 pcom :: Parser Bool
-pcom = Parser $ \ i@(Source str loc) -> pure $ case str of
+pcom = Parser $ \ i@(Source str loc) -> here $ case str of
   '{':'-':str -> (True, multiLine 1 str (ticks loc "{-"))
   '-':'-':str -> (True, singleLine str (ticks loc "--"))
   _ -> (False, i)
@@ -94,9 +95,9 @@ pspc :: Parser ()
 pspc = do
   Parser $ \ (Source str loc) ->
            let (cs, rest) = span isSpace str in
-           [((), Source rest (ticks loc cs))]
+           here ((), Source rest (ticks loc cs))
   b <- pcom
-  if b then pspc else pure ()
+  when b pspc
 
 pnl :: Parser ()
 pnl = () <$ pch (\c -> c == '\n' || c == '\0')
@@ -114,11 +115,17 @@ data Source = Source
   } deriving (Show)
 
 newtype Parser a = Parser
-  { parser :: Source -> [(a, Source)]
+  { parser :: Source -> (Max Location, [(a, Source)])
   }
 
+here :: (a, Source) -> (Max Location, [(a, Source)])
+here (a, s) = (Max (location s), [(a, s)])
+
+notHere :: Location -> (Max Location, [(a, Source)])
+notHere loc = (Max loc, [])
+
 ploc :: Parser Location
-ploc = Parser $ \ i@(Source str loc) -> pure (loc, i)
+ploc = Parser $ \ i@(Source str loc) -> here (loc, i)
 
 withRange :: HasRange t => Parser t -> Parser t
 withRange p = do
@@ -128,45 +135,46 @@ withRange p = do
    pure $ addRange start end x
 
 instance Monad Parser where
-  Parser f >>= k = Parser $ \ s -> do
-    (a, s) <- f s
-    parser (k a) s
+  Parser f >>= k = Parser $ \ s ->
+    let (loc, as) = f s in
+    let (locs, bss) = unzip (map (\ (a, s) -> parser (k a) s) as) in
+    (foldl1 (<>) (loc : locs), concat bss)
 
 instance Applicative Parser where
-  pure a = Parser $ \ s -> [(a, s)]
+  pure a = Parser $ here . (a ,)
   (<*>) = ap
 
 instance Functor Parser where
   fmap = ap . return
 
 instance Alternative Parser where
-  empty = Parser $ const []
+  empty = Parser $ \ s -> (Max (location s), [])
   Parser f <|> Parser g = Parser $ \ s ->
-    f s ++ g s
+    f s <> g s
 
 pch :: (Char -> Bool) -> Parser Char
 pch p = Parser $ \ (Source s loc) -> case s of
-  c : cs | p c -> [(c, Source cs (tick loc c))]
-  _ -> []
+  c : cs | p c -> here (c, Source cs (tick loc c))
+  _ -> notHere loc
 
 pend :: Parser ()
-pend = Parser $ \ i@(Source s loc) -> case s of
+pend = Parser $ \ i@(Source s loc) -> (Max loc,) $ case s of
   [] -> [((), i)]
   _ -> []
 
-parseError :: Maybe Location -> String -> x
-parseError mloc str = unsafePerformIO $ do
-  putStrLn ("Parse error " ++ maybe ":\n" (\ loc -> "at location: " ++ show loc ++ "\n") mloc ++ str)
+parseError :: Location -> String -> x
+parseError loc str = unsafePerformIO $ do
+  putStrLn ("Parse error at location: " ++ show loc ++ "\n" ++ str)
   exitFailure
 
 parse :: Show x => Parser x -> Source -> x
 parse p s = case parser (id <$> p <* pend) s of
-  [(x, _)] -> x
-  x -> parseError Nothing (unlines $ "" : (show <$> x))
+  (_, [(x, _)]) -> x
+  (loc, x) -> parseError (getMax loc) (unlines $ "" : (show <$> x))
 
 pmustwork :: String -> Parser x -> Parser x
 pmustwork str p = Parser $ \ i -> case parser p i of
-  [] -> parseError (Just $ location i) str
+  (_, []) -> parseError (location i) str
   res -> res
 
 class Lisp t where

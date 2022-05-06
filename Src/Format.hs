@@ -20,8 +20,8 @@ data Debug = ShowStack | ShowStore | ShowEnv
 
 pformat :: Parser [Format Directive Debug ()]
 pformat = Parser $ \ (Source str loc) -> case str of
-  '"':str -> [go str (tick loc '"') B0]
-  _ -> []
+  '"':str -> here (go str (tick loc '"') B0)
+  _ -> notHere loc
 
   where
 
@@ -52,4 +52,4 @@ pformat = Parser $ \ (Source str loc) -> case str of
     -- closing double quote
     '"':end     -> (snoc pref acc <>> [], Source end (tick loc' '"'))
     -- error
-    _ -> parseError (Just loc) "Unclosed format string"
+    _ -> parseError loc "Unclosed format string"

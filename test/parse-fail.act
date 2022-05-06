@@ -1,0 +1,18 @@
+syntax { 'Type = ['Enum ['One 'Two]]
+       ; 'Term = ['EnumOrTag ['One 'Tru 'Fls]
+                             [['Ifte 'Term 'Term 'Term]]]
+       }
+
+check : ?'Type. ?'Term
+check@p = p?ty. p?t. case t
+  { 'One -> ty ~ 'One
+  ; 'Tru -> ty ~ 'Two
+  ; 'Fls -> ty ~ 'Two
+  ; ['Ifte b l r ] ->
+       ( check@q. q!'Two. q!b.
+       | check@q. q!ty. q!l.
+       | check@q. q!ty. q!r.
+       )
+  }
+
+exec check@p. p!'One. p!['Ifte 'Tru 'One 'One].
