@@ -59,6 +59,8 @@ jobs:
 
     - name: Test
       # if: runner.os != 'Windows'
+      env:
+        TERM: dumb
       run: |
         cabal test all
 
@@ -95,5 +97,7 @@ jobs:
 
     - name: Test
       # if: runner.os != 'Windows'
+      env:
+        TERM: dumb
       run: |
         stack test --system-ghc
