@@ -144,7 +144,7 @@ isFresh x = do
 
 data Complaint
   -- scope
-  = OutOfScope Variable
+  = OutOfScope Range Variable
   | MetaScopeTooBig Variable ObjVars ObjVars
   | VariableShadowing Range Variable
   | EmptyContext Range
@@ -218,7 +218,7 @@ instance HasRange Complaint where
   setRange _ = id -- FIXME
 
   getRange = \case
-    OutOfScope _ -> unknown
+    OutOfScope r _ -> r
     MetaScopeTooBig _ _ _ -> unknown
     VariableShadowing r _ -> r
     EmptyContext r -> r
@@ -373,7 +373,7 @@ svar x = do
         Nothing -> throwError (MetaScopeTooBig x sc ovs)
       _ -> throwError (NotAValidTermVariable x k)
     Just (Right (desc, i)) -> pure (desc, var i (length ovs))
-    Nothing -> throwError (OutOfScope x)
+    Nothing -> throwError (OutOfScope (getRange x) x)
 
 getName :: Elab [Turn]
 getName = do
@@ -568,7 +568,7 @@ isChannel :: Variable -> Elab Channel
 isChannel ch = resolve ch >>= \case
   Just (Left (AChannel sc)) -> pure (Channel $ getVariable ch)
   Just mk -> throwError (NotAValidChannel ch $ either Just (const Nothing) mk)
-  Nothing -> throwError (OutOfScope ch)
+  Nothing -> throwError (OutOfScope (getRange ch) ch)
 
 data IsJudgement = IsJudgement
   { judgementExtract :: ExtractMode
@@ -581,7 +581,7 @@ isJudgement :: Variable -> Elab IsJudgement
 isJudgement jd = resolve jd >>= \case
   Just (Left (AJudgement em mstk p)) -> pure (IsJudgement em (getVariable jd) mstk p)
   Just mk -> throwError (NotAValidJudgement jd $ either Just (const Nothing) mk)
-  Nothing -> throwError (OutOfScope jd)
+  Nothing -> throwError (OutOfScope (getRange jd) jd)
 
 channelScope :: Channel -> Elab ObjVars
 channelScope (Channel ch) = do
@@ -757,7 +757,7 @@ sact = \case
     p <- resolve p >>= \case
       Just (Right (cat, i)) -> i <$ compatibleInfos cat (Known $ keyDesc stk)
       Just (Left k) -> throwError $ NotAValidPatternVariable r p k
-      _ -> throwError $ OutOfScope p
+      _ -> throwError $ OutOfScope (getRange p) p
     t <- during (PushTermElaboration t) $ stm (valueDesc stk) t
     a <- sact a
     pure $ Push r (judgementName jd) (p, valueDesc stk, t) a

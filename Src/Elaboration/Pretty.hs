@@ -54,7 +54,7 @@ instance Pretty Complaint where
     go :: Complaint -> Bwd (Doc Annotations)
     go = \case
      -- scope
-     OutOfScope x -> singleton $ hsep ["Out of scope variable", pretty x]
+     OutOfScope r x -> singleton $ pretty r <> hsep ["Out of scope variable", pretty x]
      MetaScopeTooBig x sc1 sc2 -> singleton $
          hsep [ "Cannot use", pretty x
               , "here as it is defined in too big a scope"
