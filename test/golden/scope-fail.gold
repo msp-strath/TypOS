@@ -1,0 +1,13 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  1 | test :
+out >  2 | test@p = \tl.
+out >  3 |   case ['list hd tl]
+out >                    ^^
+out > scope-fail.act:3:14-16
+out > Out of scope variable hd
+out > when elaborating the term variable hd
+out > when elaborating the case scrutinee ['list hd tl]
+out > when elaborating the judgement definition for test
+out >

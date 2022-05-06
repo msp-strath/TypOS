@@ -18,7 +18,7 @@ instance Pretty x => Pretty (Hide x) where
   pretty (Hide x) = pretty x
 
 instance Pretty Variable where
-  pretty (Variable v) = pretty v
+  pretty (Variable _ v) = pretty v
 
 instance Pretty x => Pretty (Binder x) where
   pretty (Used v) = pretty v

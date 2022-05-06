@@ -1,0 +1,9 @@
+doom : ?'Wildcard.
+doom@p = case []
+  { _ -> p?t. case t
+    { [] -> # "Got nil"
+    ; [_|_] -> # "Got cons"
+    ; \_._ -> # "Got binder"
+    ; _ -> # "Got atom"
+    }
+  }

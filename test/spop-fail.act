@@ -1,0 +1,2 @@
+source : !'Wildcard.
+source@p = p!{x*}[].

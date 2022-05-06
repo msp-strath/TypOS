@@ -1,0 +1,12 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  1 | source : !'Wildcard.
+out >  2 | source@p = \x. \y. source@q. q?t. case {y,x}t {}
+out >                                                ^
+out > spop-top-fail.act:2:42-43
+out > Expected x to be the top variable but found y instead
+out > when elaborating the substitution {y, x}
+out > when elaborating the case scrutinee {y, x} t
+out > when elaborating the judgement definition for source
+out >

@@ -1,0 +1,2 @@
+source : !'Wildcard.
+source@p = \x. \y. source@q. q?t. case {y,x}t {}

@@ -126,7 +126,7 @@ type Slced = [(String, Kind)]
 type Focus a = (Decls, a, Slced)
 
 resolve :: Variable -> Elab (Maybe (Either Kind (Info SyntaxDesc, DB)))
-resolve (Variable x) = do
+resolve (Variable r x) = do
   ctx <- ask
   let ds  = declarations ctx
   let ovs = objVars ctx
@@ -139,30 +139,30 @@ resolve (Variable x) = do
 isFresh :: Variable -> Elab String
 isFresh x = do
   res <- resolve x
-  whenJust res $ \ _ -> throwError (VariableShadowing x)
+  whenJust res $ \ _ -> throwError (VariableShadowing (getRange x) x)
   pure (getVariable x)
 
 data Complaint
   -- scope
-  = OutOfScope Variable
-  | MetaScopeTooBig Variable ObjVars ObjVars
-  | VariableShadowing Variable
-  | EmptyContext
+  = OutOfScope Range Variable
+  | MetaScopeTooBig Range Variable ObjVars ObjVars
+  | VariableShadowing Range Variable
+  | EmptyContext Range
   | NotTopVariable Range Variable Variable
   | IncompatibleChannelScopes Range ObjVars ObjVars
   -- kinding
-  | NotAValidTermVariable Variable Kind
+  | NotAValidTermVariable Range Variable Kind
   | NotAValidPatternVariable Range Variable Kind
-  | NotAValidJudgement Variable (Maybe Kind)
-  | NotAValidChannel Variable (Maybe Kind)
-  | NotAValidBoundVar Variable
+  | NotAValidJudgement Range Variable (Maybe Kind)
+  | NotAValidChannel Range Variable (Maybe Kind)
+  | NotAValidBoundVar Range Variable
   -- protocol
   | InvalidSend Range Channel Raw
   | InvalidRecv Range Channel (Binder String)
-  | NonLinearChannelUse Channel
-  | UnfinishedProtocol Channel AProtocol
-  | InconsistentCommunication
-  | DoomedBranchCommunicated CActor
+  | NonLinearChannelUse Range Channel
+  | UnfinishedProtocol Range Channel AProtocol
+  | InconsistentCommunication Range
+  | DoomedBranchCommunicated Range CActor
   | ProtocolsNotDual Range AProtocol AProtocol
   | IncompatibleModes Range (Mode, SyntaxDesc) (Mode, SyntaxDesc)
   | WrongDirection Range (Mode, SyntaxDesc) Ordering (Mode, SyntaxDesc)
@@ -214,29 +214,27 @@ data Complaint
   | ConnectElaboration Variable Variable Complaint
   deriving (Show)
 
-instance HasRange Complaint where
-  setRange _ = id -- FIXME
-
+instance HasGetRange Complaint where
   getRange = \case
-    OutOfScope _ -> unknown
-    MetaScopeTooBig _ _ _ -> unknown
-    VariableShadowing _ -> unknown
-    EmptyContext -> unknown
+    OutOfScope r _ -> r
+    MetaScopeTooBig r _ _ _ -> r
+    VariableShadowing r _ -> r
+    EmptyContext r -> r
     NotTopVariable r _ _ -> r
     IncompatibleChannelScopes r _ _ -> r
   -- kinding
-    NotAValidTermVariable _ _ -> unknown
+    NotAValidTermVariable r _ _ -> r
     NotAValidPatternVariable r _ _ -> r
-    NotAValidJudgement _ _ -> unknown
-    NotAValidChannel _ _ -> unknown
-    NotAValidBoundVar _ -> unknown
+    NotAValidJudgement r _ _ -> r
+    NotAValidChannel r _ _ -> r
+    NotAValidBoundVar r _ -> r
   -- protocol
     InvalidSend r _ _ -> r
     InvalidRecv r _ _ -> r
-    NonLinearChannelUse _ -> unknown
-    UnfinishedProtocol _ _ -> unknown
-    InconsistentCommunication -> unknown
-    DoomedBranchCommunicated _ -> unknown
+    NonLinearChannelUse r _ -> r
+    UnfinishedProtocol r _ _ -> r
+    InconsistentCommunication r -> r
+    DoomedBranchCommunicated r _ -> r
     ProtocolsNotDual r _ _ -> r
     IncompatibleModes r _ _ -> r
     WrongDirection r _ _ _ -> r
@@ -370,22 +368,22 @@ svar x = do
     Just (Left k) -> case k of -- TODO: come back and remove fst <$>
       ActVar desc sc -> case findSub (fst <$> sc) (fst <$> ovs) of
         Just th -> pure (desc, ActorMeta (getVariable x) $: sbstW (sbst0 0) th)
-        Nothing -> throwError (MetaScopeTooBig x sc ovs)
-      _ -> throwError (NotAValidTermVariable x k)
+        Nothing -> throwError (MetaScopeTooBig (getRange x) x sc ovs)
+      _ -> throwError (NotAValidTermVariable (getRange x) x k)
     Just (Right (desc, i)) -> pure (desc, var i (length ovs))
-    Nothing -> throwError (OutOfScope x)
+    Nothing -> throwError (OutOfScope (getRange x) x)
 
 getName :: Elab [Turn]
 getName = do
   loc <- asks location
   pure (loc <>> [])
 
-spop :: Elab (ObjVars, (Variable, Info SyntaxDesc))
-spop = do
+spop :: Range -> Elab (ObjVars, (Variable, Info SyntaxDesc))
+spop r = do
   ovs <- asks objVars
   case ovs of
-    B0 -> throwError EmptyContext
-    (xz :< (x, cat)) -> pure (xz, (Variable x, cat))
+    B0 -> throwError (EmptyContext r)
+    (xz :< (x, cat)) -> pure (xz, (Variable r x, cat))
 
 ssyntaxdecl :: [SyntaxCat] -> Raw -> Elab SyntaxDesc
 ssyntaxdecl syndecls syn = do
@@ -401,12 +399,12 @@ ssbst B0 = do
     pure (sbstI (length ovs), ovs)
 ssbst (sg :< sgc) = case sgc of
     Keep r v -> do
-      (xz, (w, cat)) <- spop
+      (xz, (w, cat)) <- spop r
       when (v /= w) $ throwError (NotTopVariable r v w)
       (sg, ovs) <- local (setObjVars xz) (ssbst sg)
       pure (sbstW sg (ones 1), ovs :< (getVariable w, cat))
     Drop r v -> do
-      (xz, (w, cat)) <- spop
+      (xz, (w, cat)) <- spop r
       when (v /= w) $ throwError (NotTopVariable r v w)
       (sg, ovs) <- local (setObjVars xz) (ssbst sg)
       pure (weak sg, ovs)
@@ -567,8 +565,8 @@ spat desc rp = do
 isChannel :: Variable -> Elab Channel
 isChannel ch = resolve ch >>= \case
   Just (Left (AChannel sc)) -> pure (Channel $ getVariable ch)
-  Just mk -> throwError (NotAValidChannel ch $ either Just (const Nothing) mk)
-  Nothing -> throwError (OutOfScope ch)
+  Just mk -> throwError (NotAValidChannel (getRange ch) ch $ either Just (const Nothing) mk)
+  Nothing -> throwError (OutOfScope (getRange ch) ch)
 
 data IsJudgement = IsJudgement
   { judgementExtract :: ExtractMode
@@ -580,8 +578,8 @@ data IsJudgement = IsJudgement
 isJudgement :: Variable -> Elab IsJudgement
 isJudgement jd = resolve jd >>= \case
   Just (Left (AJudgement em mstk p)) -> pure (IsJudgement em (getVariable jd) mstk p)
-  Just mk -> throwError (NotAValidJudgement jd $ either Just (const Nothing) mk)
-  Nothing -> throwError (OutOfScope jd)
+  Just mk -> throwError (NotAValidJudgement (getRange jd) jd $ either Just (const Nothing) mk)
+  Nothing -> throwError (OutOfScope (getRange jd) jd)
 
 channelScope :: Channel -> Elab ObjVars
 channelScope (Channel ch) = do
@@ -589,12 +587,12 @@ channelScope (Channel ch) = do
   case fromJust (focusBy (\ (y, k) -> k <$ guard (ch == y)) ds) of
     (_, AChannel sc, _) -> pure sc
 
-steppingChannel :: Channel -> (AProtocol -> Elab (a, AProtocol)) ->
+steppingChannel :: Range -> Channel -> (AProtocol -> Elab (a, AProtocol)) ->
                    Elab a
-steppingChannel ch step = do
+steppingChannel r ch step = do
   nm <- getName
   (pnm, p) <- gets (fromJust . channelLookup ch)
-  unless (pnm `isPrefixOf` nm) $ throwError (NonLinearChannelUse ch)
+  unless (pnm `isPrefixOf` nm) $ throwError (NonLinearChannelUse r ch)
   (cat, p) <- step p
   modify (channelInsert ch (nm, p))
   pure cat
@@ -604,22 +602,22 @@ open ch p = do
   nm <- getName
   modify (channelInsert ch (nm, p))
 
-close :: Channel -> Elab ()
-close ch = do
+close :: Range -> Channel -> Elab ()
+close r ch = do
   -- make sure the protocol was run all the way
   mp <- gets (channelLookup ch)
   case snd (fromJust mp) of
     [] -> pure ()
-    p -> throwError (UnfinishedProtocol ch p)
+    p -> throwError (UnfinishedProtocol r ch p)
   modify (channelDelete ch)
 
-withChannel :: Channel -> AProtocol -> Elab a -> Elab a
-withChannel ch@(Channel rch) p ma = do
+withChannel :: Range -> Channel -> AProtocol -> Elab a -> Elab a
+withChannel r ch@(Channel rch) p ma = do
   open ch p
   -- run the actor in the extended context
   ovs <- asks objVars
   a <- local (declare (Used rch) (AChannel ovs)) $ ma
-  close ch
+  close r ch
   pure a
 
 guessDesc :: Bool -> -- is this in tail position?
@@ -667,11 +665,12 @@ sact = \case
     pure (Branch r a b)
 
   Spawn r em jd ch a -> do
+    let rp = getRange jd <> getRange ch
     -- check the channel name is fresh & initialise it
     ch <- Channel <$> isFresh ch
     jd <- isJudgement jd
 
-    a <- withChannel ch (dual $ judgementProtocol jd) $ sact a
+    a <- withChannel rp ch (dual $ judgementProtocol jd) $ sact a
 
     em <- pure $ case em of
       AlwaysExtract -> judgementExtract jd
@@ -682,7 +681,7 @@ sact = \case
   Send r ch tm a -> do
     ch <- isChannel ch
     -- Check the channel is in sending mode, & step it
-    desc <- steppingChannel ch $ \case
+    desc <- steppingChannel r ch $ \case
       (Output, desc) : p -> pure (desc, p)
       _ -> throwError (InvalidSend r ch tm)
 
@@ -700,7 +699,7 @@ sact = \case
     ch <- isChannel ch
     av <- during (RecvMetaElaboration ch) $ traverse isFresh av
     -- Check the channel is in receiving mode & step it
-    cat <- steppingChannel ch $ \case
+    cat <- steppingChannel r ch $ \case
       (Input, cat) : p -> pure (cat, p)
       _ -> throwError (InvalidRecv r ch av)
 
@@ -712,8 +711,8 @@ sact = \case
   Connect r (CConnect ch1 ch2) -> during (ConnectElaboration ch1 ch2) $ do
     ch1 <- isChannel ch1
     ch2 <- isChannel ch2
-    p <- steppingChannel ch1 $ \ p -> pure (p, [])
-    q <- steppingChannel ch2 $ \ p -> pure (p, [])
+    p <- steppingChannel r ch1 $ \ p -> pure (p, [])
+    q <- steppingChannel r ch2 $ \ p -> pure (p, [])
     sc1 <- channelScope ch1
     sc2 <- channelScope ch2
     (dir, th) <- case (findSub sc1 sc2, findSub sc2 sc1) of
@@ -735,8 +734,8 @@ sact = \case
     pure $ FreshMeta r desc (ActorMeta av, a)
 
   Under r (Scope v@(Hide x) a) -> do
-    during UnderElaboration $ () <$ isFresh (Variable x)
-    a <- local (declareObjVar (x, Unknown)) $ sact a
+    during UnderElaboration $ () <$ isFresh x
+    a <- local (declareObjVar (getVariable x, Unknown)) $ sact a
     pure $ Under r (Scope v a)
 
   Match r rtm@tm cls -> do
@@ -745,7 +744,7 @@ sact = \case
     chs <- get
     clsts <- traverse (sclause desc) cls
     let (cls, sts) = unzip clsts
-    during (MatchElaboration rtm) $ consistentCommunication sts
+    during (MatchElaboration rtm) $ consistentCommunication r sts
     pure $ Match r tm cls
 
   Push r jd (p, (), t) a -> do
@@ -757,7 +756,7 @@ sact = \case
     p <- resolve p >>= \case
       Just (Right (cat, i)) -> i <$ compatibleInfos cat (Known $ keyDesc stk)
       Just (Left k) -> throwError $ NotAValidPatternVariable r p k
-      _ -> throwError $ OutOfScope p
+      _ -> throwError $ OutOfScope (getRange p) p
     t <- during (PushTermElaboration t) $ stm (valueDesc stk) t
     a <- sact a
     pure $ Push r (judgementName jd) (p, valueDesc stk, t) a
@@ -771,7 +770,7 @@ sact = \case
     ovs <- asks objVars
     (a, mcha) <- local (declare av (ActVar (Known $ valueDesc stk) ovs)) $ sbranch a
     (b, mchb) <- sbranch b
-    during (LookupHandlersElaboration rt) $ consistentCommunication [mcha, mchb]
+    during (LookupHandlersElaboration rt) $ consistentCommunication r [mcha, mchb]
     pure $ Lookup r t (ActorMeta <$> av, a) b
 
   Fail r fmt -> Fail r <$> sformat fmt <* tell (All False)
@@ -784,19 +783,19 @@ sformat fmt = do
   desc <- fromInfo Unknown
   traverse (traverse $ stm desc) fmt
 
-consistentCommunication :: [Maybe ElabState] -> Elab ()
-consistentCommunication sts = do
+consistentCommunication :: Range -> [Maybe ElabState] -> Elab ()
+consistentCommunication r sts = do
  case List.groupBy ((==) `on` fmap snd . channelStates) [ p | Just p <- sts ] of
    [] -> tell (All False) -- all branches are doomed, we don't care
    [(c:_)] -> put c
-   _ -> throwError InconsistentCommunication
+   _ -> throwError (InconsistentCommunication r)
 
 sbranch :: CActor -> Elab (AActor, Maybe ElabState)
 sbranch ra = do
   chs <- get
   (a, All b) <- censor (const (All True)) $ listen $ sact ra
   chs' <- get
-  unless b $ unless (chs == chs') $ throwError (DoomedBranchCommunicated ra)
+  unless b $ unless (chs == chs') $ throwError (DoomedBranchCommunicated (getRange ra) ra)
   put chs
   pure (a, chs' <$ guard b)
 

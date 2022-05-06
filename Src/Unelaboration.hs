@@ -93,7 +93,7 @@ instance Unelab Void where
 instance Unelab DB where
   type UnelabEnv DB = Naming
   type Unelabed DB = Variable
-  unelab (DB n) = Variable <$> do
+  unelab (DB n) = Variable unknown <$> do
     na@(ns, _, _) <- ask
     when (n >= length ns) $ throwError (InvalidNaming na)
     pure (ns <! n)
@@ -103,7 +103,7 @@ instance UnelabMeta m => Unelab (Tm m) where
   type Unelabed (Tm m) = Raw
   unelab = \case
     V -> ask >>= \case
-           (B0 :< x, _, _) -> pure (Var unknown (Variable x))
+           (B0 :< x, _, _) -> pure (Var unknown (Variable unknown x))
            na              -> throwError (VarOutOfScope na)
     A a -> pure (At unknown a)
     P (s :<>: t) -> Cons unknown <$> unelab s <*> unelab t
@@ -112,7 +112,7 @@ instance UnelabMeta m => Unelab (Tm m) where
             True -> do
               na <- ask
               let y = freshen (unhide x) na
-              local (`nameOn` y) $ (Used (Variable y),) <$> unelab t
+              local (`nameOn` y) $ (Used (Variable unknown y),) <$> unelab t
     m :$ sg -> do
       sg <- unelab sg
       m <- Var unknown <$> subunelab m
@@ -130,18 +130,18 @@ instance UnelabMeta m => Unelab (Sbst m) where
       (ST (CdB sg th :<>: CdB (Hide x := t) ph) :^^ 0) -> do
         t <- unelab (CdB t ph)
         sg <- local (nameSel th) $ unelab sg
-        pure (sg :< Assign unknown (Variable x) t)
+        pure (sg :< Assign unknown (Variable unknown x) t)
       (sg :^^ w) -> case na of
         (_, th, _) | bigEnd th <= 0 -> throwError (UnexpectedEmptyThinning na)
         (xz, th, yz :< y) -> case thun th of
          (th, False) -> do
            sg <- local (const (xz, th, yz)) $ unelab (sg :^^ w)
-           pure (sg :< Drop unknown (Variable y))
+           pure (sg :< Drop unknown (Variable unknown y))
          (th, True) ->
            case xz of
              xz :< x -> do
                sg <- local (const (xz, th, yz)) $ unelab (sg :^^ (w - 1))
-               pure (sg :< Keep unknown (Variable x))
+               pure (sg :< Keep unknown (Variable unknown x))
              _ -> throwError $ InvalidNaming na
         _ -> throwError $ InvalidNaming na
 
@@ -154,8 +154,8 @@ instance Unelab Pat where
     PP p q -> ConsP unknown <$> unelab p <*> unelab q
     BP x p -> do
       p <- local (`nameOn` unhide x) (unelab p)
-      pure (LamP unknown (Scope (mkBinder . Variable <$> x) p))
-    MP m th -> {- TODO: insert ThP -} pure (VarP unknown (Variable m))
+      pure (LamP unknown (Scope (mkBinder . Variable unknown <$> x) p))
+    MP m th -> {- TODO: insert ThP -} pure (VarP unknown (Variable unknown m))
     HP -> pure (UnderscoreP unknown)
 
 instance Unelab (Pat, AActor) where
@@ -194,7 +194,7 @@ instance Forget DAEnv Naming where
 instance Unelab Meta where
   type UnelabEnv Meta = ()
   type Unelabed Meta = Variable
-  unelab (Meta ms) = pure $ Variable $ go (B0 :< "?[") ms where
+  unelab (Meta ms) = pure $ Variable unknown $ go (B0 :< "?[") ms where
 
     go :: Bwd String -> [(String, Int)] -> String
     go acc [] = concat (acc :< "]")
@@ -205,17 +205,17 @@ instance Unelab Meta where
 instance Unelab ActorMeta where
   type UnelabEnv ActorMeta = ()
   type Unelabed ActorMeta = Variable
-  unelab (ActorMeta str) = pure (Variable str)
+  unelab (ActorMeta str) = pure (Variable unknown str)
 
 instance Unelab Channel where
   type UnelabEnv Channel = ()
   type Unelabed Channel = Variable
-  unelab (Channel str) = pure (Variable str)
+  unelab (Channel str) = pure (Variable unknown str)
 
 instance Unelab JudgementForm where
   type UnelabEnv JudgementForm = ()
   type Unelabed JudgementForm = Variable
-  unelab str = pure (Variable str)
+  unelab str = pure (Variable unknown str)
 
 instance Unelab Debug where
   type UnelabEnv Debug = ()
@@ -257,7 +257,7 @@ instance Unelab AActor where
     Send r ch tm a -> Send r <$> subunelab ch <*> inChannel ch (subunelab tm) <*> unelab a
     Recv r ch (av, a) -> Recv r <$> subunelab ch <*> ((,) <$> traverse subunelab av <*> unelab a)
     FreshMeta r desc (av, a) -> FreshMeta r <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
-    Under r (Scope x a) -> Under r. Scope x <$> local (updateNaming (`nameOn` unhide x)) (unelab a)
+    Under r (Scope x a) -> Under r. Scope x <$> local (updateNaming (`nameOn` getVariable (unhide x))) (unelab a)
     Push r jd (p, _, t) a -> Push r <$> subunelab jd <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
     Lookup r t (av, a) b -> Lookup r <$> subunelab t <*> ((,) <$> traverse subunelab av <*> unelab a) <*> unelab b
     Match r tm pts -> Match r <$> subunelab tm <*> traverse unelab pts

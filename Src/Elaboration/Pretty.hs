@@ -54,39 +54,39 @@ instance Pretty Complaint where
     go :: Complaint -> Bwd (Doc Annotations)
     go = \case
      -- scope
-     OutOfScope x -> singleton $ hsep ["Out of scope variable", pretty x]
-     MetaScopeTooBig x sc1 sc2 -> singleton $
+     OutOfScope r x -> singleton $ pretty r <> hsep ["Out of scope variable", pretty x]
+     MetaScopeTooBig r x sc1 sc2 -> singleton $ pretty r <>
          hsep [ "Cannot use", pretty x
               , "here as it is defined in too big a scope"
               , parens (hsep [ collapse (pretty <$> sc1)
                              , "won't fit in"
                              , collapse (pretty <$> sc2) ])]
-     VariableShadowing x -> singleton $ hsep [pretty x, "is already defined"]
-     EmptyContext -> singleton "Tried to pop an empty context"
+     VariableShadowing r x -> singleton $ pretty r <> hsep [pretty x, "is already defined"]
+     EmptyContext r -> singleton $ pretty r <> "Tried to pop an empty context"
      NotTopVariable r x y -> singleton $ pretty r <>
            hsep [ "Expected", pretty x, "to be the top variable"
                 , "but found", pretty y, "instead"]
      -- kinding
-     NotAValidTermVariable x k -> singleton $
+     NotAValidTermVariable r x k -> singleton $ pretty r <>
         hsep ["Invalid term variable", pretty x, "refers to", pretty k]
      NotAValidPatternVariable r x k -> singleton $
         pretty r <> hsep ["Invalid pattern variable", pretty x, "refers to", pretty k]
-     NotAValidJudgement x mk -> singleton $
+     NotAValidJudgement r x mk -> singleton $ pretty r <>
         hsep ["Invalid judgement variable", pretty x
              , "refers to", maybe "a bound variable" pretty mk]
-     NotAValidChannel x mk -> singleton $
+     NotAValidChannel r x mk -> singleton $ pretty r <>
         hsep ["Invalid channel variable", pretty x
              , "refers to", maybe "a bound variable" pretty mk]
-     NotAValidBoundVar x -> singleton $
+     NotAValidBoundVar r x -> singleton $ pretty r <>
        hsep ["Invalid bound variable", pretty x]
      -- protocol
      InvalidSend r ch tm -> singleton $ pretty r <> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
      InvalidRecv r ch v -> singleton $ pretty r <> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]
-     NonLinearChannelUse ch -> singleton $ hsep ["Non linear use of channel", pretty ch]
-     UnfinishedProtocol ch p -> singleton $
+     NonLinearChannelUse r ch -> singleton $ pretty r <> hsep ["Non linear use of channel", pretty ch]
+     UnfinishedProtocol r ch p -> singleton $ pretty r <>
        hsep ["Unfinished protocol", parens (pretty p), "on channel", pretty ch]
-     InconsistentCommunication -> singleton $ hsep ["Inconsistent communication"]
-     DoomedBranchCommunicated a -> singleton $ hsep ["Doomed branch communicated", pretty a]
+     InconsistentCommunication r -> singleton $ pretty r <> hsep ["Inconsistent communication"]
+     DoomedBranchCommunicated r a -> singleton $ pretty r <> hsep ["Doomed branch communicated", pretty a]
      ProtocolsNotDual r ps qs -> singleton $ pretty r <> hsep ["Protocols", pretty ps, "and", pretty qs, "are not dual"]
      IncompatibleModes r m1 m2 -> singleton $ pretty r <> hsep ["Modes", pretty m1, "and", pretty m2, "are incompatible"]
      IncompatibleChannelScopes r sc1 sc2 -> singleton $ pretty r <> hsep ["Channels scopes", collapse (pretty <$> sc1), "and", collapse (pretty <$> sc2), "are incompatible"]

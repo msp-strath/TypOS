@@ -1,0 +1,12 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  1 | source : !'Wildcard.
+out >  2 | source@p = p!{x*}[].
+out >                    ^^
+out > spop-fail.act:2:14-16
+out > Tried to pop an empty context
+out > when elaborating the substitution {x*}
+out > when elaborating p!{x*} []
+out > when elaborating the judgement definition for source
+out >

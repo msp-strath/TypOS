@@ -145,8 +145,9 @@ exec p@Process { actor = Constrain _ s t, ..}
   -- , dmesg (show t ++ " ----> " ++ show t') True
   = unify (p { stack = stack :<+>: [UnificationProblem (today store) s' t'], actor = Win unknown })
 exec p@Process { actor = Under _ (Scope (Hide x) a), ..}
-  = let stack' = stack :< Binding (tryAlpha env x ++ "_" ++ show (length (globalScope env <> localScope env)))
-        env'   = env { localScope = localScope env :< tryAlpha env x }
+  = let scopeSize = length (globalScope env <> localScope env)
+        stack' = stack :< Binding (tryAlpha env (getVariable x) ++ "_" ++ show scopeSize)
+        env'   = env { localScope = localScope env :< tryAlpha env (getVariable x) }
         actor' = a
     in exec (p { stack = stack', env = env', actor = actor' })
 
