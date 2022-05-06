@@ -5,26 +5,27 @@ import Control.Monad.Reader
 import Control.Monad.Writer
 
 import Data.Bifunctor (first)
+import Data.List (intersperse)
+import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 
 import ANSI hiding (withANSI)
 import Actor (JudgementForm)
+import Bwd
+import Concrete.Base (Actor(..), Variable(..), Raw, Mode(..), ExtractMode(..))
 import Concrete.Pretty()
+import Doc hiding (render)
+import Doc.Render.Terminal
+import Format
+import LaTeX
+import Location (unknown)
 import Machine.Base
 import Options
 import Pretty
+import Syntax (SyntaxDesc, SyntaxTable, SyntaxCat, expand, VSyntaxDesc (..), contract)
 import Term.Base
 import Thin (DB(..))
-import Bwd ((<>>))
 import Unelaboration
-import Concrete.Base (Variable(..), Raw, Mode(..), ExtractMode(..))
-import Doc hiding (render)
-import Doc.Render.Terminal
-import Syntax (SyntaxDesc, SyntaxTable, SyntaxCat, expand, VSyntaxDesc (..), contract)
-import LaTeX
-import qualified Data.Map as Map
-import Data.List (intersperse)
-import Location (unknown)
 
 data Trace e i
    = Node i [Trace e i]
@@ -56,6 +57,7 @@ instance Instantiable AStep where
 
 data Error t
   = StuckUnifying t t
+  | Failed String
   deriving (Show)
 
 type AError = Error Term
@@ -65,11 +67,21 @@ instance Instantiable AError where
   type Instantiated AError = AError
   instantiate st = \case
     StuckUnifying s t -> StuckUnifying (instantiate st s) (instantiate st t)
+    Failed s -> Failed s
 
 instance (Instantiable e, Instantiable i) => Instantiable (Trace e i) where
   type Instantiated (Trace e i) = Trace (Instantiated e) (Instantiated i)
   instantiate st (Node i ts) = Node (instantiate st i) (instantiate st <$> ts)
   instantiate st (Error e)   = Error (instantiate st e)
+
+instance Unelab AError where
+  type Unelabed AError = CError
+  type UnelabEnv AError = Naming
+  unelab (StuckUnifying s t) = do
+    s <- unelab s
+    t <- unelab t
+    pure $ StuckUnifying s t
+  unelab (Failed s) = pure $ Failed s
 
 instance Unelab (Trace AError AStep) where
   type Unelabed (Trace AError AStep) = Trace CError CStep
@@ -90,11 +102,7 @@ instance Unelab (Trace AError AStep) where
       jd <- subunelab jd
       tr <- traverse (traverse unelab) tr
       Node (CallingStep jd tr) <$> traverse unelab ts
-  unelab (Error e) = case e of
-    StuckUnifying s t -> do
-      s <- unelab s
-      t <- unelab t
-      pure $ Error (StuckUnifying s t)
+  unelab (Error e) = Error <$> unelab e
 
 instance Pretty (Mode, Raw) where
   pretty (m, t) = withANSI [ SetColour Background (pick m) ] (pretty t) where
@@ -114,6 +122,7 @@ instance Pretty CError where
   pretty = \case
     StuckUnifying s t -> withANSI [ SetColour Background Yellow ]
                           (pretty s <+> "/~" <+> pretty t)
+    Failed s -> withANSI [ SetColour Background Red ] (pretty s)
 
 instance Pretty (Trace CError CStep) where
   pretty (Node i@(BindingStep x) ts) =
@@ -147,6 +156,7 @@ instance LaTeX CError where
       s <- toLaTeX d s
       t <- toLaTeX d t
       pure $ call False "typosStuckUnifying" [s, t]
+    Failed s -> call False "typosFailed" . pure <$> toLaTeX () s
 
 instance LaTeX (Trace CError CStep) where
   type Format (Trace CError CStep) = ()
@@ -186,8 +196,8 @@ getPushes _ ts = ([], ts)
 extract :: [Frame] -> [Trace AError AStep]
 extract [] = []
 extract (f : fs) = case f of
-  LeftBranch Hole p -> extract fs ++ extract (stack p)
-  RightBranch p Hole -> extract (stack p) ++ extract fs
+  LeftBranch Hole p -> extract fs ++ extract (stack p) ++ findFailures p
+  RightBranch p Hole -> extract (stack p) ++ extract fs ++ findFailures p
   Spawnee Interface{..} ->
     Node (extractionMode, CallingStep judgeName (zip judgeProtocol (traffic <>> []))) (extract fs)
     : extract (stack (snd spawner))
@@ -201,6 +211,13 @@ extract (f : fs) = case f of
   _ -> extract fs
 
   where
+    findFailures :: Process Status [] -> [Trace AError AStep]
+    findFailures p@Process{..}
+     = case actor of
+         Fail _ [StringPart e] -> [Error (Failed e)]
+         Fail _ _ -> error "Expected `Fail` message to be singleton string"
+         _ -> []
+
     node :: AStep -> [Trace AError AStep]
     node s = [Node s (extract fs)]
 
@@ -286,6 +303,7 @@ ldiagnostic table st fs =
    , "\\newcommand{\\typosBinding}[1]{#1 \\vdash}"
    , "\\newcommand{\\typosPushing}[3]{\\textsc{#1} \\lbrace #2 \\to #3 \\rbrace.}"
    , "\\newcommand{\\typosStuckUnifying}[2]{#1 \\not\\sim #2}"
+   , "\\newcommand{\\typosFailed}[1]{\\text{#1}}"
    , "\\newcommand{\\typosAtom}[1]{\\tt`#1}"
    , "\\newcommand{\\typosNil}{[]}"
    , "\\newcommand{\\typosListStart}[2]{[#1#2}"

@@ -2,6 +2,7 @@ ret > ExitSuccess
 out > Alarm: left
 out > Alarm: right
 out > test 
+out >  left
 out >
 err >
 err >

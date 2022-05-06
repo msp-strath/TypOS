@@ -191,18 +191,25 @@ exec p@Process { actor = Break _ fmt a, ..}
           () <$ getLine
       pure (exec (p { actor = a }))
 
-exec p@Process { actor = Fail _ fmt, ..}
-  = let msg = case traverse (traverse $ mangleActors options env) fmt of
-                Just fmt -> format [] p fmt
-                Nothing -> case evalDisplay (frDisplayEnv stack) (subdisplay fmt) of
-                  Left grp -> "Error " ++ show grp ++ " in the error " ++ show fmt
-                  Right str -> render (colours options) (Config (termWidth options) Vertical) str
-    in alarm options msg $ move (p { stack = stack :<+>: [] })
+exec p@Process { actor = Fail r fmt, ..}
+  = let msg = evalError p fmt
+        act = Fail r [StringPart msg]
+    in  alarm options msg $ move (p { stack = stack :<+>: []
+                                    , actor = act
+                                    })
 
 exec p@Process { actor = Note _ a, .. }
   = exec (p { stack = stack :< Noted, actor = a})
 
 exec p@Process {..} = move (p { stack = stack :<+>: [] })
+
+evalError :: Process Store Bwd -> [Format Directive Debug ACTm] -> String
+evalError p@Process{..} fmt
+  = case traverse (traverse $ mangleActors options env) fmt of
+      Just fmt -> format [] p fmt
+      Nothing -> case evalDisplay (frDisplayEnv stack) (subdisplay fmt) of
+        Left grp -> "Error " ++ show grp ++ " in the error " ++ show fmt
+        Right str -> render (colours options) (Config (termWidth options) Vertical) str
 
 format :: [Annotation] -> Process Store Bwd -> [Format Directive Debug Term] -> String
 format ann p@Process{..} fmt

@@ -357,9 +357,6 @@ evalElab = fmap fst
          . (`evalStateT` initElabState)
          . runElab
 
-type ACTm = CdB (Tm ActorMeta)
-type ACTSbst = CdB (Sbst ActorMeta)
-
 svar :: Variable -> Elab (Info SyntaxDesc, ACTm)
 svar x = do
   ovs <- asks objVars
