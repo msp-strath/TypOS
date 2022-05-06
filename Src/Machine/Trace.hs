@@ -198,16 +198,16 @@ extract [] = []
 extract (f : fs) = case f of
   LeftBranch Hole p -> extract fs ++ extract (stack p) ++ findFailures p
   RightBranch p Hole -> extract (stack p) ++ extract fs ++ findFailures p
-  Spawnee Interface{..} ->
+  Spawnee Interface{..} -> let p = snd spawner in
     Node (extractionMode, CallingStep judgeName (zip judgeProtocol (traffic <>> []))) (extract fs)
-    : extract (stack (snd spawner))
-  Spawner Interface{..} ->
-    Node (extractionMode, CallingStep judgeName (zip judgeProtocol (traffic <>> []))) (extract (stack (fst spawnee)))
+    : extract (stack p) ++ findFailures p
+  Spawner Interface{..} -> let p = fst spawnee in
+    Node (extractionMode, CallingStep judgeName (zip judgeProtocol (traffic <>> []))) (extract (stack p) ++ findFailures p)
     : extract fs
   Pushed jd (i, d, t) -> node (AlwaysExtract, PushingStep jd i (d, t))
   Binding x -> node (AlwaysExtract, BindingStep (Variable unknown x))
-  Noted -> Node (AlwaysExtract, NotedStep) [] : extract fs
   UnificationProblem date s t -> Error (StuckUnifying s t) : extract fs
+  Noted -> Node (AlwaysExtract, NotedStep) [] : extract fs
   _ -> extract fs
 
   where
