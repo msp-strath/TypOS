@@ -1,0 +1,5 @@
+test :
+test@p = (# "left"
+         |# "right" )
+
+exec test@p.
