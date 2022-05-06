@@ -82,11 +82,11 @@ instance Pretty Complaint where
      -- protocol
      InvalidSend r ch tm -> singleton $ pretty r <> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
      InvalidRecv r ch v -> singleton $ pretty r <> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]
-     NonLinearChannelUse ch -> singleton $ hsep ["Non linear use of channel", pretty ch]
+     NonLinearChannelUse r ch -> singleton $ pretty r <> hsep ["Non linear use of channel", pretty ch]
      UnfinishedProtocol ch p -> singleton $
        hsep ["Unfinished protocol", parens (pretty p), "on channel", pretty ch]
-     InconsistentCommunication -> singleton $ hsep ["Inconsistent communication"]
-     DoomedBranchCommunicated a -> singleton $ hsep ["Doomed branch communicated", pretty a]
+     InconsistentCommunication r -> singleton $ pretty r <> hsep ["Inconsistent communication"]
+     DoomedBranchCommunicated r a -> singleton $ pretty r <> hsep ["Doomed branch communicated", pretty a]
      ProtocolsNotDual r ps qs -> singleton $ pretty r <> hsep ["Protocols", pretty ps, "and", pretty qs, "are not dual"]
      IncompatibleModes r m1 m2 -> singleton $ pretty r <> hsep ["Modes", pretty m1, "and", pretty m2, "are incompatible"]
      IncompatibleChannelScopes r sc1 sc2 -> singleton $ pretty r <> hsep ["Channels scopes", collapse (pretty <$> sc1), "and", collapse (pretty <$> sc2), "are incompatible"]

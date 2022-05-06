@@ -159,10 +159,10 @@ data Complaint
   -- protocol
   | InvalidSend Range Channel Raw
   | InvalidRecv Range Channel (Binder String)
-  | NonLinearChannelUse Channel
+  | NonLinearChannelUse Range Channel
   | UnfinishedProtocol Channel AProtocol
-  | InconsistentCommunication
-  | DoomedBranchCommunicated CActor
+  | InconsistentCommunication Range
+  | DoomedBranchCommunicated Range CActor
   | ProtocolsNotDual Range AProtocol AProtocol
   | IncompatibleModes Range (Mode, SyntaxDesc) (Mode, SyntaxDesc)
   | WrongDirection Range (Mode, SyntaxDesc) Ordering (Mode, SyntaxDesc)
@@ -233,10 +233,10 @@ instance HasRange Complaint where
   -- protocol
     InvalidSend r _ _ -> r
     InvalidRecv r _ _ -> r
-    NonLinearChannelUse _ -> unknown
+    NonLinearChannelUse r _ -> r
     UnfinishedProtocol _ _ -> unknown
-    InconsistentCommunication -> unknown
-    DoomedBranchCommunicated _ -> unknown
+    InconsistentCommunication r -> r
+    DoomedBranchCommunicated r _ -> r
     ProtocolsNotDual r _ _ -> r
     IncompatibleModes r _ _ -> r
     WrongDirection r _ _ _ -> r
@@ -589,12 +589,12 @@ channelScope (Channel ch) = do
   case fromJust (focusBy (\ (y, k) -> k <$ guard (ch == y)) ds) of
     (_, AChannel sc, _) -> pure sc
 
-steppingChannel :: Channel -> (AProtocol -> Elab (a, AProtocol)) ->
+steppingChannel :: Range -> Channel -> (AProtocol -> Elab (a, AProtocol)) ->
                    Elab a
-steppingChannel ch step = do
+steppingChannel r ch step = do
   nm <- getName
   (pnm, p) <- gets (fromJust . channelLookup ch)
-  unless (pnm `isPrefixOf` nm) $ throwError (NonLinearChannelUse ch)
+  unless (pnm `isPrefixOf` nm) $ throwError (NonLinearChannelUse r ch)
   (cat, p) <- step p
   modify (channelInsert ch (nm, p))
   pure cat
@@ -682,7 +682,7 @@ sact = \case
   Send r ch tm a -> do
     ch <- isChannel ch
     -- Check the channel is in sending mode, & step it
-    desc <- steppingChannel ch $ \case
+    desc <- steppingChannel r ch $ \case
       (Output, desc) : p -> pure (desc, p)
       _ -> throwError (InvalidSend r ch tm)
 
@@ -700,7 +700,7 @@ sact = \case
     ch <- isChannel ch
     av <- during (RecvMetaElaboration ch) $ traverse isFresh av
     -- Check the channel is in receiving mode & step it
-    cat <- steppingChannel ch $ \case
+    cat <- steppingChannel r ch $ \case
       (Input, cat) : p -> pure (cat, p)
       _ -> throwError (InvalidRecv r ch av)
 
@@ -712,8 +712,8 @@ sact = \case
   Connect r (CConnect ch1 ch2) -> during (ConnectElaboration ch1 ch2) $ do
     ch1 <- isChannel ch1
     ch2 <- isChannel ch2
-    p <- steppingChannel ch1 $ \ p -> pure (p, [])
-    q <- steppingChannel ch2 $ \ p -> pure (p, [])
+    p <- steppingChannel r ch1 $ \ p -> pure (p, [])
+    q <- steppingChannel r ch2 $ \ p -> pure (p, [])
     sc1 <- channelScope ch1
     sc2 <- channelScope ch2
     (dir, th) <- case (findSub sc1 sc2, findSub sc2 sc1) of
@@ -745,7 +745,7 @@ sact = \case
     chs <- get
     clsts <- traverse (sclause desc) cls
     let (cls, sts) = unzip clsts
-    during (MatchElaboration rtm) $ consistentCommunication sts
+    during (MatchElaboration rtm) $ consistentCommunication r sts
     pure $ Match r tm cls
 
   Push r jd (p, (), t) a -> do
@@ -771,7 +771,7 @@ sact = \case
     ovs <- asks objVars
     (a, mcha) <- local (declare av (ActVar (Known $ valueDesc stk) ovs)) $ sbranch a
     (b, mchb) <- sbranch b
-    during (LookupHandlersElaboration rt) $ consistentCommunication [mcha, mchb]
+    during (LookupHandlersElaboration rt) $ consistentCommunication r [mcha, mchb]
     pure $ Lookup r t (ActorMeta <$> av, a) b
 
   Fail r fmt -> Fail r <$> sformat fmt <* tell (All False)
@@ -784,19 +784,19 @@ sformat fmt = do
   desc <- fromInfo Unknown
   traverse (traverse $ stm desc) fmt
 
-consistentCommunication :: [Maybe ElabState] -> Elab ()
-consistentCommunication sts = do
+consistentCommunication :: Range -> [Maybe ElabState] -> Elab ()
+consistentCommunication r sts = do
  case List.groupBy ((==) `on` fmap snd . channelStates) [ p | Just p <- sts ] of
    [] -> tell (All False) -- all branches are doomed, we don't care
    [(c:_)] -> put c
-   _ -> throwError InconsistentCommunication
+   _ -> throwError (InconsistentCommunication r)
 
 sbranch :: CActor -> Elab (AActor, Maybe ElabState)
 sbranch ra = do
   chs <- get
   (a, All b) <- censor (const (All True)) $ listen $ sact ra
   chs' <- get
-  unless b $ unless (chs == chs') $ throwError (DoomedBranchCommunicated ra)
+  unless b $ unless (chs == chs') $ throwError (DoomedBranchCommunicated (getRange ra) ra)
   put chs
   pure (a, chs' <$ guard b)
 
