@@ -60,7 +60,7 @@ jobs:
     - name: Test
       # if: runner.os != 'Windows'
       run: |
-        cabal test all
+        TERM=dumb cabal test all
 
   stack:
     name: stack / ghc ${{ matrix.ghc }}
@@ -96,4 +96,4 @@ jobs:
     - name: Test
       # if: runner.os != 'Windows'
       run: |
-        stack test --system-ghc
+        TERM=dumb stack test --system-ghc
