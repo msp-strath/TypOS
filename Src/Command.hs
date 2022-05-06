@@ -32,6 +32,7 @@ import Pretty (keyword, Collapse(..), BracesList(..), Pretty(..))
 import Syntax
 import Term.Base
 import Unelaboration(Unelab(..), subunelab, withEnv, initDAEnv, Naming, declareChannel)
+import Location
 
 data CommandF jd p ch syn a
   = DeclJ ExtractMode jd (Maybe (JudgementStack syn)) (Protocol syn)
@@ -117,10 +118,11 @@ scommand = \case
     local (declare (Used jd) (AJudgement em mstk p)) $
       (DeclJ em jd mstk p,) <$> asks declarations
   DefnJ (jd, (), ch) a -> during (DefnJElaboration jd) $ do
+    let rp = getRange jd <> getRange ch
     ch <- Channel <$> isFresh ch
     jd <- isJudgement jd
     local (setCurrentActor (judgementName jd) (judgementStack jd)) $ do
-      a <- withChannel ch (judgementProtocol jd) $ sact a
+      a <- withChannel rp ch (judgementProtocol jd) $ sact a
       (DefnJ (judgementName jd, judgementProtocol jd, ch) a,) <$> asks declarations
   DeclS syns -> do
     oldsyndecls <- gets (Map.keys . syntaxCats)

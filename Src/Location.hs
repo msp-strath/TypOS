@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 module Location where
 
@@ -37,9 +38,13 @@ data Range = Range
   , end    :: !(Int, Int)
   } deriving (Eq, Ord)
 
-class HasRange t where
+class HasSetRange t where
   setRange :: Range -> t -> t
+
+class HasGetRange t where
   getRange :: t -> Range
+
+type HasRange t = (HasSetRange t, HasGetRange t)
 
 fromLocations :: Location -> Location -> Range
 fromLocations s e = Range (file s) (row s, col s) (row e, col e)
@@ -74,3 +79,6 @@ fileContext r
                  <> withANSI [ SetWeight Bold, SetColour Foreground Red ]
                     (pretty (replicate (snd (end r) - snd (start r)) '^'))
     pure $ horizontally $ vcat $ "" : zipWith (<>) headers context ++ [underline, ""]
+
+instance Semigroup Range where
+  left <> right = Range (source left) (start left) (end right)

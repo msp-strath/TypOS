@@ -160,7 +160,7 @@ data Complaint
   | InvalidSend Range Channel Raw
   | InvalidRecv Range Channel (Binder String)
   | NonLinearChannelUse Range Channel
-  | UnfinishedProtocol Channel AProtocol
+  | UnfinishedProtocol Range Channel AProtocol
   | InconsistentCommunication Range
   | DoomedBranchCommunicated Range CActor
   | ProtocolsNotDual Range AProtocol AProtocol
@@ -214,9 +214,7 @@ data Complaint
   | ConnectElaboration Variable Variable Complaint
   deriving (Show)
 
-instance HasRange Complaint where
-  setRange _ = id -- FIXME
-
+instance HasGetRange Complaint where
   getRange = \case
     OutOfScope r _ -> r
     MetaScopeTooBig r _ _ _ -> r
@@ -234,7 +232,7 @@ instance HasRange Complaint where
     InvalidSend r _ _ -> r
     InvalidRecv r _ _ -> r
     NonLinearChannelUse r _ -> r
-    UnfinishedProtocol _ _ -> unknown
+    UnfinishedProtocol r _ _ -> r
     InconsistentCommunication r -> r
     DoomedBranchCommunicated r _ -> r
     ProtocolsNotDual r _ _ -> r
@@ -604,22 +602,22 @@ open ch p = do
   nm <- getName
   modify (channelInsert ch (nm, p))
 
-close :: Channel -> Elab ()
-close ch = do
+close :: Range -> Channel -> Elab ()
+close r ch = do
   -- make sure the protocol was run all the way
   mp <- gets (channelLookup ch)
   case snd (fromJust mp) of
     [] -> pure ()
-    p -> throwError (UnfinishedProtocol ch p)
+    p -> throwError (UnfinishedProtocol r ch p)
   modify (channelDelete ch)
 
-withChannel :: Channel -> AProtocol -> Elab a -> Elab a
-withChannel ch@(Channel rch) p ma = do
+withChannel :: Range -> Channel -> AProtocol -> Elab a -> Elab a
+withChannel r ch@(Channel rch) p ma = do
   open ch p
   -- run the actor in the extended context
   ovs <- asks objVars
   a <- local (declare (Used rch) (AChannel ovs)) $ ma
-  close ch
+  close r ch
   pure a
 
 guessDesc :: Bool -> -- is this in tail position?
@@ -667,11 +665,12 @@ sact = \case
     pure (Branch r a b)
 
   Spawn r em jd ch a -> do
+    let rp = getRange jd <> getRange ch
     -- check the channel name is fresh & initialise it
     ch <- Channel <$> isFresh ch
     jd <- isJudgement jd
 
-    a <- withChannel ch (dual $ judgementProtocol jd) $ sact a
+    a <- withChannel rp ch (dual $ judgementProtocol jd) $ sact a
 
     em <- pure $ case em of
       AlwaysExtract -> judgementExtract jd

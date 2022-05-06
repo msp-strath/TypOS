@@ -83,7 +83,7 @@ instance Pretty Complaint where
      InvalidSend r ch tm -> singleton $ pretty r <> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
      InvalidRecv r ch v -> singleton $ pretty r <> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]
      NonLinearChannelUse r ch -> singleton $ pretty r <> hsep ["Non linear use of channel", pretty ch]
-     UnfinishedProtocol ch p -> singleton $
+     UnfinishedProtocol r ch p -> singleton $ pretty r <>
        hsep ["Unfinished protocol", parens (pretty p), "on channel", pretty ch]
      InconsistentCommunication r -> singleton $ pretty r <> hsep ["Inconsistent communication"]
      DoomedBranchCommunicated r a -> singleton $ pretty r <> hsep ["Doomed branch communicated", pretty a]

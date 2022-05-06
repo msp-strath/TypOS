@@ -13,8 +13,9 @@ data Variable = Variable
 instance Show Variable where show = show . getVariable
 instance Eq Variable where (==) = (==) `on` getVariable
 
-instance HasRange Variable where
+instance HasSetRange Variable where
   setRange r (Variable _ v) = Variable r v
+instance HasGetRange Variable where
   getRange = variableLoc
 
 type Atom = String
@@ -36,7 +37,7 @@ data Raw
   | Sbst Range (Bwd SbstC) Raw
   deriving (Show)
 
-instance HasRange Raw where
+instance HasSetRange Raw where
   setRange r = \case
     Var _ v -> Var r v
     At _ a -> At r a
@@ -44,6 +45,7 @@ instance HasRange Raw where
     Lam _ sc -> Lam r sc
     Sbst _ sg t -> Sbst r sg t
 
+instance HasGetRange Raw where
   getRange = \case
     Var r v -> r
     At r a -> r
@@ -57,12 +59,13 @@ data SbstC
   | Assign Range Variable Raw
   deriving (Show)
 
-instance HasRange SbstC where
+instance HasSetRange SbstC where
   setRange r = \case
     Keep _ v -> Keep r v
     Drop _ v -> Drop r v
     Assign _ v t -> Assign r v t
 
+instance HasGetRange SbstC where
   getRange = \case
     Keep r v -> r
     Drop r v -> r
@@ -77,7 +80,7 @@ data RawP
   | UnderscoreP Range
   deriving (Show)
 
-instance HasRange RawP where
+instance HasSetRange RawP where
   setRange r = \case
     VarP _ v -> VarP r v
     AtP _ a -> AtP r a
@@ -86,6 +89,7 @@ instance HasRange RawP where
     ThP _ sg t -> ThP r sg t
     UnderscoreP _ -> UnderscoreP r
 
+instance HasGetRange RawP where
   getRange = \case
     VarP r v -> r
     AtP r a -> r
@@ -136,7 +140,7 @@ data Actor jd ch bd av syn var tm pat cnnct stk
  | Break Range [Format Directive Debug tm] (Actor jd ch bd av syn var tm pat cnnct stk)
  deriving (Show)
 
-instance HasRange (Actor jd ch bd av syn var tm pat cnnct stk) where
+instance HasSetRange (Actor jd ch bd av syn var tm pat cnnct stk) where
   setRange r = \case
     Branch _ a b -> Branch r a b
     Spawn _ em jd ch ac -> Spawn r em jd ch ac
@@ -155,6 +159,7 @@ instance HasRange (Actor jd ch bd av syn var tm pat cnnct stk) where
     Print _ fors ac -> Print r fors ac
     Break _ fors ac -> Break r fors ac
 
+instance HasGetRange (Actor jd ch bd av syn var tm pat cnnct stk) where
   getRange = \case
     Branch r a b -> r
     Spawn r em jd ch ac -> r

@@ -3,7 +3,7 @@
 build:
 	cabal build
 
-all: build install test
+all: install test
 
 install:
 	cabal install
