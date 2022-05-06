@@ -19,4 +19,4 @@ TAGS:
 	hasktags --etags .
 
 test:
-	cabal run typos-tests -- -i
+	TERM=dumb cabal run typos-tests -- -i

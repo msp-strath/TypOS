@@ -7,6 +7,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 
+import Data.Bifunctor (first)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
@@ -34,16 +35,16 @@ import Term.Base
 import Unelaboration(Unelab(..), subunelab, withEnv, initDAEnv, Naming, declareChannel)
 import Location
 
-data CommandF jd p ch syn a
+data CommandF jd p ch cat syn a
   = DeclJ ExtractMode jd (Maybe (JudgementStack syn)) (Protocol syn)
   | DefnJ (jd, p, ch) a
-  | DeclS [(SyntaxCat, syn)]
+  | DeclS [(cat, syn)]
   | Go a
   | Trace [MachineStep]
   deriving (Show)
 
-type CCommand = CommandF Variable () Variable Raw CActor
-type ACommand = CommandF JudgementForm AProtocol Channel SyntaxDesc AActor
+type CCommand = CommandF Variable () Variable (WithRange SyntaxCat) Raw CActor
+type ACommand = CommandF JudgementForm AProtocol Channel SyntaxCat SyntaxDesc AActor
 
 instance Display Mode where
   type DisplayEnv Mode = ()
@@ -63,7 +64,7 @@ instance Pretty CCommand where
   pretty = \case
     DeclJ em jd mstk p -> pretty em <> pretty jd <> maybe "" (\ stk -> space <> pretty stk <+> "|-") mstk <+> pretty p
     DefnJ (jd, _, ch) a -> hsep [pretty jd <> "@" <> pretty ch, equal, pretty a]
-    DeclS s -> let docs = fmap (\ (cat, desc) -> pretty cat <+> equal <+> pretty desc) s in
+    DeclS s -> let docs = fmap (\ (cat, desc) -> pretty (theValue cat) <+> equal <+> pretty desc) s in
                keyword "syntax" <+> collapse (BracesList docs)
     Go a -> keyword "exec" <+> pretty a
     Trace ts -> keyword "trace" <+> collapse (BracesList $ map pretty ts)
@@ -75,7 +76,7 @@ instance Unelab ACommand where
     DeclJ em jd mstk a -> DeclJ em <$> subunelab jd <*> traverse unelab mstk <*> unelab a
     DefnJ (jd, _, ch) a -> DefnJ <$> ((,,) <$> subunelab jd <*> pure () <*> subunelab ch)
                               <*> withEnv (declareChannel ch initDAEnv) (unelab a)
-    DeclS s -> DeclS <$> traverse (traverse unelab) s
+    DeclS s -> DeclS . map (first (WithRange unknown)) <$> traverse (traverse unelab) s
     Go a -> Go <$> withEnv initDAEnv (unelab a)
     Trace ts -> pure $ Trace ts
 
@@ -95,8 +96,8 @@ pmachinestep =
 pjudgeat :: Parser (Variable, (), Variable)
 pjudgeat = (,,) <$> pvariable <*> punc "@" <*> pvariable
 
-psyntax :: Parser (SyntaxCat, Raw)
-psyntax = (,) <$> patom <* punc "=" <*> psyntaxdecl
+psyntax :: Parser (WithRange SyntaxCat, Raw)
+psyntax = (,) <$> withRange (WithRange unknown <$> patom) <* punc "=" <*> psyntaxdecl
 
 pcommand :: Parser CCommand
 pcommand
@@ -126,13 +127,13 @@ scommand = \case
       (DefnJ (judgementName jd, judgementProtocol jd, ch) a,) <$> asks declarations
   DeclS syns -> do
     oldsyndecls <- gets (Map.keys . syntaxCats)
-    let newsyndecls = map fst syns
+    let newsyndecls = map (theValue . fst) syns
     let syndecls = newsyndecls ++ oldsyndecls
     syns <- for syns $ \ syn@(cat, _) ->
-              during (DeclaringSyntaxCat cat) $
+              during (DeclaringSyntaxCat (theValue cat)) $
                 traverse (ssyntaxdecl syndecls) syn
     forM_ syns (uncurry declareSyntax)
-    (DeclS syns,) <$> asks declarations
+    (DeclS (map (first theValue) syns),) <$> asks declarations
   Go a -> during ExecElaboration $ (,) . Go <$> sact a <*> asks declarations
   Trace ts -> (Trace ts,) <$> asks declarations
 

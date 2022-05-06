@@ -1,0 +1,17 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  4 | 
+out >  5 | test :
+out >  6 | test@p = 'Tic?a. 'Tac?b. [a b] ~ [b a]
+out >                               ^^^^^^^^^^^^^
+out > syntaxcat-fail.act:6:25-38
+out > Syntax infos Known ['Cons
+out >                     'Tic ['Cons
+out >                           'Tac 'Nil]] and Known ['Cons
+out >                                                  'Tac ['Cons
+out >                                                        'Tic
+out >                                                        'Nil]] are incompatible
+out > when guessing syntactic categories for [a b] [b a]
+out > when elaborating the judgement definition for test
+out >

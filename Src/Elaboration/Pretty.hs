@@ -94,18 +94,15 @@ instance Pretty Complaint where
      PushingOnAStacklessJudgement r jd -> singleton $ pretty r <> hsep ["Pushing on a stackless judgement", pretty jd]
      LookupFromAStacklessActor r jd -> singleton $ pretty r <> hsep ["Lookup from a stackless judgement", pretty jd]
      -- syntaxes
-     NotAValidSyntaxCat x -> singleton $ hsep ["Invalid syntactic category", pretty x]
-     AlreadyDeclaredSyntaxCat x -> singleton $ hsep ["The syntactic category", pretty x, "is already defined"]
-     SyntaxContainsMeta x -> singleton $
-       hsep ["The description of the syntactic category", pretty x, "contains meta variables"]
-     InvalidSyntax x -> singleton $ hsep ["Invalid description for the syntactic category", pretty x]
+     AlreadyDeclaredSyntaxCat r x -> singleton $ pretty r <> hsep ["The syntactic category", pretty x, "is already defined"]
      WrongDirection r m1 dir m2 -> singleton $ pretty r <> hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]
   -- syntaxdesc validation
-     InconsistentSyntaxDesc -> singleton "Inconsistent syntactic descriptions"
-     InvalidSyntaxDesc d -> singleton $ hsep ["Invalid syntax desc", pretty d]
+     InconsistentSyntaxDesc r -> singleton $ pretty r <> "Inconsistent syntactic descriptions"
+     InvalidSyntaxDesc r d -> singleton $ pretty r <> hsep ["Invalid syntax desc", pretty d]
      IncompatibleSyntaxDescs r desc desc' -> singleton $ pretty r <>
        hsep ["Incompatible syntax descriptions", prettyPrec 1 desc, "and", prettyPrec 1 desc']
-     IncompatibleSyntaxInfos info1 info2 -> singleton $ hsep ["Syntax infos", pretty info1, "and", pretty info2, "are incompatible"]
+     IncompatibleSyntaxInfos r info1 info2 -> singleton $ pretty r <>
+       hsep ["Syntax infos", pretty info1, "and", pretty info2, "are incompatible"]
      ExpectedNilGot r at -> singleton $ pretty r <> hsep ["Expected [] and got", squote <> pretty at]
      ExpectedEnumGot r es e -> singleton $ pretty r <+> "Expected" <+> sep
        [ hsep ["an atom among", collapse (map pretty es)]

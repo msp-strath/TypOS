@@ -1,0 +1,6 @@
+syntax { 'Tic = ['Enum ['Tic]]
+       ; 'Tac = ['Enum ['Tac]]
+       }
+
+test :
+test@p = 'Tic?a. 'Tac?b. [a b] ~ [b a]
