@@ -2,11 +2,12 @@ module Actor where
 
 import qualified Data.Map as Map
 
-import ANSI
+import Alarm
 import Bwd
 import Concrete.Base
 import Hide
 import Location
+import Options
 import Pattern
 import Syntax (SyntaxDesc)
 import Term
@@ -71,10 +72,11 @@ newActorVar x defn env = env { actorVars = Map.insert x defn (actorVars env) }
 --       in the environment (tm := ['Lam \x.['Emb x]])
 --  we need to instantiate tm to ['Lam \x.['Emb x]] before
 -- trying to find the clause that matches
-mangleActors :: Env                {- Env ga -}
+mangleActors :: Options
+             -> Env                {- Env ga -}
              -> CdB (Tm ActorMeta) {- Src de -}
              -> Maybe Term         {- Trg (ga <<< de) -}
-mangleActors rho tm = go tm where
+mangleActors opts rho tm = go tm where
   ga = length (globalScope rho)
 
   go :: CdB (Tm ActorMeta) {- Src de -}
@@ -113,5 +115,5 @@ mangleActors rho tm = go tm where
   noisyLookupVar :: ActorMeta -> Maybe Term
   noisyLookupVar av = case lookupVar rho av of
     Just (_, t) -> Just t
-    Nothing -> alarm ("couldn't find " ++ show av ++ " in " ++ show rho)
+    Nothing -> alarm opts ("couldn't find " ++ show av ++ " in " ++ show rho)
                        Nothing

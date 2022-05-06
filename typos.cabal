@@ -28,6 +28,7 @@ library
   import:              haskell
   exposed-modules:     Actor,
                        Actor.Display,
+                       Alarm,
                        ANSI,
                        Bwd,
                        Command,

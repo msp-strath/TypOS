@@ -3,6 +3,7 @@ module Machine.Exec where
 
 import Control.Monad.Reader
 
+import Alarm
 import ANSI hiding (withANSI)
 import Bwd
 import Concrete.Base
@@ -58,7 +59,7 @@ exec p@Process { actor = Spawn _ em jd spawnerCh actor, ..}
                , root = newRoot
                , actor })
 exec p@Process { actor = Send _ ch tm a, ..}
-  | Just term <- mangleActors env tm
+  | Just term <- mangleActors options env tm
   = let (subRoot, newRoot) = splitRoot root ""
     in send ch term (p { stack = stack :<+>: []
                        , root = newRoot
@@ -69,7 +70,7 @@ exec p@Process { actor = Recv _ ch (x, a), ..}
 exec p@Process { actor = Connect _ ac, ..}
   = connect ac (p { stack = stack :<+>: []})
 exec p@Process { actor = m@(Match _ s cls), ..}
-  | Just term <- mangleActors env s
+  | Just term <- mangleActors options env s
   = switch term cls
  where
 
@@ -84,7 +85,7 @@ exec p@Process { actor = m@(Match _ s cls), ..}
                 , parens ("raw term:" <+> t)
                 , "in:"
                 , m ]
-    in alarm msg $ move (p { stack = stack :<+>: [] })
+    in alarm options msg $ move (p { stack = stack :<+>: [] })
   switch t ((pat, a):cs) = case match env [(localScope env, pat,t)] of
     Left True -> switch t cs
     Left False -> move (p { stack = stack :<+>: [] })
@@ -137,8 +138,8 @@ exec p@Process { actor = FreshMeta _ cat (av@(ActorMeta x), a), ..} =
       env' = newActorVar av (localScope env <>> [], xt) env
   in exec (p { env = env', root = root', actor = a })
 exec p@Process { actor = Constrain _ s t, ..}
-  | Just s' <- mangleActors env s
-  , Just t' <- mangleActors env t
+  | Just s' <- mangleActors options env s
+  , Just t' <- mangleActors options env t
   -- , dmesg "HERE" True
   -- , dmesg (show env) True
   -- , dmesg (show s ++ " ----> " ++ show s') True
@@ -152,12 +153,12 @@ exec p@Process { actor = Under _ (Scope (Hide x) a), ..}
     in exec (p { stack = stack', env = env', actor = actor' })
 
 exec p@Process { actor = Push _ jd (pv, d, t) a, ..}
-  | Just t' <- mangleActors env t
+  | Just t' <- mangleActors options env t
   = let stack' = stack :< Pushed jd (pv, d, t')
     in exec (p { stack = stack', actor = a })
 
 exec p@Process { actor = Lookup _ t (av, a) b, ..}
-  | Just t' <- mangleActors env t
+  | Just t' <- mangleActors options env t
   = case expand (headUp store t') of
       VX (DB i) _ | Just t' <- search stack i judgementform 0 ->
         let env' = case av of
@@ -177,7 +178,7 @@ exec p@Process { actor = Lookup _ t (av, a) b, ..}
       _ -> search zf i jd bd
 
 exec p@Process { actor = Print _ fmt a, ..}
-  | Just fmt <- traverse (traverse $ mangleActors env) fmt
+  | Just fmt <- traverse (traverse $ mangleActors options env) fmt
   =  unsafePerformIO $ do
       putStrLn $ format [SetColour Background Magenta] p fmt
       pure (exec (p { actor = a }))
@@ -185,18 +186,18 @@ exec p@Process { actor = Print _ fmt a, ..}
 exec p@Process { actor = Break _ fmt a, ..}
   = unsafePerformIO $ do
       when (MachineBreak `elem` tracing p) $ do
-        whenJust (traverse (traverse $ mangleActors env) fmt) $ \ fmt -> do
+        whenJust (traverse (traverse $ mangleActors options env) fmt) $ \ fmt -> do
           putStrLn $ format [SetColour Background Red] p fmt
           () <$ getLine
       pure (exec (p { actor = a }))
 
 exec p@Process { actor = Fail _ fmt, ..}
-  = let msg = case traverse (traverse $ mangleActors env) fmt of
+  = let msg = case traverse (traverse $ mangleActors options env) fmt of
                 Just fmt -> format [] p fmt
                 Nothing -> case evalDisplay (frDisplayEnv stack) (subdisplay fmt) of
                   Left grp -> "Error " ++ show grp ++ " in the error " ++ show fmt
                   Right str -> render (colours options) (Config (termWidth options) Vertical) str
-    in alarm msg $ move (p { stack = stack :<+>: [] })
+    in alarm options msg $ move (p { stack = stack :<+>: [] })
 
 exec p@Process { actor = Note _ a, .. }
   = exec (p { stack = stack :< Noted, actor = a})

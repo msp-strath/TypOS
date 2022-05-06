@@ -4,6 +4,7 @@ module Options where
 
 import Options.Applicative
 import System.Console.Terminal.Size (size, width)
+import System.Environment (getEnv)
 
 import Doc
 import Pretty
@@ -68,3 +69,7 @@ getOptions = do
   termSize <- size
   let w = maybe 80 width termSize
   pure $ opts { termWidth = w }
+
+isTermDumb :: IO Bool
+isTermDumb = ("dumb"==) <$> getEnv "TERM"
+

@@ -2,8 +2,6 @@ module ANSI where
 
 import Data.List (intercalate)
 
-import System.IO.Unsafe
-
 data Colour
   = Black | Red | Green | Yellow | Blue
   | Magenta | Cyan | White
@@ -49,9 +47,3 @@ withANSI anns str = concat
 
     underlining Single = 4
     underlining Double = 21
-
-alarm :: String -> a -> a
-alarm str x = unsafePerformIO $ do
-  putStrLn $ withANSI [SetColour Background Red] "Alarm:" ++ ' ' : str
-  _ <- getLine
-  pure x
