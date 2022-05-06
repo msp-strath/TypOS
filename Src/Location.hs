@@ -1,7 +1,13 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Location where
 
+import ANSI hiding (withANSI)
 import Data.List (foldl')
 import System.FilePath
+import Doc
+import Doc.Render.Terminal
+import Pretty (pretty)
 
 data Location = Location
   { file :: FilePath
@@ -51,3 +57,20 @@ instance Show Range where
     if sr == er
     then concat [takeFileName fp, ":", show sr, ":", show sc, "-", show ec]
     else concat [takeFileName fp, ":", show sr, ":", show sc, "-", show er, ":", show ec]
+
+fileContext :: Range -> IO (Doc Annotations)
+fileContext r
+  | r == unknown = pure ""
+  | fst (start r) /= fst (end r) = pure ""
+  | otherwise = do
+    content <- lines <$> readFile (source r)
+    let focus = fst (start r)
+    let begin = focus - 3
+    let context = map pretty $ take 3 $ drop begin content
+    let sizeHds = length (show focus)
+    let display = \ n -> let header = show n in replicate (1 + sizeHds - length header) ' ' ++ header ++ " | "
+    let headers = map (pretty . display) $ dropWhile (< 0) [begin..focus]
+    let underline = pretty (replicate (sizeHds + 4 + snd (start r)) ' ')
+                 <> withANSI [ SetWeight Bold, SetColour Foreground Red ]
+                    (pretty (replicate (snd (end r) - snd (start r)) '^'))
+    pure $ horizontally $ vcat $ "" : zipWith (<>) headers context ++ [underline, ""]

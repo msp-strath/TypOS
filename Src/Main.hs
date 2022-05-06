@@ -10,7 +10,7 @@ import ANSI hiding (withANSI)
 import qualified ANSI
 import Bwd
 import Concrete.Base
-import Doc (vcat, Config(..), Orientation(..))
+import Doc (Config(..), Orientation(..), flush)
 import Doc.Render.Terminal
 import Parse
 import Actor
@@ -24,6 +24,7 @@ import Machine.Trace (diagnostic, ldiagnostic)
 import Utils
 import Display (unsafeEvalDisplay)
 import Location
+import Data.Foldable (fold)
 
 main :: IO ()
 main = do
@@ -33,8 +34,11 @@ main = do
   let ccs = parse pfile (Source txt $ initLocation (filename opts))
   case elaborate ccs of
     Left err -> do
-      putStrLn $ render (colours opts) cfg $
-        vcat [ withANSI [ SetColour Background Red ] "Error" , pretty err ]
+      ctxt <- if noContext opts then pure "" else fileContext (getRange err)
+      putStrLn $ render (colours opts) cfg $ fold
+        [ flush (withANSI [ SetColour Background Red ] "Error") <> ctxt
+        , pretty err
+        ]
       exitFailure
     Right (acs, table) -> do
   -- putStrLn $ unsafeEvalDisplay initNaming $ collapse <$> traverse display acs

@@ -214,6 +214,79 @@ data Complaint
   | ConnectElaboration Variable Variable Complaint
   deriving (Show)
 
+instance HasRange Complaint where
+  setRange _ = id -- FIXME
+
+  getRange = \case
+    OutOfScope _ -> unknown
+    MetaScopeTooBig _ _ _ -> unknown
+    VariableShadowing _ -> unknown
+    EmptyContext -> unknown
+    NotTopVariable r _ _ -> r
+    IncompatibleChannelScopes r _ _ -> r
+  -- kinding
+    NotAValidTermVariable _ _ -> unknown
+    NotAValidPatternVariable r _ _ -> r
+    NotAValidJudgement _ _ -> unknown
+    NotAValidChannel _ _ -> unknown
+    NotAValidBoundVar _ -> unknown
+  -- protocol
+    InvalidSend r _ _ -> r
+    InvalidRecv r _ _ -> r
+    NonLinearChannelUse _ -> unknown
+    UnfinishedProtocol _ _ -> unknown
+    InconsistentCommunication -> unknown
+    DoomedBranchCommunicated _ -> unknown
+    ProtocolsNotDual r _ _ -> r
+    IncompatibleModes r _ _ -> r
+    WrongDirection r _ _ _ -> r
+  -- judgement stacks
+    PushingOnAStacklessJudgement r _ -> r
+    LookupFromAStacklessActor r _ -> r
+  -- syntaxes
+    NotAValidSyntaxCat _ -> unknown
+    AlreadyDeclaredSyntaxCat _ -> unknown
+    SyntaxContainsMeta _ -> unknown
+    InvalidSyntax _ -> unknown
+  -- syntaxdesc validation
+    InconsistentSyntaxDesc -> unknown
+    InvalidSyntaxDesc _ -> unknown
+    IncompatibleSyntaxInfos _ _ -> unknown
+    IncompatibleSyntaxDescs r _ _ -> r
+    ExpectedNilGot r _ -> r
+    ExpectedEnumGot r _ _ -> r
+    ExpectedTagGot r _ _ -> r
+    ExpectedANilGot r _ -> r
+    ExpectedANilPGot r _ -> r
+    ExpectedAConsGot r _ -> r
+    ExpectedAConsPGot r _ -> r
+    SyntaxError r _ _ -> r
+    SyntaxPError r _ _ -> r
+  -- contextual info
+  -- shouldn't contain ranges because there should be a more precise one
+  -- on the decorated complaint
+    SendTermElaboration _ _ c -> getRange c
+    MatchTermElaboration _ c -> getRange c
+    MatchElaboration _ c -> getRange c
+    MatchBranchElaboration _ c -> getRange c
+    ConstrainTermElaboration _ c -> getRange c
+    ConstrainSyntaxCatGuess _ _ c -> getRange c
+    FreshMetaElaboration c -> getRange c
+    UnderElaboration c -> getRange c
+    RecvMetaElaboration _ c -> getRange c
+    PushTermElaboration _ c -> getRange c
+    LookupTermElaboration _ c -> getRange c
+    LookupHandlersElaboration _ c -> getRange c
+    DeclJElaboration _ c -> getRange c
+    DefnJElaboration _ c -> getRange c
+    ExecElaboration c -> getRange c
+    DeclaringSyntaxCat _ c -> getRange c
+    SubstitutionElaboration _ c -> getRange c
+    PatternVariableElaboration _ c -> getRange c
+    TermVariableElaboration _ c -> getRange c
+    ProtocolElaboration _ c -> getRange c
+    ConnectElaboration _ _ c -> getRange c
+
 data ElabState = ElabState
   { channelStates :: Map Channel ([Turn], AProtocol)
   , syntaxCats    :: SyntaxTable

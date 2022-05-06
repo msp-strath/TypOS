@@ -33,6 +33,7 @@ data Options = Options
   , tracingOption :: Maybe [MachineStep]
   , latex :: Maybe FilePath
   , termWidth :: Int
+  , noContext :: Bool
   } deriving (Show)
 
 poptions :: Parser Options
@@ -44,6 +45,7 @@ poptions = Options
                          (long "tracing" <> metavar "LEVELS" <> help tracingHelp))
   <*> optional (option str (metavar "FILE" <> long "latex" <> help "Output LaTeX derivation to file"))
   <*> pure 80 -- dummy value
+  <*> flag False True (long "no-context" <> help "Do not print file context of errors")
  where
    readSteps :: [String] -> ReadM [MachineStep]
    readSteps = mapM $ \case
