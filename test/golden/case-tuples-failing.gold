@@ -1,9 +1,9 @@
 ret > ExitFailure 1
 out > Error
 out >
-out >  4 |   { ['Bool 'Bool] -> PRINTF "Happy Bools".
-out >  5 |   ; ['Nat 'Nat] -> PRINTF "Happy Nats".
-out >  6 |   ; 'Nat -> -- correctly rejected
+out >  5 |   { ['Bool 'Bool] -> PRINTF "Happy Bools".
+out >  6 |   ; ['Nat 'Nat] -> PRINTF "Happy Nats".
+out >  7 |   ; 'Nat -> -- correctly rejected
 out >          ^^^^
 out > case-tuples-failing.act:7:4-8
 out > Pattern 'Nat does not match ['Cons 'Type ['Cons 'Type 'Nil]]

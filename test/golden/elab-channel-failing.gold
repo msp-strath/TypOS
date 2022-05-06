@@ -1,9 +1,9 @@
 ret > ExitFailure 1
 out > Error
 out >
-out >   8 |  child@q.
-out >   9 | 
-out >  10 |     p <-> q
+out >   9 |  child@q.
+out >  10 | 
+out >  11 |     p <-> q
 out >           ^^^^^^^
 out > elab-channel-failing.act:11:4-11
 out > Wrong direction LT between ? 'Wildcard and ! 'Wildcard

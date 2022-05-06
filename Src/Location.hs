@@ -69,7 +69,7 @@ fileContext r
     let context = map pretty $ take 3 $ drop begin content
     let sizeHds = length (show focus)
     let display = \ n -> let header = show n in replicate (1 + sizeHds - length header) ' ' ++ header ++ " | "
-    let headers = map (pretty . display) $ dropWhile (< 0) [begin..focus]
+    let headers = map (pretty . display) $ dropWhile (< 1) [begin+1..focus]
     let underline = pretty (replicate (sizeHds + 4 + snd (start r)) ' ')
                  <> withANSI [ SetWeight Bold, SetColour Foreground Red ]
                     (pretty (replicate (snd (end r) - snd (start r)) '^'))
