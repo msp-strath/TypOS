@@ -21,7 +21,7 @@ pscoped px pa = Scope . Hide
   <* punc "." <*> pa
 
 pvariable :: Parser Variable
-pvariable = Variable <$> pnom
+pvariable = withRange (Variable unknown <$> pnom)
 
 pbinder :: Parser (Binder Variable)
 pbinder = Used <$> pvariable
@@ -98,7 +98,7 @@ pextractmode
 
 pact :: Parser CActor
 pact = withRange $
-  Under unknown <$> pscoped pnom pact
+  Under unknown <$> pscoped pvariable pact
   <|> Send unknown <$> pvariable <* punc "!" <*> pmustwork "Expected a term" ptm <* punc "." <*> pact
   <|> do tm <- ptm
          punc "?"

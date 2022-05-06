@@ -39,8 +39,8 @@ instance LaTeX a => LaTeX (Binder a) where
 
 instance LaTeX Variable where
   type Format Variable = ()
-  toLaTeX _ (Variable ('_':cs)) = pure $ text ("\\_" ++ cs) -- hack for now
-  toLaTeX _ (Variable str) = pure $ text str
+  toLaTeX _ (Variable _ ('_':cs)) = pure $ text ("\\_" ++ cs) -- hack for now
+  toLaTeX _ (Variable _ str) = pure $ text str
 
 asList :: Raw -> [Raw]
 asList (At _ "") = []

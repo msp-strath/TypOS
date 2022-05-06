@@ -4,9 +4,19 @@ import Bwd
 import Format
 import Scope
 import Location
+import Data.Function (on)
 
-newtype Variable = Variable { getVariable :: String }
-  deriving (Show, Eq)
+data Variable = Variable
+  { variableLoc :: Range
+  , getVariable :: String
+  }
+instance Show Variable where show = show . getVariable
+instance Eq Variable where (==) = (==) `on` getVariable
+
+instance HasRange Variable where
+  setRange r (Variable _ v) = Variable r v
+  getRange = variableLoc
+
 type Atom = String
 
 data Binder x
@@ -15,7 +25,7 @@ data Binder x
   deriving (Show, Functor, Foldable, Traversable)
 
 mkBinder :: Variable -> Binder Variable
-mkBinder (Variable "_") = Unused
+mkBinder (Variable r "_") = Unused
 mkBinder v = Used v
 
 data Raw
@@ -114,7 +124,7 @@ data Actor jd ch bd av syn var tm pat cnnct stk
  | Connect Range cnnct
  | Note Range (Actor jd ch bd av syn var tm pat cnnct stk)
  | FreshMeta Range syn (av, Actor jd ch bd av syn var tm pat cnnct stk)
- | Under Range (Scope String (Actor jd ch bd av syn var tm pat cnnct stk))
+ | Under Range (Scope Variable (Actor jd ch bd av syn var tm pat cnnct stk))
  | Match Range tm [(pat, Actor jd ch bd av syn var tm pat cnnct stk)]
  -- This is going to bite us when it comes to dependent types
  | Constrain Range tm tm

@@ -61,8 +61,8 @@ instance Pretty Complaint where
               , parens (hsep [ collapse (pretty <$> sc1)
                              , "won't fit in"
                              , collapse (pretty <$> sc2) ])]
-     VariableShadowing x -> singleton $ hsep [pretty x, "is already defined"]
-     EmptyContext -> singleton "Tried to pop an empty context"
+     VariableShadowing r x -> singleton $ pretty r <> hsep [pretty x, "is already defined"]
+     EmptyContext r -> singleton $ pretty r <> "Tried to pop an empty context"
      NotTopVariable r x y -> singleton $ pretty r <>
            hsep [ "Expected", pretty x, "to be the top variable"
                 , "but found", pretty y, "instead"]

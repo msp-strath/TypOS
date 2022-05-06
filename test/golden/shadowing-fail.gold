@@ -1,0 +1,12 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  1 | test :
+out >  2 | test@p = \fst. case fst { [fst snd trd] -> \snd. }
+out >                                                  ^^^
+out > shadowing-fail.act:2:44-47
+out > snd is already defined
+out > when binding a local variable
+out > when elaborating a case branch handling the pattern [fst snd trd]
+out > when elaborating the judgement definition for test
+out >

@@ -1,0 +1,2 @@
+test :
+test@p = \fst. case fst { [fst snd trd] -> \snd. }

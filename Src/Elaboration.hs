@@ -126,7 +126,7 @@ type Slced = [(String, Kind)]
 type Focus a = (Decls, a, Slced)
 
 resolve :: Variable -> Elab (Maybe (Either Kind (Info SyntaxDesc, DB)))
-resolve (Variable x) = do
+resolve (Variable r x) = do
   ctx <- ask
   let ds  = declarations ctx
   let ovs = objVars ctx
@@ -139,15 +139,15 @@ resolve (Variable x) = do
 isFresh :: Variable -> Elab String
 isFresh x = do
   res <- resolve x
-  whenJust res $ \ _ -> throwError (VariableShadowing x)
+  whenJust res $ \ _ -> throwError (VariableShadowing (getRange x) x)
   pure (getVariable x)
 
 data Complaint
   -- scope
   = OutOfScope Variable
   | MetaScopeTooBig Variable ObjVars ObjVars
-  | VariableShadowing Variable
-  | EmptyContext
+  | VariableShadowing Range Variable
+  | EmptyContext Range
   | NotTopVariable Range Variable Variable
   | IncompatibleChannelScopes Range ObjVars ObjVars
   -- kinding
@@ -220,8 +220,8 @@ instance HasRange Complaint where
   getRange = \case
     OutOfScope _ -> unknown
     MetaScopeTooBig _ _ _ -> unknown
-    VariableShadowing _ -> unknown
-    EmptyContext -> unknown
+    VariableShadowing r _ -> r
+    EmptyContext r -> r
     NotTopVariable r _ _ -> r
     IncompatibleChannelScopes r _ _ -> r
   -- kinding
@@ -380,12 +380,12 @@ getName = do
   loc <- asks location
   pure (loc <>> [])
 
-spop :: Elab (ObjVars, (Variable, Info SyntaxDesc))
-spop = do
+spop :: Range -> Elab (ObjVars, (Variable, Info SyntaxDesc))
+spop r = do
   ovs <- asks objVars
   case ovs of
-    B0 -> throwError EmptyContext
-    (xz :< (x, cat)) -> pure (xz, (Variable x, cat))
+    B0 -> throwError (EmptyContext r)
+    (xz :< (x, cat)) -> pure (xz, (Variable r x, cat))
 
 ssyntaxdecl :: [SyntaxCat] -> Raw -> Elab SyntaxDesc
 ssyntaxdecl syndecls syn = do
@@ -401,12 +401,12 @@ ssbst B0 = do
     pure (sbstI (length ovs), ovs)
 ssbst (sg :< sgc) = case sgc of
     Keep r v -> do
-      (xz, (w, cat)) <- spop
+      (xz, (w, cat)) <- spop r
       when (v /= w) $ throwError (NotTopVariable r v w)
       (sg, ovs) <- local (setObjVars xz) (ssbst sg)
       pure (sbstW sg (ones 1), ovs :< (getVariable w, cat))
     Drop r v -> do
-      (xz, (w, cat)) <- spop
+      (xz, (w, cat)) <- spop r
       when (v /= w) $ throwError (NotTopVariable r v w)
       (sg, ovs) <- local (setObjVars xz) (ssbst sg)
       pure (weak sg, ovs)
@@ -735,8 +735,8 @@ sact = \case
     pure $ FreshMeta r desc (ActorMeta av, a)
 
   Under r (Scope v@(Hide x) a) -> do
-    during UnderElaboration $ () <$ isFresh (Variable x)
-    a <- local (declareObjVar (x, Unknown)) $ sact a
+    during UnderElaboration $ () <$ isFresh x
+    a <- local (declareObjVar (getVariable x, Unknown)) $ sact a
     pure $ Under r (Scope v a)
 
   Match r rtm@tm cls -> do

@@ -24,6 +24,7 @@ import Syntax (SyntaxDesc, SyntaxTable, SyntaxCat, expand, VSyntaxDesc (..), con
 import LaTeX
 import qualified Data.Map as Map
 import Data.List (intersperse)
+import Location (unknown)
 
 data Trace e i
    = Node i [Trace e i]
@@ -74,11 +75,11 @@ instance Unelab (Trace AError AStep) where
   type Unelabed (Trace AError AStep) = Trace CError CStep
   type UnelabEnv (Trace AError AStep) = Naming
   unelab (Node (em, s) ts) = case s of
-    BindingStep (Variable x) -> do
+    BindingStep (Variable r x) -> do
       na <- ask
       let y = freshen x na
       ts <- local (`nameOn` y) $ traverse unelab ts
-      pure (Node (BindingStep (Variable y)) ts)
+      pure (Node (BindingStep (Variable r y)) ts)
     NotedStep -> Node NotedStep <$> traverse unelab ts
     PushingStep jd db (d, t) -> do
       jd <- subunelab jd
@@ -194,7 +195,7 @@ extract (f : fs) = case f of
     Node (extractionMode, CallingStep judgeName (zip judgeProtocol (traffic <>> []))) (extract (stack (fst spawnee)))
     : extract fs
   Pushed jd (i, d, t) -> node (AlwaysExtract, PushingStep jd i (d, t))
-  Binding x -> node (AlwaysExtract, BindingStep (Variable x))
+  Binding x -> node (AlwaysExtract, BindingStep (Variable unknown x))
   Noted -> Node (AlwaysExtract, NotedStep) [] : extract fs
   UnificationProblem date s t -> Error (StuckUnifying s t) : extract fs
   _ -> extract fs
