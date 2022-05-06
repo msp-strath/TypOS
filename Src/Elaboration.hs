@@ -145,17 +145,17 @@ isFresh x = do
 data Complaint
   -- scope
   = OutOfScope Range Variable
-  | MetaScopeTooBig Variable ObjVars ObjVars
+  | MetaScopeTooBig Range Variable ObjVars ObjVars
   | VariableShadowing Range Variable
   | EmptyContext Range
   | NotTopVariable Range Variable Variable
   | IncompatibleChannelScopes Range ObjVars ObjVars
   -- kinding
-  | NotAValidTermVariable Variable Kind
+  | NotAValidTermVariable Range Variable Kind
   | NotAValidPatternVariable Range Variable Kind
-  | NotAValidJudgement Variable (Maybe Kind)
-  | NotAValidChannel Variable (Maybe Kind)
-  | NotAValidBoundVar Variable
+  | NotAValidJudgement Range Variable (Maybe Kind)
+  | NotAValidChannel Range Variable (Maybe Kind)
+  | NotAValidBoundVar Range Variable
   -- protocol
   | InvalidSend Range Channel Raw
   | InvalidRecv Range Channel (Binder String)
@@ -219,17 +219,17 @@ instance HasRange Complaint where
 
   getRange = \case
     OutOfScope r _ -> r
-    MetaScopeTooBig _ _ _ -> unknown
+    MetaScopeTooBig r _ _ _ -> r
     VariableShadowing r _ -> r
     EmptyContext r -> r
     NotTopVariable r _ _ -> r
     IncompatibleChannelScopes r _ _ -> r
   -- kinding
-    NotAValidTermVariable _ _ -> unknown
+    NotAValidTermVariable r _ _ -> r
     NotAValidPatternVariable r _ _ -> r
-    NotAValidJudgement _ _ -> unknown
-    NotAValidChannel _ _ -> unknown
-    NotAValidBoundVar _ -> unknown
+    NotAValidJudgement r _ _ -> r
+    NotAValidChannel r _ _ -> r
+    NotAValidBoundVar r _ -> r
   -- protocol
     InvalidSend r _ _ -> r
     InvalidRecv r _ _ -> r
@@ -370,8 +370,8 @@ svar x = do
     Just (Left k) -> case k of -- TODO: come back and remove fst <$>
       ActVar desc sc -> case findSub (fst <$> sc) (fst <$> ovs) of
         Just th -> pure (desc, ActorMeta (getVariable x) $: sbstW (sbst0 0) th)
-        Nothing -> throwError (MetaScopeTooBig x sc ovs)
-      _ -> throwError (NotAValidTermVariable x k)
+        Nothing -> throwError (MetaScopeTooBig (getRange x) x sc ovs)
+      _ -> throwError (NotAValidTermVariable (getRange x) x k)
     Just (Right (desc, i)) -> pure (desc, var i (length ovs))
     Nothing -> throwError (OutOfScope (getRange x) x)
 
@@ -567,7 +567,7 @@ spat desc rp = do
 isChannel :: Variable -> Elab Channel
 isChannel ch = resolve ch >>= \case
   Just (Left (AChannel sc)) -> pure (Channel $ getVariable ch)
-  Just mk -> throwError (NotAValidChannel ch $ either Just (const Nothing) mk)
+  Just mk -> throwError (NotAValidChannel (getRange ch) ch $ either Just (const Nothing) mk)
   Nothing -> throwError (OutOfScope (getRange ch) ch)
 
 data IsJudgement = IsJudgement
@@ -580,7 +580,7 @@ data IsJudgement = IsJudgement
 isJudgement :: Variable -> Elab IsJudgement
 isJudgement jd = resolve jd >>= \case
   Just (Left (AJudgement em mstk p)) -> pure (IsJudgement em (getVariable jd) mstk p)
-  Just mk -> throwError (NotAValidJudgement jd $ either Just (const Nothing) mk)
+  Just mk -> throwError (NotAValidJudgement (getRange jd) jd $ either Just (const Nothing) mk)
   Nothing -> throwError (OutOfScope (getRange jd) jd)
 
 channelScope :: Channel -> Elab ObjVars

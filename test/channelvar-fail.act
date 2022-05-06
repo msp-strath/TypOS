@@ -1,0 +1,2 @@
+echo : ?'Wildcard. !'Wildcard.
+echo@p = p?t. echo!t.

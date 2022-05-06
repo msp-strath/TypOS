@@ -55,7 +55,7 @@ instance Pretty Complaint where
     go = \case
      -- scope
      OutOfScope r x -> singleton $ pretty r <> hsep ["Out of scope variable", pretty x]
-     MetaScopeTooBig x sc1 sc2 -> singleton $
+     MetaScopeTooBig r x sc1 sc2 -> singleton $ pretty r <>
          hsep [ "Cannot use", pretty x
               , "here as it is defined in too big a scope"
               , parens (hsep [ collapse (pretty <$> sc1)
@@ -67,17 +67,17 @@ instance Pretty Complaint where
            hsep [ "Expected", pretty x, "to be the top variable"
                 , "but found", pretty y, "instead"]
      -- kinding
-     NotAValidTermVariable x k -> singleton $
+     NotAValidTermVariable r x k -> singleton $ pretty r <>
         hsep ["Invalid term variable", pretty x, "refers to", pretty k]
      NotAValidPatternVariable r x k -> singleton $
         pretty r <> hsep ["Invalid pattern variable", pretty x, "refers to", pretty k]
-     NotAValidJudgement x mk -> singleton $
+     NotAValidJudgement r x mk -> singleton $ pretty r <>
         hsep ["Invalid judgement variable", pretty x
              , "refers to", maybe "a bound variable" pretty mk]
-     NotAValidChannel x mk -> singleton $
+     NotAValidChannel r x mk -> singleton $ pretty r <>
         hsep ["Invalid channel variable", pretty x
              , "refers to", maybe "a bound variable" pretty mk]
-     NotAValidBoundVar x -> singleton $
+     NotAValidBoundVar r x -> singleton $ pretty r <>
        hsep ["Invalid bound variable", pretty x]
      -- protocol
      InvalidSend r ch tm -> singleton $ pretty r <> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]

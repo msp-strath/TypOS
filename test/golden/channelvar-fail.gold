@@ -1,0 +1,10 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  1 | echo : ?'Wildcard. !'Wildcard.
+out >  2 | echo@p = p?t. echo!t.
+out >                    ^^^^
+out > channelvar-fail.act:2:14-18
+out > Invalid channel variable echo refers to a judgement
+out > when elaborating the judgement definition for echo
+out >
