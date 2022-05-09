@@ -165,19 +165,25 @@ pend = Parser $ \ i@(Source s loc) -> (Max loc,) $ case s of
   [] -> [((), i)]
   _ -> []
 
-parseError :: Location -> String -> x
-parseError loc str = unsafePerformIO $ do
-  putStrLn ("Parse error at location: " ++ show loc ++ "\n" ++ str)
+data ErrorLocation = Precise | Imprecise
+
+instance Show ErrorLocation where
+  show Precise = "at"
+  show Imprecise = "near"
+
+parseError :: ErrorLocation -> Location -> String -> x
+parseError prec loc str = unsafePerformIO $ do
+  putStrLn ("Parse error " ++ show prec ++ " location: " ++ show loc ++ "\n" ++ str)
   exitFailure
 
 parse :: Show x => Parser x -> Source -> x
 parse p s = case parser (id <$> p <* pend) s of
   (_, [(x, _)]) -> x
-  (loc, x) -> parseError (getMax loc) (unlines $ "" : (show <$> x))
+  (loc, x) -> parseError Imprecise (getMax loc) (unlines $ "" : (show <$> x))
 
 pmustwork :: String -> Parser x -> Parser x
 pmustwork str p = Parser $ \ i -> case parser p i of
-  (_, []) -> parseError (location i) str
+  (_, []) -> parseError Precise (location i) str
   res -> res
 
 class Lisp t where

@@ -52,4 +52,4 @@ pformat = Parser $ \ (Source str loc) -> case str of
     -- closing double quote
     '"':end     -> (snoc pref acc <>> [], Source end (tick loc' '"'))
     -- error
-    _ -> parseError loc "Unclosed format string"
+    _ -> parseError Precise loc "Unclosed format string"
