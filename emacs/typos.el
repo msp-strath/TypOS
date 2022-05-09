@@ -85,8 +85,8 @@
     (set (make-local-variable 'compilation-error-regexp-alist)
          '(("\\(^[^[:space:]]*\\):\\([0-9]+\\):\\([0-9]+\\)-\\(\\([0-9]+\\):\\)?\\([0-9]+\\)$"
             1 (2 . 5) (3 . 6))
-           ("^Parse error at location: \\([^[:space:]]*\\):\\([0-9]+\\):\\([0-9]+\\)"
-            1 2 (3 . 4))))
+           ("^Parse error \\(at\\|near\\) location: \\([^[:space:]]*\\):\\([0-9]+\\):\\([0-9]+\\)"
+            2 3 (4 . 5))))
     (add-hook 'compilation-filter-hook 'typos-compilation-filter nil t)))
 
 (defface typos-highlight-error-face

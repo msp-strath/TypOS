@@ -5,6 +5,8 @@ import Control.Monad
 
 import Data.Bifunctor
 import Data.Char
+import Data.Function
+import Data.Maybe (fromMaybe, isJust)
 import Data.Semigroup
 
 import Bwd
@@ -15,17 +17,14 @@ import System.Exit (exitFailure)
 -- parsers, by convention, do not consume either leading
 -- or trailing space
 
--- Future work: annotating (Max Location) with message
--- (<!>) :: String -> Parser a -> Parser a
-
 plit :: String -> Parser ()
-plit = mapM_ (pch . (==))
+plit cs = "Expected `" ++ cs ++ "`" <!> mapM_ (pch . (==)) cs
 
 punc :: String -> Parser ()
 punc cs = () <$ pspc <* plit cs <* pspc
 
 pcurlies :: Parser a -> Parser a
-pcurlies p = id <$ punc "{" <*> p <* pspc <* pch (== '}')
+pcurlies p = id <$ punc "{" <*> p <* pspc <* plit "}"
 
 pstring :: Parser String
 pstring = Parser $ \ (Source str loc) -> case str of
@@ -117,15 +116,33 @@ data Source = Source
   , location :: Location
   } deriving (Show)
 
-newtype Parser a = Parser
-  { parser :: Source -> (Max Location, [(a, Source)])
+data Candidate = Candidate
+  { description :: Maybe String
+  , candidateLoc :: Location
   }
 
-here :: (a, Source) -> (Max Location, [(a, Source)])
-here (a, s) = (Max (location s), [(a, s)])
+instance Eq Candidate where (==) = (==) `on` candidateLoc
+instance Ord Candidate where
+  compare (Candidate mdesc1 loc1) (Candidate mdesc2 loc2) =
+    case compare loc1 loc2 of
+      EQ -> compare (isJust mdesc1) (isJust mdesc2)
+      cmp -> cmp
 
-notHere :: Location -> (Max Location, [(a, Source)])
-notHere loc = (Max loc, [])
+newtype Parser a = Parser
+  { parser :: Source -> (Max Candidate, [(a, Source)])
+  }
+
+infix 0 <!>
+(<!>) :: String -> Parser a -> Parser a
+desc <!> p = Parser $ \ src ->
+  let (Max (Candidate mdesc loc), res) = parser p src in
+  (Max (Candidate (mdesc <|> Just desc) loc), res)
+
+here :: (a, Source) -> (Max Candidate, [(a, Source)])
+here (a, s) = (Max (Candidate Nothing $ location s), [(a, s)])
+
+notHere :: Location -> (Max Candidate, [(a, Source)])
+notHere loc = (Max (Candidate Nothing loc), [])
 
 ploc :: Parser Location
 ploc = Parser $ \ i@(Source str loc) -> here (loc, i)
@@ -151,7 +168,7 @@ instance Functor Parser where
   fmap = ap . return
 
 instance Alternative Parser where
-  empty = Parser $ \ s -> (Max (location s), [])
+  empty = Parser (notHere . location)
   Parser f <|> Parser g = Parser $ \ s ->
     f s <> g s
 
@@ -160,10 +177,11 @@ pch p = Parser $ \ (Source s loc) -> case s of
   c : cs | p c -> here (c, Source cs (tick loc c))
   _ -> notHere loc
 
+
 pend :: Parser ()
-pend = Parser $ \ i@(Source s loc) -> (Max loc,) $ case s of
-  [] -> [((), i)]
-  _ -> []
+pend = Parser $ \ i@(Source s loc) -> case s of
+  [] -> here ((), i)
+  _ -> notHere loc
 
 data ErrorLocation = Precise | Imprecise
 
@@ -179,7 +197,8 @@ parseError prec loc str = unsafePerformIO $ do
 parse :: Show x => Parser x -> Source -> x
 parse p s = case parser (id <$> p <* pend) s of
   (_, [(x, _)]) -> x
-  (loc, x) -> parseError Imprecise (getMax loc) (unlines $ "" : (show <$> x))
+  (Max (Candidate mdesc loc), []) -> parseError Imprecise loc (fromMaybe "" mdesc)
+  (Max (Candidate _ loc), xs) -> parseError Imprecise loc (unlines ("Ambiguous parse:" : map (show . fst) xs))
 
 pmustwork :: String -> Parser x -> Parser x
 pmustwork str p = Parser $ \ i -> case parser p i of
@@ -193,6 +212,6 @@ class Lisp t where
 
 plisp :: (Lisp t, HasRange t) => Parser t
 plisp = withRange $
-  mkNil <$ pch (== ']')
-  <|> id <$ pch (== '|') <* pspc <*> pCar <* pspc <* pch (== ']')
+  mkNil <$ plit "]"
+  <|> id <$ plit "|" <* pspc <*> pCar <* pspc <* plit "]"
   <|> mkCons <$> pCar <* pspc <*> plisp
