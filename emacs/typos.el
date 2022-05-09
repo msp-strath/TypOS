@@ -87,18 +87,17 @@
             1 (2 . 5) (3 . 6))
            ("^Parse error at location: \\([^[:space:]]*\\):\\([0-9]+\\):\\([0-9]+\\)"
             1 2 (3 . 4))))
-    (add-hook 'compilation-filter-hook 'typos-compilation-filter nil t)
-    ))
-
+    (add-hook 'compilation-filter-hook 'typos-compilation-filter nil t)))
 
 (defface typos-highlight-error-face
-  '((t :background "red"))
+  '((t (:underline (:color "red" :style wave))))
   "The face used for errors.")
 
 (defun typos-run-on-file (typos-file options)
   "Run typOS in a compilation buffer on TYPOS-FILE."
   (setq compilation-auto-jump-to-first-error t)
   (setq next-error-highlight-timer t)
+  (setq next-error-highlight t)
   (setq typos-error-highlight (make-overlay (point-min) (point-min)))
   (overlay-put typos-error-highlight 'face 'typos-highlight-error-face)
   (setq compilation-highlight-overlay typos-error-highlight)
