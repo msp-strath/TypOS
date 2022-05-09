@@ -31,6 +31,7 @@
 
 * [ ] STLC with clever lists
 * [ ] Tests for extract mode
+* [ ] List induction
 
 ### Refactoring
 
