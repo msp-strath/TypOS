@@ -47,6 +47,7 @@ type@p = p?ty. ^check@q. q!'Ty. q!ty.
 
 check@p = p?ty. checkEval@q. q!'Ty. q!ty. q?nty. checkWorker@r. r!nty. p <-> r
 synth@p = p?tm. synthWorker@r. r!tm. r?ty.checkEval@q. q!'Ty. q!ty. q <-> p
+
 adapt@p = p?sty. p?a. p?tty. case a
   { 'Id -> checkEqual@q. q!'Ty. q!sty. q!tty.
   ; ['List f] -> 'Check?S. 'Check?T.
@@ -155,13 +156,14 @@ evalSynth@p = p?tm. case tm
 
 adaptVal@p = p?stm. p?sty. p?a. p?tty. case [sty a tty]
   { [_ 'Id _] -> p!stm. PRINTF "Ups".
+  ; [_ ['Then a1 mty a2] _] -> adaptVal@q. q!stm. q!sty. q!a1. q!mty. q?mtm. adaptVal@r. r!mtm. r!mty. r!a2. r!tty. p <-> r   
   ; [['List S] ['List f] ['List T]] -> case stm
     { 'Null -> p!'Null.
     ; ['Plus xs ys] -> adaptVal@q. q!xs. q!sty. q!a. q!tty. q?xs'.p!['Plus xs' ['Emb ['Rad ys sty] a]].
     ; ['Sing s] -> checkEval@q. q!T. q!['Emb ['App ['Rad f ['Pi S \_. T]] s] 'Id]. q?t. p!['Sing t].
     ; ['Emb xs a'] -> case a'
-      { 'Id -> p!['Emb xs a].
-      ; _ -> p!['Emb xs ['Then a' sty a]].
+      { {- 'Id -> p!['Emb xs a]. -}
+      _ -> p!['Emb xs ['Then a' sty a]].
       }
     }
   ; _ -> # "Unexpected adaptor %i" a
@@ -205,9 +207,19 @@ equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %i\n %i" e1 e2.
   ; [x|y] -> # "%i not equalSynth to %i" x y
   }
 
-adaptEqual@p = p?sty. p?tty. p?a1. p?a2. case [a1|a2]
-  { ['Id|'Id] ->
-  ; _ -> # "%i not adaptEqual to %i" a1 a2
+adaptEqual@p = p?sty. p?tty. p?a1. p?a2. case [sty|tty]
+  { [['List S] | ['List T]] -> !. \ x. equalSynthWorker {x -> S}.
+      	      	   	      	    adaptVal@q1. q1!['Sing ['Emb x 'Id]].
+				    adaptVal@q2. q2!['Sing ['Emb x 'Id]].
+				    q1!sty . q2!sty. q1!a1 . q2!a2. q1!tty . q2!tty.
+				    q1?tm1 . q2?tm2.
+				    checkEqual@u. u!tty. u!tm1. u!tm2.				    
+  ; _ -> {- only trivial adapters exist at non-list types -}
+    case a1
+    { 'Id ->
+    ; ['Then _ _ _] ->
+    ; ['List _] -> #"Impossible list adapter %i" a1
+    }
   }
 
 {-
@@ -223,7 +235,20 @@ exec checkEqual@p. p!['List 'One]. 'Check?two. 'Check?four.
        | p!['Plus two two]. p!four. PRINTF "two plus two is four.".)
 -}
 
-
+{-
 exec checkEqual@p. p!['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]].
        p!['Lam \X.['Lam \xs.['Plus ['Plus ['Emb xs 'Id]['Plus ['Emb xs 'Id] 'Null]]['Plus ['Emb xs 'Id]['Plus 'Null ['Emb xs 'Id]]]]]].
        p!['Lam \X.['Lam \xs.['Plus ['Emb xs 'Id] ['Plus ['Emb xs 'Id] ['Plus ['Emb xs 'Id] ['Emb xs 'Id]]]]]].
+-}
+
+{-
+exec checkEval@p. p!['List ['List 'One]]. 'Check?one . 'Check?two.
+       ( one ~ ['Sing 'Tt]
+       | two ~ ['Plus one one]
+       | p!['Emb ['Rad ['Plus ['Sing 'Null] ['Plus ['Sing one] ['Sing two]]] ['List ['List 'One]]] ['List ['Lam \n . ['Plus ['Sing 'Tt] ['Emb n 'Id]] ]]].
+         p?x . PRINTF "%i" x.)
+-}
+
+exec checkEqual@p. p!['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]].
+     		   p!['Lam \X.['Lam \xs. ['Emb xs 'Id]]].
+		   p!['Lam \X.['Lam \xs. ['Emb xs ['List ['Lam \x. ['Emb x 'Id]]]]]].
