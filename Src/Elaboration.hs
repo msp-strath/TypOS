@@ -59,13 +59,13 @@ infoExpand table s = case Syntax.expand table s of
   Just VWildcard -> Unknown
   Just a -> Known a
 
-compatibleInfos :: Info SyntaxDesc -> Info SyntaxDesc -> Elab (Info SyntaxDesc)
-compatibleInfos desc desc' = do
+compatibleInfos :: Range -> Info SyntaxDesc -> Info SyntaxDesc -> Elab (Info SyntaxDesc)
+compatibleInfos r desc desc' = do
   table <- gets syntaxCats
   let de = infoExpand table =<< desc
   let de' = infoExpand table =<< desc'
   case de <> de' of
-    Inconsistent -> throwError (IncompatibleSyntaxInfos desc desc')
+    Inconsistent -> throwError (IncompatibleSyntaxInfos r desc desc')
     d -> pure $ case (desc, desc') of
       (Known (CdB (A _) _), _) -> desc
       (_, Known (CdB (A _) _)) -> desc'
@@ -170,14 +170,11 @@ data Complaint
   | PushingOnAStacklessJudgement Range JudgementForm
   | LookupFromAStacklessActor Range JudgementForm
   -- syntaxes
-  | NotAValidSyntaxCat SyntaxCat
-  | AlreadyDeclaredSyntaxCat SyntaxCat
-  | SyntaxContainsMeta SyntaxCat
-  | InvalidSyntax SyntaxCat
+  | AlreadyDeclaredSyntaxCat Range SyntaxCat
   -- syntaxdesc validation
-  | InconsistentSyntaxDesc
-  | InvalidSyntaxDesc SyntaxDesc
-  | IncompatibleSyntaxInfos (Info SyntaxDesc) (Info SyntaxDesc)
+  | InconsistentSyntaxDesc Range
+  | InvalidSyntaxDesc Range SyntaxDesc
+  | IncompatibleSyntaxInfos Range (Info SyntaxDesc) (Info SyntaxDesc)
   | IncompatibleSyntaxDescs Range SyntaxDesc SyntaxDesc
   | ExpectedNilGot Range String
   | ExpectedEnumGot Range [String] String
@@ -242,14 +239,11 @@ instance HasGetRange Complaint where
     PushingOnAStacklessJudgement r _ -> r
     LookupFromAStacklessActor r _ -> r
   -- syntaxes
-    NotAValidSyntaxCat _ -> unknown
-    AlreadyDeclaredSyntaxCat _ -> unknown
-    SyntaxContainsMeta _ -> unknown
-    InvalidSyntax _ -> unknown
+    AlreadyDeclaredSyntaxCat r _ -> r
   -- syntaxdesc validation
-    InconsistentSyntaxDesc -> unknown
-    InvalidSyntaxDesc _ -> unknown
-    IncompatibleSyntaxInfos _ _ -> unknown
+    InconsistentSyntaxDesc r -> r
+    InvalidSyntaxDesc r _ -> r
+    IncompatibleSyntaxInfos r _ _ -> r
     IncompatibleSyntaxDescs r _ _ -> r
     ExpectedNilGot r _ -> r
     ExpectedEnumGot r _ _ -> r
@@ -303,16 +297,21 @@ getHint str = do
   hints <- asks binderHints
   pure $ fromMaybe Unknown $ Map.lookup str hints
 
-fromInfo :: Info SyntaxDesc -> Elab SyntaxDesc
-fromInfo Unknown = pure (atom "Wildcard" 0)
-fromInfo (Known desc) = pure desc
-fromInfo Inconsistent = throwError InconsistentSyntaxDesc
+fromInfo :: Range -> Info SyntaxDesc -> Elab SyntaxDesc
+fromInfo r Unknown = pure (atom "Wildcard" 0)
+fromInfo r (Known desc) = pure desc
+-- I believe this last case is currently unreachable because this
+-- may only arise from a call to (<>) and this is only used in two
+-- places:
+-- 1. `addHint` (and if we had a clash, that'd be a shadowing error)
+-- 2. `compatibleInfos` where the error is handled locally
+fromInfo r Inconsistent = throwError (InconsistentSyntaxDesc r)
 
-declareSyntax :: SyntaxCat -> SyntaxDesc -> Elab ()
-declareSyntax cat desc = do
+declareSyntax :: WithRange SyntaxCat -> SyntaxDesc -> Elab ()
+declareSyntax (WithRange r cat) desc = do
   st <- get
   whenJust (Map.lookup cat (syntaxCats st)) $ \ _ ->
-    throwError (AlreadyDeclaredSyntaxCat cat)
+    throwError (AlreadyDeclaredSyntaxCat r cat)
   put (st { syntaxCats = Map.insert cat desc (syntaxCats st) })
 
 channelLookup :: Channel -> ElabState -> Maybe ([Turn], AProtocol)
@@ -407,7 +406,7 @@ ssbst (sg :< sgc) = case sgc of
       pure (weak sg, ovs)
     Assign r v t -> do
       info <- getHint (getVariable v)
-      desc <- fromInfo info
+      desc <- fromInfo r info
       t <- stm desc t
       (sg, ovs) <- ssbst sg
       v <- local (setObjVars ovs) $ isFresh v
@@ -432,7 +431,7 @@ stm :: SyntaxDesc -> Raw -> Elab ACTm
 stm desc (Var r v) = during (TermVariableElaboration v) $ do
   table <- gets syntaxCats
   (desc', t) <- svar v
-  compatibleInfos (Known desc) desc'
+  compatibleInfos (getRange v) (Known desc) desc'
   pure t
 stm desc (Sbst r sg t) = do
     (sg, ovs) <- during (SubstitutionElaboration sg) $ ssbst sg
@@ -441,7 +440,7 @@ stm desc (Sbst r sg t) = do
 stm desc rt = do
   table <- gets syntaxCats
   case Syntax.expand table desc of
-    Nothing -> throwError (InvalidSyntaxDesc desc)
+    Nothing -> throwError (InvalidSyntaxDesc (getRange rt) desc)
     Just vdesc -> case rt of
       At r a -> do
         case vdesc of
@@ -495,7 +494,7 @@ spat desc (VarP r v) = during (PatternVariableElaboration v) $ do
   case res of
     Just (Left k)  -> throwError (NotAValidPatternVariable r v k)
     Just (Right (desc', i)) -> do
-      compatibleInfos (Known desc) desc'
+      compatibleInfos (getRange v) (Known desc) desc'
       pure (VP i, ds, hs)
     Nothing -> do
       ovs <- asks objVars
@@ -509,7 +508,7 @@ spat desc (UnderscoreP r) = (HP,,) <$> asks declarations <*> asks binderHints
 spat desc rp = do
   table <- gets syntaxCats
   case Syntax.expand table desc of
-    Nothing -> throwError (InvalidSyntaxDesc desc)
+    Nothing -> throwError (InvalidSyntaxDesc (getRange rp) desc)
     Just vdesc -> case rp of
       AtP r a -> do
         case vdesc of
@@ -651,7 +650,7 @@ sact = \case
     infoS <- guessDesc False s
     infoT <- guessDesc False t
     desc <- during (ConstrainSyntaxCatGuess s t) $
-      fromInfo =<< compatibleInfos infoS infoT
+      fromInfo r =<< compatibleInfos r infoS infoT
     s <- during (ConstrainTermElaboration s) $ stm desc s
     t <- during (ConstrainTermElaboration t) $ stm desc t
     pure $ Constrain r s t
@@ -736,7 +735,7 @@ sact = \case
     pure $ Under r (Scope v a)
 
   Match r rtm@tm cls -> do
-    desc <- fromInfo =<< guessDesc False rtm
+    desc <- fromInfo (getRange rtm) =<< guessDesc False rtm
     tm <- during (MatchTermElaboration tm) $ stm desc tm
     chs <- get
     clsts <- traverse (sclause desc) cls
@@ -751,7 +750,7 @@ sact = \case
       Just stk -> pure stk
 
     p <- resolve p >>= \case
-      Just (Right (cat, i)) -> i <$ compatibleInfos cat (Known $ keyDesc stk)
+      Just (Right (cat, i)) -> i <$ compatibleInfos (getRange p) cat (Known $ keyDesc stk)
       Just (Left k) -> throwError $ NotAValidPatternVariable r p k
       _ -> throwError $ OutOfScope (getRange p) p
     t <- during (PushTermElaboration t) $ stm (valueDesc stk) t
@@ -777,7 +776,7 @@ sact = \case
 
 sformat :: [Format Directive Debug Raw] -> Elab [Format Directive Debug ACTm]
 sformat fmt = do
-  desc <- fromInfo Unknown
+  desc <- fromInfo unknown Unknown
   traverse (traverse $ stm desc) fmt
 
 consistentCommunication :: Range -> [Maybe ElabState] -> Elab ()

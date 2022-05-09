@@ -1,0 +1,10 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  2 |        ; 'Term = ['EnumOrTag ['Zro 'One]
+out >  3 |                              [['Suc 'Term]]]
+out >  4 |        ; 'Type = ['Tag [['Pair 'Type 'Type]]]
+out >               ^^^^^
+out > syntax-fail.act:4:9-14
+out > The syntactic category Type is already defined
+out >

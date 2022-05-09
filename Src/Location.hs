@@ -38,11 +38,25 @@ data Range = Range
   , end    :: !(Int, Int)
   } deriving (Eq, Ord)
 
+data WithRange t = WithRange
+  { theRange :: Range
+  , theValue :: t
+  }
+
+instance Show t => Show (WithRange t) where
+  show = show . theValue
+
 class HasSetRange t where
   setRange :: Range -> t -> t
 
 class HasGetRange t where
   getRange :: t -> Range
+
+instance HasSetRange (WithRange t) where
+  setRange r (WithRange _ t) = WithRange r t
+
+instance HasGetRange (WithRange t) where
+  getRange = theRange
 
 type HasRange t = (HasSetRange t, HasGetRange t)
 

@@ -1,0 +1,5 @@
+syntax { 'Type = ['Enum ['Zro 'One]]
+       ; 'Term = ['EnumOrTag ['Zro 'One]
+                             [['Suc 'Term]]]
+       ; 'Type = ['Tag [['Pair 'Type 'Type]]]
+       }
