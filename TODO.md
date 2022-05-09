@@ -5,6 +5,7 @@
 
 ### Syntax
 
+* [ ] Annotating max locations (cf. (<!>) in Parse)
 * [ ] User-friendly syntaxes
 * [ ] Industrial-strength parsing
 * [ ] Source location information

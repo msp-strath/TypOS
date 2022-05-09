@@ -15,6 +15,9 @@ import System.Exit (exitFailure)
 -- parsers, by convention, do not consume either leading
 -- or trailing space
 
+-- Future work: annotating (Max Location) with message
+-- (<!>) :: String -> Parser a -> Parser a
+
 plit :: String -> Parser ()
 plit = mapM_ (pch . (==))
 
