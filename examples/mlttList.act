@@ -9,6 +9,7 @@ syntax
 			   ['Sing 'Check]
 			   ['Plus 'Check 'Check]
 			   ['Emb 'Synth 'Adapt]
+			   ['ListRec ['Bind 'Synth 'Check] 'Check ['Bind 'Synth ['Bind 'Synth ['Bind 'Synth 'Check]]]]
                          ]
              ]
   ; 'Adapt = ['EnumOrTag ['Id]
@@ -118,7 +119,15 @@ synthWorker@p = p?tm . lookup tm { S -> p!S. } else case tm
        ; 'Snd -> p!{v=['App f 'Fst]}T.
        ; _ -> #"Expected Fst or Snd; got %i" s
        }
-     ; _ -> #"Expected Pi or Sg; got %i" ty
+     ; ['List S] -> case s
+       { ['ListRec (\xs. T) n (\y.\ys.\ih. c)] ->
+         ( \xs. synthWorker{xs -> ty}. type@v. v!T.
+	 | check@r. r!{xs = ['Rad 'Null ty]}T. r!n.
+	 | \y. synthWorker{y -> S}. \ys. synthWorker{ys -> ty}. \ih. synthWorker{ih -> {xs = ys}T}.
+	    check@u. u!{xs = ['Rad ['Plus ['Sing ['Emb y 'Id]] ['Emb ys 'Id]] ty]}T. u!c. 
+	 | p!{xs = f}T. )
+       }
+     ; _ -> #"Expected Pi, Sg or List; got %i" ty
      }
    }
 
@@ -139,7 +148,7 @@ checkEval@p = p?tty. p?tm. case tm
   ; x -> {- PRINTF "Other %i" x . -} p!x.
   }
 
--- types in radicals are head normal
+-- whenever evalSynth returns a radical, the term and the type are head normal
 evalSynth@p = p?tm. case tm
   { ['Rad t ty] -> {-PRINTF "Rad" .-} checkEval@r. r!'Ty. r!ty. r?nty. checkEval@q. q!nty. q!t. q?nt. p!['Rad nt nty].
   ; ['App f s] -> {-PRINTF "App" .-} evalSynth@q. q!f. q?nf. case nf
@@ -148,6 +157,21 @@ evalSynth@p = p?tm. case tm
       { 'Fst -> PRINTF "Fst" . evalSynth@w. w!['Rad a S]. w <-> p
       ; 'Snd -> PRINTF "Snd" . evalSynth@w. w!['Rad b {x=['Rad a S]}T]. w <-> p
       ; _ -> #"Expected Fst or Snd; got %i" s
+      }
+    ; ['Rad t ['List S]] -> case s
+      { ['ListRec (\xs. T) n (\y.\ys.\ih. c)] -> case t
+        { 'Null -> evalSynth@w. w!['Rad n {xs = nf}T]. w <-> p
+	; ['Sing z] -> evalSynth@w.
+	               w!['Rad {y = ['Rad z S],ys = ['Rad 'Null ['List S]], ih = ['Rad n {xs = ['Rad 'Null ['List S]]}T]}c {xs = nf}T].
+		       w <-> p
+	; ['Plus as bs] -> evalSynth@w.
+	  	    	   w!['App ['Rad as ['List S]]
+			        ['ListRec (\zs . {xs = ['Rad ['Plus ['Emb zs 'Id] bs] ['List S]]}T)
+				          ['Emb ['App ['Rad bs ['List S]] s] 'Id]
+					  (\z . \zs. \jh. {y = z, ys = ['Rad ['Plus ['Emb zs 'Id] bs] ['List S]], ih = jh}c)]].
+	                   w <-> p
+	; _  -> p!['App nf s].		   
+	}
       }
     ; g -> p!['App g s].
     }
@@ -179,6 +203,7 @@ checkEqualWorker@p = p?ty. p?tm1. p?tm2. {- PRINTF "checkEqual %i\n %i\n %i" ty 
     ; [['Pi S1 \x. T1] | ['Pi S2 \x. T2]] -> {- PRINTF "Pi" . -} (checkEqual@w. w!'Ty. w!S1. w!S2. | \ x. equalSynthWorker {x -> S1}. checkEqual@u. u!'Ty. u!T1. u!T2.)
     ; [['Sg S1 \x. T1] | ['Sg S2 \x. T2]] -> {- PRINTF "Sg" . -} (checkEqual@w. w!'Ty. w!S1. w!S2. | \ x. equalSynthWorker {x -> S1}. checkEqual@u. u!'Ty. u!T1. u!T2.)
     ; ['One|'One] -> {- PRINTF "One" . -}
+    ; [['List S1] | ['List S2]] -> checkEqual@w. w!'Ty. w!S1. w!S2.
     ; ['Null|'Null] ->
     ; [['Sing t1]|['Sing t2]] -> case ty
         { ['List T] -> checkEqual@q. q!T. q!t1. q!t2.
@@ -249,6 +274,25 @@ exec checkEval@p. p!['List ['List 'One]]. 'Check?one . 'Check?two.
          p?x . PRINTF "%i" x.)
 -}
 
+{-
 exec checkEqual@p. p!['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]].
      		   p!['Lam \X.['Lam \xs. ['Emb xs 'Id]]].
 		   p!['Lam \X.['Lam \xs. ['Emb xs ['List ['Lam \x. ['Emb x 'Id]]]]]].
+-}
+
+{-
+exec check@p. p!['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]].
+              p!['Lam \X.['Lam \xs.
+	          ['Emb ['App xs
+		     ['ListRec \_.['List ['Emb X 'Id]] 'Null \x.\_.\ih.['Plus ['Emb ih 'Id] ['Sing ['Emb x 'Id]]]]] 'Id] ]].
+-}
+
+
+exec checkEval@p. p!['List ['List 'One]]. 'Check?one . 'Check?two. 'Synth?rev.
+       ( one ~ ['Sing 'Tt]
+       | two ~ ['Plus one one]
+       | rev ~ ['Rad ['Lam \X.['Lam \xs.
+	                 ['Emb ['App xs['ListRec \_.['List ['Emb X 'Id]] 'Null \x.\_.\ih.['Plus ['Emb ih 'Id] ['Sing ['Emb x 'Id]]]]] 'Id] ]]
+	             ['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]]]		 
+       | p!['Emb ['App ['App rev ['List 'One]] ['Plus ['Sing 'Null] ['Plus ['Sing one] ['Sing two]]]] 'Id].
+         p?x . PRINTF "%i" x.)
