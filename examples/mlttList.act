@@ -186,8 +186,8 @@ adaptVal@p = p?stm. p?sty. p?a. p?tty. case [sty a tty]
     ; ['Plus xs ys] -> adaptVal@q. q!xs. q!sty. q!a. q!tty. q?xs'.p!['Plus xs' ['Emb ['Rad ys sty] a]].
     ; ['Sing s] -> checkEval@q. q!T. q!['Emb ['App ['Rad f ['Pi S \_. T]] s] 'Id]. q?t. p!['Sing t].
     ; ['Emb xs a'] -> case a'
-      { {- 'Id -> p!['Emb xs a]. -}
-      _ -> p!['Emb xs ['Then a' sty a]].
+      { 'Id -> p!['Emb xs a]. 
+      ; _ -> p!['Emb xs ['Then a' sty a]].
       }
     }
   ; _ -> # "Unexpected adaptor %i" a
@@ -217,7 +217,17 @@ checkEqualWorker@p = p?ty. p?tm1. p?tm2. {- PRINTF "checkEqual %i\n %i\n %i" ty 
   }
 
 equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %i\n %i" e1 e2.
-  lookup e1 { S1 -> {- PRINTF "Var" . -}(e1 ~ e2 | p!S1.)} else case [e1|e2]
+  lookup e1 { S1 -> {- PRINTF "Var" . -} lookup e2 {S2 -> (e1 ~ e2 | p!S1.)}
+  	    else case e2
+  	    { ['Rad ['Emb e2' a2] ty2] -> (e1 ~ e2' | p!S1. | adaptEqual@q. q!S1. q!S1. q!a2. q!'Id.)
+	    ; _ -> #"Expected an adapter, behaviourally equal to 'Id" 
+	    }}
+  else lookup e2 { S2 -> case e1
+  { ['Rad ['Emb e1' a1] ty1] -> (e1' ~ e2 | p!S2. | adaptEqual@q. q!S2. q!S2. q!a1. q!'Id.)
+	    ; _ -> #"Expected an adapter, behaviourally equal to 'Id" 
+  }}
+  else case [e1|e2]
+  {- FIXME : Rad-L and Rad-R are (too) syntactic" -}
   { [['Rad ['Emb e1' 'Id] ty1] | _ ] -> {- PRINTF "Rad-L" . -} equalSynth@q. q!e1'. q!e2. p <-> q
   ; [_  | ['Rad ['Emb e2' 'Id] ty2]] -> {- PRINTF "Rad-R" . -} equalSynth@q. q!e1. q!e2'. p <-> q
   ; [['Rad t1 ty1] | ['Rad t2 ty2]] -> {- PRINTF "Rad-Rad" . -} (checkEqual@q. q!'Ty. q!ty1. q!ty2. | checkEqual@r. r!ty1. r!t1. r!t2.|p!ty1.)
@@ -227,6 +237,15 @@ equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %i\n %i" e1 e2.
       { 'Fst -> p!S.
       ; 'Snd -> p!{x=['App f1 'Fst]}T.
       ; _ -> #"Expected Fst or Snd; got %i" s1
+      }
+    ; ['List S] -> case [s1 | s2]
+      { [['ListRec (\xs. T1) n1 (\y.\ys.\ih. c1)] | ['ListRec (\xs. T2) n2 (\y.\ys.\ih. c2)]] -> 
+           ( \xs. equalSynthWorker{ xs -> ty}. checkEqual@u. u!'Ty. u!T1. u!T2.
+	   | checkEqual@v. v!{xs = ['Rad 'Null ty]}T1. v!n1 . v!n2.
+	   | \y. equalSynthWorker {y -> S}. \ys. equalSynthWorker{ys -> ty}. \ih. equalSynthWorker{ih -> {xs = ys}T1}.
+	     checkEqual@u. u!{xs = ['Rad ['Plus ['Sing ['Emb y 'Id]] ['Emb ys 'Id]] ty]}T1. u!c1. u!c2. 
+	   | p!{xs = f1}T1.)
+      ; _ -> #"Expected ListRec's; got %i and %i" s1 s2 
       }
     }
   ; [x|y] -> # "%i not equalSynth to %i" x y
@@ -287,7 +306,7 @@ exec check@p. p!['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]]
 		     ['ListRec \_.['List ['Emb X 'Id]] 'Null \x.\_.\ih.['Plus ['Emb ih 'Id] ['Sing ['Emb x 'Id]]]]] 'Id] ]].
 -}
 
-
+{-
 exec checkEval@p. p!['List ['List 'One]]. 'Check?one . 'Check?two. 'Synth?rev.
        ( one ~ ['Sing 'Tt]
        | two ~ ['Plus one one]
@@ -296,3 +315,22 @@ exec checkEval@p. p!['List ['List 'One]]. 'Check?one . 'Check?two. 'Synth?rev.
 	             ['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]]]		 
        | p!['Emb ['App ['App rev ['List 'One]] ['Plus ['Sing 'Null] ['Plus ['Sing one] ['Sing two]]]] 'Id].
          p?x . PRINTF "%i" x.)
+-}
+
+{-
+exec equalSynth@p. 'Synth?rev.
+       ( rev ~ ['Rad ['Lam \X.['Lam \xs.
+	                 ['Emb ['App xs['ListRec \_.['List ['Emb X 'Id]] 'Null \x.\_.\ih.['Plus ['Emb ih 'Id] ['Sing ['Emb x 'Id]]]]] 'Id] ]]
+	             ['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]]]		 
+       | p!rev. p!rev.
+         p?x . PRINTF "%i" x.)
+-}
+
+exec checkEqual@p. p!['List ['List 'One]]. 'Check?one . 'Check?two. 'Synth?rev.
+       ( one ~ ['Sing 'Tt]
+       | two ~ ['Plus one one]
+       | rev ~ ['Rad ['Lam \X.['Lam \xs.
+	                 ['Emb ['App xs['ListRec \_.['List ['Emb X 'Id]] 'Null \x.\_.\ih.['Plus ['Emb ih 'Id] ['Sing ['Emb x 'Id]]]]] 'Id] ]]
+	             ['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]]]		 
+       | p!['Emb ['App ['App rev ['List 'One]] ['Plus ['Sing 'Null] ['Plus ['Sing one] ['Sing two]]]] 'Id].
+         p!['Plus ['Sing two] ['Plus ['Sing one] ['Sing 'Null]]].)
