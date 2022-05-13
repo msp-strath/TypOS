@@ -10,6 +10,7 @@
 * [ ] Industrial-strength parsing
 * [ ] Source location information
 * [ ] Let binders
+* [ ] Multibinder lambdas (desugar in parser)
 
 ### Features
 
