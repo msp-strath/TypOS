@@ -1,0 +1,13 @@
+syntax { 'Term = ['Bind 'Term ['Bind 'Term 'Nil]] }
+
+test :
+test@p = 'Term?S.
+  ( S ~ \x y. [] -- multi binder in term
+  | case S
+    { \x y. []   -- multi binder in pattern
+    ->  \ a b c. -- multi binder in under
+        PRINTF "Success".
+    }
+  )
+
+exec test@p.
