@@ -1,13 +1,14 @@
 syntax { 'Term = ['Bind 'Term ['Bind 'Term 'Nil]] }
 
-test :
-test@p = 'Term?S.
-  ( S ~ \x y. [] -- multi binder in term
+test : ?'Term. ?'Term.
+test@p = 'Term?S T U. -- multi binder in fresh meta
+  ( S ~ \x y. []      -- multi binder in term
+  | p?T' U'. (T ~ T' | U ~ U')
   | case S
-    { \x y. []   -- multi binder in pattern
-    ->  \ a b c. -- multi binder in under
+    { \x y. []        -- multi binder in pattern
+    ->  \ a b c.      -- multi binder in under
         PRINTF "Success".
     }
   )
 
-exec test@p.
+exec test@p. p!\ _ _.[]. p!\_ _.[].

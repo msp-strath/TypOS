@@ -22,7 +22,7 @@ pscoped con px pa = do
     pch (== '\\')
     pspc
     xs <- pmustwork "Expected at least a binder" $
-          some (Hide <$ pspc <*> px)
+          psep1 pspc (Hide <$> px)
     punc "."
     a <- pa
     pure (xs, a)
@@ -98,6 +98,15 @@ pACT = withRange (pact >>= more) where
 withVar :: Parser x -> String -> Parser a -> Parser (x, a)
 withVar px str p = (,) <$> px <* punc str <*> p
 
+withVars :: (Range -> (x, a) -> a) -> Parser x -> String -> Parser a -> Parser a
+withVars con px str pa = do
+  WithRange r (xs, a) <- withRange $ WithRange unknown <$> do
+    xs <- psep1 pspc px
+    punc str
+    a <- pa
+    pure (xs, a)
+  pure $ foldr (\ x a -> con r (x, a)) a xs
+
 pextractmode :: Parser ExtractMode
 pextractmode
     = TopLevelExtract <$ plit "/" <* pspc
@@ -111,8 +120,8 @@ pact = withRange $
   <|> do tm <- ptm
          punc "?"
          case tm of
-           Var _ c -> Recv unknown c <$> withVar pbinder "." pact
-           t -> FreshMeta unknown t <$> withVar pvariable "." pact
+           Var _ c -> withVars (`Recv` c) pbinder "." pact
+           t -> withVars (`FreshMeta` t) pvariable "." pact
   <|> Spawn unknown <$> pextractmode <*> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
   <|> Constrain unknown <$> ptm <* punc "~" <*> pmustwork "Expected a term" ptm
   <|> Connect unknown <$> (CConnect <$> pvariable <* punc "<->" <*> pvariable)
