@@ -105,6 +105,9 @@ pspc = do
 pnl :: Parser ()
 pnl = () <$ pch (\c -> c == '\n' || c == '\0')
 
+psep1 :: Parser () -> Parser a -> Parser [a]
+psep1 s p = (:) <$> p <* s <*> psep s p
+
 psep :: Parser () -> Parser a -> Parser [a]
 psep s p = (:) <$> p <*> many (id <$ s <*> p)
  <|> pure []
