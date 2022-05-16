@@ -6,19 +6,18 @@ import Control.Monad
 import Data.Bifunctor
 import Data.Char
 import Data.Function
-import Data.Maybe (fromMaybe, isJust)
-import Data.Semigroup
 
 import Bwd
 import Location
 import System.IO.Unsafe (unsafePerformIO)
 import System.Exit (exitFailure)
+import Data.List (intercalate)
 
 -- parsers, by convention, do not consume either leading
 -- or trailing space
 
 plit :: String -> Parser ()
-plit cs = "Expected `" ++ cs ++ "`" <!> mapM_ (pch . (==)) cs
+plit cs = "'" ++ cs ++ "'" <!> mapM_ (pch . (==)) cs
 
 punc :: String -> Parser ()
 punc cs = () <$ pspc <* plit cs <* pspc
@@ -120,32 +119,34 @@ data Source = Source
   } deriving (Show)
 
 data Candidate = Candidate
-  { description :: Maybe String
+  { description :: Bwd String
   , candidateLoc :: Location
   }
 
 instance Eq Candidate where (==) = (==) `on` candidateLoc
-instance Ord Candidate where
-  compare (Candidate mdesc1 loc1) (Candidate mdesc2 loc2) =
+
+instance Semigroup Candidate where
+  c1@(Candidate ds1 loc1) <> c2@(Candidate ds2 loc2) =
     case compare loc1 loc2 of
-      EQ -> compare (isJust mdesc1) (isJust mdesc2)
-      cmp -> cmp
+      LT -> c2
+      EQ -> Candidate (ds1 <> ds2) loc1
+      GT -> c1
 
 newtype Parser a = Parser
-  { parser :: Source -> (Max Candidate, [(a, Source)])
+  { parser :: Source -> (Candidate, [(a, Source)])
   }
 
 infix 0 <!>
 (<!>) :: String -> Parser a -> Parser a
 desc <!> p = Parser $ \ src ->
-  let (Max (Candidate mdesc loc), res) = parser p src in
-  (Max (Candidate (mdesc <|> Just desc) loc), res)
+  let (Candidate mdesc loc, res) = parser p src in
+  (Candidate (mdesc :< desc) loc, res)
 
-here :: (a, Source) -> (Max Candidate, [(a, Source)])
-here (a, s) = (Max (Candidate Nothing $ location s), [(a, s)])
+here :: (a, Source) -> (Candidate, [(a, Source)])
+here (a, s) = (Candidate B0 (location s), [(a, s)])
 
-notHere :: Location -> (Max Candidate, [(a, Source)])
-notHere loc = (Max (Candidate Nothing loc), [])
+notHere :: Location -> (Candidate, [(a, Source)])
+notHere loc = (Candidate B0 loc, [])
 
 ploc :: Parser Location
 ploc = Parser $ \ i@(Source str loc) -> here (loc, i)
@@ -200,8 +201,11 @@ parseError prec loc str = unsafePerformIO $ do
 parse :: Show x => Parser x -> Source -> x
 parse p s = case parser (id <$> p <* pend) s of
   (_, [(x, _)]) -> x
-  (Max (Candidate mdesc loc), []) -> parseError Imprecise loc (fromMaybe "" mdesc)
-  (Max (Candidate _ loc), xs) -> parseError Imprecise loc (unlines ("Ambiguous parse:" : map (show . fst) xs))
+  (Candidate ds loc, []) -> parseError Imprecise loc $ case nub ds of
+    B0 -> ""
+    B0 :< x -> "Expected " ++ x ++ "."
+    xs :< x -> "Expected " ++ intercalate ", " (xs <>> []) ++ ", or " ++ x ++ "."
+  (Candidate _ loc, xs) -> parseError Imprecise loc (unlines ("Ambiguous parse:" : map (show . fst) xs))
 
 pmustwork :: String -> Parser x -> Parser x
 pmustwork str p = Parser $ \ i -> case parser p i of
