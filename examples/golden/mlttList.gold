@@ -1,26 +1,19 @@
 ret > ExitSuccess
-out > Eta Pi
 out > Beta
-out > Ups
-out > Beta
-out > Ups
-out > Eta Pi
 out > Beta
 out > Ups
 out > Ups
-out > Beta
-out > Ups
-out > equalSynth
-out >  xs_1
-out >  xs_1
 out > Ups
 out > Ups
-out > Beta
 out > Ups
 out > Ups
-out > equalSynth
-out >  x_2
-out >  x_2
+out > Ups
+out > Ups
+out > Ups
+out > Ups
+out > Ups
+out > Ups
+out > Ups
 out >
 err >
 err >
