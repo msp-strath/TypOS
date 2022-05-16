@@ -33,6 +33,7 @@ adapt : ?'Check{- source Type -}. ?'Adapt. ?'Check{- target Type -}.
 ^checkEval : ?'Check{-target Type-}. ?'Check. !'Check.
 ^evalSynth : ?'Synth. !'Synth.
 ^adaptVal : ?'Check{- source value -}. ?'Check{- source type -}. ?'Adapt. ?'Check{- target type -}. !'Check{- target value -}.
+^adaptValWorker : ?'Check{- source value -}. ?'Check{- source type -}. ?'Adapt. ?'Check{- target type -}. !'Check{- target value -}.
 
 
 checkEqual : ?'Check{-Type-}. ?'Check. ?'Check.
@@ -178,12 +179,17 @@ evalSynth@p = p?tm. case tm
   ; x -> p!x.
   }
 
-adaptVal@p = p?stm. p?sty. p?a. p?tty. case [sty a tty]
+adaptVal@p = p?stm. p?sty. p?a. p?tty.
+	   checkEval@q. q!'Ty. q!sty. q?nsty.
+	   checkEval@r. r!'Ty. r!tty. r?ntty.
+	   adaptValWorker@s. s!stm. s!nsty. s!a. s!ntty. s <-> p
+
+adaptValWorker@p = p?stm. p?sty. p?a. p?tty. case [sty a tty]
   { [_ 'Id _] -> p!stm. PRINTF "Ups".
-  ; [_ ['Then a1 mty a2] _] -> adaptVal@q. q!stm. q!sty. q!a1. q!mty. q?mtm. adaptVal@r. r!mtm. r!mty. r!a2. r!tty. p <-> r   
+  ; [_ ['Then a1 mty a2] _] -> checkEval@s. s!'Ty. s!mty. s?nmty. adaptValWorker@q. q!stm. q!sty. q!a1. q!nmty. q?mtm. adaptValWorker@r. r!mtm. r!nmty. r!a2. r!tty. p <-> r   
   ; [['List S] ['List f] ['List T]] -> case stm
     { 'Null -> p!'Null.
-    ; ['Plus xs ys] -> adaptVal@q. q!xs. q!sty. q!a. q!tty. q?xs'.p!['Plus xs' ['Emb ['Rad ys sty] a]].
+    ; ['Plus xs ys] -> adaptValWorker@q. q!xs. q!sty. q!a. q!tty. q?xs'.p!['Plus xs' ['Emb ['Rad ys sty] a]].
     ; ['Sing s] -> checkEval@q. q!T. q!['Emb ['App ['Rad f ['Pi S \_. T]] s] 'Id]. q?t. p!['Sing t].
     ; ['Emb xs a'] -> case a'
       { 'Id -> p!['Emb xs a]. 
