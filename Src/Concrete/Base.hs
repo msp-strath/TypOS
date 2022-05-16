@@ -45,6 +45,14 @@ instance HasSetRange Raw where
     Lam _ sc -> Lam r sc
     Sbst _ sg t -> Sbst r sg t
 
+instance Eq Raw where
+  Var _ v == Var _ w = v == w
+  At _ a == At _ b = a == b
+  Cons _ p q == Cons _ s t = p == s && q == t
+  Lam _ sc == Lam _ bd = sc == bd
+  Sbst _ cs t == Sbst _ ds u = cs == ds && t == u
+  _ == _ = False
+
 instance HasGetRange Raw where
   getRange = \case
     Var r v -> r
@@ -58,6 +66,12 @@ data SbstC
   | Drop Range Variable
   | Assign Range Variable Raw
   deriving (Show)
+
+instance Eq SbstC where
+  Keep _ v == Keep _ w = v == w
+  Drop _ v == Drop _ w = v == w
+  Assign _ v t == Assign _ w u = v == w && t == u
+  _ == _ = False
 
 instance HasSetRange SbstC where
   setRange r = \case

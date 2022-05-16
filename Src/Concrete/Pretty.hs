@@ -24,6 +24,10 @@ instance Pretty x => Pretty (Binder x) where
   pretty (Used v) = pretty v
   pretty Unused = "_"
 
+multiBind :: Bwd (Hide (Binder Variable)) -> Raw -> Doc Annotations
+multiBind xs (Lam _ (Scope x t)) = multiBind (xs :< x) t
+multiBind xs t = backslash <> hsep (pretty <$> xs <>> []) <> dot <+> pretty t
+
 instance Pretty Raw where
   pretty = \case
     Var _ v -> pretty v
@@ -32,7 +36,7 @@ instance Pretty Raw where
     Cons _ p q -> brackets $ case pretty p : prettyCdr q of
       (d : ds@(_:_)) -> alts [flush d, d <> space] <> sep ds
       ds -> hsep ds
-    Lam _ (Scope x t) -> backslash <> pretty x <> dot <+> pretty t
+    Lam _ (Scope x t) -> multiBind (B0 :< x) t
     Sbst _ B0 t -> pretty t
     Sbst _ sg t -> hsep [ pretty sg, pretty t ]
 
@@ -56,13 +60,17 @@ instance Pretty ThDirective where
     ThKeep -> ""
     ThDrop -> "*"
 
+multiBindP :: Bwd (Hide (Binder Variable)) -> RawP -> Doc Annotations
+multiBindP xs (LamP _ (Scope x t)) = multiBindP (xs :< x) t
+multiBindP xs t = backslash <> hsep (pretty <$> xs <>> []) <> dot <+> pretty t
+
 instance Pretty RawP where
   prettyPrec d = \case
     VarP _ v -> pretty v
     AtP _ "" -> "[]"
     AtP _ at -> squote <> pretty at
     ConsP _ p q -> brackets $ sep (pretty p : prettyCdrP q)
-    LamP _ (Scope x p) -> backslash <> pretty x <> dot <+> pretty p
+    LamP _ (Scope x p) -> multiBindP (B0 :< x) p
     ThP _ (thxz, thd) p -> braces (hsep (pretty <$> thxz <>> []) <> pretty thd) <+> pretty p
     UnderscoreP _ -> "_"
 
@@ -95,8 +103,8 @@ prettyact = go B0 B0 where
     Send r ch t@(Var _ _) a -> go ls (l `add` [pretty ch, "!", pretty t, dot]) a
     Send r ch t a -> go (ls :< fold (l `add` [pretty ch, "!", pretty t, dot])) B0 a
     Recv r ch (av, a) -> go ls (l `add` [pretty ch, "?", pretty av, dot]) a
-    FreshMeta r syn (av, a) -> go (ls :< fold (l `add` [pretty syn, "?", pretty av, dot])) B0 a
-    Under r (Scope x a) -> go ls (l `add` [backslash , pretty x, dot]) a
+    FreshMeta r syn (av, a) -> freshMetas ls l syn (B0 :< av) a
+    Under r (Scope x a) -> unders ls l (B0 :< x) a
     Note r a -> go ls (l `add` ["!", dot]) a
     Push r jd (x, _, t) a ->
       let push = hsep [pretty jd, braces (hsep [ pretty x, "->", pretty t]), dot] <> dot in
@@ -109,6 +117,19 @@ prettyact = go B0 B0 where
              B0 -> ls <>> []
              _ -> ls <>> [fold l]
     a -> ls <>> [fold (l `add` [prettyPrec 1 a])] -- either a big one or a final one
+
+  freshMetas :: Bwd (Doc Annotations) -> -- lines above us
+                Bwd (Doc Annotations) -> -- part of the line on our left
+                Raw -> Bwd Variable -> CActor -> [Doc Annotations]
+  freshMetas ls l syn avs (FreshMeta _ syn' (av, a)) | syn == syn' = freshMetas ls l syn (avs :< av) a
+  freshMetas ls l syn avs a = go (ls :< fold (l `add` [pretty syn, "?", hsep (pretty <$> avs <>> []), dot])) B0 a
+
+  unders :: Bwd (Doc Annotations) -> -- lines above us
+            Bwd (Doc Annotations) -> -- part of the line on our left
+            Bwd (Hide Variable) -> CActor -> [Doc Annotations]
+  unders ls l xs (Under _ (Scope x a)) = unders ls l (xs :< x) a
+  unders ls l xs a = go ls (l `add` [backslash , hsep (pretty <$> xs <>> []), dot]) a
+
 
 instance Pretty CActor where
   prettyPrec d = \case
