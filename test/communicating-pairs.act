@@ -1,0 +1,15 @@
+syntax { 'Ping = ['Enum ['Ping]]
+       ; 'Pong = ['Enum ['Pong]]
+       }
+
+unpack : ?['Cons 'Ping 'Pong]. !'Ping. !'Pong.
+pack : ?'Ping. ?'Pong. !['Cons 'Ping 'Pong].
+
+unpack@p = p?[fst | snd]. p!fst. p!snd.
+pack@p = p?fst. p?snd. p![fst | snd].
+
+exec pack@p. p!'Ping. p!'Pong. p?both.
+     unpack@q. q!both. q?fst snd.
+     case fst { 'Ping ->
+     case snd { 'Pong ->
+     PRINTF "Success". }}

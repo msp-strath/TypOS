@@ -643,6 +643,16 @@ compatibleChannels r (p@(m, s) : ps) dir (q@(n, t) : qs) = do
   (+1) <$> compatibleChannels r ps dir qs
 compatibleChannels r ps _ qs = throwError (ProtocolsNotDual r ps qs)
 
+sirrefutable :: String -> RawP -> Elab (Binder String, Maybe (Raw, RawP))
+sirrefutable nm = \case
+  VarP _ v -> (, Nothing) . Used <$> isFresh v
+  UnderscoreP _ -> pure (Unused ,Nothing)
+  p -> do ctxt <- ask
+          -- this should be a unique name & is not user-writable
+          let r = getRange p
+          let av = "$" ++ nm ++ show (length (objVars ctxt) + length (declarations ctxt))
+          pure (Used av, Just (Var r (Variable r av), p))
+
 sact :: CActor -> Elab AActor
 sact = \case
   Win r -> pure (Win r)
@@ -691,9 +701,10 @@ sact = \case
     a <- sact a
     pure $ Send r ch tm a
 
-  Recv r ch (av, a) -> do
+  Recv r ch (p, a) -> do
     ch <- isChannel ch
-    av <- during (RecvMetaElaboration ch) $ traverse isFresh av
+    (av, pat) <- during (RecvMetaElaboration ch) $ sirrefutable "recv" p
+
     -- Check the channel is in receiving mode & step it
     cat <- steppingChannel r ch $ \case
       (Input, cat) : p -> pure (cat, p)
@@ -701,7 +712,9 @@ sact = \case
 
     -- Receive
     sc <- channelScope ch
-    a <- local (declare av (ActVar (Known cat) sc)) $ sact a
+    a <- local (declare av (ActVar (Known cat) sc)) $ sact $ case pat of
+      Nothing -> a
+      Just (var, p) -> Match r var [(p, a)]
     pure $ Recv r ch (ActorMeta <$> av, a)
 
   Connect r (CConnect ch1 ch2) -> during (ConnectElaboration ch1 ch2) $ do
@@ -757,14 +770,17 @@ sact = \case
     a <- sact a
     pure $ Push r (judgementName jd) (p, valueDesc stk, t) a
 
-  Lookup r rt@t (av, a) b -> do
+  Lookup r rt@t (p, a) b -> do
     (jd, stk) <- asks currentActor >>= \case
       (jd, Nothing) -> throwError (LookupFromAStacklessActor r jd)
       (jd, Just stk) -> pure (jd, stk)
     t <- during (LookupTermElaboration t) $ stm (keyDesc stk) t
-    av <- traverse isFresh av
+    (av, mpat) <- sirrefutable "lookup" p
     ovs <- asks objVars
-    (a, mcha) <- local (declare av (ActVar (Known $ valueDesc stk) ovs)) $ sbranch a
+    (a, mcha) <- local (declare av (ActVar (Known $ valueDesc stk) ovs))
+                 $ sbranch $ case mpat of
+                    Nothing -> a
+                    Just (var, pat) -> Match r var [(pat, a)]
     (b, mchb) <- sbranch b
     during (LookupHandlersElaboration rt) $ consistentCommunication r [mcha, mchb]
     pure $ Lookup r t (ActorMeta <$> av, a) b
