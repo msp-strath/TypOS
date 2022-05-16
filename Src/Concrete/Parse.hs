@@ -15,10 +15,18 @@ instance Lisp Raw where
   mkCons = Cons unknown
   pCar = ptm
 
-pscoped :: Parser x -> Parser a -> Parser (Scope x a)
-pscoped px pa = Scope . Hide
-  <$ pch (== '\\') <* pspc <*> pmustwork "Expected a binder" px
-  <* punc "." <*> pa
+pscoped :: (Range -> Scope x a -> a) ->
+           Parser x -> Parser a -> Parser a
+pscoped con px pa = do
+  WithRange r (xs, a) <- withRange $ WithRange unknown <$> do
+    pch (== '\\')
+    pspc
+    xs <- pmustwork "Expected at least a binder" $
+          psep1 pspc (Hide <$> px)
+    punc "."
+    a <- pa
+    pure (xs, a)
+  pure $ foldr (\ x a -> con r (Scope x a)) a xs
 
 pvariable :: Parser Variable
 pvariable = withRange (Variable unknown <$> pnom)
@@ -31,7 +39,7 @@ ptm :: Parser Raw
 ptm = withRange $
   Var unknown <$> pvariable
   <|> At unknown <$> patom
-  <|> Lam unknown <$> pscoped pbinder ptm
+  <|> pscoped Lam pbinder ptm
   <|> id <$ pch (== '[') <* pspc <*> pmustwork "Expected a list" plisp
   <|> id <$ pch (== '(') <* pspc <*> ptm <* pspc <* plit ")"
   <|> Sbst unknown <$ pch (== '{') <* pspc <*> ppes (punc ",") psbstC <* punc "}" <*> ptm
@@ -53,7 +61,7 @@ ppat = withRange $
   <|> AtP unknown <$> patom
   <|> id <$ pch (== '[') <* pspc <*> pmustwork "Expected a list pattern" plisp
   <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pmustwork "Expected a closing parens" (plit ")")
-  <|> LamP unknown <$> pscoped pbinder ppat
+  <|> pscoped LamP pbinder ppat
   <|> ThP unknown <$ pch (== '{') <* pspc <*> pth <* punc "}" <*> ppat
   <|> UnderscoreP unknown <$ pch (== '_')
 
@@ -90,6 +98,15 @@ pACT = withRange (pact >>= more) where
 withVar :: Parser x -> String -> Parser a -> Parser (x, a)
 withVar px str p = (,) <$> px <* punc str <*> p
 
+withVars :: (Range -> (x, a) -> a) -> Parser x -> String -> Parser a -> Parser a
+withVars con px str pa = do
+  WithRange r (xs, a) <- withRange $ WithRange unknown <$> do
+    xs <- psep1 pspc px
+    punc str
+    a <- pa
+    pure (xs, a)
+  pure $ foldr (\ x a -> con r (x, a)) a xs
+
 pextractmode :: Parser ExtractMode
 pextractmode
     = TopLevelExtract <$ pch (== '/') <* pspc
@@ -98,13 +115,13 @@ pextractmode
 
 pact :: Parser CActor
 pact = withRange $
-  Under unknown <$> pscoped pvariable pact
+  pscoped Under pvariable pact
   <|> Send unknown <$> pvariable <* punc "!" <*> pmustwork "Expected a term" ptm <* punc "." <*> pact
   <|> do tm <- ptm
          punc "?"
          case tm of
-           Var _ c -> Recv unknown c <$> withVar pbinder "." pact
-           t -> FreshMeta unknown t <$> withVar pvariable "." pact
+           Var _ c -> withVars (`Recv` c) pbinder "." pact
+           t -> withVars (`FreshMeta` t) pvariable "." pact
   <|> Spawn unknown <$> pextractmode <*> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
   <|> Constrain unknown <$> ptm <* punc "~" <*> pmustwork "Expected a term" ptm
   <|> Connect unknown <$> (CConnect <$> pvariable <* punc "<->" <*> pvariable)
