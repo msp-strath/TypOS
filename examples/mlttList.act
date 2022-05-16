@@ -35,7 +35,6 @@ adapt : ?'Check{- source Type -}. ?'Adapt. ?'Check{- target Type -}.
 ^adaptVal : ?'Check{- source value -}. ?'Check{- source type -}. ?'Adapt. ?'Check{- target type -}. !'Check{- target value -}.
 ^adaptValWorker : ?'Check{- source value -}. ?'Check{- source type -}. ?'Adapt. ?'Check{- target type -}. !'Check{- target value -}.
 
-
 checkEqual : ?'Check{-Type-}. ?'Check. ?'Check.
 ^checkEqualWorker : ?'Check{-Type-}. ?'Check. ?'Check.
 ^equalSynth : ?'Synth.?'Synth.!'Check{-Type-}.
@@ -171,9 +170,20 @@ evalSynth@p = p?tm. case tm
 				          ['Emb ['App ['Rad bs ['List S]] s] 'Id]
 					  (\z . \zs. \jh. {y = z, ys = ['Rad ['Plus ['Emb zs 'Id] bs] ['List S]], ih = jh}c)]].
 	                   w <-> p
-	; _  -> p!['App nf s].		   
+	; ['Emb e a]  -> synth@r. r!e. r?sty. case sty
+	  { ['List R] -> \ x. synthWorker {x -> R}. equalSynthWorker {x -> R}. adaptVal@av. av!['Sing ['Emb x 'Id]]. av!sty. av!a. av!['List S]. av?v. case v
+	    { ['Sing fx] -> p!['App e ['ListRec (\zs. {xs = ['Rad ['Emb zs a] ['List S]]}T) 
+	      	     	    		  	    n 
+						    (\z. \zs. \jh. { y  = ['Rad ({x=z}fx) S]
+						    	      	   , ys = ['Rad ['Emb zs a] ['List S]] 
+								   , ih = jh}c)]].
+	    ; _ -> # "Expected Sing; got %i" v
+	    }
+	  ; _ -> # "Expected List; got %i" sty
+	  }
 	}
       }
+    ; ['Rad ['Emb e a] ty] -> p!['App e s]. -- a is 'Id because ty is not a list type
     ; g -> p!['App g s].
     }
   ; x -> p!x.
@@ -271,6 +281,9 @@ adaptEqual@p = p?sty. p?tty. p?a1. p?a2. case [sty|tty]
     ; ['List _] -> #"Impossible list adapter %i" a1
     }
   }
+
+
+-- TODO: map suc then rev to check fusion
 
 {-
 exec checkEval@p. p!['List 'One]. 'Check?two.
