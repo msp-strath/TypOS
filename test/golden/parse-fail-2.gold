@@ -1,0 +1,4 @@
+ret > ExitFailure 1
+out > Parse error near location: parse-fail-2.act:10:4
+out > Expected '|', or ';'.
+out >

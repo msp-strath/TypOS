@@ -1,0 +1,4 @@
+ret > ExitFailure 1
+out > Parse error near location: parse-fail-3.act:12:15
+out > Expected ')', '!', '?', '@', '~', '<->', or '{'.
+out >

@@ -105,3 +105,10 @@ groupBy eq (xz :< x) = go [x] x xz where
 
   go acc x (yz :< y) | eq x y = go (y : acc) x yz
   go acc _ yz = groupBy eq yz :< (B0 <>< acc)
+
+nub :: Eq a => Bwd a -> Bwd a
+nub = go [] where
+  go acc B0 = B0
+  go acc (xs :< x)
+    | x `elem` acc = go acc xs
+    | otherwise = go (x : acc) xs :< x

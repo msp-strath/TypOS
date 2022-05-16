@@ -41,7 +41,7 @@ ptm = withRange $
   <|> At unknown <$> patom
   <|> pscoped Lam pbinder ptm
   <|> id <$ pch (== '[') <* pspc <*> pmustwork "Expected a list" plisp
-  <|> id <$ pch (== '(') <* pspc <*> ptm <* pspc <* pch (== ')')
+  <|> id <$ pch (== '(') <* pspc <*> ptm <* pspc <* plit ")"
   <|> Sbst unknown <$ pch (== '{') <* pspc <*> ppes (punc ",") psbstC <* punc "}" <*> ptm
 
 psbstC :: Parser SbstC
@@ -60,7 +60,7 @@ ppat = withRange $
   VarP unknown <$> pvariable
   <|> AtP unknown <$> patom
   <|> id <$ pch (== '[') <* pspc <*> pmustwork "Expected a list pattern" plisp
-  <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pmustwork "Expected a closing parens" (pch (== ')'))
+  <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pmustwork "Expected a closing parens" (plit ")")
   <|> pscoped LamP pbinder ppat
   <|> ThP unknown <$ pch (== '{') <* pspc <*> pth <* punc "}" <*> ppat
   <|> UnderscoreP unknown <$ pch (== '_')
@@ -76,7 +76,7 @@ pprotocol :: Parser (Protocol Raw)
 pprotocol = psep pspc
   ((,) <$> pmode <* pspc
        <*> pmustwork "Expected a syntax declaration" psyntaxdecl
-       <* pspc <* pch (== '.'))
+       <* pspc <* plit ".")
 
 psyntaxdecl :: Parser Raw
 psyntaxdecl = ptm
@@ -109,8 +109,8 @@ withVars con px str pa = do
 
 pextractmode :: Parser ExtractMode
 pextractmode
-    = TopLevelExtract <$ plit "/" <* pspc
-  <|> InterestingExtract <$ plit "^" <* pspc
+    = TopLevelExtract <$ pch (== '/') <* pspc
+  <|> InterestingExtract <$ pch (== '^') <* pspc
   <|> pure AlwaysExtract
 
 pact :: Parser CActor
@@ -128,7 +128,7 @@ pact = withRange $
   <|> Match unknown <$ plit "case" <* pspc <*> ptm <* punc "{"
        <*> psep (punc ";") ((,) <$> ppat <* punc "->" <*> pACT)
        <* pspc <* pch (== '}')
-  <|> id <$ pch (== '(') <* pspc <*> pACT <* pspc <* pch (== ')')
+  <|> id <$ pch (== '(') <* pspc <*> pACT <* pspc <* plit ")"
   <|> Break unknown <$ plit "BREAK" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Print unknown <$ plit "PRINT" <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
   <|> Print unknown <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
