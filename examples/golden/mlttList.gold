@@ -1,19 +1,51 @@
 ret > ExitSuccess
 out > Beta
 out > Beta
+out > Beta
 out > Ups
 out > Ups
 out > Ups
 out > Ups
-out > Ups
-out > Ups
-out > Ups
-out > Ups
-out > Ups
-out > Ups
-out > Ups
-out > Ups
-out > Ups
+out > Answer: ['Rad
+out >          ['Emb
+out >           ['App
+out >            ys_0
+out >            ['ListRec
+out >             \_. ['List ['List ['Emb ['Rad ['List 'One] 'Ty] 'Id]]]
+out >             ['Emb
+out >              ['App
+out >               ['Rad ['Emb ['Rad ['Plus ['Sing 'Null]
+out >                                        ['Plus ['Sing ['Sing 'Tt]]
+out >                                               ['Sing ['Plus ['Sing 'Tt]
+out >                                                             ['Sing 'Tt]]]]]
+out >                                 ['List ['List 'One]]]
+out >                           ['List ['Lam \x. ['Plus ['Sing 'Tt] ['Emb x 'Id]]]]]
+out >                     ['List ['Emb ['Rad ['List 'One] 'Ty] 'Id]]]
+out >               ['ListRec \_. ['List ['List ['Emb ['Rad ['List 'One] 'Ty] 'Id]]]
+out >                         'Null
+out >                         \_ tl ih. ['Plus ['Emb ih 'Id]
+out >                                          ['Sing ['Emb tl 'Id]]]]] 'Id]
+out >             \_ zs jh. ['Plus
+out >                        ['Emb jh 'Id]
+out >                        ['Sing
+out >                         ['Emb
+out >                          ['Rad
+out >                           ['Plus
+out >                            ['Emb
+out >                             ['Rad
+out >                              ['Emb zs ['List ['Lam \x. ['Plus ['Sing 'Tt]
+out >                                                               ['Emb x 'Id]]]]]
+out >                              ['List ['Emb ['Rad ['List 'One] 'Ty] 'Id]]] 'Id]
+out >                            ['Emb
+out >                             ['Rad ['Plus ['Sing 'Null]
+out >                                          ['Plus ['Sing ['Sing 'Tt]]
+out >                                                 ['Sing ['Plus ['Sing 'Tt]
+out >                                                               ['Sing 'Tt]]]]]
+out >                                   ['List ['List 'One]]]
+out >                             ['List ['Lam \x. ['Plus ['Sing 'Tt]
+out >                                                     ['Emb x 'Id]]]]]]
+out >                           ['List ['Emb ['Rad ['List 'One] 'Ty] 'Id]]] 'Id]]]]]
+out >           'Id] ['List ['List ['Emb ['Rad ['List 'One] 'Ty] 'Id]]]]
 out >
 err >
 err >

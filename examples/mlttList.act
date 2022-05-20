@@ -283,8 +283,6 @@ adaptEqual@p = p?sty. p?tty. p?a1. p?a2. case [sty|tty]
   }
 
 
--- TODO: map suc then rev to check fusion
-
 {-
 exec checkEval@p. p!['List 'One]. 'Check?two.
        (p!['Plus two two]. p?s. PRINTF "two plus two: %i" s.
@@ -331,7 +329,7 @@ exec checkEval@p. p!['List ['List 'One]]. 'Check?one . 'Check?two. 'Synth?rev.
        | two ~ ['Plus one one]
        | rev ~ ['Rad ['Lam \X.['Lam \xs.
 	                 ['Emb ['App xs['ListRec \_.['List ['Emb X 'Id]] 'Null \x.\_.\ih.['Plus ['Emb ih 'Id] ['Sing ['Emb x 'Id]]]]] 'Id] ]]
-	             ['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]]]		 
+	             ['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]]]
        | p!['Emb ['App ['App rev ['List 'One]] ['Plus ['Sing 'Null] ['Plus ['Sing one] ['Sing two]]]] 'Id].
          p?x . PRINTF "%i" x.)
 -}
@@ -340,16 +338,33 @@ exec checkEval@p. p!['List ['List 'One]]. 'Check?one . 'Check?two. 'Synth?rev.
 exec equalSynth@p. 'Synth?rev.
        ( rev ~ ['Rad ['Lam \X.['Lam \xs.
 	                 ['Emb ['App xs['ListRec \_.['List ['Emb X 'Id]] 'Null \x.\_.\ih.['Plus ['Emb ih 'Id] ['Sing ['Emb x 'Id]]]]] 'Id] ]]
-	             ['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]]]		 
+	             ['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]]]
        | p!rev. p!rev.
          p?x . PRINTF "%i" x.)
 -}
 
+{-
 exec checkEqual@p. p!['List ['List 'One]]. 'Check?one . 'Check?two. 'Synth?rev.
        ( one ~ ['Sing 'Tt]
        | two ~ ['Plus one one]
        | rev ~ ['Rad ['Lam \X.['Lam \xs.
 	                 ['Emb ['App xs['ListRec \_.['List ['Emb X 'Id]] 'Null \x.\_.\ih.['Plus ['Emb ih 'Id] ['Sing ['Emb x 'Id]]]]] 'Id] ]]
-	             ['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]]]		 
+	             ['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]]]
        | p!['Emb ['App ['App rev ['List 'One]] ['Plus ['Sing 'Null] ['Plus ['Sing one] ['Sing two]]]] 'Id].
          p!['Plus ['Sing two] ['Plus ['Sing one] ['Sing 'Null]]].)
+-}
+
+exec \ ys. synthWorker {ys -> ['List ['List 'One]]}. equalSynthWorker {ys -> ['List ['List 'One]]}.
+     evalSynth@p. 'Check?one . 'Check?two. 'Synth?foo.  'Synth?rev.
+       ( one ~ ['Sing 'Tt]
+       | two ~ ['Plus one one]
+       | foo ~ ['Rad ['Lam \X.['Lam \xs.
+	                 ['Emb ['App xs['ListRec \_.['List ['List ['Emb X 'Id]]] 'Null \_.\tl.\ih.['Plus ['Emb ih 'Id] ['Sing ['Emb tl 'Id]]]]] 'Id] ]]
+	             ['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \_.['List ['List ['Emb X 'Id]]]]]]
+       | rev ~ ['Rad ['Lam \X.['Lam \xs.
+	                 ['Emb ['App xs['ListRec \_.['List ['Emb X 'Id]] 'Null \x.\_.\ih.['Plus ['Emb ih 'Id] ['Sing ['Emb x 'Id]]]]] 'Id] ]]
+	             ['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]]]
+       |
+         p!['App ['App foo ['List 'One]] ['Emb ['Rad ['Plus ['Plus ['Emb ys 'Id] ['Sing 'Null]] ['Plus ['Sing one] ['Sing two]]] ['List ['List 'One]]] ['List (['Lam \ x . ['Plus ['Sing 'Tt] ['Emb x 'Id]]])]]].
+         p?v. PRINTF "Answer: %i" v.
+       )
