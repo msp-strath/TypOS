@@ -94,7 +94,7 @@ data Frame
   | Spawnee (Interface Hole (Process Status []))
   | Spawner (Interface (Process Status []) Hole)
   | Sent Channel ([String], Term)
-  | Pushed JudgementForm (DB, SyntaxDesc, Term)
+  | Pushed Stack (DB, SyntaxDesc, Term)
   | Binding String
   | UnificationProblem Date Term Term
   | Noted
@@ -108,7 +108,6 @@ data Process s t
   , env     :: Env     -- definitions in scope
   , store   :: s       -- Definitions we know for metas (or not)
   , actor   :: AActor  -- The thing we are
-  , judgementform :: JudgementForm -- who we are
   }
 
 tracing :: Process s t -> [MachineStep]

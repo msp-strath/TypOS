@@ -46,13 +46,13 @@ exec :: Process Store Bwd -> Process Store []
 exec p | debug MachineExec "" p = undefined
 exec p@Process { actor = Branch _ a b, ..} =
   let (lroot, rroot) = splitRoot root ""
-      rbranch = Process options [] rroot env New b judgementform
+      rbranch = Process options [] rroot env New b
   in exec (p { stack = stack :< LeftBranch Hole rbranch, root = lroot, actor = a})
 exec p@Process { actor = Spawn _ em jd spawnerCh actor, ..}
   | Just (jdp, (spawnedCh, spawnedActor)) <- lookupRules jd stack
 --  , dmesg (show spawnedActor) True
   = let (subRoot, newRoot) = splitRoot root jd
-        spawnee = ( Process options [] subRoot (childEnv env) New spawnedActor jd
+        spawnee = ( Process options [] subRoot (childEnv env) New spawnedActor
                   , spawnedCh)
         spawner = ((spawnerCh, localScope env <>> []), Hole)
     in exec (p { stack = stack :< Spawner (Interface spawnee spawner jd jdp em B0)
@@ -157,10 +157,10 @@ exec p@Process { actor = Push _ jd (pv, d, t) a, ..}
   = let stack' = stack :< Pushed jd (pv, d, t')
     in exec (p { stack = stack', actor = a })
 
-exec p@Process { actor = Lookup _ t (av, a) b, ..}
+exec p@Process { actor = Lookup _ t stk (av, a) b, ..}
   | Just t' <- mangleActors options env t
   = case expand (headUp store t') of
-      VX (DB i) _ | Just t' <- search stack i judgementform 0 ->
+      VX (DB i) _ | Just t' <- search stack i stk 0 ->
         let env' = case av of
                      Unused -> env
                      Used av -> newActorVar av (localScope env <>> [], t') env
@@ -169,13 +169,13 @@ exec p@Process { actor = Lookup _ t (av, a) b, ..}
       _ -> exec (p {actor = b})
   where
 
-    search :: Bwd Frame -> Int -> JudgementForm -> Int -> Maybe Term
-    search B0 i jd bd = Nothing
-    search (zf :< f) i jd bd = case f of
+    search :: Bwd Frame -> Int -> Stack -> Int -> Maybe Term
+    search B0 i stk bd = Nothing
+    search (zf :< f) i stk bd = case f of
       Binding x | i <= 0 -> Nothing
-                | otherwise -> search zf (i-1) jd (bd + 1)
-      Pushed jd' (DB i', _, t) | jd == jd' && i == i' -> Just (weaks bd t)
-      _ -> search zf i jd bd
+                | otherwise -> search zf (i-1) stk (bd + 1)
+      Pushed stk' (DB i', _, t) | stk == stk' && i == i' -> Just (weaks bd t)
+      _ -> search zf i stk bd
 
 exec p@Process { actor = Print _ fmt a, ..}
   | Just fmt <- traverse (traverse $ mangleActors options env) fmt

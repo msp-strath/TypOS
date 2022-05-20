@@ -42,8 +42,8 @@ main = do
       exitFailure
     Right (acs, table) -> do
   -- putStrLn $ unsafeEvalDisplay initNaming $ collapse <$> traverse display acs
-      let p = Process opts B0 initRoot (initEnv B0) initStore (Win unknown) ""
-      let res@(Process _ fs _ env sto a _) = run opts p acs
+      let p = Process opts B0 initRoot (initEnv B0) initStore (Win unknown)
+      let res@(Process _ fs _ env sto a) = run opts p acs
       unless (isWin a) $ do
          putStrLn $ ANSI.withANSI [SetColour Background Red] "Error: Did not win"
          putStrLn $ let (_, _, _, a) = unsafeEvalDisplay initDEnv $ displayProcess' p in

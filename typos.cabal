@@ -12,13 +12,15 @@ build-type:          Simple
 extra-source-files:  README.md
 
 common haskell
-  default-extensions:  DeriveTraversable,
+  default-extensions:  DataKinds,
+                       DeriveTraversable,
                        FlexibleContexts,
                        FlexibleInstances,
                        GeneralizedNewtypeDeriving,
                        MultiParamTypeClasses,
                        NamedFieldPuns,
                        RecordWildCards,
+                       StandaloneDeriving,
                        TupleSections,
                        TypeFamilies,
                        TypeSynonymInstances,

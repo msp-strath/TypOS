@@ -4,7 +4,7 @@ module Elaboration.Pretty where
 
 import Data.Foldable
 
-import Actor (ActorMeta(..), Channel(..))
+import Actor (ActorMeta(..), Channel(..), Stack(..))
 import Bwd
 import Concrete.Base (Mode)
 import Concrete.Pretty()
@@ -23,6 +23,9 @@ instance Pretty Range where
 instance Pretty Channel where
   pretty (Channel ch) = pretty ch
 
+instance Pretty Stack where
+  pretty (Stack ch) = pretty ch
+
 instance Pretty ActorMeta where
   pretty (ActorMeta m) = pretty m
 
@@ -37,6 +40,7 @@ instance Pretty Kind where
     ActVar{} -> "an object variable"
     AChannel{} -> "a channel"
     AJudgement{} -> "a judgement"
+    AStack{} -> "a context stack"
 
 instance Pretty SyntaxDesc where
   pretty t = pretty $ unsafeEvalUnelab initNaming (unelab t)
@@ -73,6 +77,9 @@ instance Pretty Complaint where
         pretty r <> hsep ["Invalid pattern variable", pretty x, "refers to", pretty k]
      NotAValidJudgement r x mk -> singleton $ pretty r <>
         hsep ["Invalid judgement variable", pretty x
+             , "refers to", maybe "a bound variable" pretty mk]
+     NotAValidStack r x mk -> singleton $ pretty r <>
+        hsep ["Invalid context stack variable", pretty x
              , "refers to", maybe "a bound variable" pretty mk]
      NotAValidChannel r x mk -> singleton $ pretty r <>
         hsep ["Invalid channel variable", pretty x

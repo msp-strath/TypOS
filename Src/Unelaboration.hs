@@ -218,6 +218,11 @@ instance Unelab Channel where
   type Unelabed Channel = Variable
   unelab (Channel str) = pure (Variable unknown str)
 
+instance Unelab Stack where
+  type UnelabEnv Stack = ()
+  type Unelabed Stack = Variable
+  unelab (Stack str) = pure (Variable unknown str)
+
 instance Unelab JudgementForm where
   type UnelabEnv JudgementForm = ()
   type Unelabed JudgementForm = Variable
@@ -264,8 +269,8 @@ instance Unelab AActor where
     Recv r ch (av, a) -> Recv r <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
     FreshMeta r desc (av, a) -> FreshMeta r <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
     Under r (Scope x a) -> Under r. Scope x <$> local (updateNaming (`nameOn` getVariable (unhide x))) (unelab a)
-    Push r jd (p, _, t) a -> Push r <$> subunelab jd <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
-    Lookup r t (av, a) b -> Lookup r <$> subunelab t <*> ((,) <$> subunelab av <*> unelab a) <*> unelab b
+    Push r stk (p, _, t) a -> Push r <$> subunelab stk <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
+    Lookup r t stk (av, a) b -> Lookup r <$> subunelab t <*> subunelab stk <*> ((,) <$> subunelab av <*> unelab a) <*> unelab b
     Match r tm pts -> Match r <$> subunelab tm <*> traverse unelab pts
     Constrain r s t -> Constrain r <$> subunelab s <*> subunelab t
     Win r -> pure (Win r)
@@ -285,9 +290,9 @@ instance Unelab () where
   type Unelabed () = ()
   unelab = pure
 
-instance Unelab t => Unelab (JudgementStack t) where
-  type UnelabEnv (JudgementStack t) = UnelabEnv t
-  type Unelabed (JudgementStack t) = JudgementStack (Unelabed t)
+instance Unelab t => Unelab (ContextStack t) where
+  type UnelabEnv (ContextStack t) = UnelabEnv t
+  type Unelabed (ContextStack t) = ContextStack (Unelabed t)
   unelab = traverse unelab
 
 instance Unelab t => Unelab (Protocol t) where

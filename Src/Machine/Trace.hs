@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, UndecidableInstances #-}
 module Machine.Trace where
 
 import Control.Monad.Reader
@@ -12,7 +12,7 @@ import Data.Maybe (fromJust)
 import ANSI hiding (withANSI)
 import Actor (JudgementForm)
 import Bwd
-import Concrete.Base (Actor(..), Variable(..), Raw, Mode(..), ExtractMode(..))
+import Concrete.Base
 import Concrete.Pretty()
 import Doc hiding (render)
 import Doc.Render.Terminal
@@ -24,7 +24,6 @@ import Options
 import Pretty
 import Syntax (SyntaxDesc, SyntaxTable, SyntaxCat, expand, VSyntaxDesc (..), contract)
 import Term.Base
-import Thin (DB(..))
 import Unelaboration
 
 data Trace e i
@@ -37,15 +36,32 @@ instance (Show e, Show i) => Show (Trace e i) where
     go indt (Node i ts) = (indt ++ show i) : concatMap (go (' ':indt)) ts
     go indt (Error e)   = [indt ++ show e]
 
-data Step jd db t
+type family ITERM (ph :: Phase) :: *
+type instance ITERM Abstract = Term
+type instance ITERM Concrete = Raw
+
+data STEP (ph :: Phase)
   = BindingStep Variable
   | NotedStep
-  | PushingStep jd db (SyntaxDesc, t)
-  | CallingStep jd [((Mode,SyntaxDesc), t)]
-  deriving (Show)
+  | PushingStep (STACK ph) (TERMVAR ph) (SyntaxDesc, ITERM ph)
+  | CallingStep (JUDGEMENTFORM ph) [((Mode,SyntaxDesc), ITERM ph)]
 
-type AStep = (ExtractMode, Step JudgementForm DB Term)
-type CStep = Step Variable Variable Raw
+deriving instance
+  Show (JUDGEMENTFORM ph) =>
+  Show (CHANNEL ph) =>
+  Show (BINDER ph) =>
+  Show (ACTORVAR ph) =>
+  Show (SYNTAXDESC ph) =>
+  Show (TERMVAR ph) =>
+  Show (ITERM ph) =>
+  Show (PATTERN ph) =>
+  Show (CONNECT ph) =>
+  Show (STACK ph) =>
+  Show (STACKDESC ph) =>
+  Show (STEP ph)
+
+type AStep = (ExtractMode, STEP Abstract)
+type CStep = STEP Concrete
 
 instance Instantiable AStep where
   type Instantiated AStep = AStep
