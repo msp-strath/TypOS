@@ -5,13 +5,13 @@
 
 ### Syntax
 
-* [ ] Annotating max locations (cf. (<!>) in Parse)
+* [x] Annotating max locations (cf. (<!>) in Parse)
 * [ ] User-friendly syntaxes
 * [ ] Industrial-strength parsing
-* [ ] Source location information
+* [x] Source location information
 * [ ] Let binders
 * [ ] as-patterns
-* [ ] irrefutable patterns in binders
+* [x] irrefutable patterns in binders
 
 ### Features
 
@@ -31,13 +31,13 @@
 
 ### Examples
 
-* [ ] STLC with clever lists
+* [x] STLC with clever lists
 * [ ] Tests for extract mode
-* [ ] List induction
+* [x] List induction
 
 ### Refactoring
 
-* [ ] Add range information to Variable
+* [x] Add range information to Variable
 * [ ] More structured type of names
 * [ ] Make sure LaTeX output is valid LaTeX
 * [ ] `data Actor (ph :: Phase)`?
