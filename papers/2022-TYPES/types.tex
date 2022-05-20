@@ -138,29 +138,31 @@ Cambridge, United Kingdom
 \begin{document}
 \maketitle
 
-% For example:
-% - untyped lambda calculus
-% - bidi stlc + evalutation
-
 \paragraph{Introduction}
-We report our work in progress on \TypOS{}, a domain-specific language
-for experimenting with typecheckers and elaborators. %Presented as
-%concurrent actors, they share a store of metavariables which become
-%monotonically more defined as is typical in type inference.
-We tackle typing tasks by spawning a network of
-actors~\cite{hewitt1973actors}, each responsible for one node of the
-syntax tree, communicating with its parent and child
-nodes via channels. Our goals are similar to those of other
+We report work in progress on \TypOS{}, a domain-specific language for
+experimenting with typecheckers and elaborators.
+Our remit is similar to those of other
 domain-specific languages such as Andromeda~\cite{andromeda}, PLT
-Redex~\cite{redex}, or Turnstyle+~\cite{turnstyleplus}.
+Redex~\cite{redex}, or Turnstyle+~\cite{turnstyleplus}. However,
+we try to minimise demands on the order in which subproblems are
+encountered and constraints are solved:
+when programs contain holes, and constraints are complex, it helps to
+be flexible about where to make progress.
+\TypOS{} tackles typing tasks by spawning a network
+of concurrent actors~\cite{hewitt1973actors}, each responsible for one node of
+the syntax tree, communicating with its parent and child nodes via
+channels.
+Constraints demanded by one actor may generate enough information (by
+solving metavariables) for other actors to unblock.
+Metavariables thus provide a secondary and asynchronous means of
+communication, creating subtle difficulties modelling actor
+resumptions as host-language functions, because metavariables unsolved at
+the time of a resumption's creation may be solved by the time it is
+invoked.
+Thus forced into a more syntactic representation of suspended
+processes, we decided to explore what opportunities a new language
+could bring.
 
-This work is originally motivated by difficulties implementing
-elaborators via shallow embedding with opaque continuations, wherein
-the values locked in a resumption's closure may
-underapproximate what is known by the time it is invoked:
-we are effectively forced to choose a first-order representation of
-suspended elaboration processes by the need to update them. \TypOS{}
-is our attempt to make a virtue of that necessity.
 
 \paragraph{Term syntax and judgement forms}
 \TypOS{} supports a generic LISP-style syntax for terms,
@@ -181,116 +183,96 @@ protocol}~\cite{honda1993session},
 specifying what to communicate, and in which direction.
 %
 We \remph{declare} an actor by giving its name and protocol.
-For example, we may declare a type checking actor
-\[
-  \mathtt{check \hab \query\atom{Type}\then \query\atom{Check}\then}
-\]
-which receives a type and a checkable term and then succeeds or fails,
-and a type synthesis actor
-\[
-  \mathtt{synth \hab \query\atom{Synth}\then \bang\atom{Type}\then}
-\]
-which receives a synthesisable term, then outputs a type or fails.
+For example, we may declare type checking and synthesis actors:
+\begin{lstlisting}[columns=fullflexible,keepspaces=true]
+check : ?'Type. ?'Check. -- receives a type, then a checkable term
+synth : ?'Synth. !'Type. -- receives a synthesisable term, sends a type back
+\end{lstlisting}
+Information about free variables is kept in contexts, which must also be declared, for example:
+\begin{lstlisting}[columns=fullflexible,keepspaces=true]
+ctxt |- 'Synth -> 'Type  -- declare ctxt to map 'Synth variables to types
+\end{lstlisting}
 
 \paragraph{Typing rules}
-Typing rules are then given by \remph{defining} actors to
-perform the communications corresponding to the rules' conclusions. An
-actor starts with only the channel to its parent actor, but where
+For each judgement form, we define an actor as the server for all the rules whose conclusion takes that form. Where
 rules have premises, a typing actor spawns children, each with its own
-channel.  %Each channel fixes its own required order of communication, but
-%communications on different channels may be arbitrarily interleaved.
-%Indeed, actors may fork into concurrent subprocesses which communicate
-%independently.
-Actors may fork, generate fresh metavariables, declare constraints, bind
+channel.
+Actors may fork parallel subactors, generate fresh metavariables, declare constraints, bind
 local variables, match on terms using a
-scope-aware pattern language, and push and look up data associated to
-local variables.
+scope-aware pattern language, and extend and query contexts.
 %
 For example, here are actors for bidirectional type checking and type synthesis of the simply typed lambda calculus, following the interaction protocol above:
 %
 \begin{lstlisting}[columns=fullflexible,keepspaces=true]
-check@p = p?ty. p?tm. case tm  -- inputs type and term via p. match on tm
-  { ['Lam \x. body] -> ?S. ?T. -- lambda case: make fresh metavars S and T
-      ( ty ~ ['Arr S T]        --   unify ty with arrow type, fork in parallel:
-      | \x.                    --   bind fresh x (now in scope for children)
-        synth { x -> S }.      --   link S with x for descending synth actors
-        check@q. q!T. q!body.) --   spawn child on channel q to check body
-  ; ['Emb e] ->                -- embedded synthesisable term e:
-      synth@q. q!e. q?S.       --   spawn child to synthesise type S for e
-      S ~ ty }                 --   unify S and ty
-\end{lstlisting}
-%
-\begin{lstlisting}[columns=fullflexible,keepspaces=true]
-synth@p = p?tm.                -- input term tm via p
-  lookup tm { S -> p!S. }      -- try to lookup tm in synth context
-   else case tm                -- otherwise match on tm
-   { ['Ann t ty] ->            -- type annotated term: in parallel
-       ( type@q. q!ty.         --   spawn child to validate type ty
-       | check@r. r!ty. r!t    --   spawn child to check t has type ty
-       | p!ty. )               --   send type ty
-   ; ['App f s] -> ?U. ?V.     -- application: make fresh metavars U and V
-       ( synth@q. q!f. q?ty.   --   spawn child to synthesise a type ty for f
-         ty ~ ['Arr U V]       --   unify ty with arrow type
-       | check@r. r!U. r!s.    --   spawn child to check argument
-       | p!V. ) }              --   send the target type back
+check@p = p?ty. p?tm. case tm -- receive type and term via p, match on tm
+  { ['Lam \x. body] ->        -- lambda case:
+     'Type?S. 'Type?T.        --   make fresh type metavars S and T
+     ( ty ~ ['Arr S T]        --   in parallel: constrain ty as arrow type
+     | \x.                    --   and bring fresh x into scope
+       ctxt { x -> S }.       --   then extend ctxt to map x to S
+       check@q. q!T. q!body.) --   then spawn child on channel q to check body
+  ; ['Emb e] ->               -- embedded synthesisable term e:
+     synth@q. q!e. q?S.       --   spawn child to synthesise type S for e
+     S ~ ty }                 --   constrain S as ty
+
+synth@p = p?tm. if tm in ctxt -- receive term tm via p, query ctxt for tm
+  { S -> p!S. }               -- if tm is a variable in ctxt, send its type
+  else case tm                -- otherwise match on tm
+  { ['Ann t T] ->             -- type annotated term case: in parallel
+     ( type@q. q!T.           --   spawn child to validate type T
+     | check@r. r!T. r!t.     --   spawn child to check t has type T
+     | p!T. )                 --   send type T
+  ; ['App f s] ->             -- application case:
+     'Type?S. 'Type?T.        --   make fresh type metavars S and T
+     ( synth@q. q!f. q?F.     --   spawn child to synthesise a type F for f
+       F ~ ['Arr S T]         --   constrain F as arrow type
+     | check@r. r!S. r!s.     --   spawn child to check argument
+     | p!T. ) }               --   send the target type back
 \end{lstlisting}
 
 
 \paragraph{Schematic variables and scope management}
 The notion of \emph{schematic variable} in a typing rule is recast as
-the ordinary notion of program variable within an actor. We are
+the ordinary notion of program variable (e.g.\ \texttt{ty},
+\texttt{tm}, \texttt{S}, \texttt{T} above) within an actor. We are
 careful to distinguish these `actor variables' from both `term
-variables' of the syntax being manipulated, %by the actors,
-and `channel variables' used in input and output actions. Schematic
-variables in typing rules are usually thought of as implicitly
-universally quantified: by contrast, each of our actor variables has
-one explicit binding site in an actor process, either at an input
-action, or in a pattern-match. %, and zero or more use sites in expressions.
-The term variables in scope for each actor variable are
-thus determined precisely~\cite{codebruijn}.
-Likewise, the term variables in scope at
-the time a channel is created limit what is in scope for the signals
-on the channel. When an actor forks in two, its actor and term
-variables remain in scope for both parts, but its channel variables
-are partitioned between them.
-
-%The input/output distinction aligns with a pattern/expression
-%separation seldom made explicit in typing rules, but often vital in
-%practice. The expressions we may send as outputs are generous, in
-%particular allowing \emph{substitution} of term variables. Patterns,
-%meanwhile, analyse inputs in ways which are restricted to ensure that
-%actors can access information which is realistically attainable (i.e.,
-%not by inverting substitution) and to which they are entitled. By
-%contrast, recall the use of substitution in typing rules, e.g. when
-%constructing dependent pairs or applying dependent functions, and
-%observe that their algorithmic feasibility happens more by luck than
-%judgement.
+variables' of the syntax being manipulated (e.g.\ \texttt{x}), and
+`channel variables' (e.g.\ \texttt{p}, \texttt{q}, \texttt{r}).
+Schematic variables in typing rules are usually thought of as
+implicitly universally quantified: by contrast, each of our actor
+variables has one explicit binding site in an actor process, either at
+an input action, or in a pattern-match.  As in Delphin~\cite{delphin},
+the term variables in scope at each point in an actor are determined
+by explicit binding constructs.  The scope for the signals on a
+channel is bounded by the scope at its creation, ensuring that parents
+never encounter variables bound locally by their children.
+Internally, we use a precisely scoped co-deBruijn representation of terms~\cite{codebruijn}.
+% When an actor forks in two, its actor and term variables
+%remain in scope for both parts, but its channel variables are
+%partitioned between them.
 
 \paragraph{Metavariables and constraints}
-The actor model principle of sharing by message rather than memory
-allows us to guarantee that each actor has direct knowledge of only
-those term variables it has bound itself. Actors have no knowledge of
-any term variables which were already free when they were spawned, and
+The actor model principle of sharing by message not memory
+lets us guarantee that each actor has direct knowledge of only
+those term variables it has bound itself. Actors cannot learn the names of
+any term variables free when they were spawned, and
 are thus less likely to violate stability under substitution.
-%
 Nonetheless, we do support the one form of memory that distributed
-concurrent processes may safely share~\cite{kuper2015theses}: actors may create and share \emph{metavariables}, which mutate only by becoming
-defined when a unification constraint is solved.
-%
-Metavariables thus provide a
-secondary means for actors to communicate. Actors cannot detect
-whether a metavariable has been solved, but they \remph{block} when
-they match strictly on a metavariable which is currently unknown.
-Decisions taken on the basis of less information need
-never be retracted when more arrives.
+concurrent processes may safely share~\cite{kuper2015theses}: the metavariables actors create and share mutate monotonically only by becoming
+more defined.
+Actors cannot detect that a metavariable is unsolved, but
+\remph{block} when matching strictly on one.  Decisions already taken
+on the basis of less information need never be retracted when more
+arrives.
 
 \paragraph{Executing actors}
-We implement a stack-based VM, which runs each actor until it gets stuck,
-then looks for the next actor where progress can be made.
-Actors can restart upon the update of blocking metavariables in the
-global unification state, where information increases monotonically.
-The final configuration of the stack represents a typing derivation
-of the term.
+
+In the future, we will implement a concurrent runtime, but for the moment, we use a stack-based virtual machine.
+Each actor runs until it blocks,
+then the machine refocuses on the next place progress can be made, until
+execution stabilises.
+The derivation thus constructed can readily be extracted from the final configuration of the stack.
+
 
 
 \paragraph{Try it yourself}

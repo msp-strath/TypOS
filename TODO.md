@@ -24,6 +24,7 @@
 * [ ] Construct error messages from unfinished runs
 * [ ] Deadlock detection
 * [ ] Coverage checker for `case`
+* [ ] Standalone stacks (attached to strings, not judgements)
 
 ### CLI
 
