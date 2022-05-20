@@ -198,4 +198,4 @@ isWin _ = False
 
 type CProtocol = Protocol Raw
 type CJudgementStack = JudgementStack Raw
-type CActor = Actor Variable Variable (Binder Variable) Variable Raw Variable Raw RawP CConnect ()
+type CActor = Actor Variable Variable RawP Variable Raw Variable Raw RawP CConnect ()

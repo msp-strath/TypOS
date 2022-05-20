@@ -10,6 +10,8 @@
 * [ ] Industrial-strength parsing
 * [ ] Source location information
 * [ ] Let binders
+* [ ] as-patterns
+* [ ] irrefutable patterns in binders
 
 ### Features
 
