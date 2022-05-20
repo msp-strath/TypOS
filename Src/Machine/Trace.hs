@@ -47,17 +47,17 @@ data STEP (ph :: Phase)
   | CallingStep (JUDGEMENTFORM ph) [((Mode,SyntaxDesc), ITERM ph)]
 
 deriving instance
-  Show (JUDGEMENTFORM ph) =>
-  Show (CHANNEL ph) =>
-  Show (BINDER ph) =>
-  Show (ACTORVAR ph) =>
-  Show (SYNTAXDESC ph) =>
-  Show (TERMVAR ph) =>
-  Show (ITERM ph) =>
-  Show (PATTERN ph) =>
-  Show (CONNECT ph) =>
-  Show (STACK ph) =>
-  Show (STACKDESC ph) =>
+  ( Show (JUDGEMENTFORM ph)
+  , Show (CHANNEL ph)
+  , Show (BINDER ph)
+  , Show (ACTORVAR ph)
+  , Show (SYNTAXDESC ph)
+  , Show (TERMVAR ph)
+  , Show (ITERM ph)
+  , Show (PATTERN ph)
+  , Show (CONNECT ph)
+  , Show (STACK ph)
+  , Show (STACKDESC ph)) =>
   Show (STEP ph)
 
 type AStep = (ExtractMode, STEP Abstract)

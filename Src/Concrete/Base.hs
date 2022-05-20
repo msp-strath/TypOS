@@ -183,17 +183,17 @@ data ACTOR (ph :: Phase)
  | Break Range (FORMAT ph) (ACTOR ph)
 
 deriving instance
-  Show (JUDGEMENTFORM ph) =>
-  Show (CHANNEL ph) =>
-  Show (BINDER ph) =>
-  Show (ACTORVAR ph) =>
-  Show (SYNTAXDESC ph) =>
-  Show (TERMVAR ph) =>
-  Show (TERM ph) =>
-  Show (PATTERN ph) =>
-  Show (CONNECT ph) =>
-  Show (STACK ph) =>
-  Show (STACKDESC ph) =>
+  ( Show (JUDGEMENTFORM ph)
+  , Show (CHANNEL ph)
+  , Show (BINDER ph)
+  , Show (ACTORVAR ph)
+  , Show (SYNTAXDESC ph)
+  , Show (TERMVAR ph)
+  , Show (TERM ph)
+  , Show (PATTERN ph)
+  , Show (CONNECT ph)
+  , Show (STACK ph)
+  , Show (STACKDESC ph)) =>
   Show (ACTOR ph)
 
 instance HasSetRange (ACTOR ph) where

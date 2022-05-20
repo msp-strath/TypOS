@@ -52,19 +52,19 @@ data COMMAND (ph :: Phase)
   | Trace [MachineStep]
 
 deriving instance
-  Show (JUDGEMENTFORM ph) =>
-  Show (CHANNEL ph) =>
-  Show (BINDER ph) =>
-  Show (ACTORVAR ph) =>
-  Show (SYNTAXDESC ph) =>
-  Show (TERMVAR ph) =>
-  Show (TERM ph) =>
-  Show (PATTERN ph) =>
-  Show (CONNECT ph) =>
-  Show (STACK ph) =>
-  Show (STACKDESC ph) =>
-  Show (SYNTAXCAT ph) =>
-  Show (PROTOCOL ph) =>
+  ( Show (JUDGEMENTFORM ph)
+  , Show (CHANNEL ph)
+  , Show (BINDER ph)
+  , Show (ACTORVAR ph)
+  , Show (SYNTAXDESC ph)
+  , Show (TERMVAR ph)
+  , Show (TERM ph)
+  , Show (PATTERN ph)
+  , Show (CONNECT ph)
+  , Show (STACK ph)
+  , Show (STACKDESC ph)
+  , Show (SYNTAXCAT ph)
+  , Show (PROTOCOL ph)) =>
   Show (COMMAND ph)
 
 type CCommand = COMMAND Concrete
