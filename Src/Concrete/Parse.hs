@@ -120,7 +120,7 @@ pact = withRange $
   <|> do tm <- ptm
          punc "?"
          case tm of
-           Var _ c -> withVars (`Recv` c) pbinder "." pact
+           Var _ c -> withVars (`Recv` c) ppat "." pact
            t -> withVars (`FreshMeta` t) pvariable "." pact
   <|> Spawn unknown <$> pextractmode <*> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
   <|> Constrain unknown <$> ptm <* punc "~" <*> pmustwork "Expected a term" ptm
@@ -134,7 +134,7 @@ pact = withRange $
   <|> Print unknown <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Fail unknown <$ pch (== '#') <* pspc <*> (pformat >>= pargs)
   <|> Push unknown <$> pvariable <*> pcurlies ((\ (a, b) -> (a, (), b)) <$> withVar pvariable "->" ptm) <* punc "." <*> pact
-  <|> Lookup unknown <$ plit "lookup" <* pspc <*> ptm <* pspc <*> pcurlies (withVar pbinder "->" pACT)
+  <|> Lookup unknown <$ plit "lookup" <* pspc <*> ptm <* pspc <*> pcurlies (withVar ppat "->" pACT)
              <* pspc <* pmustwork "Expected an else branch" (plit "else") <* pspc <*> pact
   <|> Note unknown <$ plit "!" <* punc "." <*> pact
   <|> pure (Win unknown)

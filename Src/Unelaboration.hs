@@ -202,6 +202,12 @@ instance Unelab Meta where
       let (ns, rest) = span ((str ==) . fst) ms in
       go (acc :< "(" ++ show str ++ "," ++ show (n : map snd ns) ++ ")") rest
 
+instance Unelab (Binder ActorMeta) where
+  type UnelabEnv (Binder ActorMeta) = ()
+  type Unelabed (Binder ActorMeta) = RawP
+  unelab Unused = pure (UnderscoreP unknown)
+  unelab (Used av) = VarP unknown <$> unelab av
+
 instance Unelab ActorMeta where
   type UnelabEnv ActorMeta = ()
   type Unelabed ActorMeta = Variable
@@ -255,11 +261,11 @@ instance Unelab AActor where
         <*> subunelab ch
         <*> local (declareChannel ch) (unelab a)
     Send r ch tm a -> Send r <$> subunelab ch <*> inChannel ch (subunelab tm) <*> unelab a
-    Recv r ch (av, a) -> Recv r <$> subunelab ch <*> ((,) <$> traverse subunelab av <*> unelab a)
+    Recv r ch (av, a) -> Recv r <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
     FreshMeta r desc (av, a) -> FreshMeta r <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
     Under r (Scope x a) -> Under r. Scope x <$> local (updateNaming (`nameOn` getVariable (unhide x))) (unelab a)
     Push r jd (p, _, t) a -> Push r <$> subunelab jd <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
-    Lookup r t (av, a) b -> Lookup r <$> subunelab t <*> ((,) <$> traverse subunelab av <*> unelab a) <*> unelab b
+    Lookup r t (av, a) b -> Lookup r <$> subunelab t <*> ((,) <$> subunelab av <*> unelab a) <*> unelab b
     Match r tm pts -> Match r <$> subunelab tm <*> traverse unelab pts
     Constrain r s t -> Constrain r <$> subunelab s <*> subunelab t
     Win r -> pure (Win r)
