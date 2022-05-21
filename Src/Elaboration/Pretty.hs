@@ -97,9 +97,6 @@ instance Pretty Complaint where
      ProtocolsNotDual r ps qs -> singleton $ pretty r <> hsep ["Protocols", pretty ps, "and", pretty qs, "are not dual"]
      IncompatibleModes r m1 m2 -> singleton $ pretty r <> hsep ["Modes", pretty m1, "and", pretty m2, "are incompatible"]
      IncompatibleChannelScopes r sc1 sc2 -> singleton $ pretty r <> hsep ["Channels scopes", collapse (pretty <$> sc1), "and", collapse (pretty <$> sc2), "are incompatible"]
-      -- judgement stacks
-     PushingOnAStacklessJudgement r jd -> singleton $ pretty r <> hsep ["Pushing on a stackless judgement", pretty jd]
-     LookupFromAStacklessActor r jd -> singleton $ pretty r <> hsep ["Lookup from a stackless judgement", pretty jd]
      -- syntaxes
      AlreadyDeclaredSyntaxCat r x -> singleton $ pretty r <> hsep ["The syntactic category", pretty x, "is already defined"]
      WrongDirection r m1 dir m2 -> singleton $ pretty r <> hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]

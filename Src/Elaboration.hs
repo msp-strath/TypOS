@@ -164,9 +164,6 @@ data Complaint
   | ProtocolsNotDual Range AProtocol AProtocol
   | IncompatibleModes Range (Mode, SyntaxDesc) (Mode, SyntaxDesc)
   | WrongDirection Range (Mode, SyntaxDesc) Ordering (Mode, SyntaxDesc)
-  -- judgement stacks
-  | PushingOnAStacklessJudgement Range JudgementForm
-  | LookupFromAStacklessActor Range JudgementForm
   -- syntaxes
   | AlreadyDeclaredSyntaxCat Range SyntaxCat
   -- syntaxdesc validation
@@ -234,9 +231,6 @@ instance HasGetRange Complaint where
     ProtocolsNotDual r _ _ -> r
     IncompatibleModes r _ _ -> r
     WrongDirection r _ _ _ -> r
-  -- judgement stacks
-    PushingOnAStacklessJudgement r _ -> r
-    LookupFromAStacklessActor r _ -> r
   -- syntaxes
     AlreadyDeclaredSyntaxCat r _ -> r
   -- syntaxdesc validation
