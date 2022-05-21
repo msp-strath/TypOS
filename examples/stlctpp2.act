@@ -20,15 +20,18 @@ syntax
             ]]
   }
 
-type  : 'Type -> 'Nil |- ?'Type.
+isType |- 'Type -> 'Nil
+type  : ?'Type.
 check : ?'Type. ?'Check.
-synth : 'Synth -> 'Type |- ?'Synth. !'Type.
+synth : ?'Synth. !'Type.
+ctxt |- 'Synth -> 'Type
 
 checkEval : ?'Type. ?'Check. !'Check.
-evalSynth : 'Synth -> ['Cons 'Synth 'Type] |- ?'Synth. !'Synth. !'Type.
+evalSynth : ?'Synth. !'Synth. !'Type.
 listElimSynth : ?'Type. ?'Synth. ?'Type. ?'Check. ?'Cons. !'Synth. !'Type.
+evalCtxt |- 'Synth -> ['Cons 'Synth 'Type]
 
-type@p = p?ty. lookup ty { s -> } else case ty
+type@p = p?ty. if ty in isType { s -> } else case ty
     { 'One        -> -- winning is silent
     ; ['Pair S T] -> type@q. q!S. | type@r. r!T.
     ; ['List S]   -> type@q. q!S.
@@ -41,7 +44,7 @@ check@p = p?ty. p?tm. case tm
          'Type?S. 'Type?T. -- fresh metas for S(ource) and T(arget) of function type
          (ty ~ ['Arr S T]        -- ensure ty is (S -> T)
          | \y.                              -- bind the fresh variable y
-               synth { y -> S }.            -- extend the synth rule for fresh variable y : S
+               ctxt |- y -> S.              -- extend the synth rule for fresh variable y : S
                check@q. q!T. q!{x=y}body.)  -- check the body with x=y
     ; 'Nil   -> case ty -- Nil is overloaded, type-directed disambiguation now
        { 'One      ->
@@ -60,16 +63,16 @@ check@p = p?ty. p?tm. case tm
 
 synth@p = p?tm .
   -- lookup to see whether tm is a free var & there's an associated type
-  lookup tm { S -> p!S. } else case tm
+  if tm in ctxt { S -> p!S. } else case tm
    { ['Rad t ty] -> (type@r. r!ty. | check@q. q!ty. q!t. | p!ty.)
    ; ['Fst e]    -> 'Type?S. 'Type?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!S.)
    ; ['Snd e]    -> 'Type?S. 'Type?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!T.)
    ; ['ListElim ty e n (\x. \xs. \ih. c)] ->
         p!ty. | type@r. r!ty. | check@q. q!ty. q!n. |
         'Type?X. (synth@u. u!e. u?V. V ~ ['List X] |
-             \y.  synth { y -> X }.
-             \ys. synth { ys -> ['List X] }.
-             \jh. synth { jh -> ty }.
+             \y.  ctxt |- y -> X.
+             \ys. ctxt |- ys -> ['List X].
+             \jh. ctxt |- jh -> ty.
                   check@v. v!ty. v!{x=y, xs=ys, ih=jh}c.
             )
    ; ['App f s]  -> 'Type?U. 'Type?V.
@@ -80,7 +83,7 @@ synth@p = p?tm .
 
 checkEval@p = p?ty. p?tm. case tm
   { ['Lam \x.body] -> case ty
-    { ['Arr s t] -> \yy. evalSynth { yy -> [yy | s] }.
+    { ['Arr s t] -> \yy. evalCtxt |- yy -> [yy | s].
                         checkEval@q. q!t. q!{x=yy}body.
                         q?nf. p!['Lam \z.{yy=z}nf].
     ; _ -> #"Expected a function type"
@@ -101,7 +104,7 @@ checkEval@p = p?ty. p?tm. case tm
   }
 
 evalSynth@p = p?tm.
-  lookup tm { [v | s] -> p!v. p!s. }
+  if tm in evalCtxt { [v | s] -> p!v. p!s. }
   else case tm
   { ['Rad rtm ty] -> checkEval@q. q!ty. q!rtm. q?nf. p!['Rad nf ty]. p!ty.
   ; ['App f t] -> evalSynth@q. q!f. q?fnf. q?nfty. case fnf
@@ -153,9 +156,9 @@ listElimSynth@p = p?rty. p?lnf. p?lty. p?nil. p?cons. case lnf
   ; _ -> checkEval@q. q!rty. q!nil. q?nilnf. case lty
       { ['List a] -> case cons
         { (\x.\xs.\ih. c) ->
-          \y.  evalSynth { y  -> [y  | a] }.
-          \ys. evalSynth { ys -> [ys | ['List a]] }.
-          \jh. evalSynth { jh -> [jh | rty] }.
+          \y.  evalCtxt |- y  -> [y  | a].
+          \ys. evalCtxt |- ys -> [ys | ['List a]].
+          \jh. evalCtxt |- jh -> [jh | rty].
           checkEval@r. r!rty. r!{x=y,xs=ys,ih=jh}c. r?cnf.
           p!['ListElim rty lnf nilnf (\x.\xs.\ih. {y=x,ys=xs,jh=ih}cnf)]. p!rty.
        ; _ -> #"Internal Error: the IMPOSSIBLE has happened"

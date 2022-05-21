@@ -1,6 +1,11 @@
 ret > ExitFailure 1
 out > Error
-out > elab-push-failing.act:3:15-5:4
-out > Pushing on a stackless judgement nopush
+out >
+out >  1 | nopush :
+out >  2 | 
+out >  3 | nopush@p = \x. nopush
+out >                     ^^^^^^
+out > elab-push-failing.act:3:15-21
+out > Invalid context stack variable nopush refers to a judgement
 out > when elaborating the judgement definition for nopush
 out >

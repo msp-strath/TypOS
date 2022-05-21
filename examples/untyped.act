@@ -5,10 +5,11 @@ syntax
     ]]
   }
 
-eval : 'Term -> 'Term |- ?'Term. !'Term.
+env |- 'Term -> 'Term
+eval : ?'Term. !'Term.
 
-eval@p = p?tm. lookup tm { v -> p!v. } else case tm
-  { ['Lam \x. t] -> \x. eval { x -> x }.
+eval@p = p?tm. if tm in env { v -> p!v. } else case tm
+  { ['Lam \x. t] -> \x. env |- x -> x.
       eval@q. q!t. q?v. p!['Lam \x. v].
   ; ['App f s] -> 'Term?u.
       ( eval@q. q!s. q?v. u ~ v

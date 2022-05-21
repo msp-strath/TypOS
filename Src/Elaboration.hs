@@ -221,6 +221,7 @@ instance HasGetRange Complaint where
     NotAValidTermVariable r _ _ -> r
     NotAValidPatternVariable r _ _ -> r
     NotAValidJudgement r _ _ -> r
+    NotAValidStack r _ _ -> r
     NotAValidChannel r _ _ -> r
     NotAValidBoundVar r _ -> r
   -- protocol

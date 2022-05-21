@@ -14,16 +14,17 @@ syntax
 
 
 check : ?'Type. ?'Check.
-synth : 'Synth -> 'Type |- ?'Synth. !'Type.
+synth : ?'Synth. !'Type.
+ctxt |- 'Synth -> 'Type
 
 check@p = p?ty. p?tm. case tm
     { ['Lam \x. body] -> 'Type?S. 'Type?T.
          (ty ~ ['Arr S T]
-         | \y. synth { y -> S }. check@q. q!T. q!{x=y}body.)
+         | \y. ctxt |- y -> S. check@q. q!T. q!{x=y}body.)
     ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
     }
 
-synth@p = p?tm . lookup tm { S -> p!S. } else case tm
+synth@p = p?tm . if tm in ctxt { S -> p!S. } else case tm
    { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)
    ; ['App f s] -> 'Type?U. 'Type?V.
         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]

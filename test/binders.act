@@ -1,17 +1,18 @@
 sink : ?'Wildcard.
 emit : !'Wildcard.
 
+stack |- 'Wildcard -> 'Nil
 push :
-pop : 'Wildcard -> 'Nil |- ?'Wildcard.
+pop : ?'Wildcard.
 
 play :
 
 sink@p = p?_. PRINTF "Sunk".
 emit@p = p!\_.[]. PRINTF "Emited".
 
-push@p = \x. pop { x -> [] }. PRINTF "Pushd". pop@q. q!x.
+push@p = \x. stack |- x -> []. PRINTF "Pushd". pop@q. q!x.
 
-pop@p = p?x. lookup x { _ -> PRINTF "Popd". } else
+pop@p = p?x. if x in stack { _ -> PRINTF "Popd". } else
 
 play@p =
   ( emit@q. sink@r. q <-> r
