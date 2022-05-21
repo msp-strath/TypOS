@@ -99,7 +99,7 @@ instance Display Frame where
     Pushed stk (p, _, t) -> do
       p <- subdisplay p
       t <- subdisplay t
-      pure $ hsep [pretty stk, "{", p, "->", t, "}. "]
+      pure $ hsep [pretty stk, "|-", p, "->", t, ". "]
     Binding x ->
       pure $ withANSI [SetColour Foreground Yellow, SetWeight Bold]
            $ backslash <> pretty x <> ". "

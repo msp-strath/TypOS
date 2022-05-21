@@ -24,7 +24,7 @@
 * [ ] Construct error messages from unfinished runs
 * [ ] Deadlock detection
 * [ ] Coverage checker for `case`
-* [ ] Standalone stacks (attached to strings, not judgements)
+* [x] Standalone stacks (attached to strings, not judgements)
 
 ### CLI
 
@@ -41,7 +41,7 @@
 * [x] Add range information to Variable
 * [ ] More structured type of names
 * [ ] Make sure LaTeX output is valid LaTeX
-* [ ] `data Actor (ph :: Phase)`?
+* [x] `data Actor (ph :: Phase)`?
 
 ### Pretty
 
