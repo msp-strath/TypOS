@@ -171,6 +171,7 @@ data Complaint
   | InvalidSyntaxDesc Range SyntaxDesc
   | IncompatibleSyntaxInfos Range (Info SyntaxDesc) (Info SyntaxDesc)
   | IncompatibleSyntaxDescs Range SyntaxDesc SyntaxDesc
+  | GotBarredAtom Range String [String]
   | ExpectedNilGot Range String
   | ExpectedEnumGot Range [String] String
   | ExpectedTagGot Range [String] String
@@ -238,6 +239,7 @@ instance HasGetRange Complaint where
     InvalidSyntaxDesc r _ -> r
     IncompatibleSyntaxInfos r _ _ -> r
     IncompatibleSyntaxDescs r _ _ -> r
+    GotBarredAtom r _ _ -> r
     ExpectedNilGot r _ -> r
     ExpectedEnumGot r _ _ -> r
     ExpectedTagGot r _ _ -> r
@@ -438,6 +440,7 @@ stm desc rt = do
       At r a -> do
         case vdesc of
           VAtom -> pure ()
+          VAtomBar as -> when (a `elem` as) $ throwError (GotBarredAtom r a as)
           VNil -> unless (a == "") $ throwError (ExpectedNilGot r a)
           VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot r a)
           VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
@@ -506,6 +509,7 @@ spat desc rp = do
       AtP r a -> do
         case vdesc of
           VAtom -> pure ()
+          VAtomBar as -> when (a `elem` as) $ throwError (GotBarredAtom r a as)
           VNil -> unless (a == "") $ throwError (ExpectedNilGot r a)
           VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot r a)
           VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
