@@ -137,16 +137,16 @@ For a more exciting example, we take
 ```
 syntax { 'Syntax = ['EnumOrTag
   ['Nil 'Atom 'Wildcard 'Syntax]
-  [['AtomBar ['Fix (\list.['NilOrCons 'Atom list])]]
+  [['AtomBar ['Fix \at. ['NilOrCons 'Atom at]]]
    ['Cons 'Syntax 'Syntax]
    ['NilOrCons 'Syntax 'Syntax]
    ['Bind ['EnumOrTag ['Syntax] []] 'Syntax]
-   ['EnumOrTag ['Fix (\list.['NilOrCons 'Atom list])]
-               ['Fix (\list.['NilOrCons ['Cons 'Atom ['Fix (\list.['NilOrCons 'Syntax list])]] list])]]
-   ['Enum ['Fix (\list.['NilOrCons 'Atom list])]]
-   ['Tag ['Fix (\list.['NilOrCons ['Cons 'Atom ['Fix (\list.['NilOrCons 'Syntax list])]] list])]]
-   ['Fix ['Bind 'Syntax 'Syntax]]]
-]}
+   ['EnumOrTag ['Fix \at. ['NilOrCons 'Atom at]]
+               ['Fix \cell. ['NilOrCons ['Cons 'Atom ['Fix \rec. ['NilOrCons 'Syntax rec]]] cell]]]
+   ['Enum ['Fix \at. ['NilOrCons 'Atom at]]]
+   ['Tag ['Fix \cell. ['NilOrCons ['Cons 'Atom ['Fix \rec. ['NilOrCons 'Syntax rec]]] cell]]]
+   ['Fix ['Bind 'Syntax 'Syntax]]]]
+}
 ```
 as the syntax description of syntax descriptions, using `'Fix` to
 characterize the lists which occur in the `['AtomBar` ..`]`, `['Tag` ..`]`
@@ -164,6 +164,12 @@ intended syntax description for that transmission, then `.` as a closing
 delimiter.
 
 For our example language, we have
+
+<!--
+```
+ctxt |- 'Synth -> 'Type
+```
+-->
 
 ```
 type  : ?'Type.
@@ -306,7 +312,7 @@ association of *term* with *variable* into the context
 descriptions involved in. For our running example, we declare a context `ctxt`
 which maps variables of syntactic category `'Synth` to types, as follows:
 
-```
+```typos-ignore
 ctxt |- 'Synth -> 'Type
 ```
 In our example, we have `ctxt |- x -> S. check@q. q!T. q!body.`, so

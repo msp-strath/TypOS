@@ -101,9 +101,9 @@ validate table = go where
   gos env [] = asNil True
   gos env (s:ss) = asPair $ \ t0 t1 -> go env s t0 && gos env ss t1
 
-listOf :: SyntaxDesc -> SyntaxDesc
-listOf d = let ga = scope d + 1 in
-  "Fix" #%+ ["list" \\ (atom "NilOrCons" ga % (weak d % var (DB 0) ga % nil ga))]
+listOf :: String -> SyntaxDesc -> SyntaxDesc
+listOf x d = let ga = scope d + 1 in
+  "Fix" #%+ [x \\ (atom "NilOrCons" ga % (weak d % var (DB 0) ga % nil ga))]
 
 rec :: String -> SyntaxDesc
 rec a = atom a 0
@@ -111,13 +111,14 @@ rec a = atom a 0
 syntaxDesc :: [SyntaxCat] -> SyntaxDesc
 syntaxDesc syns = "EnumOrTag" #%+ [
   enums (atoms ++ syns),
-  (atom "AtomBar" 0 % (listOf atom0 % nil 0)) %
+  (atom "AtomBar" 0 % (listOf "at" atom0 % nil 0)) %
   (atom "Cons" 0 % (syntax % syntax % nil 0)) %
   (atom "NilOrCons" 0 % (syntax % syntax % nil 0)) %
   (atom "Bind" 0 % (("EnumOrTag" #%+ [enums syns, nil 0]) % syntax % nil 0)) %
-  (atom "EnumOrTag" 0 % (listOf atom0 % listOf (atom "Cons" 0 % atom0 % (listOf syntax % nil 0)) % nil 0)) %
-  (atom "Enum" 0 % listOf atom0 % nil 0) %
-  (atom "Tag" 0 % (listOf (atom "Cons" 0 % atom0 % (listOf syntax % nil 0)) % nil 0)) %
+  (atom "EnumOrTag" 0 % (listOf "at" atom0
+                       % listOf "cell" (atom "Cons" 0 % atom0 % (listOf "rec" syntax % nil 0)) % nil 0)) %
+  (atom "Enum" 0 % listOf "at" atom0 % nil 0) %
+  (atom "Tag" 0 % (listOf "cell" (atom "Cons" 0 % atom0 % (listOf "rec" syntax % nil 0)) % nil 0)) %
   (atom "Fix" 0 % ("Bind" #%+ [atom "Syntax" 0, syntax]) % nil 0) %
   nil 0]
   where syntax = rec "Syntax"
@@ -147,12 +148,4 @@ validateDesc syns =
     validate (Map.singleton "Syntax" (syntaxDesc syns)) B0
      (rec "Syntax")
 
-{-
 validateIt = validateDesc ["Syntax"] (syntaxDesc ["Syntax"])
-printIt = putStrLn $ unlines
-  [ show validateIt
-  , "==="
-  , unsafeEvalDisplay initNaming $ display (syntaxDesc ["Syntax"])
-  , "==="
-  , unsafeEvalDisplay initNaming $ display $ Syntax.contract (fromJust (Syntax.expand (Map.singleton "Syntax" (syntaxDesc ["Syntax"])) (syntaxDesc ["Syntax"])))]
--}
