@@ -13,8 +13,8 @@ syntax
 type  : ?'Check. !'Check.
 
 check : ?'Check. {- Type -} ?'Check. {- Term -} !'Check. {-Normal form-}
-synth : 'Synth -> 'Check
-      |- ?'Synth. !'Check. {-Type-} !'Check. {-Normal form-}
+synth : ?'Synth. !'Check. {-Type-} !'Check. {-Normal form-}
+ctxt |- 'Synth -> 'Check
 
 ------------------------------------------------------------------------------
 -- Implementation
@@ -25,19 +25,19 @@ check@p = p?ty. p?tm. case tm
   { 'Ty -> (ty ~ 'Ty | p!'Ty.)
   ; ['Pi S \x. T] ->
     (ty ~ 'Ty
-    |type@q. q!S. q?NS. \x. synth{x -> NS}.
+    |type@q. q!S. q?NS. \x. ctxt |- x -> NS.
      type@r. r!T. r?NT. p!['Pi NS \x. NT].
     )
   ; ['Emb e] -> synth@q. q!e. q?nty. (nty ~ ty | q <-> p)
   ; ['Lam \x. body] -> case ty
-    { ['Pi S \x. T] -> \x. synth{x -> S}.
+    { ['Pi S \x. T] -> \x. ctxt |- x -> S.
                        check@q. q!T. q!body. q?vbody.
                        p!['Lam \x. vbody].
     ; _ -> #"Expected Pi; got %i" ty
     }
   }
 
-synth@p = p?tm . lookup tm { S -> p!S. p!['Emb tm]. } else case tm
+synth@p = p?tm . if tm in ctxt { S -> p!S. p!['Emb tm]. } else case tm
    { ['Rad t ty] -> type@q. q!ty. q?nty. p!nty.
                     check@r. r!nty. r!t. r <-> p
    ; ['App f s] -> synth@q. q!f. q?ty. q?nf. case ty

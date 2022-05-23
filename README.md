@@ -176,9 +176,6 @@ term which we hope the type admits; `synth` actors receive a
 `'Synth`esizable term, then (we hope) transmit the `'Type` synthesized
 for that term.
 
-> :warning: Actually the judgement declaration for `synth` is slightly
-> more complicated; see below.
-
 Our protocols are nowhere near as exciting as session types, offering
 only a rigid sequence of actions to do (or die). In the future, we
 plan to enrich the notion of protocol in two ways:
@@ -255,16 +252,17 @@ have a further example:
 
 ```
 check@p = p?ty. p?tm. case tm
-  { ['Lam \x. body] -> 'Type?S. 'Type?T.
+  { ['Emb e] -> synth@q. q!e. q?S. S ~ ty
+  ; ['Lam \x. body] -> 'Type?S. 'Type?T.
       ( ty ~ ['Arr S T]
-      | \x. synth { x -> S }. check@q. q!T. q!body.
+      | \x. ctxt |- x -> S. check@q. q!T. q!body.
       )
-  ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
+
   }
 ```
 The `check` actor follows the designated protocol, asking its parent
 for a type `ty` and a checkable term `tm`. We expect `tm` to match
-one of two patterns. The second is the simpler `['Emb e]` matches an
+one of two patterns. The first is the simpler `['Emb e]`. This matches an
 embedded `'Synth` term, bound to `e`, then spawns a `synth` actor
 on channel `q` to determine the type of `e`. That is, we send `e` over
 `q`, then receive type `S` in return. Our last act in this case is to
@@ -284,8 +282,8 @@ everything the terms they stand for might need is somehow in
 existence. We have found the body of our abstraction. What happens
 next?
 
-It looks like we are making inputs `S` and `T` of syntactic
-description `'Type` from *no* channel, and that is exactly what we are
+It looks like we are making inputs `S` and `T` from the "syntactic
+description `'Type` channel", and that is exactly what we are
 doing! We request `S` and `T` from *thin air*. Operationally, TypOS
 generates placeholders for terms as yet unknown, but which may yet be
 solved, given subsequent constraints.  Indeed, one of our subsequent
@@ -300,49 +298,46 @@ It brings a fresh term *variable* into scope, then behaves like
 Now, before we can `check` the `body`, we must ensure that `synth`
 knows what to do whenever it is asked about `x`. We have explored
 various options about how to manage that interaction. The current
-incarnation is to equip each judgement with its own notion of
+incarnation is to allow the declaration of stacks of
 *contextual data* for free variables. The form
-*judgement* `{` *variable* `->` *term* `}.` *actor* pushes the
-association of *term* with *variable* into the context for
-*judgement*, then continues as *actor*. We explain the syntactic
-descriptions involved in the declarations of the judgements; we
-are now ready to reveal the full declaration of `synth`, which is
+*stackname* `|-` *variable* `->` *term* `.` *actor* pushes the
+association of *term* with *variable* into the context
+*stackname*, then continues as *actor*. Before we can make use of such a context, we must explain the syntactic
+descriptions involved in. For our running example, we declare a context `ctxt`
+which maps variables of syntactic category `'Synth` to types, as follows:
 
 ```
-synth : 'Synth -> 'Type |- ?'Synth. !'Type.
+ctxt |- 'Synth -> 'Type
 ```
-The protocol after the "turnstyle" `|-` we have seen before, but
-before `|-`, this also says that the `synth` judgement may keep track
-of `Type` data associated with `'Synth` terms.
-In our example, we have `synth { x -> S }. check@q. q!T. q!body.`, so
-any `synth` actor which is a descendant of the `check` actor on
-channel `q` will be able to access the `S` associated with `x`. To see
-how, we must look at the `synth` actor's definition.
+In our example, we have `ctxt |- x -> S. check@q. q!T. q!body.`, so
+any actor which is a descendant of the `check` actor on
+channel `q` will be able to access the `S` associated with `x` by
+quering the `ctxt` context. To see an example how, let us look at the `synth`
+actor's definition.
 
 ```
-synth@p = p?tm . lookup tm { S -> p!S. } else case tm
+synth@p = p?tm . if tm in ctxt { S -> p!S. } else case tm
    { ['Rad t ty] ->
         ( type@q. q!ty.
         | check@r. r!ty. r!t.
         | p!ty.
         )
-   ; ['App f s] -> 'Type?U. 'Type?V.
-        ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
-        | check@r. r!U. r!s.
-        | p!V.
+   ; ['App f s] -> 'Type?S. 'Type?T.
+        ( synth@q. q!f. q?ty. ty ~ ['Arr S T]
+        | check@r. r!S. r!s.
+        | p!T.
         )
    }
 ```
 We have only one new feature, which is invoked immediately we have
-received `tm`. The actor `lookup` *term* `{` *actor-variable* `->` *actor*
-`} else` *actor* attempts to access the context for the judgement it
-is implementing, i.e. `synth`. It will succeed if `tm` stands for a
+received `tm`. The actor `if` *term* `in` *stackname* `{` *actor-variable* `->` *actor*
+`} else` *actor* attempts to access the context *stackname*, in this case `ctxt`. It will succeed if `tm` stands for a
 free term variable with a context entry in scope, and in that case,
 the *actor-variable* binds the associated value and the *actor* after `->`
-is executed. As you can see, `synth` interprets the contextual data
+is executed. As you can see, `ctxt` interprets the contextual data
 associated with a free variable as exactly the type to send out.
 If the *term* is not a free variable, or if there is no associated
-data in the context, the `lookup` actor falls through to its `else`
+data in the context, the `if-in` actor falls through to its `else`
 clause.
 
 Here, we fall back on the hope that `tm` might take one of the
@@ -363,8 +358,8 @@ You have been watching
 * forking: *actor* `|` *actor*
 * spawning: *judgement*`@`*channel*`.` *actor*
 * constraining: *term* `~` *term*
-* pushing: *judgement* `{` *variable* `->` *term* `}.` *actor*
-* looking: `lookup` *term* `{` *actor-variable* `->` *actor* `} else` *actor*
+* extending: *stackname* `|-` *variable* `->` *term* `.` *actor*
+* querying: `if` *term* `in` *stackname* `{` *actor-variable* `->` *actor* `} else` *actor*
 * winning:
 
 and there's four more:

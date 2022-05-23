@@ -15,11 +15,14 @@ import Thin
 
 type ActorVar = String
 
-data ActorMeta = ActorMeta ActorVar
+newtype ActorMeta = ActorMeta ActorVar
   deriving (Eq, Ord)
 
 instance Show ActorMeta where
   show (ActorMeta str) = str
+
+newtype Stack = Stack { rawStack :: String }
+  deriving (Show, Eq)
 
 newtype Channel = Channel { rawChannel :: String }
   deriving (Show, Eq, Ord)
@@ -27,10 +30,22 @@ newtype Channel = Channel { rawChannel :: String }
 type JudgementForm = String
 type Gripe = String
 
+type instance JUDGEMENTFORM Abstract = JudgementForm
+type instance CHANNEL Abstract = Channel
+type instance BINDER Abstract = (Binder ActorMeta)
+type instance ACTORVAR Abstract = ActorMeta
+type instance SYNTAXDESC Abstract = SyntaxDesc
+type instance TERMVAR Abstract = DB
+type instance TERM Abstract = ACTm
+type instance PATTERN Abstract = Pat
+type instance CONNECT Abstract = AConnect
+type instance STACK Abstract = Stack
+type instance STACKDESC Abstract = SyntaxDesc
+
 data AConnect = AConnect Channel Th Channel Int deriving (Show)
 type AProtocol = Protocol SyntaxDesc
-type AJudgementStack = JudgementStack SyntaxDesc
-type AActor = Actor JudgementForm Channel (Binder ActorMeta) ActorMeta SyntaxDesc DB ACTm Pat AConnect SyntaxDesc
+type AContextStack = ContextStack SyntaxDesc
+type AActor = ACTOR Abstract
 type ACTm = CdB (Tm ActorMeta)
 type ACTSbst = CdB (Sbst ActorMeta)
 
@@ -76,9 +91,9 @@ newActorVar x defn env = env { actorVars = Map.insert x defn (actorVars env) }
 --  we need to instantiate tm to ['Lam \x.['Emb x]] before
 -- trying to find the clause that matches
 mangleActors :: Options
-             -> Env                {- Env ga -}
-             -> CdB (Tm ActorMeta) {- Src de -}
-             -> Maybe Term         {- Trg (ga <<< de) -}
+             -> Env          {- Env ga -}
+             -> ACTm         {- Src de -}
+             -> Maybe Term   {- Trg (ga <<< de) -}
 mangleActors opts rho tm = go tm where
   ga = length (globalScope rho)
 
@@ -93,7 +108,6 @@ mangleActors opts rho tm = go tm where
       t <- noisyLookupVar m
       sg <- goSbst sg
       pure (t //^ sg)
-
 
   goSbst :: CdB (Sbst ActorMeta) {-        xi =>Src de -}
          -> Maybe Subst          {- ga <<< xi =>Trg ga <<< de -}

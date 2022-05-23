@@ -20,11 +20,14 @@ syntax
             ]]
   }
 
-type  : 'Type -> 'Nil |- ?'Type.
+isType |- 'Type -> 'Nil
+type  : ?'Type.
 check : ?'Type. ?'Check.
-synth : 'Synth -> 'Type |- ?'Synth. !'Type.
 
-type@p = p?ty. lookup ty { S -> } else case ty
+ctxt |- 'Synth -> 'Type
+synth : ?'Synth. !'Type.
+
+type@p = p?ty. if ty in isType { S -> } else case ty
     { 'One        -> -- winning is silent
     ; ['Pair S T] -> type@q. q!S. | type@r. r!T.
     ; ['List S]   -> type@q. q!S.
@@ -37,7 +40,7 @@ check@p = p?ty. p?tm. case tm
          'Type?S. 'Type?T. -- fresh metas for S(ource) and T(arget) of function type
          (ty ~ ['Arr S T]  -- ensure ty is (S -> T)
          | \y.                              -- bind the fresh variable y
-               synth { y -> S }.            -- extend the synth rule for fresh variable y : S
+               ctxt |- y -> S.              -- extend the context with fresh variable y : S
                check@q. q!T. q!{x=y}body.)  -- check the body with x=y
     ; 'Nil   -> case ty -- Nil is overloaded, type-directed disambiguation now
        { 'One      ->
@@ -56,16 +59,16 @@ check@p = p?ty. p?tm. case tm
 
 synth@p = p?tm .
   -- lookup: in case tm is a free variable and a type has been pushed for it
-  lookup tm { S -> p!S. } else case tm
+  if tm in ctxt { S -> p!S. } else case tm
    { ['Rad t ty] -> (type@r. r!ty. | check@q. q!ty. q!t. | p!ty.)
    ; ['Fst e]    -> 'Type?S. 'Type?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!S.)
    ; ['Snd e]    -> 'Type?S. 'Type?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!T.)
    ; ['ListElim ty e n (\x. \xs. \ih. c)] ->
         p!ty. | type@r. r!ty. | check@q. q!ty. q!n. |
         'Type?X. (synth@u. u!e. u?V. V ~ ['List X] |
-             \y.  synth { y  -> X }.
-             \ys. synth { ys -> ['List X] }.
-             \jh. synth { jh -> ty }.
+             \y.  ctxt |- y  -> X.
+             \ys. ctxt |- ys -> ['List X].
+             \jh. ctxt |- jh -> ty.
                   check@v. v!ty. v!{x=y,xs=ys,ih=jh}c.
             )
    ; ['App f s]  -> 'Type?U. 'Type?V.
@@ -74,7 +77,8 @@ synth@p = p?tm .
         | p!V.)
    }
 
-exec \A. type { A -> [] }. check@p. p!['Arr ['List A] ['Arr ['List A] ['List A]]].
+exec \A. isType |- A -> []. check@p.
+        p!['Arr ['List A] ['Arr ['List A] ['List A]]].
         p!['Lam \as. ['Lam \bs.
                 ['Emb ['ListElim ['List A] as
                       ['Emb bs]                                       -- [] ++ ys = ys

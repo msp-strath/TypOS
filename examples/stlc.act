@@ -21,8 +21,8 @@ syntax
   }
 
 check : ?'Type. ?'Check.
-synth : 'Synth -> 'Type -- synth's stash associates Types to Synth variables
-      |- ?'Synth. !'Type.
+synth : ?'Synth. !'Type.
+ctxt |- 'Synth -> 'Type -- ctxt maps synthesisable variables to types
 
 ------------------------------------------------------------------------------
 -- Implementation
@@ -40,12 +40,12 @@ check@p = p?ty. p?tm. case tm
       'Type?S. 'Type?T.
       ( ty ~ ['Arr S T]
       | \x.
-        synth { x -> S }.
+        ctxt |- x -> S .
         check@q. q!T. q!body.)
   ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
   }
 
-synth@p = p?tm . lookup tm { S -> p!S. } else case tm
+synth@p = p?tm . if tm in ctxt { S -> p!S. } else case tm
    { ['Ann t ty] ->
         ( type@q. q!ty.
         | check@r. r!ty. r!t.

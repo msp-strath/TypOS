@@ -23,7 +23,17 @@ main :: IO ()
 main = defaultMain . testGroup "TypOS" =<< sequence
   [ typosExamples
   , typosTests
+  , paperTYPES
   ]
+
+paperTYPES :: IO TestTree
+paperTYPES = do
+  let name      = "TYPES paper"
+  let extension = ".act"
+  let goldenExt = ".gold"
+  let folder    = "papers/2022-TYPES"
+  let excluded  = []
+  ioTests TestConfig{..}
 
 typosExamples :: IO TestTree
 typosExamples = do

@@ -77,7 +77,8 @@ type ObjVars = Bwd ObjVar
 data Kind
   = ActVar (Info SyntaxDesc) ObjVars
   | AChannel ObjVars
-  | AJudgement ExtractMode (Maybe AJudgementStack) AProtocol
+  | AJudgement ExtractMode AProtocol
+  | AStack AContextStack
   deriving (Show)
 
 type Hints = Map String (Info SyntaxDesc)
@@ -87,14 +88,10 @@ data Context = Context
   , declarations :: Decls
   , location     :: Bwd Turn
   , binderHints  :: Hints
-  , currentActor :: (JudgementForm, Maybe AJudgementStack)
   } deriving (Show)
 
-setCurrentActor :: JudgementForm -> Maybe AJudgementStack -> Context -> Context
-setCurrentActor jd mstk ctx = ctx { currentActor = (jd, mstk) }
-
 initContext :: Context
-initContext = Context B0 B0 B0 Map.empty ("", Nothing)
+initContext = Context B0 B0 B0 Map.empty
 
 data Turn = West | East
   deriving (Show, Eq)
@@ -154,6 +151,7 @@ data Complaint
   | NotAValidTermVariable Range Variable Kind
   | NotAValidPatternVariable Range Variable Kind
   | NotAValidJudgement Range Variable (Maybe Kind)
+  | NotAValidStack Range Variable (Maybe Kind)
   | NotAValidChannel Range Variable (Maybe Kind)
   | NotAValidBoundVar Range Variable
   -- protocol
@@ -166,9 +164,6 @@ data Complaint
   | ProtocolsNotDual Range AProtocol AProtocol
   | IncompatibleModes Range (Mode, SyntaxDesc) (Mode, SyntaxDesc)
   | WrongDirection Range (Mode, SyntaxDesc) Ordering (Mode, SyntaxDesc)
-  -- judgement stacks
-  | PushingOnAStacklessJudgement Range JudgementForm
-  | LookupFromAStacklessActor Range JudgementForm
   -- syntaxes
   | AlreadyDeclaredSyntaxCat Range SyntaxCat
   -- syntaxdesc validation
@@ -223,6 +218,7 @@ instance HasGetRange Complaint where
     NotAValidTermVariable r _ _ -> r
     NotAValidPatternVariable r _ _ -> r
     NotAValidJudgement r _ _ -> r
+    NotAValidStack r _ _ -> r
     NotAValidChannel r _ _ -> r
     NotAValidBoundVar r _ -> r
   -- protocol
@@ -235,9 +231,6 @@ instance HasGetRange Complaint where
     ProtocolsNotDual r _ _ -> r
     IncompatibleModes r _ _ -> r
     WrongDirection r _ _ _ -> r
-  -- judgement stacks
-    PushingOnAStacklessJudgement r _ -> r
-    LookupFromAStacklessActor r _ -> r
   -- syntaxes
     AlreadyDeclaredSyntaxCat r _ -> r
   -- syntaxdesc validation
@@ -567,15 +560,21 @@ isChannel ch = resolve ch >>= \case
 data IsJudgement = IsJudgement
   { judgementExtract :: ExtractMode
   , judgementName :: JudgementForm
-  , judgementStack :: Maybe AJudgementStack
   , judgementProtocol :: AProtocol
   }
 
 isJudgement :: Variable -> Elab IsJudgement
 isJudgement jd = resolve jd >>= \case
-  Just (Left (AJudgement em mstk p)) -> pure (IsJudgement em (getVariable jd) mstk p)
+  Just (Left (AJudgement em p)) -> pure (IsJudgement em (getVariable jd) p)
   Just mk -> throwError (NotAValidJudgement (getRange jd) jd $ either Just (const Nothing) mk)
   Nothing -> throwError (OutOfScope (getRange jd) jd)
+
+isContextStack :: Variable -> Elab (Stack, AContextStack)
+isContextStack stk = resolve stk >>= \case
+  Just (Left (AStack stkTy)) -> pure (Stack (getVariable stk), stkTy)
+  Just mk -> throwError (NotAValidStack (getRange stk) stk $ either Just (const Nothing) mk)
+  Nothing -> throwError (OutOfScope (getRange stk) stk)
+
 
 channelScope :: Channel -> Elab ObjVars
 channelScope (Channel ch) = do
@@ -756,34 +755,29 @@ sact = \case
     during (MatchElaboration rtm) $ consistentCommunication r sts
     pure $ Match r tm cls
 
-  Push r jd (p, (), t) a -> do
-    jd <- isJudgement jd
-    stk <- case judgementStack jd of
-      Nothing -> throwError (PushingOnAStacklessJudgement r (judgementName jd))
-      Just stk -> pure stk
+  Push r stk (p, (), t) a -> do
+    (stk, stkTy) <- isContextStack stk
 
     p <- resolve p >>= \case
-      Just (Right (cat, i)) -> i <$ compatibleInfos (getRange p) cat (Known $ keyDesc stk)
+      Just (Right (cat, i)) -> i <$ compatibleInfos (getRange p) cat (Known $ keyDesc stkTy)
       Just (Left k) -> throwError $ NotAValidPatternVariable r p k
       _ -> throwError $ OutOfScope (getRange p) p
-    t <- during (PushTermElaboration t) $ stm (valueDesc stk) t
+    t <- during (PushTermElaboration t) $ stm (valueDesc stkTy) t
     a <- sact a
-    pure $ Push r (judgementName jd) (p, valueDesc stk, t) a
+    pure $ Push r stk (p, valueDesc stkTy, t) a
 
-  Lookup r rt@t (p, a) b -> do
-    (jd, stk) <- asks currentActor >>= \case
-      (jd, Nothing) -> throwError (LookupFromAStacklessActor r jd)
-      (jd, Just stk) -> pure (jd, stk)
-    t <- during (LookupTermElaboration t) $ stm (keyDesc stk) t
+  Lookup r rt@t stk (p, a) b -> do
+    (stk, stkTy) <- isContextStack stk
+    t <- during (LookupTermElaboration t) $ stm (keyDesc stkTy) t
     (av, mpat) <- sirrefutable "lookup" p
     ovs <- asks objVars
-    (a, mcha) <- local (declare av (ActVar (Known $ valueDesc stk) ovs))
+    (a, mcha) <- local (declare av (ActVar (Known $ valueDesc stkTy) ovs))
                  $ sbranch $ case mpat of
                     Nothing -> a
                     Just (var, pat) -> Match r var [(pat, a)]
     (b, mchb) <- sbranch b
     during (LookupHandlersElaboration rt) $ consistentCommunication r [mcha, mchb]
-    pure $ Lookup r t (ActorMeta <$> av, a) b
+    pure $ Lookup r t stk (ActorMeta <$> av, a) b
 
   Fail r fmt -> Fail r <$> sformat fmt <* tell (All False)
   Print r fmt a -> Print r <$> sformat fmt <*> sact a
@@ -823,9 +817,9 @@ sprotocol ps = during (ProtocolElaboration ps) $ do
   syndecls <- gets (Map.keys . syntaxCats)
   traverse (traverse (ssyntaxdecl syndecls)) ps
 
-sjudgementstack :: CJudgementStack -> Elab AJudgementStack
-sjudgementstack (JudgementStack key val) = do
+scontextstack :: CContextStack -> Elab AContextStack
+scontextstack (ContextStack key val) = do
   syndecls <- gets (Map.keys . syntaxCats)
   key <- ssyntaxdecl syndecls key
   val <- ssyntaxdecl syndecls val
-  pure (JudgementStack key val)
+  pure (ContextStack key val)

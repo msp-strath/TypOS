@@ -106,8 +106,8 @@ prettyact = go B0 B0 where
     FreshMeta r syn (av, a) -> freshMetas ls l syn (B0 :< av) a
     Under r (Scope x a) -> unders ls l (B0 :< x) a
     Note r a -> go ls (l `add` ["!", dot]) a
-    Push r jd (x, _, t) a ->
-      let push = hsep [pretty jd, braces (hsep [ pretty x, "->", pretty t]), dot] <> dot in
+    Push r stk (x, _, t) a ->
+      let push = hsep [pretty stk, "|-", pretty x, "->", pretty t] <> dot in
       go (ls :< fold (l `add` [push])) B0 a
     Print r [TermPart Instantiate tm] a -> go (ls :< fold (l `add` [hsep [keyword "PRINT", pretty tm] <> dot])) B0 a
     Print r fmt a -> go (ls :< fold (l `add` [hsep [keyword "PRINTF", pretty fmt] <> dot])) B0 a
@@ -145,8 +145,9 @@ instance Pretty CActor where
              ]
       , hsep [ match , braces (sep $ intersperse ";" cls) ]
       ]
-    Lookup r tm (av, a) b -> sep
-      [ hsep [ keyword "lookup", pretty tm, braces (hsep [ pretty av, "->", pretty a ]), keyword "else" ]
+    Lookup r stk tm (av, a) b -> sep
+      [ hsep [ keyword "if", pretty tm, keyword "in", pretty stk
+             , braces (hsep [ pretty av, "->", pretty a ]), keyword "else" ]
       , prettyPrec 1 a ]
     Connect r cnnct -> pretty cnnct
     -- final actors
@@ -203,7 +204,7 @@ instance Pretty Mode where
 instance Pretty t => Pretty (Protocol t) where
   pretty = foldMap $ \ (m, d) -> fold [pretty m, pretty d, ". "]
 
-instance Pretty t => Pretty (JudgementStack t) where
+instance Pretty t => Pretty (ContextStack t) where
   pretty stk = hsep [pretty (keyDesc stk), "->", pretty (valueDesc stk)]
 
 instance Pretty CConnect where

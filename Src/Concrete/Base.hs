@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances #-}
 module Concrete.Base where
 
 import Bwd
@@ -120,7 +121,7 @@ data Mode = Input | {- Subject | -} Output
 
 type Protocol t = [(Mode, t)]
 
-data JudgementStack t = JudgementStack
+data ContextStack t = ContextStack
   { keyDesc :: t
   , valueDesc :: t
   } deriving (Show, Functor, Foldable, Traversable)
@@ -134,27 +135,68 @@ data ExtractMode
   | InterestingExtract
   deriving (Show, Eq)
 
-data Actor jd ch bd av syn var tm pat cnnct stk
- = Branch Range (Actor jd ch bd av syn var tm pat cnnct stk) (Actor jd ch bd av syn var tm pat cnnct stk)
- | Spawn Range ExtractMode jd ch (Actor jd ch bd av syn var tm pat cnnct stk)
- | Send Range ch tm (Actor jd ch bd av syn var tm pat cnnct stk)
- | Recv Range ch (bd, Actor jd ch bd av syn var tm pat cnnct stk)
- | Connect Range cnnct
- | Note Range (Actor jd ch bd av syn var tm pat cnnct stk)
- | FreshMeta Range syn (av, Actor jd ch bd av syn var tm pat cnnct stk)
- | Under Range (Scope Variable (Actor jd ch bd av syn var tm pat cnnct stk))
- | Match Range tm [(pat, Actor jd ch bd av syn var tm pat cnnct stk)]
- -- This is going to bite us when it comes to dependent types
- | Constrain Range tm tm
- | Push Range jd (var, stk, tm) (Actor jd ch bd av syn var tm pat cnnct stk)
- | Lookup Range tm (bd, Actor jd ch bd av syn var tm pat cnnct stk) (Actor jd ch bd av syn var tm pat cnnct stk)
- | Win Range
- | Fail  Range [Format Directive Debug tm]
- | Print Range [Format Directive Debug tm] (Actor jd ch bd av syn var tm pat cnnct stk)
- | Break Range [Format Directive Debug tm] (Actor jd ch bd av syn var tm pat cnnct stk)
- deriving (Show)
+data Phase = Concrete | Abstract
 
-instance HasSetRange (Actor jd ch bd av syn var tm pat cnnct stk) where
+type family JUDGEMENTFORM (ph :: Phase) :: *
+type family CHANNEL (ph :: Phase) :: *
+type family BINDER (ph :: Phase) :: *
+type family ACTORVAR (ph :: Phase) :: *
+type family SYNTAXDESC (ph :: Phase) :: *
+type family TERMVAR (ph :: Phase) :: *
+type family TERM (ph :: Phase) :: *
+type family PATTERN (ph :: Phase) :: *
+type family CONNECT (ph :: Phase) :: *
+type family STACK (ph :: Phase) :: *
+type family STACKDESC (ph :: Phase) :: *
+
+type instance JUDGEMENTFORM Concrete = Variable
+type instance CHANNEL Concrete = Variable
+type instance BINDER Concrete = RawP
+type instance ACTORVAR Concrete = Variable
+type instance SYNTAXDESC Concrete = Raw
+type instance TERMVAR Concrete = Variable
+type instance TERM Concrete = Raw
+type instance PATTERN Concrete = RawP
+type instance CONNECT Concrete = CConnect
+type instance STACK Concrete = Variable
+type instance STACKDESC Concrete = ()
+
+type FORMAT (ph :: Phase) = [Format Directive Debug (TERM ph)]
+
+data ACTOR (ph :: Phase)
+ = Branch Range (ACTOR ph) (ACTOR ph)
+ | Spawn Range ExtractMode (JUDGEMENTFORM ph) (CHANNEL ph) (ACTOR ph)
+ | Send Range (CHANNEL ph) (TERM ph) (ACTOR ph)
+ | Recv Range (CHANNEL ph) (BINDER ph, ACTOR ph)
+ | Connect Range (CONNECT ph)
+ | Note Range (ACTOR ph)
+ | FreshMeta Range (SYNTAXDESC ph) (ACTORVAR ph, ACTOR ph)
+ | Under Range (Scope Variable (ACTOR ph))
+ | Match Range (TERM ph) [(PATTERN ph, ACTOR ph)]
+ -- This is going to bite us when it comes to dependent types
+ | Constrain Range (TERM ph) (TERM ph)
+ | Push Range (STACK ph) (TERMVAR ph, STACKDESC ph, TERM ph) (ACTOR ph)
+ | Lookup Range (TERM ph) (STACK ph) (BINDER ph, ACTOR ph) (ACTOR ph)
+ | Win Range
+ | Fail  Range (FORMAT ph)
+ | Print Range (FORMAT ph) (ACTOR ph)
+ | Break Range (FORMAT ph) (ACTOR ph)
+
+deriving instance
+  ( Show (JUDGEMENTFORM ph)
+  , Show (CHANNEL ph)
+  , Show (BINDER ph)
+  , Show (ACTORVAR ph)
+  , Show (SYNTAXDESC ph)
+  , Show (TERMVAR ph)
+  , Show (TERM ph)
+  , Show (PATTERN ph)
+  , Show (CONNECT ph)
+  , Show (STACK ph)
+  , Show (STACKDESC ph)) =>
+  Show (ACTOR ph)
+
+instance HasSetRange (ACTOR ph) where
   setRange r = \case
     Branch _ a b -> Branch r a b
     Spawn _ em jd ch ac -> Spawn r em jd ch ac
@@ -167,13 +209,13 @@ instance HasSetRange (Actor jd ch bd av syn var tm pat cnnct stk) where
     Match _ tm x0 -> Match r tm x0
     Constrain _ tm tm' -> Constrain r tm tm'
     Push _ jd x0 ac -> Push r jd x0 ac
-    Lookup _ tm x0 ac -> Lookup r tm x0 ac
+    Lookup _ tm stk x0 ac -> Lookup r tm stk x0 ac
     Win _ -> Win r
     Fail _ fors -> Fail r fors
     Print _ fors ac -> Print r fors ac
     Break _ fors ac -> Break r fors ac
 
-instance HasGetRange (Actor jd ch bd av syn var tm pat cnnct stk) where
+instance HasGetRange (ACTOR ph) where
   getRange = \case
     Branch r a b -> r
     Spawn r em jd ch ac -> r
@@ -186,16 +228,16 @@ instance HasGetRange (Actor jd ch bd av syn var tm pat cnnct stk) where
     Match r tm x0 -> r
     Constrain r tm tm' -> r
     Push r jd x0 ac -> r
-    Lookup r tm x0 ac -> r
+    Lookup r tm stk x0 ac -> r
     Win r -> r
     Fail r fors -> r
     Print r fors ac -> r
     Break r fors ac -> r
 
-isWin :: Actor jd ch bd av syn var tm pat cnnct stk -> Bool
+isWin :: ACTOR ph -> Bool
 isWin (Win _) = True
 isWin _ = False
 
 type CProtocol = Protocol Raw
-type CJudgementStack = JudgementStack Raw
-type CActor = Actor Variable Variable RawP Variable Raw Variable Raw RawP CConnect ()
+type CContextStack = ContextStack Raw
+type CActor = ACTOR Concrete

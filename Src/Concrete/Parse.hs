@@ -81,12 +81,11 @@ pprotocol = psep pspc
 psyntaxdecl :: Parser Raw
 psyntaxdecl = ptm
 
-pjudgementstack :: Parser (JudgementStack Raw)
-pjudgementstack = JudgementStack
+pcontextstack :: Parser (ContextStack Raw)
+pcontextstack = ContextStack
   <$> psyntaxdecl
   <* punc "->"
   <*> pmustwork "Expected a syntax declaration" psyntaxdecl
-  <* pmustwork "Expected \"|-\"" (punc "|-")
 
 pACT :: Parser CActor
 pACT = withRange (pact >>= more) where
@@ -105,7 +104,7 @@ withVars con px str pa = do
     punc str
     a <- pa
     pure (xs, a)
-  pure $ foldr (\ x a -> con r (x, a)) a xs
+  pure $ foldr (curry (con r)) a xs
 
 pextractmode :: Parser ExtractMode
 pextractmode
@@ -133,9 +132,12 @@ pact = withRange $
   <|> Print unknown <$ plit "PRINT" <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
   <|> Print unknown <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Fail unknown <$ pch (== '#') <* pspc <*> (pformat >>= pargs)
-  <|> Push unknown <$> pvariable <*> pcurlies ((\ (a, b) -> (a, (), b)) <$> withVar pvariable "->" ptm) <* punc "." <*> pact
-  <|> Lookup unknown <$ plit "lookup" <* pspc <*> ptm <* pspc <*> pcurlies (withVar ppat "->" pACT)
-             <* pspc <* pmustwork "Expected an else branch" (plit "else") <* pspc <*> pact
+  <|> Push unknown <$> pvariable <* punc "|-"
+                   <*> ((\ (a, b) -> (a, (), b)) <$> withVar pvariable "->" ptm)
+                   <* punc "." <*> pact
+  <|> Lookup unknown <$ plit "if" <* pspc <*> ptm <* punc "in" <*> pvariable
+                     <* pspc <*> pcurlies (withVar ppat "->" pACT)
+                     <* pspc <* pmustwork "Expected an else branch" (plit "else") <* pspc <*> pact
   <|> Note unknown <$ plit "!" <* punc "." <*> pact
   <|> pure (Win unknown)
 
