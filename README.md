@@ -496,9 +496,10 @@ exec  check@p. 'Check?t.
 ```
 gives rise to the following output:
 ```output
-check ['Arr 'Nat 'Nat] ['Lam \z. ['Emb ['App ['Rad ['Lam \w. ['Emb w]]
-                                                   ['Arr 'Nat 'Nat]] ['Emb z]]]]
- \z_0. ctxt {z_0 -> 'Nat}.
+check ['Arr 'Nat 'Nat]
+      ['Lam \z. ['Emb ['App ['Rad ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]]
+                            ['Emb z]]]]
+ \z_0. ctxt |- z_0 -> 'Nat.
   check 'Nat ['Emb ['App ['Rad ['Lam \w. ['Emb w]]
                                ['Arr 'Nat 'Nat]] ['Emb z_0]]]
    synth ['App ['Rad ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]] ['Emb z_0]] 'Nat
@@ -507,7 +508,7 @@ check ['Arr 'Nat 'Nat] ['Lam \z. ['Emb ['App ['Rad ['Lam \w. ['Emb w]]
       type 'Nat
       type 'Nat
      check ['Arr 'Nat 'Nat] ['Lam \w. ['Emb w]]
-      \w_1. ctxt {w_1 -> 'Nat}.
+      \w_1. ctxt |- w_1 -> 'Nat.
        check 'Nat ['Emb w_1]
         synth w_1 'Nat
     check 'Nat ['Emb z_0]
