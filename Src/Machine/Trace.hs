@@ -130,7 +130,7 @@ instance Pretty (Mode, Raw) where
 instance Pretty CStep where
   pretty = \case
     BindingStep x -> withANSI [ SetColour Background Magenta ] ("\\" <> pretty x <> dot)
-    PushingStep jd x (_, t) -> pretty jd <+> braces (hsep [pretty x, "->", pretty t]) <> dot
+    PushingStep jd x (_, t) -> hsep [pretty jd, "|-", pretty x, "->", pretty t] <> dot
     CallingStep jd pts -> pretty jd <+> sep (pretty <$> map (first fst) pts)
     NotedStep -> ""
 
