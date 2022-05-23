@@ -76,7 +76,8 @@ exec p@Process { actor = m@(Match _ s cls), ..}
 
   switch :: Term -> [(Pat, AActor)] -> Process Store []
   switch t [] =
-    let msg = render (colours options) (Config (termWidth options) Vertical) $ unsafeEvalDisplay (frDisplayEnv stack) $ do
+    let msg = render (colours options) (Config (termWidth options) Vertical)
+         $ unsafeEvalDisplay (frDisplayEnv stack) $ do
           it <- subdisplay (instantiate store t)
           t <- subdisplay t
           m <- asks daEnv >>= \ rh -> withEnv rh $ display m

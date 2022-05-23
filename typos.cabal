@@ -60,6 +60,7 @@ library
                        Pretty,
                        Scope,
                        Syntax,
+                       Syntax.Debug,
                        Term,
                        Term.Base,
                        Term.Display,

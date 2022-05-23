@@ -4,7 +4,10 @@ module Main where
 
 import Control.Monad
 
+import Data.Foldable (fold)
+
 import System.Exit
+import System.FilePath (takeExtension)
 
 import ANSI hiding (withANSI)
 import qualified ANSI
@@ -24,14 +27,16 @@ import Machine.Trace (diagnostic, ldiagnostic)
 import Utils
 import Display (unsafeEvalDisplay)
 import Location
-import Data.Foldable (fold)
 
 main :: IO ()
 main = do
   opts <- getOptions
   let cfg = Config (termWidth opts) Vertical
   txt <- readFile (filename opts)
-  let ccs = parse pfile (Source txt $ initLocation (filename opts))
+  let parser = case takeExtension (filename opts) of
+                 ".md" -> pmarkdown
+                 _ -> pfile
+  let ccs = parse parser (Source txt $ initLocation (filename opts))
   case elaborate ccs of
     Left err -> do
       ctxt <- if noContext opts then pure "" else fileContext (getRange err)

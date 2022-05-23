@@ -34,6 +34,7 @@ import Syntax
 import Term.Base
 import Unelaboration(Unelab(..), subunelab, withEnv, initDAEnv, Naming, declareChannel)
 import Location
+import Data.Char (isSpace)
 
 type family SYNTAXCAT (ph :: Phase) :: *
 type instance SYNTAXCAT Concrete = WithRange SyntaxCat
@@ -135,6 +136,41 @@ pcommand
 
 pfile :: Parser [CCommand]
 pfile = id <$ pspc <*> psep pspc pcommand <* pspc
+
+pmarkdown :: Parser [CCommand]
+pmarkdown = concat <$ pmdspc <*> psep pmdspc (id <$> pfile <* pspc <* plit "```") <* pmdspc
+
+  where
+
+  toBlock :: String -> Location -> Source
+  toBlock str loc =
+    let (ign, rest) = span (/= '`') str in
+    let loc' = ticks loc ign in
+    case rest of
+      '`':'`':'`':rest -> insideBlock rest (ticks loc' "```")
+      c:rest -> toBlock rest (Location.tick loc' c)
+      [] -> Source [] loc'
+
+  insideBlock :: String -> Location -> Source
+  insideBlock str loc =
+    let (decl, rest) = span (/= '\n') str in
+    let loc' = ticks loc decl in
+    case decl of
+      ds | all isSpace ds -> Source rest loc'
+      't':'y':'p':'o':'s':ds | all isSpace ds -> Source rest loc'
+      _ -> exitBlock rest loc'
+
+  exitBlock :: String -> Location -> Source
+  exitBlock str loc =
+    let (ign, rest) = span (/= '`') str in
+    let loc' = ticks loc ign in
+    case rest of
+      '`':'`':'`':rest -> toBlock rest (ticks loc' "```")
+      c:rest -> exitBlock rest (Location.tick loc' c)
+      [] -> parseError Precise loc "Couldn't find end of fenced code block."
+
+  pmdspc :: Parser ()
+  pmdspc = Parser $ \ (Source str loc) -> here ((), toBlock str loc)
 
 scommand :: CCommand -> Elab (ACommand, Decls)
 scommand = \case
