@@ -45,7 +45,7 @@ markdown = do
   let goldenExt = ".gold"
   let folder    = "."
   let goldenDir = "examples" </> "golden"
-  let excluded  = ["TODO.md"]
+  let excluded  = []
   ioTests TestConfig{..}
 
 
