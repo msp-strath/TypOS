@@ -741,6 +741,17 @@ sact = \case
     a <- local (declare (Used av) (ActVar (Known desc) ovs)) $ sact a
     pure $ FreshMeta r desc (ActorMeta av, a)
 
+  Let r av desc t a -> do
+    (desc, av, ovs) <- during FreshMetaElaboration $ do
+      syndecls <- gets (Map.keys . syntaxCats)
+      desc <- ssyntaxdecl syndecls desc
+      av <- isFresh av
+      ovs <- asks objVars
+      pure (desc, av, ovs)
+    t <- stm desc t
+    a <- local (declare (Used av) (ActVar (Known desc) ovs)) $ sact a
+    pure (Let r (ActorMeta av) desc t a)
+
   Under r (Scope v@(Hide x) a) -> do
     during UnderElaboration $ () <$ isFresh x
     a <- local (declareObjVar (getVariable x, Unknown)) $ sact a
