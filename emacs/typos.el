@@ -5,7 +5,7 @@
 ;; define several class of keywords
 (setq typos-keywords  '("syntax" "exec" "trace"
                         "break" "unify" "send" "recv" "move"
-                        "case" "if" "in" "else"
+                        "case" "if" "let" "in" "else"
                         "Wildcard" "EnumOrTag" "Enum" "Tag" "Cons" "Nil" "NilOrCons" "Fix"
                         "BREAK" "PRINT" "PRINTF"))
 (setq typos-operators '("@" "!" "?" "~" "#"))
