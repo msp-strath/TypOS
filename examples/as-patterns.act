@@ -1,0 +1,10 @@
+
+example: ?'Wildcard.
+example@ch = ch?t. case t
+  { p@q@(r@[a | b]) ->
+     ( p ~ q
+     | q ~ r
+     | PRINTF "%i = %i = %i = [ %i | %i ]" p q r {x=a}x b.
+     ) }
+
+exec example@ch. ch!['Hello | 'World].

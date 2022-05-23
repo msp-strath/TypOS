@@ -87,7 +87,8 @@ instance HasGetRange SbstC where
     Assign r v t -> r
 
 data RawP
-  = VarP Range Variable
+  = AsP Range Variable RawP
+  | VarP Range Variable
   | AtP Range Atom
   | ConsP Range RawP RawP
   | LamP Range (Scope (Binder Variable) RawP)
@@ -97,6 +98,7 @@ data RawP
 
 instance HasSetRange RawP where
   setRange r = \case
+    AsP _ v p -> AsP r v p
     VarP _ v -> VarP r v
     AtP _ a -> AtP r a
     ConsP _ p q -> ConsP r p q
@@ -106,6 +108,7 @@ instance HasSetRange RawP where
 
 instance HasGetRange RawP where
   getRange = \case
+    AsP r _ _ -> r
     VarP r v -> r
     AtP r a -> r
     ConsP r p q -> r

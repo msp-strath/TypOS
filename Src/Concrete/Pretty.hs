@@ -66,6 +66,7 @@ multiBindP xs t = backslash <> hsep (pretty <$> xs <>> []) <> dot <+> pretty t
 
 instance Pretty RawP where
   prettyPrec d = \case
+    AsP _ v p -> pretty v <> "@" <> pretty p
     VarP _ v -> pretty v
     AtP _ "" -> "[]"
     AtP _ at -> squote <> pretty at

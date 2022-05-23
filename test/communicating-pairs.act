@@ -5,7 +5,7 @@ syntax { 'Ping = ['Enum ['Ping]]
 unpack : ?['Cons 'Ping 'Pong]. !'Ping. !'Pong.
 pack : ?'Ping. ?'Pong. !['Cons 'Ping 'Pong].
 
-unpack@p = p?[fst | snd]. p!fst. p!snd.
+unpack@p = p?pp@[fst | snd]. p!fst. p!snd.
 pack@p = p?fst. p?snd. p![fst | snd].
 
 exec pack@p. p!'Ping. p!'Pong. p?both.
