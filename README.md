@@ -483,3 +483,35 @@ backslash. The placeholders have the following meaning:
 * `%S`: print current stack of virtual machine
 * `%e`: print current environment of bindings
 * `%m`: print current store of metavariable solutions
+
+## Executing actors
+
+Actors are executed using the `exec` command, in the context of all previous declarations and definitions. After the actors have finished running, a "typing derivation" is extracted and printed on the screen. For example, running the actor
+```
+exec  check@p. 'Check?t.
+   p! ['Arr 'Nat 'Nat].
+   p! ['Lam \z. ['Emb
+         ['App ['Rad ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]]
+         ['Emb z]]]].
+```
+gives rise to the following output:
+```output
+check ['Arr 'Nat 'Nat] ['Lam \z. ['Emb ['App ['Rad ['Lam \w. ['Emb w]]
+                                                   ['Arr 'Nat 'Nat]] ['Emb z]]]]
+ \z_0. ctxt {z_0 -> 'Nat}.
+  check 'Nat ['Emb ['App ['Rad ['Lam \w. ['Emb w]]
+                               ['Arr 'Nat 'Nat]] ['Emb z_0]]]
+   synth ['App ['Rad ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]] ['Emb z_0]] 'Nat
+    synth ['Rad ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]] ['Arr 'Nat 'Nat]
+     type ['Arr 'Nat 'Nat]
+      type 'Nat
+      type 'Nat
+     check ['Arr 'Nat 'Nat] ['Lam \w. ['Emb w]]
+      \w_1. ctxt {w_1 -> 'Nat}.
+       check 'Nat ['Emb w_1]
+        synth w_1 'Nat
+    check 'Nat ['Emb z_0]
+     synth z_0 'Nat
+```
+
+By running `typos INPUTFILE --latex OUTFILE`, the derivation above is written in latex format to `OUTFILE` as well.
