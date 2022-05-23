@@ -1,0 +1,13 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  1 | barred : ?['AtomBar ['Crash 'Oops 'Fail]].
+out >  2 | barred@p = p?'Oops.
+out >                   ^^^^^
+out > barred-atom-pattern.act:2:13-18
+out > 'Oops is one of the barred atoms [Crash
+out >                                  ,Oops
+out >                                  ,Fail]
+out > when elaborating a case branch handling the pattern 'Oops
+out > when elaborating the judgement definition for barred
+out >
