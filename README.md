@@ -515,4 +515,5 @@ check ['Arr 'Nat 'Nat] ['Lam \z. ['Emb ['App ['Rad ['Lam \w. ['Emb w]]
 ```
 
 By running `typos INPUTFILE --latex OUTFILE`, the derivation above is written in latex format to `OUTFILE` as well. With commands redefined as in the [notations.tex](/build/notations.tex) file, this produces the following for our example execution:
-![Typing derivation in latex format](/build/trace.svg?raw=true "Typing derivation"){width=200%}
+
+<img src="build/trace.svg?raw=true" alt="Typing derivation in latex format" style="width: 700px; height: auto;">
