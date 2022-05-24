@@ -28,8 +28,18 @@ pscoped con px pa = do
     pure (xs, a)
   pure $ foldr (\ x a -> con r (Scope x a)) a xs
 
+pkeyword :: Keyword -> Parser ()
+pkeyword = plit . show
+
 pvariable :: Parser Variable
-pvariable = withRange (Variable unknown <$> pnom)
+pvariable = do
+  v <- withRange (Variable unknown <$> pnom)
+  let candidate = getVariable v
+  let keywords = show <$> [minBound :: Keyword .. maxBound]
+  if candidate `elem` keywords
+    then Other ("'" ++ candidate ++ "' is a reserved keyword") <!> pfail
+    else pure v
+  pure v
 
 pbinder :: Parser (Binder Variable)
 pbinder = Used <$> pvariable
@@ -121,25 +131,25 @@ pact = withRange $
          case tm of
            Var _ c -> withVars (`Recv` c) ppat "." pact
            t -> withVars (`FreshMeta` t) pvariable "." pact
-  <|> Let unknown <$ plit "let" <* pspc <*> pvariable <* punc ":" <*> psyntaxdecl
+  <|> Let unknown <$ pkeyword KwLet <* pspc <*> pvariable <* punc ":" <*> psyntaxdecl
                   <* punc "=" <*> ptm <* punc "." <*> pact
   <|> Spawn unknown <$> pextractmode <*> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
   <|> Constrain unknown <$> ptm <* punc "~" <*> pmustwork "Expected a term" ptm
   <|> Connect unknown <$> (CConnect <$> pvariable <* punc "<->" <*> pvariable)
-  <|> Match unknown <$ plit "case" <* pspc <*> ptm <* punc "{"
+  <|> Match unknown <$ pkeyword KwCase <* pspc <*> ptm <* punc "{"
        <*> psep (punc ";") ((,) <$> ppat <* punc "->" <*> pACT)
        <* pspc <* pch (== '}')
   <|> id <$ pch (== '(') <* pspc <*> pACT <* pspc <* plit ")"
-  <|> Break unknown <$ plit "BREAK" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
-  <|> Print unknown <$ plit "PRINT" <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
-  <|> Print unknown <$ plit "PRINTF" <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
+  <|> Break unknown <$ pkeyword KwBREAK <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
+  <|> Print unknown <$ pkeyword KwPRINT <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
+  <|> Print unknown <$ pkeyword KwPRINTF <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Fail unknown <$ pch (== '#') <* pspc <*> (pformat >>= pargs)
   <|> Push unknown <$> pvariable <* punc "|-"
                    <*> ((\ (a, b) -> (a, (), b)) <$> withVar pvariable "->" ptm)
                    <* punc "." <*> pact
-  <|> Lookup unknown <$ plit "if" <* pspc <*> ptm <* punc "in" <*> pvariable
+  <|> Lookup unknown <$ pkeyword KwIf <* pspc <*> ptm <* pspc <* pkeyword KwIn <* pspc <*> pvariable
                      <* pspc <*> pcurlies (withVar ppat "->" pACT)
-                     <* pspc <* pmustwork "Expected an else branch" (plit "else") <* pspc <*> pact
+                     <* pspc <* pmustwork "Expected an else branch" (pkeyword KwElse) <* pspc <*> pact
   <|> Note unknown <$ plit "!" <* punc "." <*> pact
   <|> pure (Win unknown)
 

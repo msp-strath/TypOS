@@ -1,0 +1,3 @@
+invalid: ?'Wildcard.
+invalid@p = p?t. case t
+  { let -> }
