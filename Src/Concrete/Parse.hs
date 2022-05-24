@@ -122,7 +122,7 @@ pact = withRange $
            Var _ c -> withVars (`Recv` c) ppat "." pact
            t -> withVars (`FreshMeta` t) pvariable "." pact
   <|> Let unknown <$ plit "let" <* pspc <*> pvariable <* punc ":" <*> psyntaxdecl
-                  <* punc "=" <*> ptm <* punc "in" <*> pact
+                  <* punc "=" <*> ptm <* punc "." <*> pact
   <|> Spawn unknown <$> pextractmode <*> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
   <|> Constrain unknown <$> ptm <* punc "~" <*> pmustwork "Expected a term" ptm
   <|> Connect unknown <$> (CConnect <$> pvariable <* punc "<->" <*> pvariable)

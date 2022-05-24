@@ -1,5 +1,5 @@
 test :
-test@p = \a. let x : ['Enum ['Tick]] = 'Tick in
+test@p = \a. let x : ['Enum ['Tick]] = 'Tick.
          PRINTF "%i" [x x x x x].
 
 exec test@p.

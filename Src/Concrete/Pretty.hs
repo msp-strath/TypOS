@@ -104,7 +104,7 @@ prettyact = go B0 B0 where
     Send r ch t a -> go (ls :< fold (l `add` [pretty ch, "!", pretty t, dot])) B0 a
     Recv r ch (av, a) -> go ls (l `add` [pretty ch, "?", pretty av, dot]) a
     FreshMeta r syn (av, a) -> freshMetas ls l syn (B0 :< av) a
-    Let r av syn t a -> go (ls :< fold (l `add` [hsep ["let", pretty av, ":", pretty syn, "=", pretty t, "in"]])) B0 a
+    Let r av syn t a -> go (ls :< fold (l `add` [hsep ["let", pretty av, ":", pretty syn, "=", pretty t] <> dot])) B0 a
     Under r (Scope x a) -> unders ls l (B0 :< x) a
     Note r a -> go ls (l `add` ["!", dot]) a
     Push r stk (x, _, t) a ->

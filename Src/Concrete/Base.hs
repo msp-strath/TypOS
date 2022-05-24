@@ -171,7 +171,7 @@ data ACTOR (ph :: Phase)
  | Connect Range (CONNECT ph)
  | Note Range (ACTOR ph)
  | FreshMeta Range (SYNTAXDESC ph) (ACTORVAR ph, ACTOR ph)
- | Let Range (ACTORVAR ph) (SYNTAXDESC ph) (TERM ph) (ACTOR ph) -- let id : 'Term = \x.x in a
+ | Let Range (ACTORVAR ph) (SYNTAXDESC ph) (TERM ph) (ACTOR ph)
  | Under Range (Scope Variable (ACTOR ph))
  | Match Range (TERM ph) [(PATTERN ph, ACTOR ph)]
  -- This is going to bite us when it comes to dependent types
