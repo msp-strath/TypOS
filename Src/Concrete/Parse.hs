@@ -39,7 +39,7 @@ pvariable = do
   if candidate `elem` keywords
     then Other ("'" ++ candidate ++ "' is a reserved keyword") <!> pfail
     else pure v
-  pure v
+
 
 pbinder :: Parser (Binder Variable)
 pbinder = Used <$> pvariable
