@@ -112,3 +112,10 @@ nub = go [] where
   go acc (xs :< x)
     | x `elem` acc = go acc xs
     | otherwise = go (x : acc) xs :< x
+
+unzipWith :: (a -> (b, c)) -> Bwd a -> (Bwd b, Bwd c)
+unzipWith f B0 = (B0, B0)
+unzipWith f (az :< a) =
+  let (bz, cz) = unzipWith f az in
+  let (b, c) = f a in
+  (bz :< b, cz :< c)

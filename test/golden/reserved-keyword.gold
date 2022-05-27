@@ -1,0 +1,4 @@
+ret > ExitFailure 1
+out > Parse error near location: reserved-keyword.act:3:7
+out > 'let' is a reserved keyword
+out >

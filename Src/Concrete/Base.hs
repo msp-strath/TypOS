@@ -138,6 +138,25 @@ data ExtractMode
   | InterestingExtract
   deriving (Show, Eq)
 
+data Keyword
+  = KwSyntax | KwExec | KwTrace
+  | KwLet | KwCase | KwIf | KwIn | KwElse
+  | KwBREAK | KwPRINT | KwPRINTF
+  deriving (Enum, Bounded)
+
+instance Show Keyword where
+  show KwSyntax = "syntax"
+  show KwExec = "exec"
+  show KwTrace = "trace"
+  show KwLet = "let"
+  show KwCase = "case"
+  show KwIf = "if"
+  show KwIn = "in"
+  show KwElse = "else"
+  show KwBREAK = "BREAK"
+  show KwPRINT = "PRINT"
+  show KwPRINTF = "PRINTF"
+
 data Phase = Concrete | Abstract
 
 type family JUDGEMENTFORM (ph :: Phase) :: *

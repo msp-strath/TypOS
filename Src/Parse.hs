@@ -12,12 +12,13 @@ import Location
 import System.IO.Unsafe (unsafePerformIO)
 import System.Exit (exitFailure)
 import Data.List (intercalate)
+import Data.Foldable (fold)
 
 -- parsers, by convention, do not consume either leading
 -- or trailing space
 
 plit :: String -> Parser ()
-plit cs = "'" ++ cs ++ "'" <!> mapM_ (pch . (==)) cs
+plit cs = Expected ("'" ++ cs ++ "'") <!> mapM_ (pch . (==)) cs
 
 punc :: String -> Parser ()
 punc cs = () <$ pspc <* plit cs <* pspc
@@ -118,8 +119,24 @@ data Source = Source
   , location :: Location
   } deriving (Show)
 
+data Hint = Expected String | Other String
+  deriving (Show, Eq)
+
+renderHints :: Bwd Hint -> String
+renderHints descs =
+  let (es, ds) = bimap fold fold $ flip unzipWith (nub descs) $ \case
+        Expected str -> (B0 :< str, [])
+        Other str -> (B0, [str])
+  in
+  let e = case es of
+            B0 -> []
+            B0 :< x -> ["Expected " ++ x ++ "."]
+            xs :< x -> ["Expected " ++ intercalate ", " (xs <>> []) ++ ", or " ++ x ++ "."]
+  in
+  intercalate "\n" (e ++ ds)
+
 data Candidate = Candidate
-  { description :: Bwd String
+  { description :: Bwd Hint
   , candidateLoc :: Location
   }
 
@@ -136,8 +153,11 @@ newtype Parser a = Parser
   { parser :: Source -> (Candidate, [(a, Source)])
   }
 
+pfail :: Parser a
+pfail = Parser (notHere . location)
+
 infix 0 <!>
-(<!>) :: String -> Parser a -> Parser a
+(<!>) :: Hint -> Parser a -> Parser a
 desc <!> p = Parser $ \ src ->
   let (Candidate mdesc loc, res) = parser p src in
   (Candidate (mdesc :< desc) loc, res)
@@ -201,10 +221,7 @@ parseError prec loc str = unsafePerformIO $ do
 parse :: Show x => Parser x -> Source -> x
 parse p s = case parser (id <$> p <* pend) s of
   (_, [(x, _)]) -> x
-  (Candidate ds loc, []) -> parseError Imprecise loc $ case nub ds of
-    B0 -> ""
-    B0 :< x -> "Expected " ++ x ++ "."
-    xs :< x -> "Expected " ++ intercalate ", " (xs <>> []) ++ ", or " ++ x ++ "."
+  (Candidate ds loc, []) -> parseError Imprecise loc (renderHints ds)
   (Candidate _ loc, xs) -> parseError Imprecise loc (unlines ("Ambiguous parse:" : map (show . fst) xs))
 
 pmustwork :: String -> Parser x -> Parser x
