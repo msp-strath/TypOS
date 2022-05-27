@@ -120,14 +120,15 @@ data Source = Source
   } deriving (Show)
 
 data Hint = Expected String | Other String
+  deriving (Show, Eq)
 
 renderHints :: Bwd Hint -> String
 renderHints descs =
-  let (es, ds) = bimap fold fold $ flip unzipWith descs $ \case
+  let (es, ds) = bimap fold fold $ flip unzipWith (nub descs) $ \case
         Expected str -> (B0 :< str, [])
         Other str -> (B0, [str])
   in
-  let e = case nub es of
+  let e = case es of
             B0 -> []
             B0 :< x -> ["Expected " ++ x ++ "."]
             xs :< x -> ["Expected " ++ intercalate ", " (xs <>> []) ++ ", or " ++ x ++ "."]
