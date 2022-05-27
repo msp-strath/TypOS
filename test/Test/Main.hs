@@ -45,7 +45,7 @@ markdown = do
   let goldenExt = ".gold"
   let folder    = "."
   let goldenDir = "examples" </> "golden"
-  let excluded  = []
+  let excluded  = ["TODO.md"]
   ioTests TestConfig{..}
 
 
@@ -73,8 +73,8 @@ typosTests = do
 
 ioTests :: TestConfig -> IO TestTree
 ioTests TestConfig{..} = testGroup name <$> do
-  files <- findByExtension [extension] folder
-  forM (files \\ ((folder </>) <$> excluded)) $ \ file -> do
+  files <- map normalise <$> findByExtension [extension] folder
+  forM (files \\ (normalise . (folder </>) <$> excluded)) $ \ file -> do
     let dir  = takeDirectory file
     let name = takeBaseName file
     let gold = goldenDir </> addExtension name goldenExt

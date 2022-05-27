@@ -149,6 +149,7 @@ instance Unelab Pat where
   type UnelabEnv Pat = Naming
   type Unelabed Pat = RawP
   unelab = \case
+    AT x p -> AsP unknown (Variable unknown x) <$> unelab p
     VP n -> VarP unknown <$> unelab n
     AP str -> pure (AtP unknown str)
     PP p q -> ConsP unknown <$> unelab p <*> unelab q

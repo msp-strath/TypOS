@@ -130,7 +130,7 @@ instance Pretty (Mode, Raw) where
 instance Pretty CStep where
   pretty = \case
     BindingStep x -> withANSI [ SetColour Background Magenta ] ("\\" <> pretty x <> dot)
-    PushingStep jd x (_, t) -> pretty jd <+> braces (hsep [pretty x, "->", pretty t]) <> dot
+    PushingStep jd x (_, t) -> hsep [pretty jd, "|-", pretty x, "->", pretty t] <> dot
     CallingStep jd pts -> pretty jd <+> sep (pretty <$> map (first fst) pts)
     NotedStep -> ""
 
@@ -318,7 +318,7 @@ ldiagnostic table st fs =
    , ""
    , "%%%%%%%%%%% Notations %%%%%%%%%%%%%%%%%%"
    , "\\newcommand{\\typosBinding}[1]{#1 \\vdash}"
-   , "\\newcommand{\\typosPushing}[3]{\\textsc{#1} \\lbrace #2 \\to #3 \\rbrace.}"
+   , "\\newcommand{\\typosPushing}[3]{\\textsc{#1} \\vdash #2 \\to #3.}"
    , "\\newcommand{\\typosStuckUnifying}[2]{#1 \\not\\sim #2}"
    , "\\newcommand{\\typosFailed}[1]{\\text{#1}}"
    , "\\newcommand{\\typosAtom}[1]{\\tt`#1}"

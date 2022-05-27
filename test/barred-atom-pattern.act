@@ -1,0 +1,2 @@
+barred : ?['AtomBar ['Crash 'Oops 'Fail]].
+barred@p = p?'Oops.

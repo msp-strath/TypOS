@@ -12,7 +12,8 @@ import Term.Base
 
 -- patterns are de Bruijn
 data Pat
-  = VP DB
+  = AT String Pat
+  | VP DB
   | AP String
   | PP Pat Pat
   | BP (Hide String) Pat
@@ -22,6 +23,7 @@ data Pat
   deriving (Show, Eq)
 
 instance Thable Pat where
+  AT v p *^ th = AT v (p *^ th)
   VP v *^ th = VP (v *^ th)
   AP a *^ th = AP a
   PP p q *^ th = PP (p *^ th) (q *^ th)
@@ -31,6 +33,7 @@ instance Thable Pat where
   HP *^ th = HP
 
 instance Selable Pat where
+  th ^? AT v p = AT v (th ^? p)
   th ^? VP v = maybe GP VP (thickx th v)
   th ^? AP a = AP a
   th ^? PP p q = PP (th ^? p) (th ^? q)
@@ -47,6 +50,10 @@ match :: Root
       -> Pat
       -> Term
       -> Maybe (Root, (Map.Map String Meta, Map.Map Meta Term))
+match r (AT x p) t = do
+  let (m, r') = meta r x
+  (r, (ms, mts)) <- match r' p t
+  pure (r, (Map.insert x m ms, Map.insert m t mts))
 match r (MP x ph) (CdB t th) = do
   let g = bigEnd th - bigEnd ph  -- how many globals?
   ps <- thicken (ones g <> ph) th

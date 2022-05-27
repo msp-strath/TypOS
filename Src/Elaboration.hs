@@ -171,6 +171,7 @@ data Complaint
   | InvalidSyntaxDesc Range SyntaxDesc
   | IncompatibleSyntaxInfos Range (Info SyntaxDesc) (Info SyntaxDesc)
   | IncompatibleSyntaxDescs Range SyntaxDesc SyntaxDesc
+  | GotBarredAtom Range String [String]
   | ExpectedNilGot Range String
   | ExpectedEnumGot Range [String] String
   | ExpectedTagGot Range [String] String
@@ -238,6 +239,7 @@ instance HasGetRange Complaint where
     InvalidSyntaxDesc r _ -> r
     IncompatibleSyntaxInfos r _ _ -> r
     IncompatibleSyntaxDescs r _ _ -> r
+    GotBarredAtom r _ _ -> r
     ExpectedNilGot r _ -> r
     ExpectedEnumGot r _ _ -> r
     ExpectedTagGot r _ _ -> r
@@ -438,6 +440,7 @@ stm desc rt = do
       At r a -> do
         case vdesc of
           VAtom -> pure ()
+          VAtomBar as -> when (a `elem` as) $ throwError (GotBarredAtom r a as)
           VNil -> unless (a == "") $ throwError (ExpectedNilGot r a)
           VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot r a)
           VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
@@ -478,7 +481,17 @@ spats (d:ds) (ConsP r p q) = do
   pure (PP p q, decls, hints)
 spats _ t = throwError (ExpectedAConsPGot (getRange t) t)
 
+-- Returns:
+-- 1. Elaborated pattern
+-- 2. Bound variables (together with their syntactic categories)
+-- 3. Binder hints introduced by \x. patterns
 spat :: SyntaxDesc -> RawP -> Elab (Pat, Decls, Hints)
+spat desc (AsP r v p) = do
+  v <- isFresh v
+  ds <- asks declarations
+  ovs <- asks objVars
+  (p, ds, hs) <- local (setDecls (ds :< (v, ActVar (Known desc) ovs))) $ spat desc p
+  pure (AT v p, ds, hs)
 spat desc (VarP r v) = during (PatternVariableElaboration v) $ do
   table <- gets syntaxCats
   ds <- asks declarations
@@ -506,6 +519,7 @@ spat desc rp = do
       AtP r a -> do
         case vdesc of
           VAtom -> pure ()
+          VAtomBar as -> when (a `elem` as) $ throwError (GotBarredAtom r a as)
           VNil -> unless (a == "") $ throwError (ExpectedNilGot r a)
           VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot r a)
           VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)

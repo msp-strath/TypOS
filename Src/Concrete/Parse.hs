@@ -67,10 +67,11 @@ instance Lisp RawP where
 
 ppat :: Parser RawP
 ppat = withRange $
-  VarP unknown <$> pvariable
+  AsP unknown <$> pvariable <* punc "@" <*> ppat
+  <|> VarP unknown <$> pvariable
   <|> AtP unknown <$> patom
   <|> id <$ pch (== '[') <* pspc <*> pmustwork "Expected a list pattern" plisp
-  <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* pmustwork "Expected a closing parens" (plit ")")
+  <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* plit ")"
   <|> pscoped LamP pbinder ppat
   <|> ThP unknown <$ pch (== '{') <* pspc <*> pth <* punc "}" <*> ppat
   <|> UnderscoreP unknown <$ pch (== '_')

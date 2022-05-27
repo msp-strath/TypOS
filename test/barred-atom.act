@@ -1,0 +1,2 @@
+barred : !['Cons ['AtomBar ['Bye 'SeeYa]] ['AtomBar ['Crash 'Oops 'Fail]]].
+barred@p = p!['Hi | 'Oops].
