@@ -269,6 +269,7 @@ instance Unelab AActor where
     Send r ch tm a -> Send r <$> subunelab ch <*> inChannel ch (subunelab tm) <*> unelab a
     Recv r ch (av, a) -> Recv r <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
     FreshMeta r desc (av, a) -> FreshMeta r <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
+    Let r av desc t a -> Let r <$> subunelab av <*> subunelab desc <*> subunelab t <*> unelab a
     Under r (Scope x a) -> Under r. Scope x <$> local (updateNaming (`nameOn` getVariable (unhide x))) (unelab a)
     Push r stk (p, _, t) a -> Push r <$> subunelab stk <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
     Lookup r t stk (av, a) b -> Lookup r <$> subunelab t <*> subunelab stk <*> ((,) <$> subunelab av <*> unelab a) <*> unelab b

@@ -368,9 +368,10 @@ You have been watching
 * querying: `if` *term* `in` *stackname* `{` *actor-variable* `->` *actor* `} else` *actor*
 * winning:
 
-and there's four more:
+and there's five more:
 
 * plumbing: *channel* `<->` *channel* connects together two channels to forward on messages in both directions
+* let-binders: `let` *actor-variable* `:` *syntax-desc* `=` *term* `.`  *actor*
 * losing: `#` *format-string*
 * printing: `PRINTF` *format-string*
 * breaking: `BREAK` *format-string*

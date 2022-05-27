@@ -174,6 +174,7 @@ data ACTOR (ph :: Phase)
  | Connect Range (CONNECT ph)
  | Note Range (ACTOR ph)
  | FreshMeta Range (SYNTAXDESC ph) (ACTORVAR ph, ACTOR ph)
+ | Let Range (ACTORVAR ph) (SYNTAXDESC ph) (TERM ph) (ACTOR ph)
  | Under Range (Scope Variable (ACTOR ph))
  | Match Range (TERM ph) [(PATTERN ph, ACTOR ph)]
  -- This is going to bite us when it comes to dependent types
@@ -208,6 +209,7 @@ instance HasSetRange (ACTOR ph) where
     Connect _ cnnct -> Connect r cnnct
     Note _ ac -> Note r ac
     FreshMeta _ syn x0 -> FreshMeta r syn x0
+    Let _ x d t a -> Let r x d t a
     Under _ sc -> Under r sc
     Match _ tm x0 -> Match r tm x0
     Constrain _ tm tm' -> Constrain r tm tm'
@@ -227,6 +229,7 @@ instance HasGetRange (ACTOR ph) where
     Connect r cnnct -> r
     Note r ac -> r
     FreshMeta r syn x0 -> r
+    Let r _ _ _ _ -> r
     Under r sc -> r
     Match r tm x0 -> r
     Constrain r tm tm' -> r

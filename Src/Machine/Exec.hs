@@ -141,6 +141,12 @@ exec p@Process { actor = FreshMeta _ cat (av@(ActorMeta x), a), ..} =
       xt = xm $: sbstI (length (globalScope env) + length (localScope env))
       env' = newActorVar av (localScope env <>> [], xt) env
   in exec (p { env = env', root = root', actor = a })
+exec p@Process { actor = Let _ av@(ActorMeta x) cat tm a, ..}
+  | Just term <- mangleActors options env tm
+  =  let (xm, root') = meta root x
+         env' = newActorVar av (localScope env <>> [], term) env
+     in exec (p { env = env', root = root', actor = a })
+
 exec p@Process { actor = Constrain _ s t, ..}
   | Just s' <- mangleActors options env s
   , Just t' <- mangleActors options env t
