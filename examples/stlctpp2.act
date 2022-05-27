@@ -104,7 +104,7 @@ checkEval@p = p?ty. p?tm. case tm
   }
 
 evalSynth@p = p?tm.
-  if tm in evalCtxt { [v | s] -> p!v. p!s. }
+  if tm in evalCtxt { vs@[v | s] -> p!v. p!s. }
   else case tm
   { ['Rad rtm ty] -> checkEval@q. q!ty. q!rtm. q?nf. p!['Rad nf ty]. p!ty.
   ; ['App f t] -> evalSynth@q. q!f. q?fnf. q?nfty. case fnf

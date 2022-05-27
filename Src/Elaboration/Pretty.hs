@@ -107,6 +107,8 @@ instance Pretty Complaint where
        hsep ["Incompatible syntax descriptions", prettyPrec 1 desc, "and", prettyPrec 1 desc']
      IncompatibleSyntaxInfos r info1 info2 -> singleton $ pretty r <>
        hsep ["Syntax infos", pretty info1, "and", pretty info2, "are incompatible"]
+     GotBarredAtom r a as -> singleton $ pretty r <> hsep
+       [ squote <> pretty a, "is one of the barred atoms", collapse (map pretty as) ]
      ExpectedNilGot r at -> singleton $ pretty r <> hsep ["Expected [] and got", squote <> pretty at]
      ExpectedEnumGot r es e -> singleton $ pretty r <+> "Expected" <+> sep
        [ hsep ["an atom among", collapse (map pretty es)]
