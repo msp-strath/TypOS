@@ -97,6 +97,9 @@ exec p@Process { actor = m@(Match _ s cls), ..}
             , Pat
             , Term)] -> Either Bool Env -- Bool: should we keep trying other clauses?
   match env [] = pure env
+  match env ((zx, AT x p, tm):xs) = do
+    env <- pure $ newActorVar (ActorMeta x) (zx <>> [], tm) env
+    match env ((zx, p, tm):xs)
   match env ((zx, MP x ph, tm):xs) | is1s ph = do -- common easy special case
     env <- pure $ newActorVar (ActorMeta x) (zx <>> [], tm) env
     match env xs

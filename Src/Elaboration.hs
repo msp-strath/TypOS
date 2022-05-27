@@ -481,7 +481,17 @@ spats (d:ds) (ConsP r p q) = do
   pure (PP p q, decls, hints)
 spats _ t = throwError (ExpectedAConsPGot (getRange t) t)
 
+-- Returns:
+-- 1. Elaborated pattern
+-- 2. Bound variables (together with their syntactic categories)
+-- 3. Binder hints introduced by \x. patterns
 spat :: SyntaxDesc -> RawP -> Elab (Pat, Decls, Hints)
+spat desc (AsP r v p) = do
+  v <- isFresh v
+  ds <- asks declarations
+  ovs <- asks objVars
+  (p, ds, hs) <- local (setDecls (ds :< (v, ActVar (Known desc) ovs))) $ spat desc p
+  pure (AT v p, ds, hs)
 spat desc (VarP r v) = during (PatternVariableElaboration v) $ do
   table <- gets syntaxCats
   ds <- asks declarations

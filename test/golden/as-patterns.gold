@@ -1,0 +1,5 @@
+ret > ExitSuccess
+out > ['Hello | 'World] = ['Hello | 'World] = ['Hello | 'World] = [ 'Hello | 'World ]
+out >
+err >
+err >
