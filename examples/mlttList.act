@@ -29,6 +29,7 @@ check : ?'Check{- Type -}. ?'Check{- Term -}.
 synth : ?'Synth. !'Check{-Type-}.
 ^synthWorker : ?'Synth. !'Check{-Type-}.
 adapt : ?'Check{- source Type -}. ?'Adapt. ?'Check{- target Type -}.
+
 ctxt |- 'Synth -> 'Check {-Type-}
 
 ^checkEval : ?'Check{-target Type-}. ?'Check. !'Check.
@@ -41,6 +42,12 @@ checkEqual : ?'Check{-Type-}. ?'Check. ?'Check.
 ^equalSynth : ?'Synth.?'Synth.!'Check{-Type-}.
 ^equalSynthWorker : ?'Synth.?'Synth.!'Check{-Type-}.
 ^adaptEqual : ?'Check{- source type -}. ?'Check{- target type -}. ?'Adapt. ?'Adapt.
+
+checkNorm : ?'Check{-Type-}. ?'Check. !'Check.
+^checkNormWorker : ?'Check{-Type-}. ?'Check. !'Check.
+^normSynth : ?'Synth.!'Synth.!'Check{-Type-}.
+^normSynthWorker : ?'Synth.!'Synth.!'Check{-Type-}.
+^adaptNorm : ?'Check{- source type -}. ?'Check{- target type -}. ?'Adapt. !'Adapt.
 
 ------------------------------------------------------------------------------
 -- Implementation
@@ -67,6 +74,7 @@ checkEqual@p = p?ty. p?tm1. p?tm2.
              checkEval@q. q!nty. q!tm1. checkEval@r. r!nty. r!tm2.
              q?ntm1.                    r?ntm2.
              checkEqualWorker@w. w!nty. w!ntm1. w!ntm2.
+
 equalSynth@p = p?tm1. p?tm2. evalSynth@q. q!tm1. evalSynth@r. r!tm2. q?ntm1. r?ntm2. equalSynthWorker@u. u!ntm1. u!ntm2.u?ty.checkEval@v. v!'Ty. v!ty. v <-> p
 
 -- type assumed to be head normal
@@ -298,6 +306,86 @@ adaptEqual@p = p?sty. p?tty. p?a1. p?a2. case [sty|tty]
     }
   }
 
+-- (Full) normalisation
+
+checkNorm@p = p?ty. checkEval@q. q!'Ty. q!ty. q?nty.
+              p?tm. checkEval@r. r!nty. r!tm. r?ntm.
+              checkNormWorker@s. s!nty. s!ntm. p <-> s
+
+checkNormWorker@p = p?ty. p?tm. case ty
+  { ['Pi S \x. T] -> \x. ctxt |- x -> S. checkNorm@q. q!T. q!['Emb ['App ['Rad tm ty] ['Emb x 'Id]] 'Id]. q?ntm. p!['Lam \x. ntm].
+  ; ['Sg S \x. T] -> checkNorm@q. q!S. q!['Emb ['App ['Rad tm ty] 'Fst] 'Id]. q?ns.
+                     checkNorm@r. r!{x=['Rad ns S]}T. r!['Emb ['App ['Rad tm ty] 'Snd] 'Id]. r?nt. p!['Pair ns nt].
+  ; 'One -> p!'Tt.
+  ; _ -> case tm
+    { 'Ty -> p!'Ty.
+    ; ['Pi S \x. T] ->
+        checkNorm@w. w!'Ty. w!S. w?NS. \ x. ctxt |- x -> NS. checkNorm@u. u!'Ty. u!T. u?NT. p!['Pi NS \x. NT].
+    ; ['Sg S \x. T] ->
+        checkNorm@w. w!'Ty. w!S. w?NS. \ x. ctxt |- x -> NS. checkNorm@u. u!'Ty. u!T. u?NT. p!['Sg NS \x. NT].
+    ; 'One -> p!'One.
+    ; ['List S] -> checkNorm@w. w!'Ty. w!S. w?NS. p!['List NS].
+    ; 'Null -> p!'Null.
+    ; ['Sing t] -> case ty
+        { ['List T] -> checkNorm@q. q!T. q!t. q?nt. p!['Sing nt].
+        ; _ -> # "Expected a list type, got %i" ty
+        }
+    ; ['Plus s t] -> checkNormWorker@q. q!ty. q!s. q?ns. --checkEval ensures s is already head normal, the wrapper that ty is
+                     checkNorm@r. r!ty. r!t. r?nt. p!['Plus ns nt].
+    ; ['Emb e a] -> normSynth@w. w!e. w?ne. w?ety. adaptNorm@ae. ae!ety. ae!ty. ae!a. ae?na. p!['Emb ne na].
+    ; x -> # "Panic! Don't know how to normalise %i" x
+    }
+  }
+
+normSynth@p = p?tm. evalSynth@q. q!tm. q?ntm.
+              normSynthWorker@r. r!ntm. r?nntm. p!nntm. r?ty. checkEval@v. v!'Ty. v!ty. v <-> p
+
+normSynthWorker@p = p?e.
+  if e in ctxt { S -> p!e. p!S.}
+  else case e
+  { ['Rad ['Emb e1 a] tty] -> normSynth@q. q!e1. q?ne1. q?sty. adaptNorm@r. r!sty. r!tty. r!a. r?na. case na
+    { 'Id -> p!ne1. p!sty.
+    ; _ -> checkNorm@v. v!'Ty. v!tty. v?ntty. p!['Rad ['Emb ne1 na] ntty]. p!ntty.
+    }
+  ; ['Rad t ty] -> checkNormWorker@q. q!'Ty. q!ty. q?nty. checkNorm@r. r!nty. r!t. r?nt. p!['Rad nt nty]. p!nty.
+  ; ['App f s] -> normSynth@q. q!f. q?nf. q?fty. case fty
+    { ['Pi S \ x. T] -> checkNorm@r. r!S. r!s. r?ns. p!['App nf ns]. p!{x=['Rad ns S]}T.
+    ; ['Sg S \ x. T] -> p!['App nf s]. case s
+      { 'Fst -> p!S.
+      ; 'Snd -> p!{x=['App nf 'Fst]}T.
+      ; _ -> #"Expected Fst or Snd; got %i" s
+      }
+    ; ['List S] -> case s
+      { ['ListRec (\xs. T) n (\y ys ih. c)] ->
+           ['Bind 'Synth 'Check]?NT. 'Check?nn. ['Bind 'Synth ['Bind 'Synth ['Bind 'Synth 'Check]]]?nc.
+           (\xs. ctxt |- xs -> fty. checkNorm@u. u!'Ty. u!T. u?NT1. NT ~ {xs*}\xs.NT1
+           | checkNorm@v. v!{xs = ['Rad 'Null fty]}T. v!n . v?nn1. nn ~ nn1
+           | \y.  ctxt |- y  -> S.
+             \ys. ctxt |- ys -> fty.
+             \ih. ctxt |- ih -> {xs = ys}T.
+             checkNorm@u. u!{xs = ['Rad ['Plus ['Sing ['Emb y 'Id]] ['Emb ys 'Id]] fty]}T. u!c. u?nc1. nc ~ {y*,ys*,ih*}\y ys ih.nc1
+           | p!['App nf ['ListRec NT nn nc]]. p!{xs = nf}T.)
+      ; _ -> #"Expected ListRec's; got %i" s
+      }
+    }
+  ; x -> # "Panic! Don't know how to normalise %i" x
+  }
+
+adaptNorm@p = p?sty. p?tty. p?a. p!a. --TODO
+{-
+case [sty|tty]
+  { [['List S] | ['List T]] -> !.
+     \ x. ctxt |- x -> S.
+     adaptVal@q1. q1!['Sing ['Emb x 'Id]].
+     adaptVal@q2. q2!['Sing ['Emb x 'Id]].
+     q1!sty . q2!sty. q1!a1 . q2!a2. q1!tty . q2!tty.
+     q1?tm1 . q2?tm2.
+     checkEqual@u. u!tty. u!tm1. u!tm2.
+  ; _ -> p!'Id. {- only trivial adapters exist at non-list types -}
+  }
+-}
+
+-- TODO: concurrent using metas to pass messages
 
 {-
 exec checkEval@p. p!['List 'One]. 'Check?two.
@@ -311,6 +399,11 @@ exec checkEqual@p. p!['List 'One]. 'Check?two. 'Check?four.
        | four ~ ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt] ['Sing 'Tt]]]]
        | p!['Plus two two]. p!four. PRINTF "two plus two is four.".)
 -}
+
+exec checkNorm@p. p!['List 'One].
+       let two : 'Check = ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt] 'Null]].
+       p!['Plus two two]. p?four. PRINTF "two plus two is %i." four.
+
 
 {-
 exec checkEqual@p. p!['Pi 'Ty \X.['Pi ['List ['Emb X 'Id]] \xs.['List ['Emb X 'Id]]]].
@@ -370,6 +463,7 @@ exec checkEqual@p. p!['List ['List 'One]]. 'Check?one . 'Check?two. 'Synth?rev.
          p!['Plus ['Sing two] ['Plus ['Sing one] ['Sing 'Null]]].)
 -}
 
+{-
 exec \ ys. ctxt |- ys -> ['List ['List 'One]].
      evalSynth@p. 'Check?one two. 'Synth?foo rev.
        ( one ~ ['Sing 'Tt]
@@ -384,3 +478,4 @@ exec \ ys. ctxt |- ys -> ['List ['List 'One]].
          p!['App ['App foo ['List 'One]] ['Emb ['Rad ['Plus ['Plus ['Emb ys 'Id] ['Sing 'Null]] ['Plus ['Sing one] ['Sing two]]] ['List ['List 'One]]] ['List (['Lam \ x . ['Plus ['Sing 'Tt] ['Emb x 'Id]]])]]].
          p?v. PRINTF "Answer: %i" v.
        )
+-}
