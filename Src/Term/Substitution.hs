@@ -1,8 +1,11 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Redundant bracket" #-}
 module Term.Substitution where
 
+import Bwd
 import Hide
 import Thin
-import Term.Base
+import Term.Base hiding (expand)
 
 -- import Debug.Trace
 track = const id
@@ -71,3 +74,10 @@ rh /// (S0 :^^ _) = rh
                     -------
                        sg
       -}
+
+expand :: Sbst m           -- ga ---> de0
+       -> Th               -- de0 <= de
+       -> Bwd (CdB (Tm m)) -- [Term de]
+expand (S0 :^^ 0) th = B0
+expand (ST (CdB sg th' :<>: (CdB (hi := tm) ph)) :^^ 0) th = expand sg (th' *^ th) :< (CdB tm ph) *^ th
+expand (sg :^^ n) th = expand (sg :^^ (n - 1)) (th -? False) :< var (DB 0) (weeEnd th) *^ th

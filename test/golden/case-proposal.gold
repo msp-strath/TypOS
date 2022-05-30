@@ -1,0 +1,9 @@
+ret > ExitSuccess
+out > Result: 'GT
+out > Result: 'EQ
+out > Result: 'GT
+out > Result: 'LT
+out > Result: 'LT
+out >
+err >
+err >

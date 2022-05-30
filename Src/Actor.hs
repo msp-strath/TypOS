@@ -48,6 +48,7 @@ type AContextStack = ContextStack SyntaxDesc
 type AActor = ACTOR Abstract
 type ACTm = CdB (Tm ActorMeta)
 type ACTSbst = CdB (Sbst ActorMeta)
+type AScrutinee = SCRUTINEE Abstract
 
 
 aconnect :: Range -> Channel -> Th -> Channel -> Int -> AActor

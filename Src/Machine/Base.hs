@@ -10,6 +10,7 @@ import Bwd
 import Format
 import Options
 import Term
+import qualified Term.Substitution as Substitution
 import Thin
 import Concrete.Base (ExtractMode)
 import Syntax (SyntaxDesc)
@@ -39,6 +40,32 @@ headUp store term
   , Just (_, t) <- Map.lookup m (solutions store)
   = headUp store (t //^ sg)
   | otherwise = term
+
+compareUp :: StoreF i -> Term -> Term -> Maybe Ordering
+compareUp store s t = case (expand (headUp store s), expand (headUp store t)) of
+  (VX i _, VX j _) -> pure (compare i j)
+  (AX a _, AX b _) -> pure (compare a b)
+  (p :%: q, a :%:b) -> do
+    c1 <- compareUp store p a
+    c2 <- compareUp store q b
+    case c1 of
+      EQ -> pure c2
+      _ -> pure c1
+  (x :.: b, y :.: c) -> compareUp store b c
+  (m :$: sg, n :$: sg') | m == n, Just EQ <- comparesUp store sg sg' -> pure EQ
+  (m :$: sg, _) -> Nothing
+  (_, m :$: sg) -> Nothing
+  (VX{}, _) -> pure LT
+  (_, VX{}) -> pure GT
+  (AX{}, _) -> pure LT
+  (_, AX{}) -> pure GT
+  ((:%:){}, _) -> pure LT
+  (_, (:%:){}) -> pure GT
+
+comparesUp :: StoreF i -> Subst -> Subst -> Maybe Ordering
+comparesUp store sg sg' = compareUp store (toTerm sg) (toTerm sg') where
+
+  toTerm (CdB sg th) = ("Hack", bigEnd th) #% (Substitution.expand sg th <>> [])
 
 class Instantiable t where
   type Instantiated t

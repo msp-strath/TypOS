@@ -23,6 +23,9 @@ plit cs = Expected ("'" ++ cs ++ "'") <!> mapM_ (pch . (==)) cs
 punc :: String -> Parser ()
 punc cs = () <$ pspc <* plit cs <* pspc
 
+pparens :: Parser a -> Parser a
+pparens p = id <$ pch (== '(') <* pspc <*> p <* pspc <* plit ")"
+
 pcurlies :: Parser a -> Parser a
 pcurlies p = id <$ punc "{" <*> p <* pspc <* plit "}"
 

@@ -257,6 +257,15 @@ instance Unelab t => Unelab [Format dir dbg t] where
   type Unelabed [Format dir dbg t] = [Format dir dbg (Unelabed t)]
   unelab = traverse unelab
 
+instance Unelab AScrutinee where
+  type UnelabEnv AScrutinee = Naming
+  type Unelabed AScrutinee = CScrutinee
+  unelab = \case
+    Term r t -> Term r <$> unelab t
+    Pair r s t -> Pair r <$> unelab s <*> unelab t
+    Lookup r stk t -> Lookup r <$> subunelab stk <*> unelab t
+    Compare r s t -> Compare r <$> unelab s <*> unelab t
+
 instance Unelab AActor where
   type UnelabEnv AActor = DAEnv
   type Unelabed AActor = CActor
@@ -272,7 +281,6 @@ instance Unelab AActor where
     Let r av desc t a -> Let r <$> subunelab av <*> subunelab desc <*> subunelab t <*> unelab a
     Under r (Scope x a) -> Under r. Scope x <$> local (updateNaming (`nameOn` getVariable (unhide x))) (unelab a)
     Push r stk (p, _, t) a -> Push r <$> subunelab stk <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
-    Lookup r t stk (av, a) b -> Lookup r <$> subunelab t <*> subunelab stk <*> ((,) <$> subunelab av <*> unelab a) <*> unelab b
     Match r tm pts -> Match r <$> subunelab tm <*> traverse unelab pts
     Constrain r s t -> Constrain r <$> subunelab s <*> subunelab t
     Win r -> pure (Win r)
