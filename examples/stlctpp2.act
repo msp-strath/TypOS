@@ -31,12 +31,15 @@ evalSynth : ?'Synth. !'Synth. !'Type.
 listElimSynth : ?'Type. ?'Synth. ?'Type. ?'Check. ?'Cons. !'Synth. !'Type.
 evalCtxt |- 'Synth -> ['Cons 'Synth 'Type]
 
-type@p = p?ty. if ty in isType { s -> } else case ty
-    { 'One        -> -- winning is silent
-    ; ['Pair S T] -> type@q. q!S. | type@r. r!T.
-    ; ['List S]   -> type@q. q!S.
-    ; ['Arr S T]  -> type@q. q!S. | type@r. r!T.
-    ; otherwise   -> #"not a valid type"
+type@p = p?ty. case (lookup isType ty)
+    { ['Just s] ->
+    ; 'Nothing  -> case ty
+      { 'One        -> -- winning is silent
+      ; ['Pair S T] -> type@q. q!S. | type@r. r!T.
+      ; ['List S]   -> type@q. q!S.
+      ; ['Arr S T]  -> type@q. q!S. | type@r. r!T.
+      ; otherwise   -> #"not a valid type"
+      }
     }
 
 check@p = p?ty. p?tm. case tm
@@ -63,22 +66,25 @@ check@p = p?ty. p?tm. case tm
 
 synth@p = p?tm .
   -- lookup to see whether tm is a free var & there's an associated type
-  if tm in ctxt { S -> p!S. } else case tm
-   { ['Rad t ty] -> (type@r. r!ty. | check@q. q!ty. q!t. | p!ty.)
-   ; ['Fst e]    -> 'Type?S. 'Type?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!S.)
-   ; ['Snd e]    -> 'Type?S. 'Type?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!T.)
-   ; ['ListElim ty e n (\x. \xs. \ih. c)] ->
-        p!ty. | type@r. r!ty. | check@q. q!ty. q!n. |
-        'Type?X. (synth@u. u!e. u?V. V ~ ['List X] |
-             \y.  ctxt |- y -> X.
-             \ys. ctxt |- ys -> ['List X].
-             \jh. ctxt |- jh -> ty.
-                  check@v. v!ty. v!{x=y, xs=ys, ih=jh}c.
-            )
-   ; ['App f s]  -> 'Type?U. 'Type?V.
-        ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
-        | check@r. r!U. r!s.
-        | p!V.)
+  case (lookup ctxt tm)
+   { ['Just S] -> p!S.
+   ; 'Nothing -> case tm
+     { ['Rad t ty] -> (type@r. r!ty. | check@q. q!ty. q!t. | p!ty.)
+     ; ['Fst e]    -> 'Type?S. 'Type?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!S.)
+     ; ['Snd e]    -> 'Type?S. 'Type?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!T.)
+     ; ['ListElim ty e n (\x. \xs. \ih. c)] ->
+          p!ty. | type@r. r!ty. | check@q. q!ty. q!n. |
+          'Type?X. (synth@u. u!e. u?V. V ~ ['List X] |
+               \y.  ctxt |- y -> X.
+               \ys. ctxt |- ys -> ['List X].
+               \jh. ctxt |- jh -> ty.
+                    check@v. v!ty. v!{x=y, xs=ys, ih=jh}c.
+              )
+     ; ['App f s]  -> 'Type?U. 'Type?V.
+          ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
+          | check@r. r!U. r!s.
+          | p!V.)
+     }
    }
 
 checkEval@p = p?ty. p?tm. case tm
@@ -104,39 +110,41 @@ checkEval@p = p?ty. p?tm. case tm
   }
 
 evalSynth@p = p?tm.
-  if tm in evalCtxt { vs@[v | s] -> p!v. p!s. }
-  else case tm
-  { ['Rad rtm ty] -> checkEval@q. q!ty. q!rtm. q?nf. p!['Rad nf ty]. p!ty.
-  ; ['App f t] -> evalSynth@q. q!f. q?fnf. q?nfty. case fnf
-    { ['Rad ['Lam \x.body] ['Arr a b]] ->
-            checkEval@r. r!b. r!{x=['Rad t a]}body. r?nf.
-            p!['Rad nf b]. p!b.
-    ; _ -> case nfty
-      { ['Arr a b] -> checkEval@r. r!a. r!t. r?tnf. p!['App fnf tnf]. p!b.
-      ; _ -> #"Failed to evaluate App: Expected a function type"
+  case (lookup evalCtxt tm)
+  { ['Just vs@[v | s]] -> p!v. p!s.
+  ; 'Nothing -> case tm
+    { ['Rad rtm ty] -> checkEval@q. q!ty. q!rtm. q?nf. p!['Rad nf ty]. p!ty.
+    ; ['App f t] -> evalSynth@q. q!f. q?fnf. q?nfty. case fnf
+      { ['Rad ['Lam \x.body] ['Arr a b]] ->
+              checkEval@r. r!b. r!{x=['Rad t a]}body. r?nf.
+              p!['Rad nf b]. p!b.
+      ; _ -> case nfty
+        { ['Arr a b] -> checkEval@r. r!a. r!t. r?tnf. p!['App fnf tnf]. p!b.
+        ; _ -> #"Failed to evaluate App: Expected a function type"
+        }
       }
-    }
-  ; ['Fst ptm] -> evalSynth@q. q!ptm. q?pnf. q?nfty. case pnf
-    { ['Rad ['Cons s t] ['Pair a b]] -> p!['Rad s a]. p!a.
-    ; _ -> case nfty
-      { ['Pair a b] -> p!['Fst pnf]. p!a.
-      ; _ -> #"Failed to evaluate Fst: Expected a pair type"
+    ; ['Fst ptm] -> evalSynth@q. q!ptm. q?pnf. q?nfty. case pnf
+      { ['Rad ['Cons s t] ['Pair a b]] -> p!['Rad s a]. p!a.
+      ; _ -> case nfty
+        { ['Pair a b] -> p!['Fst pnf]. p!a.
+        ; _ -> #"Failed to evaluate Fst: Expected a pair type"
+        }
       }
-    }
-  ; ['Snd ptm] -> evalSynth@q. q!ptm. q?pnf. q?nfty. case pnf
-    { ['Rad ['Cons s t] ['Pair a b]] -> p!['Rad t b]. p!b.
-    ; _ -> case nfty
-      { ['Pair a b] -> p!['Snd pnf]. p!b.
-      ; _ -> #"Failed to evaluate Snd: Expected a pair type"
+    ; ['Snd ptm] -> evalSynth@q. q!ptm. q?pnf. q?nfty. case pnf
+      { ['Rad ['Cons s t] ['Pair a b]] -> p!['Rad t b]. p!b.
+      ; _ -> case nfty
+        { ['Pair a b] -> p!['Snd pnf]. p!b.
+        ; _ -> #"Failed to evaluate Snd: Expected a pair type"
+        }
       }
+    ; ['ListElim rty ltm nil cons] ->
+         -- BREAK "evaluating list" .
+         evalSynth@q. q!ltm. q?lnf. q?lty.
+         -- BREAK "evaluating listElim" .
+         listElimSynth@r. r!rty. r!lnf. r!lty. r!nil. r!cons.
+         -- BREAK "returning from listElim" .
+         r?v. p!v. r?vty. p!vty.
     }
-  ; ['ListElim rty ltm nil cons] ->
-       -- BREAK "evaluating list" .
-       evalSynth@q. q!ltm. q?lnf. q?lty.
-       -- BREAK "evaluating listElim" .
-       listElimSynth@r. r!rty. r!lnf. r!lty. r!nil. r!cons.
-       -- BREAK "returning from listElim" .
-       r?v. p!v. r?vty. p!vty.
   }
 
 listElimSynth@p = p?rty. p?lnf. p?lty. p?nil. p?cons. case lnf

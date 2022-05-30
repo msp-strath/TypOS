@@ -8,16 +8,19 @@ syntax
 env |- 'Term -> 'Term
 eval : ?'Term. !'Term.
 
-eval@p = p?tm. if tm in env { v -> p!v. } else case tm
-  { ['Lam \x. t] -> \x. env |- x -> x.
-      eval@q. q!t. q?v. p!['Lam \x. v].
-  ; ['App f s] -> 'Term?u.
-      ( eval@q. q!s. q?v. u ~ v
-      | eval@r. r!f. r?g. case g
-        { ['Lam \y. t] -> eval@z. z!{y=u}t. z?w. p!w.
-        ; _ -> p!['App g u].
-        }
-      )
+eval@p = p?tm. case (lookup env tm)
+  { ['Just v] -> p!v.
+  ; 'Nothing -> case tm
+    { ['Lam \x. t] -> \x. env |- x -> x.
+        eval@q. q!t. q?v. p!['Lam \x. v].
+    ; ['App f s] -> 'Term?u.
+        ( eval@q. q!s. q?v. u ~ v
+        | eval@r. r!f. r?g. case g
+          { ['Lam \y. t] -> eval@z. z!{y=u}t. z?w. p!w.
+          ; _ -> p!['App g u].
+          }
+        )
+    }
   }
 
 exec eval@p. p!['App ['Lam \f. ['Lam \x. ['App f ['App f x]]]]

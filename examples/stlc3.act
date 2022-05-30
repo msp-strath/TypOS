@@ -24,13 +24,16 @@ check@p = p?ty. p?tm. case tm
     ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
     }
 
-synth@p = p?tm . if tm in ctxt { S -> p!S. } else case tm
+synth@p = p?tm . case (lookup ctxt tm)
+ { ['Just S] -> p!S.
+ ; 'Nothing -> case tm
    { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)
    ; ['App f s] -> 'Type?U. 'Type?V.
         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
         | check@r. r!U. r!s.
         | p!V.)
    }
+ }
 
 exec check@p.
   'Type?X. 'Check?t.

@@ -45,18 +45,21 @@ check@p = p?ty. p?tm. case tm
   ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
   }
 
-synth@p = p?tm . if tm in ctxt { S -> p!S. } else case tm
-   { ['Ann t ty] ->
-        ( type@q. q!ty.
-        | check@r. r!ty. r!t.
-        | p!ty.
-        )
-   ; ['App f s] -> 'Type?U. 'Type?V.
-        ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
-        | check@r. r!U. r!s.
-        | p!V.
-        )
-   }
+synth@p = p?tm . case (lookup ctxt tm)
+  { ['Just S] -> p!S.
+  ; 'Nothing -> case tm
+    { ['Ann t ty] ->
+         ( type@q. q!ty.
+         | check@r. r!ty. r!t.
+         | p!ty.
+         )
+    ; ['App f s] -> 'Type?U. 'Type?V.
+         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
+         | check@r. r!U. r!s.
+         | p!V.
+         )
+    }
+  }
 
 ------------------------------------------------------------------------------
 -- Examples

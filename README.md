@@ -322,7 +322,9 @@ quering the `ctxt` context. To see an example how, let us look at the `synth`
 actor's definition.
 
 ```
-synth@p = p?tm . if tm in ctxt { S -> p!S. } else case tm
+synth@p = p?tm . case (lookup ctxt tm) 
+ { ['Just S] -> p!S.
+ ; 'Nothing -> case tm
    { ['Rad t ty] ->
         ( type@q. q!ty.
         | check@r. r!ty. r!t.
@@ -334,6 +336,7 @@ synth@p = p?tm . if tm in ctxt { S -> p!S. } else case tm
         | p!T.
         )
    }
+ }
 ```
 We have only one new feature, which is invoked immediately we have
 received `tm`. The actor `if` *term* `in` *stackname* `{` *actor-variable* `->` *actor*

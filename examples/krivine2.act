@@ -37,19 +37,21 @@ unwind@p = p?tm. p?stk. case stk
   }
 
 krivine@p = p?tm. p?stk.
-  if tm in env { rec -> case rec
+  case (lookup env tm)
+  { ['Just rec] -> case rec
     -- if the variable maps to an argument, we have some more
     -- evaluating to do. Otherwise we can just unwind the stack
     -- on top of the placeholder variable.
     { ['Argument val] -> krivine@q. q!val. q!stk. q?res. p!res.
     ; ['Variable var] -> unwind@q. q!var. q!stk. q?res. p!res.
-    }}
-  else case tm
-  { ['App f t] -> 'Term?vt.
-       ( krivine@q. q!t. q![]. q?res. res ~ vt
-       | krivine@q. q!f. q![vt|stk]. q?res. p!res.
-       )
-  ; _ -> unwind@q. q!tm. q!stk. q?res. p!res.
+    }
+  ; 'Nothing -> case tm
+    { ['App f t] -> 'Term?vt.
+         ( krivine@q. q!t. q![]. q?res. res ~ vt
+         | krivine@q. q!f. q![vt|stk]. q?res. p!res.
+         )
+    ; _ -> unwind@q. q!tm. q!stk. q?res. p!res.
+    }
   }
 
 exec krivine@p.
