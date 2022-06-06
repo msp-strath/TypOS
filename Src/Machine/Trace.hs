@@ -4,9 +4,10 @@ module Machine.Trace where
 import Control.Monad.Reader
 import Control.Monad.Writer
 
-import Data.List (intersperse, intercalate)
+import Data.List (intersperse, elemIndex)
 import qualified Data.Map as Map
-import Data.Maybe (fromJust)
+import qualified Data.Set as Set
+import Data.Maybe (fromJust, fromMaybe)
 
 import ANSI hiding (withANSI)
 import Actor (JudgementForm)
@@ -25,13 +26,16 @@ import Syntax (SyntaxDesc, SyntaxTable, SyntaxCat, expand, VSyntaxDesc (..), con
 import Term.Base
 import Unelaboration
 import Data.String (fromString)
-import Data.Bifunctor (second)
+import Data.Functor ((<&>))
 
-data Trace ann e i
-   = Node ann i [Trace ann e i]
+data Trace e i ann
+   = Node ann (i ann) [Trace e i ann]
    | Error ann e
 
-instance (Show e, Show i) => Show (Trace ann e i) where
+deriving instance Functor i => Functor (Trace e i)
+deriving instance Foldable i => Foldable (Trace e i)
+
+instance (Show e, Show (i ann)) => Show (Trace e i ann) where
   show = unlines . go "" where
 
     go indt (Node _ i ts) = (indt ++ show i) : concatMap (go (' ':indt)) ts
@@ -46,7 +50,7 @@ data ARGUMENT (ph :: Phase) ann = Argument
   , argDesc :: SyntaxDesc
   , argTerm :: ITERM ph
   , argAnn  :: ann
-  } deriving (Functor)
+  } deriving (Functor, Foldable)
 
 type AArgument ann = ARGUMENT Abstract ann
 type CArgument ann = ARGUMENT Concrete ann
@@ -61,7 +65,7 @@ data STEP (ph :: Phase) ann
   | NotedStep
   | PushingStep (STACK ph) (TERMVAR ph) (SyntaxDesc, ITERM ph)
   | CallingStep (JUDGEMENTFORM ph) [ARGUMENT ph ann]
-  deriving (Functor)
+  deriving (Functor, Foldable)
 
 deriving instance
   ( Show (JUDGEMENTFORM ph)
@@ -78,17 +82,19 @@ deriving instance
   , Show ann) =>
   Show (STEP ph ann)
 
-type AStep ann = (ExtractMode, STEP Abstract ann)
-type CStep ann = STEP Concrete ann
+data AStep ann = AStep ExtractMode (STEP Abstract ann)
+  deriving (Functor, Foldable)
+type CStep = STEP Concrete
+
 
 instance Instantiable (AArgument ann) where
   type Instantiated (AArgument ann) = AArgument ann
   instantiate st (Argument mode desc term ann)
     = Argument mode desc (instantiate st term) ann
 
-instance Instantiable (AStep ann) where
-  type Instantiated (AStep ann) = AStep ann
-  instantiate st (em, step) = (em,) $ case step of
+instance Instantiable1 AStep where
+  type Instantiated1 AStep = AStep
+  instantiate1 st (AStep em step) = AStep em $ case step of
     BindingStep x -> BindingStep x
     NotedStep -> NotedStep
     PushingStep jd db t -> PushingStep jd db (instantiate st <$> t)
@@ -102,8 +108,8 @@ data Error t
 type AError = Error Term
 type CError = Error Raw
 
-type CTrace ann = Trace ann CError (CStep ann)
-type ATrace ann = Trace ann AError (AStep ann)
+type CTrace ann = Trace CError CStep ann
+type ATrace ann = Trace AError AStep ann
 
 instance Instantiable AError where
   type Instantiated AError = AError
@@ -111,9 +117,9 @@ instance Instantiable AError where
     StuckUnifying s t -> StuckUnifying (instantiate st s) (instantiate st t)
     Failed s -> Failed s
 
-instance (Instantiable e, Instantiable i) => Instantiable (Trace ann e i) where
-  type Instantiated (Trace ann e i) = Trace ann (Instantiated e) (Instantiated i)
-  instantiate st (Node a i ts) = Node a (instantiate st i) (instantiate st <$> ts)
+instance (Instantiable e, Instantiable1 i) => Instantiable (Trace e i ann) where
+  type Instantiated (Trace e i ann) = Trace (Instantiated e) (Instantiated1 i) ann
+  instantiate st (Node a i ts) = Node a (instantiate1 st i) (instantiate st <$> ts)
   instantiate st (Error a e)   = Error a (instantiate st e)
 
 instance Unelab AError where
@@ -132,10 +138,10 @@ instance Unelab (AArgument ann) where
     term <- unelab term
     pure (Argument mode desc term ann)
 
-instance Unelab (Trace ann AError (AStep ann)) where
-  type Unelabed (Trace ann AError (AStep ann)) = CTrace ann
-  type UnelabEnv (Trace ann AError (AStep ann)) = Naming
-  unelab (Node a (em, s) ts) = case s of
+instance Unelab (ATrace ann) where
+  type Unelabed (ATrace ann) = CTrace ann
+  type UnelabEnv (ATrace ann) = Naming
+  unelab (Node a (AStep em s) ts) = case s of
     BindingStep (Variable r x) -> do
       na <- ask
       let y = freshen x na
@@ -186,8 +192,8 @@ class AnnotateLaTeX ann where
 instance AnnotateLaTeX () where
   annotateLaTeX _ = id
 
-instance AnnotateLaTeX [Int] where
-  annotateLaTeX ns d = call False (fromString ("visible<" ++ show (minimum ns) ++ "->")) [d]
+instance AnnotateLaTeX Int where
+  annotateLaTeX n d = call False (fromString ("visible<" ++ show n ++ "->")) [d]
 
 instance AnnotateLaTeX ann => LaTeX (CArgument ann) where
   type Format (CArgument ann) = ()
@@ -256,66 +262,66 @@ getPushes x [Node _ i@(PushingStep _ y _) ts] | x == y =
       (i:prf, suf)
 getPushes _ ts = ([], ts)
 
-extract :: forall ann. ann -> [Frame] -> [Trace ann AError (AStep ann)]
+extract :: forall ann. ann -> [Frame] -> [ATrace ann]
 extract a [] = []
 extract a (f : fs) = case f of
   LeftBranch Hole p -> extract a fs ++ extract a (stack p) ++ findFailures p
   RightBranch p Hole -> extract a (stack p) ++ extract a fs ++ findFailures p
   Spawnee Interface{..} -> let p = snd spawner in
-    Node a (extractionMode
-            , CallingStep
+    Node a (AStep extractionMode
+           $ CallingStep
                judgeName
                (zipWith toArgument judgeProtocol (traffic <>> [])))
                (extract a fs)
     : extract a (stack p) ++ findFailures p
   Spawner Interface{..} -> let p = fst spawnee in
-    Node a (extractionMode
-            , CallingStep
+    Node a (AStep extractionMode
+           $ CallingStep
                 judgeName
                 (zipWith toArgument judgeProtocol (traffic <>> [])))
                 (extract a (stack p)
                 ++ findFailures p)
     : extract a fs
-  Pushed jd (i, d, t) -> node (AlwaysExtract, PushingStep jd i (d, t))
-  Binding x -> node (AlwaysExtract, BindingStep (Variable unknown x))
+  Pushed jd (i, d, t) -> node (AStep AlwaysExtract $ PushingStep jd i (d, t))
+  Binding x -> node (AStep AlwaysExtract $ BindingStep (Variable unknown x))
   UnificationProblem date s t -> Error a (StuckUnifying s t) : extract a fs
-  Noted -> Node a (AlwaysExtract, NotedStep) [] : extract a fs
+  Noted -> Node a (AStep AlwaysExtract NotedStep) [] : extract a fs
   _ -> extract a fs
 
   where
     toArgument :: (Mode, SyntaxDesc) -> Term -> AArgument ann
     toArgument (mode, desc) term = Argument mode desc term a
 
-    findFailures :: Process log Status [] -> [Trace ann AError (AStep ann)]
+    findFailures :: Process log Status [] -> [ATrace ann]
     findFailures p@Process{..}
      = case actor of
          Fail _ [StringPart e] -> [Error a (Failed e)]
          Fail _ _ -> error "Expected `Fail` message to be singleton string"
          _ -> []
 
-    node :: AStep ann -> [Trace ann AError (AStep ann)]
+    node :: AStep ann -> [ATrace ann]
     node s = [Node a s (extract a fs)]
 
-cleanup :: [Trace ann AError (AStep ann)] -> [Trace ann AError (AStep ann)]
+cleanup :: [ATrace ann] -> [ATrace ann]
 cleanup = snd . go False [] where
 
   go :: Bool            -- ^ is the parent suppressable?
      -> [JudgementForm] -- ^ list of toplevel judgements already seen
-     -> [Trace ann AError (AStep ann)] -> (Any, [Trace ann AError (AStep ann)])
+     -> [ATrace ann] -> (Any, [ATrace ann])
   go supp seen [] = pure []
-  go supp seen (Node a (em, i@(CallingStep jd tr)) ts : ats)
+  go supp seen (Node a (AStep em i@(CallingStep jd tr)) ts : ats)
     | em == InterestingExtract || jd `elem` seen
     = let (Any b, ts') = go True seen ts in
       if not supp && b
-        then (Node a (em, i) ts' :) <$> go supp seen ats
+        then (Node a (AStep em i) ts' :) <$> go supp seen ats
         else (ts' ++) <$ tell (Any b) <*> go supp seen ats
     | em == TopLevelExtract
-    = (:) <$> censor (const (Any False)) (Node a (em, i) <$> go False (jd : seen) ts)
+    = (:) <$> censor (const (Any False)) (Node a (AStep em i) <$> go False (jd : seen) ts)
           <*> go supp seen ats
     | otherwise
-    = (:) <$> censor (const (Any False)) (Node a (em, i) <$> go False [] ts)
+    = (:) <$> censor (const (Any False)) (Node a (AStep em i) <$> go False [] ts)
           <*> go supp seen ats
-  go supp seen (Node a (em, NotedStep) _ : ats) = tell (Any True) >> go supp seen ats
+  go supp seen (Node a (AStep em NotedStep) _ : ats) = tell (Any True) >> go supp seen ats
   go supp seen (Node a i ts : ats) =
     (:) <$> censor (const (Any False)) (Node a i <$> go False seen ts)
         <*> go supp seen ats
@@ -366,8 +372,20 @@ ldiagnostic table st fs =
 
 adiagnostic :: SyntaxTable -> StoreF i -> [Frame] -> [[ATrace Int]] -> String
 adiagnostic table st fs trs =
-  let ats = cleanup $ combines (extract (length trs) fs) trs in
-  ldiagnostic' beamer table st fs ats
+  let ats = map (minimum <$>) $ cleanup $ combines (extract (length trs) fs) trs in
+  -- The cleanup will have removed frames that are not notable and so there will be
+  -- gaps in the numbered frames.
+  -- The parallel top-level derivations also all share the same counter and so later
+  -- derivations will not start counting at zero.
+  let res = ats <&> \ at ->
+        -- This bit of magic:
+        -- 1. collects all the leftover numbers in the given derivation and sorts them
+        let as = Set.toList $ foldMap Set.singleton at in
+        -- 2. remaps them to an initial [1..n] segment by replacing each number i
+        --    with its position in the sorted array.
+        fmap (\ i -> fromMaybe (error "Impossible") (elemIndex i as)) at
+  -- we can now render the beamer
+  in ldiagnostic' beamer table st fs res
 
 data LaTeXConfig = LaTeXConfig
   { documentClass :: String
@@ -481,30 +499,16 @@ combineStep (CallingStep judge0 ars0) (CallingStep judge1 ars1)
   = CallingStep judge0 (combineWith combineArg ars0 ars1)
 combineStep _ _ = error "Impossible"
 
-combine :: Trace ann e (AStep ann)
-        -> Trace [ann] e (AStep [ann])
-        -> Trace [ann] e (AStep [ann])
-combine (Node a (_,stp) trs) (Node as (em,stps) trss)
-  = Node (a:as) (em, combineStep stp stps) (combineWith combine trs trss)
+combine :: Trace e AStep ann
+        -> Trace e AStep [ann]
+        -> Trace e AStep [ann]
+combine (Node a (AStep _ stp) trs) (Node as (AStep em stps) trss)
+  = Node (a:as) (AStep em $ combineStep stp stps) (combineWith combine trs trss)
 combine (Error a _) (Error as err) = Error (a:as) err
 combine (Error _ _) t = t
 combine _ _ = error "Impossible"
 
-mapArgument :: (ann -> ann') -> ARGUMENT ph ann -> ARGUMENT ph ann'
-mapArgument f (Argument mode desc term ann)
-  = Argument mode desc term (f ann)
-
-mapStep :: (ann -> ann') -> STEP ph ann -> STEP ph ann'
-mapStep f (BindingStep vari) = BindingStep vari
-mapStep _ NotedStep = NotedStep
-mapStep f (PushingStep st ter x0) = PushingStep st ter x0
-mapStep f (CallingStep judge ars) = CallingStep judge (mapArgument f <$> ars)
-
-mapTrace :: (ann -> ann') -> Trace ann e (AStep ann) -> Trace ann' e (AStep ann')
-mapTrace f (Node ann st trs) = Node (f ann) (second (mapStep f) st) (mapTrace f <$> trs)
-mapTrace f (Error ann err) = Error (f ann) err
-
-combines :: [Trace ann e (AStep ann)]
-         -> [[Trace ann e (AStep ann)]]
-         -> [Trace [ann] e (AStep [ann])]
-combines t = foldr (combineWith combine) (mapTrace pure <$> t)
+combines :: [Trace e AStep ann]
+         -> [[Trace e AStep ann]]
+         -> [Trace e AStep [ann]]
+combines t = foldr (combineWith combine) (fmap pure <$> t)

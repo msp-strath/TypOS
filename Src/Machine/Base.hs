@@ -44,6 +44,10 @@ class Instantiable t where
   type Instantiated t
   instantiate :: StoreF i -> t -> Instantiated t
 
+class Instantiable1 t where
+  type Instantiated1 t :: * -> *
+  instantiate1 :: StoreF i -> t a -> Instantiated1 t a
+
 instance Instantiable Term where
   type Instantiated Term = Term
   instantiate store term = case expand term of

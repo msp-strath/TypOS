@@ -167,8 +167,11 @@ exec p@Process { actor = Under _ (Scope (Hide x) a), ..}
 exec p@Process { actor = Push _ jd (pv, d, t) a, ..}
   | Just t' <- mangleActors options env t
   = let stack' = stack :< Pushed jd (pv, d, t')
+        -- if we're pushing on the most local variable, this will all get merged in the trace
+        -- so we don't bother generating a logging frame for it
+        logs'  = if pv == DB 0 then logs else extract (length logs) (stack' <>> []) : logs
     in exec (p { stack = stack', actor = a
-               , logs = extract (length logs) (stack' <>> []) : logs })
+               , logs = logs' })
 
 exec p@Process { actor = Lookup _ t stk (av, a) b, ..}
   | Just t' <- mangleActors options env t
