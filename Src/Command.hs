@@ -26,7 +26,7 @@ import Elaboration.Pretty()
 import Machine.Base
 import Machine.Display (Store)
 import Machine.Exec
-import Machine.Trace ()
+import Machine.Trace (ATrace)
 import Options
 import Parse
 import Pretty (keyword, Collapse(..), BracesList(..), Pretty(..))
@@ -215,14 +215,14 @@ elaborate ccs = evalElab $ do
   table <- gets syntaxCats
   pure (acs, table)
 
-run :: Options -> Process Store Bwd -> [ACommand] -> Process Store []
+run :: Options -> Process [[ATrace Int]] Store Bwd -> [ACommand] -> Process [[ATrace Int]] Store []
 run opts p [] = exec p
 run opts p@Process{..} (c : cs) = case c of
   DeclJudge em jd _ -> run opts p cs
   DefnJudge (jd, jdp, ch) a -> run opts (p { stack = stack :< Rules jd jdp (ch, a) }) cs
   Go a -> -- dmesg (show a) $
           let (lroot, rroot) = splitRoot root ""
-              rbranch = Process opts [] rroot env New a
+              rbranch = Process opts [] rroot env New a ()
           in run opts (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
   Trace xs -> let trac = guard (not $ quiet opts) >> fromMaybe (xs ++ tracing p) (tracingOption opts)
               in run opts (p { options = opts { tracingOption = Just trac } }) cs

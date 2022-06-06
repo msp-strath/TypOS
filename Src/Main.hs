@@ -23,7 +23,7 @@ import Pretty
 import Term.Base
 import Options
 import Command
-import Machine.Trace (diagnostic, ldiagnostic)
+import Machine.Trace (diagnostic, ldiagnostic, adiagnostic)
 import Utils
 import Display (unsafeEvalDisplay)
 import Location
@@ -47,14 +47,14 @@ main = do
       exitFailure
     Right (acs, table) -> do
   -- putStrLn $ unsafeEvalDisplay initNaming $ collapse <$> traverse display acs
-      let p = Process opts B0 initRoot (initEnv B0) initStore (Win unknown)
-      let res@(Process _ fs _ env sto a) = run opts p acs
+      let p = Process opts B0 initRoot (initEnv B0) initStore (Win unknown) []
+      let res@(Process _ fs _ env sto a _) = run opts p acs
       unless (isWin a) $ do
          putStrLn $ ANSI.withANSI [SetColour Background Red] "Error: Did not win"
          putStrLn $ let (_, _, _, a) = unsafeEvalDisplay initDEnv $ displayProcess' p in
                     render (colours $ options p) cfg a
       unless (quiet opts) $ putStrLn $ diagnostic opts sto fs
       whenJust (latex opts) $ \ file -> do
-        writeFile file $ ldiagnostic table sto fs
+        writeFile file $ adiagnostic table sto fs (logs res)
         putStrLn (ANSI.withANSI [ SetColour Background Green ] "Success:" ++ " wrote latex derivation to " ++ file)
       dmesg "" res `seq` pure ()

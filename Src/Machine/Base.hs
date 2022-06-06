@@ -89,10 +89,10 @@ data Status
 
 data Frame
   = Rules JudgementForm AProtocol (Channel, AActor)
-  | LeftBranch Hole (Process Status [])
-  | RightBranch (Process Status []) Hole
-  | Spawnee (Interface Hole (Process Status []))
-  | Spawner (Interface (Process Status []) Hole)
+  | LeftBranch Hole (Process () Status [])
+  | RightBranch (Process () Status []) Hole
+  | Spawnee (Interface Hole (Process () Status []))
+  | Spawner (Interface (Process () Status []) Hole)
   | Sent Channel ([String], Term)
   | Pushed Stack (DB, SyntaxDesc, Term)
   | Binding String
@@ -100,7 +100,7 @@ data Frame
   | Noted
   deriving (Show)
 
-data Process s t
+data Process l s t
   = Process
   { options :: Options
   , stack   :: t Frame -- Stack frames ahead of or behind us
@@ -108,9 +108,12 @@ data Process s t
   , env     :: Env     -- definitions in scope
   , store   :: s       -- Definitions we know for metas (or not)
   , actor   :: AActor  -- The thing we are
+  , logs    :: l
   }
 
-tracing :: Process s t -> [MachineStep]
+tracing :: Process log s t -> [MachineStep]
 tracing = fromMaybe [] . tracingOption . options
 
-deriving instance (Show s, Show (t Frame)) => Show (Process s t)
+instance (Show s, Show (t Frame)) => Show (Process log s t) where
+  show (Process opts stack root env store actor _) =
+   unwords ["Process ", show opts, show stack, show root, show env, show store, show actor]

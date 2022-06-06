@@ -4,7 +4,7 @@ module Machine.Trace where
 import Control.Monad.Reader
 import Control.Monad.Writer
 
-import Data.List (intersperse)
+import Data.List (intersperse, intercalate)
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 
@@ -24,6 +24,8 @@ import Pretty
 import Syntax (SyntaxDesc, SyntaxTable, SyntaxCat, expand, VSyntaxDesc (..), contract)
 import Term.Base
 import Unelaboration
+import Data.String (fromString)
+import Data.Bifunctor (second)
 
 data Trace ann e i
    = Node ann i [Trace ann e i]
@@ -100,6 +102,9 @@ data Error t
 type AError = Error Term
 type CError = Error Raw
 
+type CTrace ann = Trace ann CError (CStep ann)
+type ATrace ann = Trace ann AError (AStep ann)
+
 instance Instantiable AError where
   type Instantiated AError = AError
   instantiate st = \case
@@ -128,7 +133,7 @@ instance Unelab (AArgument ann) where
     pure (Argument mode desc term ann)
 
 instance Unelab (Trace ann AError (AStep ann)) where
-  type Unelabed (Trace ann AError (AStep ann)) = Trace ann CError (CStep ann)
+  type Unelabed (Trace ann AError (AStep ann)) = CTrace ann
   type UnelabEnv (Trace ann AError (AStep ann)) = Naming
   unelab (Node a (em, s) ts) = case s of
     BindingStep (Variable r x) -> do
@@ -168,18 +173,27 @@ instance Pretty CError where
                           (pretty s <+> "/~" <+> pretty t)
     Failed s -> withANSI [ SetColour Background Red ] (pretty s)
 
-instance Pretty (Trace ann CError (CStep ann)) where
+instance Pretty (CTrace ann) where
   pretty (Node _ i@(BindingStep x) ts) =
     let (prf, suf) = getPushes x ts in
     vcat ( hsep (pretty <$> i:prf) : map (indent 1 . pretty) suf)
   pretty (Node _ i ts) = vcat (pretty i : map (indent 1 . pretty) ts)
   pretty (Error _ e) = pretty e
 
-instance LaTeX (CArgument ann) where
-  type Format (CArgument ann) = ()
-  toLaTeX _ (Argument _ d t _) = toLaTeX d t
+class AnnotateLaTeX ann where
+  annotateLaTeX :: ann -> Doc () -> Doc ()
 
-instance LaTeX (CStep ann) where
+instance AnnotateLaTeX () where
+  annotateLaTeX _ = id
+
+instance AnnotateLaTeX [Int] where
+  annotateLaTeX ns d = call False (fromString ("visible<" ++ show (minimum ns) ++ "->")) [d]
+
+instance AnnotateLaTeX ann => LaTeX (CArgument ann) where
+  type Format (CArgument ann) = ()
+  toLaTeX _ (Argument _ d t ann) = annotateLaTeX ann <$> toLaTeX d t
+
+instance AnnotateLaTeX ann => LaTeX (CStep ann) where
   type Format (CStep ann) = ()
   toLaTeX _ = \case
     BindingStep x -> do
@@ -206,26 +220,26 @@ instance LaTeX CError where
       pure $ call False "typosStuckUnifying" [s, t]
     Failed s -> call False "typosFailed" . pure <$> toLaTeX () s
 
-instance LaTeX (Trace ann CError (CStep ann)) where
-  type Format (Trace ann CError (CStep ann)) = ()
-  toLaTeX n (Node _ i []) = do
+instance AnnotateLaTeX ann => LaTeX (CTrace ann) where
+  type Format (CTrace ann) = ()
+  toLaTeX n (Node ann i []) = do
     i <- toLaTeX () i
-    pure $ call False "typosAxiom" [i]
-  toLaTeX n (Node _ i@(BindingStep x) ts) = do
+    pure $ annotateLaTeX ann $ call False "typosAxiom" [i]
+  toLaTeX n (Node ann i@(BindingStep x) ts) = do
     let (prf, suf) = getPushes x ts
     i <- toLaTeX () i
     prf <- traverse (toLaTeX ()) prf
     suf <- traverse (toLaTeX ()) suf
-    pure $ typosDerivation (i <> hsep (intersperse "\\ " prf)) suf
+    pure $ annotateLaTeX ann $ typosDerivation (i <> hsep (intersperse "\\ " prf)) suf
 
-  toLaTeX n (Node _ i ts) = do
+  toLaTeX n (Node ann i ts) = do
     i <- toLaTeX () i
     ts <- traverse (toLaTeX ()) ts
-    pure $ typosDerivation i ts
+    pure $ annotateLaTeX ann $ typosDerivation i ts
 
-  toLaTeX n (Error _ e) = do
+  toLaTeX n (Error ann e) = do
     e <- toLaTeX () e
-    pure $ call False "typosError" [e]
+    pure $ annotateLaTeX ann $ call False "typosError" [e]
 
 typosDerivation :: Doc () -> [Doc ()] -> Doc ()
 typosDerivation i ts =
@@ -235,8 +249,8 @@ typosDerivation i ts =
             : intersperse (call False "typosBetweenPrems" []) ts
             ++ [call False "typosEndPrems" []])]
 
-getPushes :: Variable -> [Trace ann CError (CStep ann)]
-          -> ([CStep ann], [Trace ann CError (CStep ann)])
+getPushes :: Variable -> [CTrace ann]
+          -> ([CStep ann], [CTrace ann])
 getPushes x [Node _ i@(PushingStep _ y _) ts] | x == y =
       let (prf, suf) = getPushes x ts in
       (i:prf, suf)
@@ -272,7 +286,7 @@ extract a (f : fs) = case f of
     toArgument :: (Mode, SyntaxDesc) -> Term -> AArgument ann
     toArgument (mode, desc) term = Argument mode desc term a
 
-    findFailures :: Process Status [] -> [Trace ann AError (AStep ann)]
+    findFailures :: Process log Status [] -> [Trace ann AError (AStep ann)]
     findFailures p@Process{..}
      = case actor of
          Fail _ [StringPart e] -> [Error a (Failed e)]
@@ -348,12 +362,47 @@ judgementPreamble _ = []
 ldiagnostic :: SyntaxTable -> StoreF i -> [Frame] -> String
 ldiagnostic table st fs =
   let ats = cleanup $ extract () fs in
+  ldiagnostic' standalone table st fs ats
+
+adiagnostic :: SyntaxTable -> StoreF i -> [Frame] -> [[ATrace Int]] -> String
+adiagnostic table st fs trs =
+  let ats = cleanup $ combines (extract (length trs) fs) trs in
+  ldiagnostic' beamer table st fs ats
+
+data LaTeXConfig = LaTeXConfig
+  { documentClass :: String
+  , beginPage :: String
+  , endPage :: String
+  }
+
+standalone :: LaTeXConfig
+standalone = LaTeXConfig
+  { documentClass = "\\documentclass[multi=page]{standalone}"
+  , beginPage = "\\begin{page}"
+  , endPage = "\\end{page}"
+  }
+
+beamer :: LaTeXConfig
+beamer = LaTeXConfig
+  { documentClass = "\\documentclass{beamer}"
+  , beginPage = "\\begin{frame}[fragile]"
+  , endPage = "\\end{frame}"
+  }
+
+ldiagnostic' :: AnnotateLaTeX ann
+             => LaTeXConfig
+             -> SyntaxTable
+             -> StoreF i
+             -> [Frame]
+             -> [ATrace ann]
+             -> String
+ldiagnostic' cfg table st fs ats =
   let iats = instantiate st ats in
   let cts = traverse unelab iats in
   let rts = unsafeEvalUnelab initNaming cts in
   let dts = (`evalLaTeXM` table) (traverse (toLaTeX ()) rts) in
   show $ vcat $
-   [ "\\documentclass[multi=page]{standalone}"
+   [ fromString (documentClass cfg)
    , ""
    , "%%%%%%%%%%% Packages %%%%%%%%%%%%%%%%%%%"
    , "\\usepackage{xcolor}"
@@ -389,14 +438,73 @@ ldiagnostic table st fs =
    , "\\begin{document}"
    ] ++
    (dts >>= \ der ->
-      [ "\\begin{page}"
+      [ fromString (beginPage cfg)
       , "$\\displaystyle"
       , "\\begin{array}{l}"
       , der
       , "\\end{array}"
       , "$"
-      , "\\end{page}"
+      , fromString (endPage cfg)
       , "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
       , ""
       ]) ++
    [ "\\end{document}"]
+
+combineWith :: (a -> b -> b) -> [a] -> [b] -> [b]
+combineWith f [] bs = bs
+combineWith f (a:as) (b:bs) = f a b : combineWith f as bs
+combineWith f _ _ = error "Impossible"
+
+combineArg :: Eq (ITERM ph)
+           => ARGUMENT ph ann
+           -> ARGUMENT ph [ann]
+           -> ARGUMENT ph [ann]
+combineArg (Argument mode0 desc0 term0 a) (Argument mode1 desc1 term1 as)
+  | (mode0, desc0, term0) == (mode1, desc1, term1)
+  = Argument mode1 desc1 term1 (a:as)
+  | otherwise = error "Impossible"
+
+combineStep :: Eq (STACK ph)
+            => Eq (JUDGEMENTFORM ph)
+            => Eq (TERMVAR ph)
+            => Eq (ITERM ph)
+            => STEP ph ann
+            -> STEP ph [ann]
+            -> STEP ph [ann]
+combineStep (BindingStep vari) stps@(BindingStep varj)
+  | vari == varj = stps
+combineStep NotedStep NotedStep = NotedStep
+combineStep (PushingStep st0 ter0 x0) stps@(PushingStep st1 ter1 x1)
+  | (st0, ter0, x0) == (st1, ter1, x1)  = stps
+combineStep (CallingStep judge0 ars0) (CallingStep judge1 ars1)
+  | judge0 == judge1
+  = CallingStep judge0 (combineWith combineArg ars0 ars1)
+combineStep _ _ = error "Impossible"
+
+combine :: Trace ann e (AStep ann)
+        -> Trace [ann] e (AStep [ann])
+        -> Trace [ann] e (AStep [ann])
+combine (Node a (_,stp) trs) (Node as (em,stps) trss)
+  = Node (a:as) (em, combineStep stp stps) (combineWith combine trs trss)
+combine (Error a _) (Error as err) = Error (a:as) err
+combine (Error _ _) t = t
+combine _ _ = error "Impossible"
+
+mapArgument :: (ann -> ann') -> ARGUMENT ph ann -> ARGUMENT ph ann'
+mapArgument f (Argument mode desc term ann)
+  = Argument mode desc term (f ann)
+
+mapStep :: (ann -> ann') -> STEP ph ann -> STEP ph ann'
+mapStep f (BindingStep vari) = BindingStep vari
+mapStep _ NotedStep = NotedStep
+mapStep f (PushingStep st ter x0) = PushingStep st ter x0
+mapStep f (CallingStep judge ars) = CallingStep judge (mapArgument f <$> ars)
+
+mapTrace :: (ann -> ann') -> Trace ann e (AStep ann) -> Trace ann' e (AStep ann')
+mapTrace f (Node ann st trs) = Node (f ann) (second (mapStep f) st) (mapTrace f <$> trs)
+mapTrace f (Error ann err) = Error (f ann) err
+
+combines :: [Trace ann e (AStep ann)]
+         -> [[Trace ann e (AStep ann)]]
+         -> [Trace [ann] e (AStep [ann])]
+combines t = foldr (combineWith combine) (mapTrace pure <$> t)
