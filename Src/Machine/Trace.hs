@@ -27,6 +27,7 @@ import Term.Base
 import Unelaboration
 import Data.String (fromString)
 import Data.Functor ((<&>))
+import Data.Semigroup (Min (..))
 
 data Trace e i ann
    = Node ann (i ann) [Trace e i ann]
@@ -372,7 +373,7 @@ ldiagnostic table st fs =
 
 adiagnostic :: SyntaxTable -> StoreF i -> [Frame] -> [[ATrace Int]] -> String
 adiagnostic table st fs trs =
-  let ats = map (minimum <$>) $ cleanup $ combines (extract (length trs) fs) trs in
+  let ats = cleanup $ fmap getMin <$> combines (extract (length trs) fs) trs in
   -- The cleanup will have removed frames that are not notable and so there will be
   -- gaps in the numbered frames.
   -- The parallel top-level derivations also all share the same counter and so later
@@ -474,21 +475,23 @@ combineWith f (a:as) (b:bs) = f a b : combineWith f as bs
 combineWith f _ _ = error "Impossible"
 
 combineArg :: Eq (ITERM ph)
+           => Ord ann
            => ARGUMENT ph ann
-           -> ARGUMENT ph [ann]
-           -> ARGUMENT ph [ann]
+           -> ARGUMENT ph (Min ann)
+           -> ARGUMENT ph (Min ann)
 combineArg (Argument mode0 desc0 term0 a) (Argument mode1 desc1 term1 as)
   | (mode0, desc0, term0) == (mode1, desc1, term1)
-  = Argument mode1 desc1 term1 (a:as)
+  = Argument mode1 desc1 term1 (Min a <> as)
   | otherwise = error "Impossible"
 
 combineStep :: Eq (STACK ph)
             => Eq (JUDGEMENTFORM ph)
             => Eq (TERMVAR ph)
             => Eq (ITERM ph)
+            => Ord ann
             => STEP ph ann
-            -> STEP ph [ann]
-            -> STEP ph [ann]
+            -> STEP ph (Min ann)
+            -> STEP ph (Min ann)
 combineStep (BindingStep vari) stps@(BindingStep varj)
   | vari == varj = stps
 combineStep NotedStep NotedStep = NotedStep
@@ -499,16 +502,18 @@ combineStep (CallingStep judge0 ars0) (CallingStep judge1 ars1)
   = CallingStep judge0 (combineWith combineArg ars0 ars1)
 combineStep _ _ = error "Impossible"
 
-combine :: Trace e AStep ann
-        -> Trace e AStep [ann]
-        -> Trace e AStep [ann]
+combine :: Ord ann
+        => Trace e AStep ann
+        -> Trace e AStep (Min ann)
+        -> Trace e AStep (Min ann)
 combine (Node a (AStep _ stp) trs) (Node as (AStep em stps) trss)
-  = Node (a:as) (AStep em $ combineStep stp stps) (combineWith combine trs trss)
-combine (Error a _) (Error as err) = Error (a:as) err
+  = Node (Min a <> as) (AStep em $ combineStep stp stps) (combineWith combine trs trss)
+combine (Error a _) (Error as err) = Error (Min a <> as) err
 combine (Error _ _) t = t
 combine _ _ = error "Impossible"
 
-combines :: [Trace e AStep ann]
+combines :: Ord ann
+         => [Trace e AStep ann]
          -> [[Trace e AStep ann]]
-         -> [Trace e AStep [ann]]
-combines t = foldr (combineWith combine) (fmap pure <$> t)
+         -> [Trace e AStep (Min ann)]
+combines t = foldr (combineWith combine) (fmap Min <$> t)
