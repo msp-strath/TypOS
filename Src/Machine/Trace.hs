@@ -403,7 +403,9 @@ standalone = LaTeXConfig
 
 beamer :: LaTeXConfig
 beamer = LaTeXConfig
-  { documentClass = "\\documentclass{beamer}"
+  { documentClass = unlines [ "\\documentclass{beamer}"
+                            , "\\setbeamertemplate{navigation symbols}{}"
+                            ]
   , beginPage = "\\begin{frame}[fragile]"
   , endPage = "\\end{frame}"
   }
