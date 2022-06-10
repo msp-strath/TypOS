@@ -347,17 +347,24 @@ mkTag e = "\\mathsf{" ++ e ++ "}"
 nArgs :: Int -> [String]
 nArgs n = map (("\\ #" ++) . show) [1..n]
 
-syntaxPreamble :: SyntaxTable -> SyntaxCat -> [Doc ()]
-syntaxPreamble table cat = go (fromJust $ Map.lookup cat table) where
+syntaxPreamble :: SyntaxTable -> [Doc ()]
+syntaxPreamble table = concatMap (pure . render)
+                                 (foldMap extract (Map.elems table))
+  where
 
-  go :: SyntaxDesc -> [Doc ()]
-  go t = case Syntax.expand Map.empty t of
-    Just (VCons d e) -> go d ++ go e
+  extract :: SyntaxDesc -> Set.Set (Either String (String, Int))
+  extract desc = case Syntax.expand Map.empty desc of
+    Just (VCons d e) -> extract d <> extract e
     Just (VEnumOrTag es tds) ->
-        map (\ e -> text $ mkNewCommand ("enum" ++ e) 0 (mkTag e)) es ++
-        map (\ (t, ds) -> text $ mkNewCommand ("tag" ++ t) (length ds)
-                               $ unwords ("[" : (mkTag t) : nArgs (length ds) ++ ["]"])) tds
-    _ -> []
+        foldMap (\ e -> Set.singleton (Left e)) es <>
+        foldMap (\ (t, ds) -> Set.singleton (Right (t, length ds))) tds
+    _ -> mempty
+
+  render :: Either String (String, Int) -> Doc ()
+  render (Left e)      = text $ mkNewCommand (anEnum e) 0 (mkTag e)
+  render (Right (t,a)) = text $ mkNewCommand (aTag t a) a
+                              $ unwords ("[" : (mkTag t) : nArgs a ++ ["]"])
+
 
 judgementPreamble :: Frame -> [Doc ()]
 judgementPreamble (Rules jd jp _)
@@ -450,7 +457,7 @@ ldiagnostic' cfg table st fs ats =
    , "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
    , ""
    ] ++
-   concatMap (syntaxPreamble table) (Map.keys table)
+   syntaxPreamble table
    ++ concatMap judgementPreamble fs
    ++
    [ "%\\input{notations}"

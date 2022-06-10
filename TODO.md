@@ -31,6 +31,12 @@
 
 * [ ] Hide extract mode under a CLI option
 
+### LaTeX
+
+* [ ] Colours for input and output
+* [ ] Allow Latex injection in the source file
+* [ ] Proper escaping of things latex don't like
+
 ### Examples
 
 * [x] STLC with clever lists
