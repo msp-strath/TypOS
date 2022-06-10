@@ -2,6 +2,8 @@
 
 module LaTeX where
 
+import Data.Char (isDigit)
+
 import qualified Data.Map as Map
 import Control.Monad.Reader
 
@@ -40,11 +42,19 @@ spellOut '8' = "Eight"
 spellOut '9' = "Nine"
 spellOut x = [x]
 
+escapeLatex :: Char -> String
+escapeLatex c | isDigit c = "Q" ++ spellOut c
+escapeLatex '_' = "Qu"
+escapeLatex '\'' = "Qp"
+escapeLatex 'Q' = "QQ"
+escapeLatex x = [x]
+
+
 anEnum :: String -> String
-anEnum e = "enum" ++ e
+anEnum e = "enum" ++ foldMap escapeLatex e
 
 aTag :: String -> Int -> String
-aTag t a = "tag" ++ t ++ foldMap spellOut (show a)
+aTag t a = "tag" ++ foldMap escapeLatex t ++ "For" ++ foldMap spellOut (show a)
 
 instance LaTeX x => LaTeX (Hide x) where
   type Format (Hide x) = Format x
