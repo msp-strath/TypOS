@@ -198,7 +198,9 @@ instance AnnotateLaTeX Int where
 
 instance AnnotateLaTeX ann => LaTeX (CArgument ann) where
   type Format (CArgument ann) = ()
-  toLaTeX _ (Argument _ d t ann) = annotateLaTeX ann <$> toLaTeX d t
+  toLaTeX _ (Argument m d t ann) = do
+    t <- toLaTeX d t
+    pure $ annotateLaTeX ann $ call False (fromString $ "typos" ++ show m) [t]
 
 instance AnnotateLaTeX ann => LaTeX (CStep ann) where
   type Format (CStep ann) = ()
@@ -454,6 +456,8 @@ ldiagnostic' cfg table st fs ats =
    , "\\newcommand{\\typosBeginPrems}{\\begin{array}{|@{\\ }l@{}}}"
    , "\\newcommand{\\typosBetweenPrems}{\\\\}"
    , "\\newcommand{\\typosEndPrems}{\\end{array}}"
+   , "\\newcommand{\\typosInput}[1]{\\textcolor{blue}{#1}}"
+   , "\\newcommand{\\typosOutput}[1]{\\textcolor{red}{#1}}"
    , "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
    , ""
    ] ++
