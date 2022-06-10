@@ -1,15 +1,19 @@
-{-# LANGUAGE OverloadedStrings, UndecidableInstances, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings, UndecidableInstances, ScopedTypeVariables, RankNTypes #-}
 module Machine.Trace where
 
 import Control.Monad.Reader
 import Control.Monad.Writer
 
+import Data.Bifunctor
+import Data.Bifoldable
+import Data.Bitraversable
+
 import Data.List (intersperse, elemIndex)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Data.Maybe (fromJust, fromMaybe)
+import Data.Maybe (fromMaybe)
 
-import ANSI hiding (withANSI)
+import ANSI (Colour(..), Layer(..), Annotation(..))
 import Actor (JudgementForm)
 import Bwd
 import Concrete.Base
@@ -20,14 +24,14 @@ import Format
 import LaTeX
 import Location (unknown)
 import Machine.Base
+import Machine.Display
 import Options
 import Pretty
-import Syntax (SyntaxDesc, SyntaxTable, SyntaxCat, expand, VSyntaxDesc (..), contract)
+import Syntax (SyntaxDesc, SyntaxTable, expand, VSyntaxDesc (..), contract)
 import Term.Base
 import Unelaboration
 import Data.String (fromString)
 import Data.Functor ((<&>))
-import Data.Semigroup (Min (..))
 
 data Trace e i ann
    = Node ann (i ann) [Trace e i ann]
@@ -46,59 +50,63 @@ type family ITERM (ph :: Phase) :: *
 type instance ITERM Abstract = Term
 type instance ITERM Concrete = Raw
 
-data ARGUMENT (ph :: Phase) ann = Argument
+data ARGUMENT (ph :: Phase) f ann = Argument
   { argMode :: Mode
   , argDesc :: SyntaxDesc
-  , argTerm :: ITERM ph
-  , argAnn  :: ann
-  } deriving (Functor, Foldable)
-
-type AArgument ann = ARGUMENT Abstract ann
-type CArgument ann = ARGUMENT Concrete ann
+  , argTerm :: f (ITERM ph) ann
+  }
 
 deriving instance
-  ( Show (ITERM ph)
-  , Show ann) =>
-  Show (ARGUMENT ph ann)
+  ( Show (f (ITERM ph) ann)
+  ) => Show (ARGUMENT ph f ann)
 
-data STEP (ph :: Phase) ann
+deriving instance
+  ( Functor (f (ITERM ph))
+  ) => Functor (ARGUMENT ph f)
+
+deriving instance
+  ( Foldable (f (ITERM ph))
+  ) => Foldable (ARGUMENT ph f)
+
+type AArgument = ARGUMENT Abstract
+type CArgument = ARGUMENT Concrete
+
+instance Bifunctor f => Instantiable (AArgument f ann) where
+  type Instantiated (AArgument f ann) = AArgument f ann
+  instantiate st (Argument mode desc term)
+    = Argument mode desc (first (instantiate st) term)
+
+data STEP (ph :: Phase) f ann
   = BindingStep Variable
   | NotedStep
-  | PushingStep (STACK ph) (TERMVAR ph) (SyntaxDesc, ITERM ph)
-  | CallingStep (JUDGEMENTFORM ph) [ARGUMENT ph ann]
-  deriving (Functor, Foldable)
+  | PushingStep (STACK ph) (TERMVAR ph) (SyntaxDesc, f (ITERM ph) ann)
+  | CallingStep (JUDGEMENTFORM ph) [ARGUMENT ph f ann]
 
 deriving instance
-  ( Show (JUDGEMENTFORM ph)
-  , Show (CHANNEL ph)
-  , Show (BINDER ph)
-  , Show (ACTORVAR ph)
-  , Show (SYNTAXDESC ph)
-  , Show (TERMVAR ph)
-  , Show (ITERM ph)
-  , Show (PATTERN ph)
-  , Show (CONNECT ph)
-  , Show (STACK ph)
-  , Show (STACKDESC ph)
-  , Show ann) =>
-  Show (STEP ph ann)
+  ( Functor (f (ITERM ph))
+  ) => Functor (STEP ph f)
 
-data AStep ann = AStep ExtractMode (STEP Abstract ann)
-  deriving (Functor, Foldable)
-type CStep = STEP Concrete
+deriving instance
+  ( Foldable (f (ITERM ph))
+  ) => Foldable (STEP ph f)
 
+data AStep f ann = AStep ExtractMode (STEP Abstract f ann)
+type CStep f = STEP Concrete f
 
-instance Instantiable (AArgument ann) where
-  type Instantiated (AArgument ann) = AArgument ann
-  instantiate st (Argument mode desc term ann)
-    = Argument mode desc (instantiate st term) ann
+deriving instance
+  ( Functor (f Term)
+  ) => Functor (AStep f)
 
-instance Instantiable1 AStep where
-  type Instantiated1 AStep = AStep
+deriving instance
+  ( Foldable (f Term)
+  ) => Foldable (AStep f)
+
+instance Bifunctor f => Instantiable1 (AStep f) where
+  type Instantiated1 (AStep f) = AStep f
   instantiate1 st (AStep em step) = AStep em $ case step of
     BindingStep x -> BindingStep x
     NotedStep -> NotedStep
-    PushingStep jd db t -> PushingStep jd db (instantiate st <$> t)
+    PushingStep jd db t -> PushingStep jd db (first (instantiate st) <$> t)
     CallingStep jd tr -> CallingStep jd (instantiate st <$> tr)
 
 data Error t
@@ -109,14 +117,62 @@ data Error t
 type AError = Error Term
 type CError = Error Raw
 
-type CTrace ann = Trace CError CStep ann
-type ATrace ann = Trace AError AStep ann
-
 instance Instantiable AError where
   type Instantiated AError = AError
   instantiate st = \case
     StuckUnifying s t -> StuckUnifying (instantiate st s) (instantiate st t)
     Failed s -> Failed s
+
+type CTrace f ann = Trace CError (CStep f) ann
+type ATrace f ann = Trace AError (AStep f) ann
+
+data Simple t ann = Simple t ann
+newtype Series t ann = Series { runSeries :: [(t, ann)] }
+
+mkSeries :: t -> ann -> Series t ann
+mkSeries t a = Series [(t, a)]
+
+instance Bifunctor Simple where
+  bimap f g (Simple t a) = Simple (f t) (g a)
+
+instance Bifoldable Simple where
+  bifoldr f g n (Simple t a) = f t $ g a n
+
+instance Bitraversable Simple where
+  bitraverse f g (Simple t a) = Simple <$> f t <*> g a
+
+instance Pretty t => Pretty (Simple t ()) where
+  pretty (Simple t _) = pretty t
+
+instance LaTeX t => LaTeX (Simple t ()) where
+  type Format (Simple t ()) = LaTeX.Format t
+  toLaTeX d (Simple t _) = toLaTeX d t
+
+instance Functor (Series t) where
+  fmap = second
+
+instance Foldable (Series t) where
+  foldr = bifoldr (flip const)
+
+instance Bifunctor Series where
+  bimap f g = Series . map (bimap f g) . runSeries
+
+instance Bifoldable Series where
+  bifoldr f g n (Series tanns) = foldr (flip $ bifoldr f g) n tanns
+
+instance Bitraversable Series where
+  bitraverse f g (Series tanns) = Series <$> traverse (bitraverse f g) tanns
+
+instance LaTeX t => LaTeX (Series t Int) where
+  type Format (Series t Int) = LaTeX.Format t
+  toLaTeX d (Series tanns)
+    = do docs <- flip traverse tanns $ \ (t, n) -> do
+                     doc <- toLaTeX d t
+                     pure $ call False (fromString ("only<" ++ show n ++ ">")) [doc]
+         pure (annotateLaTeX (minimum $ map snd tanns) (vcat docs))
+
+type Shot = [ATrace Simple Int]
+type Shots = [Shot]
 
 instance (Instantiable e, Instantiable1 i) => Instantiable (Trace e i ann) where
   type Instantiated (Trace e i ann) = Trace (Instantiated e) (Instantiated1 i) ann
@@ -132,16 +188,16 @@ instance Unelab AError where
     pure $ StuckUnifying s t
   unelab (Failed s) = pure $ Failed s
 
-instance Unelab (AArgument ann) where
-  type Unelabed (AArgument ann) = CArgument ann
-  type UnelabEnv (AArgument ann) = Naming
-  unelab (Argument mode desc term ann) = do
-    term <- unelab term
-    pure (Argument mode desc term ann)
+instance Bitraversable f => Unelab (AArgument f ann) where
+  type Unelabed (AArgument f ann) = CArgument f ann
+  type UnelabEnv (AArgument f ann) = Naming
+  unelab (Argument mode desc term) = do
+    term <- bitraverse unelab pure term
+    pure (Argument mode desc term)
 
-instance Unelab (ATrace ann) where
-  type Unelabed (ATrace ann) = CTrace ann
-  type UnelabEnv (ATrace ann) = Naming
+instance Bitraversable f => Unelab (ATrace f ann) where
+  type Unelabed (ATrace f ann) = CTrace f ann
+  type UnelabEnv (ATrace f ann) = Naming
   unelab (Node a (AStep em s) ts) = case s of
     BindingStep (Variable r x) -> do
       na <- ask
@@ -152,7 +208,7 @@ instance Unelab (ATrace ann) where
     PushingStep jd db (d, t) -> do
       jd <- subunelab jd
       v <- unelab db
-      t <- unelab t
+      t <- bitraverse unelab pure t
       Node a (PushingStep jd v (d, t)) <$> traverse unelab ts
     CallingStep jd tr -> do
       jd <- subunelab jd
@@ -160,14 +216,14 @@ instance Unelab (ATrace ann) where
       Node a (CallingStep jd tr) <$> traverse unelab ts
   unelab (Error a e) = Error a <$> unelab e
 
-instance Pretty (CArgument ann) where
-  pretty (Argument m _ t _) = withANSI [ SetColour Background (pick m) ] (pretty t) where
+instance Pretty (f Raw ann) => Pretty (CArgument f ann) where
+  pretty (Argument m _ t) = withANSI [ SetColour Background (pick m) ] (pretty t) where
 
     pick :: Mode -> Colour
     pick Input = Blue
     pick Output = Red
 
-instance Pretty (CStep ann) where
+instance Pretty (f Raw ann) => Pretty (CStep f ann) where
   pretty = \case
     BindingStep x -> withANSI [ SetColour Background Magenta ] ("\\" <> pretty x <> dot)
     PushingStep jd x (_, t) -> hsep [pretty jd, "|-", pretty x, "->", pretty t] <> dot
@@ -180,7 +236,7 @@ instance Pretty CError where
                           (pretty s <+> "/~" <+> pretty t)
     Failed s -> withANSI [ SetColour Background Red ] (pretty s)
 
-instance Pretty (CTrace ann) where
+instance Pretty (f Raw ann) => Pretty (CTrace f ann) where
   pretty (Node _ i@(BindingStep x) ts) =
     let (prf, suf) = getPushes x ts in
     vcat ( hsep (pretty <$> i:prf) : map (indent 1 . pretty) suf)
@@ -196,14 +252,16 @@ instance AnnotateLaTeX () where
 instance AnnotateLaTeX Int where
   annotateLaTeX n d = call False (fromString ("visible<" ++ show n ++ "->")) [d]
 
-instance AnnotateLaTeX ann => LaTeX (CArgument ann) where
-  type Format (CArgument ann) = ()
-  toLaTeX _ (Argument m d t ann) = do
+instance (LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ SyntaxDesc) =>
+         LaTeX (CArgument f ann) where
+  type Format (CArgument f ann) = ()
+  toLaTeX _ (Argument m d t) = do
     t <- toLaTeX d t
-    pure $ annotateLaTeX ann $ call False (fromString $ "typos" ++ show m) [t]
+    pure $ call False (fromString $ "typos" ++ show m) [t]
 
-instance AnnotateLaTeX ann => LaTeX (CStep ann) where
-  type Format (CStep ann) = ()
+instance (LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ SyntaxDesc) =>
+         LaTeX (CStep f ann) where
+  type Format (CStep f ann) = ()
   toLaTeX _ = \case
     BindingStep x -> do
       x <- toLaTeX () x
@@ -229,8 +287,9 @@ instance LaTeX CError where
       pure $ call False "typosStuckUnifying" [s, t]
     Failed s -> call False "typosFailed" . pure <$> toLaTeX () s
 
-instance AnnotateLaTeX ann => LaTeX (CTrace ann) where
-  type Format (CTrace ann) = ()
+instance ( LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ SyntaxDesc
+         , AnnotateLaTeX ann) => LaTeX (CTrace f ann) where
+  type Format (CTrace f ann) = ()
   toLaTeX n (Node ann i []) = do
     i <- toLaTeX () i
     pure $ annotateLaTeX ann $ call False "typosAxiom" [i]
@@ -258,59 +317,60 @@ typosDerivation i ts =
             : intersperse (call False "typosBetweenPrems" []) ts
             ++ [call False "typosEndPrems" []])]
 
-getPushes :: Variable -> [CTrace ann]
-          -> ([CStep ann], [CTrace ann])
+getPushes :: Variable -> [CTrace f ann]
+          -> ([CStep f ann], [CTrace f ann])
 getPushes x [Node _ i@(PushingStep _ y _) ts] | x == y =
       let (prf, suf) = getPushes x ts in
       (i:prf, suf)
 getPushes _ ts = ([], ts)
 
-extract :: forall ann. ann -> [Frame] -> [ATrace ann]
-extract a [] = []
-extract a (f : fs) = case f of
-  LeftBranch Hole p -> extract a fs ++ extract a (stack p) ++ findFailures p
-  RightBranch p Hole -> extract a (stack p) ++ extract a fs ++ findFailures p
-  Spawnee Interface{..} -> let p = snd spawner in
-    Node a (AStep extractionMode
-           $ CallingStep
-               judgeName
-               (zipWith toArgument judgeProtocol (traffic <>> [])))
-               (extract a fs)
-    : extract a (stack p) ++ findFailures p
-  Spawner Interface{..} -> let p = fst spawnee in
-    Node a (AStep extractionMode
-           $ CallingStep
-                judgeName
-                (zipWith toArgument judgeProtocol (traffic <>> [])))
-                (extract a (stack p)
-                ++ findFailures p)
-    : extract a fs
-  Pushed jd (i, d, t) -> node (AStep AlwaysExtract $ PushingStep jd i (d, t))
-  Binding x -> node (AStep AlwaysExtract $ BindingStep (Variable unknown x))
-  UnificationProblem date s t -> Error a (StuckUnifying s t) : extract a fs
-  Noted -> Node a (AStep AlwaysExtract NotedStep) [] : extract a fs
-  _ -> extract a fs
+extract :: forall f ann. (forall t. t -> ann -> f t ann) -> ann -> [Frame] -> [ATrace f ann]
+extract mkF a = go where
+  go :: [Frame] -> [ATrace f ann]
+  go [] = []
+  go (f : fs) = case f of
+    LeftBranch Hole p -> go fs ++ go (stack p) ++ findFailures p
+    RightBranch p Hole -> go (stack p) ++ go fs ++ findFailures p
+    Spawnee Interface{..} -> let p = snd spawner in
+      Node a (AStep extractionMode
+             $ CallingStep
+                 judgeName
+                 (zipWith toArgument judgeProtocol (traffic <>> [])))
+                 (go fs)
+      : go (stack p) ++ findFailures p
+    Spawner Interface{..} -> let p = fst spawnee in
+      Node a (AStep extractionMode
+             $ CallingStep
+                  judgeName
+                  (zipWith toArgument judgeProtocol (traffic <>> [])))
+                  (go (stack p)
+                  ++ findFailures p)
+      : go fs
+    Pushed jd (i, d, t) -> node fs (AStep AlwaysExtract $ PushingStep jd i (d, mkF t a))
+    Binding x -> node fs (AStep AlwaysExtract $ BindingStep (Variable unknown x))
+    UnificationProblem date s t -> Error a (StuckUnifying s t) : go fs
+    Noted -> Node a (AStep AlwaysExtract NotedStep) [] : go fs
+    _ -> go fs
 
-  where
-    toArgument :: (Mode, SyntaxDesc) -> Term -> AArgument ann
-    toArgument (mode, desc) term = Argument mode desc term a
+  toArgument :: (Mode, SyntaxDesc) -> Term -> AArgument f ann
+  toArgument (mode, desc) term = Argument mode desc (mkF term a)
 
-    findFailures :: Process log Status [] -> [ATrace ann]
-    findFailures p@Process{..}
-     = case actor of
-         Fail _ [StringPart e] -> [Error a (Failed e)]
-         Fail _ _ -> error "Expected `Fail` message to be singleton string"
-         _ -> []
+  findFailures :: Process log Status [] -> [ATrace f ann]
+  findFailures p@Process{..}
+   = case actor of
+       Fail _ [StringPart e] -> [Error a (Failed e)]
+       Fail _ _ -> error "Expected `Fail` message to be singleton string"
+       _ -> []
 
-    node :: AStep ann -> [ATrace ann]
-    node s = [Node a s (extract a fs)]
+  node :: [Frame] -> AStep f ann -> [ATrace f ann]
+  node fs s = [Node a s (go fs)]
 
-cleanup :: [ATrace ann] -> [ATrace ann]
+cleanup :: [ATrace f ann] -> [ATrace f ann]
 cleanup = snd . go False [] where
 
   go :: Bool            -- ^ is the parent suppressable?
      -> [JudgementForm] -- ^ list of toplevel judgements already seen
-     -> [ATrace ann] -> (Any, [ATrace ann])
+     -> [ATrace f ann] -> (Any, [ATrace f ann])
   go supp seen [] = pure []
   go supp seen (Node a (AStep em i@(CallingStep jd tr)) ts : ats)
     | em == InterestingExtract || jd `elem` seen
@@ -333,7 +393,7 @@ cleanup = snd . go False [] where
 
 diagnostic :: Options -> StoreF i -> [Frame] -> String
 diagnostic opts st fs =
-  let ats = cleanup $ extract () fs in
+  let ats = cleanup $ extract Simple () fs in
   let iats = instantiate st ats in
   let cts = traverse unelab iats in
   render (colours opts) ((initConfig (termWidth opts)) { orientation = Vertical })
@@ -377,12 +437,13 @@ judgementPreamble _ = []
 
 ldiagnostic :: SyntaxTable -> StoreF i -> [Frame] -> String
 ldiagnostic table st fs =
-  let ats = cleanup $ extract () fs in
-  ldiagnostic' standalone table st fs ats
+  let ats = cleanup $ extract Simple () fs in
+  let iats = instantiate st ats in
+  ldiagnostic' standalone table fs iats
 
-adiagnostic :: SyntaxTable -> StoreF i -> [Frame] -> [[ATrace Int]] -> String
+adiagnostic :: SyntaxTable -> Store -> [Frame] -> Shots -> String
 adiagnostic table st fs trs =
-  let ats = cleanup $ fmap getMin <$> combines (extract (length trs) fs) trs in
+  let ats = cleanup $ combines (instantiate st $ extract mkSeries (length trs) fs) trs in
   -- The cleanup will have removed frames that are not notable and so there will be
   -- gaps in the numbered frames.
   -- The parallel top-level derivations also all share the same counter and so later
@@ -393,9 +454,9 @@ adiagnostic table st fs trs =
         let as = Set.toList $ foldMap Set.singleton at in
         -- 2. remaps them to an initial [1..n] segment by replacing each number i
         --    with its position in the sorted array.
-        fmap (\ i -> fromMaybe (error "Impossible") (elemIndex i as)) at
+        fmap (\ i -> (fromMaybe (error "Impossible") (elemIndex i as))) at
   -- we can now render the beamer
-  in ldiagnostic' beamer table st fs res
+  in ldiagnostic' beamer table fs res
 
 data LaTeXConfig = LaTeXConfig
   { documentClass :: String
@@ -420,15 +481,16 @@ beamer = LaTeXConfig
   }
 
 ldiagnostic' :: AnnotateLaTeX ann
+             => Bitraversable f
+             => LaTeX (f Raw ann)
+             => LaTeX.Format (f Raw ann) ~ SyntaxDesc
              => LaTeXConfig
              -> SyntaxTable
-             -> StoreF i
              -> [Frame]
-             -> [ATrace ann]
+             -> [ATrace f ann]
              -> String
-ldiagnostic' cfg table st fs ats =
-  let iats = instantiate st ats in
-  let cts = traverse unelab iats in
+ldiagnostic' cfg table fs ats =
+  let cts = traverse unelab ats in
   let rts = unsafeEvalUnelab initNaming cts in
   let dts = (`evalLaTeXM` table) (traverse (toLaTeX ()) rts) in
   show $ vcat $
@@ -487,46 +549,45 @@ combineWith f [] bs = bs
 combineWith f (a:as) (b:bs) = f a b : combineWith f as bs
 combineWith f _ _ = error "Impossible"
 
-combineArg :: Eq (ITERM ph)
-           => Ord ann
-           => ARGUMENT ph ann
-           -> ARGUMENT ph (Min ann)
-           -> ARGUMENT ph (Min ann)
-combineArg (Argument mode0 desc0 term0 a) (Argument mode1 desc1 term1 as)
-  | (mode0, desc0, term0) == (mode1, desc1, term1)
-  = Argument mode1 desc1 term1 (Min a <> as)
+cons :: Simple t ann -> Series t ann -> Series t ann
+cons (Simple t ann) (Series tanns) = Series ((t, ann) : tanns)
+
+combineArg :: ARGUMENT ph Simple ann
+           -> ARGUMENT ph Series ann
+           -> ARGUMENT ph Series ann
+combineArg (Argument mode0 desc0 term0) (Argument mode1 desc1 term1)
+  | (mode0, desc0) == (mode1, desc1)
+  = Argument mode1 desc1 (cons term0 term1)
   | otherwise = error "Impossible"
 
 combineStep :: Eq (STACK ph)
             => Eq (JUDGEMENTFORM ph)
             => Eq (TERMVAR ph)
-            => Eq (ITERM ph)
-            => Ord ann
-            => STEP ph ann
-            -> STEP ph (Min ann)
-            -> STEP ph (Min ann)
+            => STEP ph Simple ann
+            -> STEP ph Series ann
+            -> STEP ph Series ann
 combineStep (BindingStep vari) stps@(BindingStep varj)
   | vari == varj = stps
 combineStep NotedStep NotedStep = NotedStep
-combineStep (PushingStep st0 ter0 x0) stps@(PushingStep st1 ter1 x1)
-  | (st0, ter0, x0) == (st1, ter1, x1)  = stps
+combineStep (PushingStep st0 ter0 (d0, x0)) (PushingStep st1 ter1 (d1, x1))
+  | (st0, ter0, d0) == (st1, ter1, d1) = PushingStep st1 ter1 (d0, cons x0 x1)
 combineStep (CallingStep judge0 ars0) (CallingStep judge1 ars1)
   | judge0 == judge1
   = CallingStep judge0 (combineWith combineArg ars0 ars1)
 combineStep _ _ = error "Impossible"
 
 combine :: Ord ann
-        => Trace e AStep ann
-        -> Trace e AStep (Min ann)
-        -> Trace e AStep (Min ann)
-combine (Node a (AStep _ stp) trs) (Node as (AStep em stps) trss)
-  = Node (Min a <> as) (AStep em $ combineStep stp stps) (combineWith combine trs trss)
-combine (Error a _) (Error as err) = Error (Min a <> as) err
+        => Trace e (AStep Simple) ann
+        -> Trace e (AStep Series) ann
+        -> Trace e (AStep Series) ann
+combine (Node a0 (AStep _ stp) trs) (Node a1 (AStep em stps) trss)
+  = Node (min a0 a1) (AStep em $ combineStep stp stps) (combineWith combine trs trss)
+combine (Error a0 _) (Error a1 err) = Error (min a0 a1) err
 combine (Error _ _) t = t
 combine _ _ = error "Impossible"
 
 combines :: Ord ann
-         => [Trace e AStep ann]
-         -> [[Trace e AStep ann]]
-         -> [Trace e AStep (Min ann)]
-combines t = foldr (combineWith combine) (fmap Min <$> t)
+         => [Trace e (AStep Series) ann]
+         -> [[Trace e (AStep Simple) ann]]
+         -> [Trace e (AStep Series) ann]
+combines t = foldr (combineWith combine) t

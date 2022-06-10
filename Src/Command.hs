@@ -26,7 +26,7 @@ import Elaboration.Pretty()
 import Machine.Base
 import Machine.Display (Store)
 import Machine.Exec
-import Machine.Trace (ATrace)
+import Machine.Trace (Shots)
 import Options
 import Parse
 import Pretty (keyword, Collapse(..), BracesList(..), Pretty(..))
@@ -215,7 +215,7 @@ elaborate ccs = evalElab $ do
   table <- gets syntaxCats
   pure (acs, table)
 
-run :: Options -> Process [[ATrace Int]] Store Bwd -> [ACommand] -> Process [[ATrace Int]] Store []
+run :: Options -> Process Shots Store Bwd -> [ACommand] -> Process Shots Store []
 run opts p [] = exec p
 run opts p@Process{..} (c : cs) = case c of
   DeclJudge em jd _ -> run opts p cs

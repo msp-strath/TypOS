@@ -39,8 +39,12 @@ lookupRules jd zf = do
     _ -> Nothing
   pure cha
 
+recordFrame :: Process Shots Store Bwd -> Process Shots Store Bwd
+recordFrame p@Process{..} =
+  p { logs = instantiate store (extract Simple (length logs) (stack <>> [])) : logs }
+
 -- run an actor
-exec :: Process [[ATrace Int]] Store Bwd -> Process [[ATrace Int]] Store []
+exec :: Process Shots Store Bwd -> Process Shots Store []
 -- exec (Process zf _ env store a)
 --   | dmesg ("\nexec\n  " ++ unlines (map ("  " ++) [show a])) False
 --   = undefined
@@ -75,7 +79,7 @@ exec p@Process { actor = m@(Match _ s cls), ..}
   = switch term cls
  where
 
-  switch :: Term -> [(Pat, AActor)] -> Process [[ATrace Int]] Store []
+  switch :: Term -> [(Pat, AActor)] -> Process Shots Store []
   switch t [] =
     let msg = render (colours options) (Config (termWidth options) Vertical)
          $ unsafeEvalDisplay (frDisplayEnv stack) $ do
@@ -161,17 +165,14 @@ exec p@Process { actor = Under _ (Scope (Hide x) a), ..}
         stack' = stack :< Binding (tryAlpha env (getVariable x) ++ "_" ++ show scopeSize)
         env'   = env { localScope = localScope env :< tryAlpha env (getVariable x) }
         actor' = a
-    in exec (p { stack = stack', env = env', actor = actor'
-               , logs = extract (length logs) (stack' <>> []) : logs })
+    in exec (recordFrame $ p { stack = stack', env = env', actor = actor' })
 
 exec p@Process { actor = Push _ jd (pv, d, t) a, ..}
   | Just t' <- mangleActors options env t
   = let stack' = stack :< Pushed jd (pv, d, t')
         -- if we're pushing on the most local variable, this will all get merged in the trace
         -- so we don't bother generating a logging frame for it
-        logs'  = if pv == DB 0 then logs else extract (length logs) (stack' <>> []) : logs
-    in exec (p { stack = stack', actor = a
-               , logs = logs' })
+    in exec ((if pv == DB 0 then id else recordFrame) $ p { stack = stack', actor = a })
 
 exec p@Process { actor = Lookup _ t stk (av, a) b, ..}
   | Just t' <- mangleActors options env t
@@ -236,7 +237,7 @@ format ann p@Process{..} fmt
   $ insertDebug p
   $ instantiate store fmt
 
-unify :: Process [[ATrace Int]] Store Cursor -> Process [[ATrace Int]] Store []
+unify :: Process Shots Store Cursor -> Process Shots Store []
 -- unify p | dmesg ("\nunify\n  " ++ show p) False = undefined
 --unify (Process zf'@(zf :<+>: up@(UnificationProblem s t) : fs) _ _ store a)
 --  | dmesg ("\nunify\n  " ++ show t ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
@@ -262,8 +263,8 @@ solveMeta m (CdB (S0 :^^ _) ph) tm p@Process{..} = do
   return (p { store = updateStore m (objectNaming $ frDisplayEnv stack) tm store })
 
 connect :: AConnect
-        -> Process [[ATrace Int]] Store Cursor
-        -> Process [[ATrace Int]] Store []
+        -> Process Shots Store Cursor
+        -> Process Shots Store []
 connect ac@(AConnect ch1 th ch2 n) p@Process { stack = zf :< Sent q tm :<+>: fs, ..}
   | q == ch1 = send ch2 (snd tm *^ th')
                (p { stack = zf <>< fs :<+>: []
@@ -278,8 +279,8 @@ connect ac p@Process { stack = zf :< f :<+>: fs}
   = connect ac (p { stack = zf :<+>: (f:fs) })
 
 send :: Channel -> Term
-     -> Process [[ATrace Int]] Store Cursor
-     -> Process [[ATrace Int]] Store []
+     -> Process Shots Store Cursor
+     -> Process Shots Store []
 --send ch term (Process zfs@(zf :<+>: fs) _ _ _ a)
 --  | dmesg ("\nsend " ++ show ch ++ " " ++ show term ++ "\n  " ++ show zfs ++ "\n  " ++ show a) False = undefined
 -- send (Channel ch) term p
@@ -296,7 +297,7 @@ send ch term
   let parentP = p { stack = fs, store = New, logs = () }
       stack' = zf :< Spawnee (Interface (Hole, q) (rxs, parentP) jd jdp em (tr :< term))
                   :< Sent q ([], term) <>< stack childP
-      p' = childP { stack = stack', store, logs = extract (length logs) (stack' <>> []) : logs}
+      p' = recordFrame (childP { stack = stack', store, logs })
   in debug MachineSend (pretty ch) p' `seq` exec p'
 send ch term
   p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs@(r, xs), parentP) jd jdp em tr)) :<+>: fs
@@ -304,7 +305,7 @@ send ch term
   | ch == q =
   let parentP' = parentP { stack = Sent r (xs, term) : stack parentP, store = New }
       stack'   = zf :< Spawnee (Interface (Hole, q) (rxs, parentP') jd jdp em (tr :< term)) <>< fs
-      p' = p { stack = stack', logs = extract (length logs) (stack' <>> []) : logs }
+      p' = recordFrame (p { stack = stack' })
   in debug MachineSend (pretty ch) p' `seq` exec p'
   | otherwise
   = let a = Fail unknown [StringPart ("Couldn't find channel " ++ rawChannel ch)]
@@ -313,8 +314,8 @@ send ch term p@Process { stack = (zf :< f) :<+>: fs }
   = send ch term (p { stack = zf :<+>: (f:fs) })
 
 recv :: Channel -> Binder ActorMeta
-     -> Process [[ATrace Int]] Store Cursor
-     -> Process [[ATrace Int]] Store []
+     -> Process Shots Store Cursor
+     -> Process Shots Store []
 recv ch v p | debug MachineRecv (hsep [ pretty ch, pretty v ]) p = undefined
 recv ch x p@Process { stack = B0 :<+>: fs, ..}
   = move (p { stack = B0 <>< fs :<+>: [], actor = Recv unknown ch (x, actor) })
@@ -335,7 +336,7 @@ recv ch x p@Process { stack = zf :< f :<+>: fs }
   = recv ch x (p { stack = zf :<+>: (f:fs) })
 
 -- find the next thing to run
-move :: Process [[ATrace Int]] Store Cursor -> Process [[ATrace Int]] Store []
+move :: Process Shots Store Cursor -> Process Shots Store []
 -- move (Process zfs _ _ store a)
 -- | dmesg ("\nmove\n  " ++ show zfs ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
 move p | debug MachineMove "" p = undefined

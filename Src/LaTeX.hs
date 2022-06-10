@@ -69,6 +69,7 @@ instance LaTeX a => LaTeX (Binder a) where
 instance LaTeX Variable where
   type Format Variable = ()
   toLaTeX _ (Variable _ ('_':cs)) = pure $ text ("\\_" ++ cs) -- hack for now
+  toLaTeX _ (Variable _ ('?':'[':_)) = pure $ text ("???") -- hack for metas for now
   toLaTeX _ (Variable _ str) = pure $ text str
 
 instance LaTeX String where
