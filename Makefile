@@ -1,4 +1,4 @@
-.PHONY: all build install clean install-hasktags TAGS test gif
+.PHONY: all build install clean install-hasktags TAGS test gif bash-completion
 
 build:
 	cabal build
@@ -22,7 +22,7 @@ test:
 	TERM=dumb cabal run typos-tests -- -i
 
 build/%.gif: examples/%.act
-	typos examples/$(*F).act --latex build/$(*F).tex
+	typos examples/$(*F).act --latex-animated build/$(*F).tex
 	sed -i "s|%\\\\input|\\\\input|" build/$(*F).tex
 	cd build && \
 	latexmk -pdf $(*F).tex && \
@@ -34,3 +34,7 @@ build/%.gif: examples/%.act
 	rm $(*F)-*
 
 gif: build/stlc.gif
+
+bash-completion:
+# Use as follows: source <(make bash-completion)
+	typos --bash-completion-script `which typos`

@@ -55,6 +55,9 @@ main = do
                     render (colours $ options p) cfg a
       unless (quiet opts) $ putStrLn $ diagnostic opts sto fs
       whenJust (latex opts) $ \ file -> do
-        writeFile file $ adiagnostic table sto fs (logs res)
+        writeFile file $ ldiagnostic table sto fs
         putStrLn (ANSI.withANSI [ SetColour Background Green ] "Success:" ++ " wrote latex derivation to " ++ file)
+      whenJust (latexAnimated opts) $ \ file -> do
+        writeFile file $ adiagnostic table sto fs (logs res)
+        putStrLn (ANSI.withANSI [ SetColour Background Green ] "Success:" ++ " wrote animated latex derivation to " ++ file)
       dmesg "" res `seq` pure ()
