@@ -26,7 +26,11 @@ build/%.gif: examples/%.act
 	sed -i "s|%\\\\input|\\\\input|" build/$(*F).tex
 	cd build && \
 	latexmk -pdf $(*F).tex && \
-	convert -verbose -delay 25 -density 300 -loop 0 $(*F).pdf $(*F)-tmp.gif && \
-	convert -dispose previous -background "rgb(100%,100%,100%)" \
+	convert -verbose -density 300 -coalesce $(*F).pdf $(*F)-%03d.gif && \
+	fdupes -dN . && \
+	convert -verbose -delay 25 -loop 0 $(*F)-*.gif $(*F)-tmp.gif && \
+	convert -verbose -dispose previous -background "rgb(100%,100%,100%)" \
 	$(*F)-tmp.gif -trim -layers TrimBounds -coalesce -layers optimize $(*F).gif && \
-	rm $(*F)-tmp.gif
+	rm $(*F)-*
+
+gif: build/stlc.gif
