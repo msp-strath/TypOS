@@ -8,14 +8,15 @@ import Data.Bifunctor
 import Data.Bifoldable
 import Data.Bitraversable
 
-import Data.List (intersperse, elemIndex)
+import Data.List (intersperse, elemIndex, groupBy, sortBy)
+import Data.Function (on)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
 
 import ANSI (Colour(..), Layer(..), Annotation(..))
 import Actor (JudgementForm)
-import Bwd
+import Bwd ((<>>))
 import Concrete.Base
 import Concrete.Pretty()
 import Doc hiding (render)
@@ -163,13 +164,18 @@ instance Bifoldable Series where
 instance Bitraversable Series where
   bitraverse f g (Series tanns) = Series <$> traverse (bitraverse f g) tanns
 
-instance LaTeX t => LaTeX (Series t Int) where
+instance (Eq t, LaTeX t) => LaTeX (Series t Int) where
   type Format (Series t Int) = LaTeX.Format t
   toLaTeX d (Series tanns)
-    = do docs <- flip traverse tanns $ \ (t, n) -> do
+    = do let tnss = groupBy ((==) `on` fst) $ sortBy (compare `on` snd) tanns
+         docs <- flip traverse tnss $ \ tns@((t, _) : _) -> do
+                     let ns = map snd tns
+                     let start = minimum ns
+                     let end = maximum ns
+                     let only = concat ["only<", show start, "-", show end, ">"]
                      doc <- toLaTeX d t
-                     pure $ call False (fromString ("only<" ++ show n ++ ">")) [doc]
-         pure (annotateLaTeX (minimum $ map snd tanns) (vcat docs))
+                     pure $ call False (fromString only) [doc]
+         pure $ vcat docs
 
 type Shot = [ATrace Simple Int]
 type Shots = [Shot]
