@@ -31,7 +31,7 @@ build/%.gif: examples/%.act
 	convert -verbose -delay 25 -loop 0 $(*F)-*.gif $(*F)-tmp.gif && \
 	convert -verbose -dispose previous -background "rgb(100%,100%,100%)" \
 	$(*F)-tmp.gif -trim -layers TrimBounds -coalesce \
-	-bordercolor "rgb(100%,100%,100%)" -border 20 -layers optimize $(*F).gif && \
+	-bordercolor "rgb(100%,100%,100%)" -border 40 -layers optimize $(*F).gif && \
 	rm $(*F)-*
 
 gif: build/stlc.gif
