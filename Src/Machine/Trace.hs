@@ -16,7 +16,7 @@ import Data.Maybe (fromMaybe)
 
 import ANSI (Colour(..), Layer(..), Annotation(..))
 import Actor (JudgementForm)
-import Bwd ((<>>))
+import Bwd (Bwd(..), (<>>), (<><))
 import Concrete.Base
 import Concrete.Pretty()
 import Doc hiding (render)
@@ -168,14 +168,24 @@ instance (Eq t, LaTeX t) => LaTeX (Series t Int) where
   type Format (Series t Int) = LaTeX.Format t
   toLaTeX d (Series tanns)
     = do let tnss = groupBy ((==) `on` fst) $ sortBy (compare `on` snd) tanns
-         docs <- flip traverse tnss $ \ tns@((t, _) : _) -> do
-                     let ns = map snd tns
-                     let start = minimum ns
-                     let end = maximum ns
-                     let only = concat ["only<", show start, "-", show end, ">"]
-                     doc <- toLaTeX d t
-                     pure $ call False (fromString only) [doc]
-         pure $ vcat docs
+         (tnss, tns) <- case B0 <>< tnss of
+                          tnz :< tns -> pure (tnz <>> [], tns)
+                          -- Famous last words: trust me that's the only case
+         doc <- display1 tns
+         docs <- flip traverse tnss $ \ tns -> do
+                   doc <- display1 tns
+                   pure $ call False "mathrlap" [doc]
+         pure $ vcat (docs ++ [doc])
+
+      where
+        display1 :: [(t, Int)] -> LaTeXM (Doc ())
+        display1 tns@((t, _) : _) = do
+          let ns = map snd tns
+          let start = minimum ns
+          let end = maximum ns
+          let only = concat ["uncover<", show start, "-", show end, ">"]
+          doc <- toLaTeX d t
+          pure $ call False (fromString only) [doc]
 
 type Shot = [ATrace Simple Int]
 type Shots = [Shot]
@@ -505,6 +515,7 @@ ldiagnostic' cfg table fs ats =
    , "%%%%%%%%%%% Packages %%%%%%%%%%%%%%%%%%%"
    , "\\usepackage{xcolor}"
    , "\\usepackage{amsmath}"
+   , "\\usepackage{mathtools}"
    , "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
    , ""
    , "%%%%%%%%%%% Notations %%%%%%%%%%%%%%%%%%"
