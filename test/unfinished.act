@@ -1,10 +1,15 @@
 duplicate : ?'Wildcard. !'Wildcard.
+driver : ?'Wildcard. ?'Wildcard.
+stuck : ?'Wildcard. ?'Wildcard.
+
 duplicate@p = p?a. p![a a].
 
-stuck : ?'Wildcard. ?'Wildcard.
-stuck@p = p?a. p?b.
+driver@p = p?a.
   duplicate@q. q!a. q?aa.
-  duplicate@r. r!b. r?bb.
-  aa ~ bb
+  stuck@r. r!aa. r <-> p
 
-exec stuck@p. p!'a. p!'b.
+stuck@p = p?a. p?b.
+  duplicate@q. q!b. q?bb.
+  a ~ bb
+
+exec driver@p. p!'a. p!'b.

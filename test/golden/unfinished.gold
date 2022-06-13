@@ -1,9 +1,10 @@
 ret > ExitSuccess
-out > stuck 'a 'b
+out > driver 'a 'b
 out >  duplicate 'a ['a 'a]
-out >  duplicate 'b ['b 'b]
-out >  'a /~ 'b
-out >  'a /~ 'b
+out >  stuck ['a 'a] 'b
+out >   duplicate 'b ['b 'b]
+out >   'a /~ 'b
+out >   'a /~ 'b
 out >
 err >
 err >

@@ -81,14 +81,16 @@ data STEP (ph :: Phase) f ann
   = BindingStep Variable
   | NotedStep
   | PushingStep (STACK ph) (TERMVAR ph) (SyntaxDesc, f (ITERM ph) ann)
-  | CallingStep (f () Bool) (JUDGEMENTFORM ph) [ARGUMENT ph f ann]
+  | CallingStep (f () (ann, Bool)) (JUDGEMENTFORM ph) [ARGUMENT ph f ann]
 
 deriving instance
   ( Functor (f (ITERM ph))
+  , Functor (f ())
   ) => Functor (STEP ph f)
 
 deriving instance
   ( Foldable (f (ITERM ph))
+  , Foldable (f ())
   ) => Foldable (STEP ph f)
 
 data AStep f ann = AStep ExtractMode (STEP Abstract f ann)
@@ -96,10 +98,12 @@ type CStep f = STEP Concrete f
 
 deriving instance
   ( Functor (f Term)
+  , Functor (f ())
   ) => Functor (AStep f)
 
 deriving instance
   ( Foldable (f Term)
+  , Foldable (f ())
   ) => Foldable (AStep f)
 
 instance Bifunctor f => Instantiable1 (AStep f) where
@@ -148,6 +152,31 @@ instance Pretty t => Pretty (Simple t ()) where
 instance LaTeX t => LaTeX (Simple t ()) where
   type Format (Simple t ()) = LaTeX.Format t
   toLaTeX d (Simple t _) = toLaTeX d t
+
+instance LaTeX (Simple () (a, Bool)) where
+  type Format (Simple () (a, Bool)) = ()
+  toLaTeX d (Simple _ (_, b)) = pure $ if b then call False "checkmark" [] else mempty
+
+instance LaTeX (Series () (Int, Bool)) where
+  type Format (Series () (Int, Bool)) = ()
+  toLaTeX d (Series ibs)
+    = do let ibss = groupBy ((==) `on` fst) $ sortBy (compare `on` snd) $ map snd ibs
+         (ibss, ibs) <- case B0 <>< ibss of
+                          ibz :< ibs -> pure (ibz <>> [], ibs)
+                          -- Famous last words: trust me that's the only case
+         let doc = display1 ibs
+         let docs = ibss <&> \ tns -> call False "mathrlap" [display1 tns]
+         pure $ vcat (docs ++ [doc])
+
+      where
+        display1 :: [(Int, Bool)] -> Doc ()
+        display1 ibs@((_, b) : _) | b = do
+          let ns = map fst ibs
+          let start = minimum ns
+          let end = maximum ns
+          let only = concat ["uncover<", show start, "-", show end, ">"]
+          call False (fromString only) [call False "checkmark" []]
+        display1 _ = ""
 
 instance Functor (Series t) where
   fmap = second
@@ -243,7 +272,7 @@ instance Pretty (CStep Simple ()) where
   pretty = \case
     BindingStep x -> withANSI [ SetColour Background Magenta ] ("\\" <> pretty x <> dot)
     PushingStep jd x (_, t) -> hsep [pretty jd, "|-", pretty x, "->", pretty t] <> dot
-    CallingStep (Simple () b) jd pts ->
+    CallingStep (Simple () (_, b)) jd pts ->
       withANSI [ SetColour Background (if b then Green else Yellow) ] (pretty jd)
       <+> sep (pretty <$> pts)
     NotedStep -> ""
@@ -277,7 +306,8 @@ instance (LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ SyntaxDesc) =>
     t <- toLaTeX d t
     pure $ call False (fromString $ "typos" ++ show m) [t]
 
-instance (LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ SyntaxDesc) =>
+instance ( LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ SyntaxDesc
+         , LaTeX (f () (ann, Bool)), LaTeX.Format (f () (ann, Bool)) ~ ()) =>
          LaTeX (CStep f ann) where
   type Format (CStep f ann) = ()
   toLaTeX _ = \case
@@ -290,9 +320,10 @@ instance (LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ SyntaxDesc) =>
       t <- toLaTeX d t
       pure $ call False "typosPushing" [jd, x, t]
     CallingStep b jd pts -> do
+      b <- toLaTeX () b
       jd <- toLaTeX () jd
       pts <- traverse (toLaTeX ()) pts
-      pure $ call False ("calling" <> jd) pts
+      pure $ call False ("calling" <> jd) pts <+> b
     NotedStep -> pure ""
 
 instance LaTeX CError where
@@ -306,6 +337,7 @@ instance LaTeX CError where
     Failed s -> call False "typosFailed" . pure <$> toLaTeX () s
 
 instance ( LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ SyntaxDesc
+         , LaTeX (f () (ann, Bool)), LaTeX.Format (f () (ann, Bool)) ~ ()
          , AnnotateLaTeX ann) => LaTeX (CTrace f ann) where
   type Format (CTrace f ann) = ()
   toLaTeX n (Node ann i []) = do
@@ -349,18 +381,16 @@ extract mkF a = go where
   go (f : fs) = case f of
     LeftBranch Hole p -> go fs ++ go (stack p) ++ findFailures p
     RightBranch p Hole -> go (stack p) ++ go fs ++ findFailures p
-    -- We shouldn't need this because the machines `move`s back to the ur-spawner frame
-    -- once it is done.
-    -- Spawnee Interface{..} -> let p = snd spawner in
-    --   Node a (AStep extractionMode
-    --          $ CallingStep
-    --              judgeName
-    --              (zipWith toArgument judgeProtocol (traffic <>> [])))
-    --              (go fs)
-    --   : go (stack p) ++ findFailures p
+    Spawnee Interface{..} -> let p = snd spawner in
+      Node a (AStep extractionMode
+             $ CallingStep  (mkF () (a, isDone (store p)))
+                 judgeName
+                 (zipWith toArgument judgeProtocol (traffic <>> [])))
+                 (go fs)
+      : go (stack p) ++ findFailures p
     Spawner Interface{..} -> let p = fst spawnee in
       Node a (AStep extractionMode
-             $ CallingStep (mkF () $ isDone (store $ fst spawnee))
+             $ CallingStep (mkF () (a, isDone (store p)))
                   judgeName
                   (zipWith toArgument judgeProtocol (traffic <>> [])))
                   (go (stack p)
@@ -504,6 +534,8 @@ ldiagnostic' :: AnnotateLaTeX ann
              => Bitraversable f
              => LaTeX (f Raw ann)
              => LaTeX.Format (f Raw ann) ~ SyntaxDesc
+             => LaTeX (f () (ann, Bool))
+             => LaTeX.Format (f () (ann, Bool)) ~ ()
              => LaTeXConfig
              -> SyntaxTable
              -> [Frame]
@@ -519,6 +551,7 @@ ldiagnostic' cfg table fs ats =
    , "%%%%%%%%%%% Packages %%%%%%%%%%%%%%%%%%%"
    , "\\usepackage{xcolor}"
    , "\\usepackage{amsmath}"
+   , "\\usepackage{amssymb}"
    , "\\usepackage{mathtools}"
    , "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
    , ""
