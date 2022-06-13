@@ -342,21 +342,23 @@ move :: Process Shots Store Cursor -> Process Shots Store []
 move p | debug MachineMove "" p = undefined
 
 move p@Process { stack = B0 :<+>: fs } = p { stack = fs }
-move p@Process { stack = zf :< LeftBranch Hole rp :<+>: fs, ..}
-  = let lp = p { stack = fs, store = StuckOn (today store), logs = () }
-    in exec (rp { stack = zf :< RightBranch lp Hole <>< stack rp, store, logs })
+move p@Process { stack = zf :< LeftBranch Hole rp :<+>: fs, store = st, ..}
+  | StuckOn (today st) > store rp
+  = let lp = p { stack = fs, store = status fs actor (today st), logs = () }
+    in exec (rp { stack = zf :< RightBranch lp Hole <>< stack rp, store = st, logs })
 move p@Process { stack = zf :< RightBranch lp Hole :<+>: fs, store = st, ..}
   | StuckOn (today st) > store lp
-  = let rp = p { stack = fs, store = StuckOn (today st), logs = () }
+  = let rp = p { stack = fs, store = status fs actor (today st), logs = () }
     in exec (lp { stack = zf :< LeftBranch Hole rp <>< stack lp, store = st, logs})
-move p@Process { stack = zf :< Spawnee (Interface (Hole, q) (rxs, parentP) jd jdp em tr) :<+>: fs, ..}
-  = let childP = p { stack = fs, store = StuckOn (today store), logs = () }
+move p@Process { stack = zf :< Spawnee (Interface (Hole, q) (rxs, parentP) jd jdp em tr) :<+>: fs, store = st, ..}
+  -- no guard here! We've reached the end of the stack frame
+  = let childP = p { stack = fs, store = status fs actor (today st), logs = () }
         stack' = zf :< Spawner (Interface (childP, q) (rxs, Hole) jd jdp em tr) <>< stack parentP
-    in exec (parentP { stack = stack', store, logs })
+    in exec (parentP { stack = stack', store = st, logs })
 move p@Process { stack = zf :< Spawner (Interface (childP, q) (rxs, Hole) jd jdp em tr) :<+>: fs
                , store = st, ..}
   | StuckOn (today st) > store childP
-  = let parentP = p { stack = fs, store = StuckOn (today st), logs = () }
+  = let parentP = p { stack = fs, store = status fs actor (today st), logs = () }
         stack'  = zf :< Spawnee (Interface (Hole, q) (rxs, parentP) jd jdp em tr) <>< stack childP
     in exec (childP { stack = stack', store = st, logs })
 move p@Process { stack = zf :< UnificationProblem date s t :<+>: fs, .. }

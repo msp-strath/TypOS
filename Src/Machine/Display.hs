@@ -34,7 +34,7 @@ instance Display Status where
   display = \case
     StuckOn d -> display d
     New -> pure "New"
---    Done -> pure "Done"
+    Done -> pure "Done"
 
 instance Display Hole where
   type DisplayEnv Hole = ()

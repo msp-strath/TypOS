@@ -1,6 +1,6 @@
 ret > ExitSuccess
 out > [<stuck |-@p {}
-out > ,([] 0 ) | <>
+out > ,([] Done ) | <>
 out > ,([[p|p[]]
 out >     (['a ~?[0] 'b] 0 )
 out >     <>] 0 ) | <>]

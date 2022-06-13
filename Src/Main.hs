@@ -51,7 +51,7 @@ main = do
       let res@(Process _ fs _ env sto a _) = run opts p acs
       unless (isWin a) $ do
          putStrLn $ ANSI.withANSI [SetColour Background Red] "Error: Did not win"
-         putStrLn $ let (_, _, _, a) = unsafeEvalDisplay initDEnv $ displayProcess' p in
+         putStrLn $ let (_, _, _, a) = unsafeEvalDisplay initDEnv $ displayProcess' res in
                     render (colours $ options p) cfg a
       unless (quiet opts) $ putStrLn $ diagnostic opts sto fs
       whenJust (latex opts) $ \ file -> do

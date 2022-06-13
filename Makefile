@@ -6,7 +6,7 @@ build:
 all: install test
 
 install:
-	cabal install
+	cabal install --overwrite-policy=always
 
 clean:
 	rm -rf dist dist-newstyle TAGS
