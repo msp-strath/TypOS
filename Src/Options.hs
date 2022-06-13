@@ -33,18 +33,20 @@ data Options = Options
   , colours :: Bool
   , tracingOption :: Maybe [MachineStep]
   , latex :: Maybe FilePath
+  , latexAnimated :: Maybe FilePath
   , termWidth :: Int
   , noContext :: Bool
   } deriving (Show)
 
 poptions :: Parser Options
 poptions = Options
-  <$> argument str (metavar "FILE" <> showDefault <> value "examples/stlc.act" <> help "Actor file")
+  <$> argument str (metavar "FILE" <> completer (bashCompleter "file") <> help "Actor file")
   <*> flag False True (short 'q' <> long "quiet" <> help "Silence tracing")
   <*> flag True False (long "no-colour" <> help "Do not use colours in the output")
   <*> (optional $ option (str >>= (readSteps . words))
                          (long "tracing" <> metavar "LEVELS" <> help tracingHelp))
-  <*> optional (option str (metavar "FILE" <> long "latex" <> help "Output LaTeX derivation to file"))
+  <*> optional (option str (metavar "FILE" <> long "latex" <> completer (bashCompleter "file") <> help "Output LaTeX derivation to FILE"))
+  <*> optional (option str (metavar "FILE" <> long "latex-animated" <> completer (bashCompleter "file") <> help "Output animated LaTeX derivation to FILE"))
   <*> pure 80 -- dummy value
   <*> flag False True (long "no-context" <> help "Do not print file context of errors")
  where

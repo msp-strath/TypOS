@@ -51,18 +51,18 @@ synth@p = p?tm . if tm in ctxt { S -> p!S. } else case tm
         | check@r. r!ty. r!t.
         | p!ty.
         )
-   ; ['App f s] -> 'Type?U. 'Type?V.
+   ; ['App f s] -> 'Type?U. 'Type?V. p!V.
         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
         | check@r. r!U. r!s.
-        | p!V.
         )
    }
 
 ------------------------------------------------------------------------------
 -- Examples
+{-
 exec  check@p. p! ['Arr 'Nat ['Arr 'Nat 'Nat]].
               p! ['Lam \z. ['Lam \_. ['Emb z]]].
-
+-}
 {-
 exec  check@p. p! ['Arr 'Nat 'Nat].
               p! ['Lam \z. ['Emb z]].
