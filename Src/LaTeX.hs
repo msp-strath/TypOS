@@ -2,6 +2,8 @@
 
 module LaTeX where
 
+import Data.Char (isDigit)
+
 import qualified Data.Map as Map
 import Control.Monad.Reader
 
@@ -27,6 +29,33 @@ call :: Bool -> Doc () -> [Doc ()] -> Doc ()
 call b d [] = backslash <> d
 call b d (x : xs) = call b ((if b && not (null xs) then flush else id) (d <> braces x)) xs
 
+spellOut :: Char -> String
+spellOut '0' = "Zero"
+spellOut '1' = "One"
+spellOut '2' = "Two"
+spellOut '3' = "Three"
+spellOut '4' = "Four"
+spellOut '5' = "Five"
+spellOut '6' = "Six"
+spellOut '7' = "Seven"
+spellOut '8' = "Eight"
+spellOut '9' = "Nine"
+spellOut x = [x]
+
+escapeLatex :: Char -> String
+escapeLatex c | isDigit c = "Q" ++ spellOut c
+escapeLatex '_' = "Qu"
+escapeLatex '\'' = "Qp"
+escapeLatex 'Q' = "QQ"
+escapeLatex x = [x]
+
+
+anEnum :: String -> String
+anEnum e = "enum" ++ foldMap escapeLatex e
+
+aTag :: String -> Int -> String
+aTag t a = "tag" ++ foldMap escapeLatex t ++ "For" ++ foldMap spellOut (show a)
+
 instance LaTeX x => LaTeX (Hide x) where
   type Format (Hide x) = Format x
   toLaTeX d (Hide x) = toLaTeX d x
@@ -40,6 +69,7 @@ instance LaTeX a => LaTeX (Binder a) where
 instance LaTeX Variable where
   type Format Variable = ()
   toLaTeX _ (Variable _ ('_':cs)) = pure $ text ("\\_" ++ cs) -- hack for now
+  toLaTeX _ (Variable _ ('?':'[':_)) = pure $ text ("???") -- hack for metas for now
   toLaTeX _ (Variable _ str) = pure $ text str
 
 instance LaTeX String where
@@ -76,14 +106,14 @@ instance LaTeX Raw where
       pure $ call False "mathit" [v]
     At _ "" -> pure $ call False "typosNil" []
     At _ a -> ask >>= \ table -> pure $ case expand table d of
-      Just VEnumOrTag{} -> call False (text ("enum" ++ a)) [] -- as enum
+      Just VEnumOrTag{} -> call False (text (anEnum a)) [] -- as enum
       _ -> call False "typosAtom" [text a] -- as atom
     Cons _ p q -> ask >>= \ table -> case expand table d of
       Just (VEnumOrTag _ ts) -> do
         let At _ a = p
         let Just ds = lookup a ts
         let qs = asList q
-        call False (text ("tag" ++ a)) <$> traverse (uncurry toLaTeX) (zip ds qs) -- as tags
+        call False (text (aTag a (length ds))) <$> traverse (uncurry toLaTeX) (zip ds qs) -- as tags
       Just (VCons dp dq) -> do
         p <- toLaTeX dp p
         q <- toLaTeXCdr dq q

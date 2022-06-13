@@ -111,16 +111,21 @@ instance Display Frame where
            $ s <+> "~?" <> brackets date <+> t
     Noted -> pure "Noted"
 
-instance (Show (t Frame), Traversable t, Collapse t, Display0 s) => Display (Process s t) where
-  type DisplayEnv (Process s t) = DEnv
+instance (Show (t Frame), Traversable t, Collapse t, Display0 s)
+  => Display (Process log s t) where
+  type DisplayEnv (Process log s t) = DEnv
   display p =  do
     (fs', store', env', a') <- displayProcess' p
     pure $ parens $ usingConfig $ \ cfg ->
       let osep = case orientation cfg of { Vertical -> sep; Horizontal -> hsep } in
       osep ([collapse fs', store', env'] ++ case actor p of {Win{} -> []; _ -> [a']})
 
-displayProcess' :: (Traversable t, Collapse t, Display0 s) =>
-  Process s t -> DisplayM DEnv (t (Doc Annotations), Doc Annotations, Doc Annotations, Doc Annotations)
+displayProcess' :: (Traversable t, Collapse t, Display0 s)
+                => Process log s t
+                -> DisplayM DEnv (t (Doc Annotations)
+                                 , Doc Annotations
+                                 , Doc Annotations
+                                 , Doc Annotations)
 displayProcess' Process{..} = do
   de <- ask
   (fs', de) <- runStateT (traverse go stack) de
@@ -175,7 +180,7 @@ frDisplayEnv :: Foldable t => t Frame -> DEnv
 frDisplayEnv = foldl frameOn initDEnv
 
 insertDebug :: (Traversable t, Collapse t, Display0 s)
-            => Process s t -> [Format dir Debug a] -> [Format dir (Doc Annotations) a]
+            => Process log s t -> [Format dir Debug a] -> [Format dir (Doc Annotations) a]
 insertDebug p fmt = map go fmt where
 
   (fs, st, en, _) = unsafeEvalDisplay initDEnv (displayProcess' p)
