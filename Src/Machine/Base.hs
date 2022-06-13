@@ -109,22 +109,25 @@ data Frame
   | Noted
   deriving (Show)
 
-hasWon :: Frame -> Bool
-hasWon Rules{} = True
-hasWon (LeftBranch Hole p)  = isDone (store p)
-hasWon (RightBranch p Hole) = isDone (store p)
-hasWon (Spawnee i) = isDone (store $ snd $ spawner i)
-hasWon (Spawner i) = isDone (store $ fst $ spawnee i)
-hasWon (Sent ch t) = False
-hasWon (Pushed s tm) = True
-hasWon (Binding s) = True
-hasWon (UnificationProblem d t t') = False
-hasWon Noted = True
-
 status :: [Frame] -> ACTOR ph -> Date -> Status
 status fs a d = if foldr (\ f acc -> acc && hasWon f) (isWin a) fs
                 then Done
                 else StuckOn d
+  where
+
+  hasWon :: Frame -> Bool
+  hasWon Rules{} = True
+  hasWon (LeftBranch Hole p)  = isDone (store p)
+  hasWon (RightBranch p Hole) = isDone (store p)
+  hasWon (Spawnee i) = isDone (store $ snd $ spawner i)
+  hasWon (Spawner i) = isDone (store $ fst $ spawnee i)
+  hasWon (Sent ch t) = False
+  hasWon (Pushed s tm) = True
+  hasWon (Binding s) = True
+  hasWon (UnificationProblem d t t') = False
+  hasWon Noted = True
+
+
 
 data Process l s t
   = Process
