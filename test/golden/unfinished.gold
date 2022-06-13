@@ -1,10 +1,8 @@
 ret > ExitSuccess
-out > [<stuck |-@p {}
-out > ,([] Done ) | <>
-out > ,([[p|p[]]
-out >     (['a ~?[0] 'b] 0 )
-out >     <>] 0 ) | <>]
-out > stuck 
+out > stuck 'a 'b
+out >  duplicate 'a ['a 'a]
+out >  duplicate 'b ['b 'b]
+out >  'a /~ 'b
 out >  'a /~ 'b
 out >
 err >

@@ -1,4 +1,10 @@
-stuck :
-stuck@p = 'a ~ 'b
+duplicate : ?'Wildcard. !'Wildcard.
+duplicate@p = p?a. p![a a].
 
-exec (stuck@p. | PRINTF "%S".)
+stuck : ?'Wildcard. ?'Wildcard.
+stuck@p = p?a. p?b.
+  duplicate@q. q!a. q?aa.
+  duplicate@r. r!b. r?bb.
+  aa ~ bb
+
+exec stuck@p. p!'a. p!'b.
