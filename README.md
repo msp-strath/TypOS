@@ -487,7 +487,10 @@ backslash. The placeholders have the following meaning:
 
 ## Executing actors
 
-Actors are executed using the `exec` command, in the context of all previous declarations and definitions. After the actors have finished running, a "typing derivation" is extracted and printed on the screen. For example, running the actor
+Actors are executed using the `exec` command, in the context of all previous
+declarations and definitions. After the actors have finished running, a
+"typing derivation" is extracted and printed on the screen.
+For example, running the actor
 ```
 exec  check@p. 'Check?t.
    p! ['Arr 'Nat 'Nat].
@@ -516,12 +519,17 @@ check ['Arr 'Nat 'Nat]
      synth z_0 'Nat
 ```
 
-By running `typos INPUTFILE --latex OUTFILE`, the derivation above is written in latex format to `OUTFILE` as well. With commands redefined as in the [notations.tex](/build/notations.tex) file, this produces the following for our example execution:
+By running `typos INPUTFILE --latex OUTFILE`, the derivation above is written in
+latex format to `OUTFILE` as well. With commands redefined as in
+the [notations.tex](/build/notations.tex) file, this produces the following for
+our example execution:
 
 <img src="build/trace.svg?raw=true" alt="Typing derivation in latex format" style="width: 700px; height: auto;" />
 
 By running `typos INPUTFILE --latex-animated OUTFILE`, we can also generate
 an animated trace showing the flow of information during the type
-checking/synthesis process. Inputs are coloured blue and outputs red. Reusing the same [notations.tex](/build/notations.tex) file, this produces the following movie:
+checking/synthesis process. Inputs are coloured blue and outputs red.
+Reusing the same [notations.tex](/build/notations.tex) file, this produces the
+following movie:
 
 <img src="build/trace.gif?raw=true" alt="Animated typing derivation" />
