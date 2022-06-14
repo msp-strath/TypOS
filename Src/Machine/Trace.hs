@@ -155,7 +155,7 @@ instance LaTeX t => LaTeX (Simple t ()) where
 
 instance LaTeX (Simple () (a, Bool)) where
   type Format (Simple () (a, Bool)) = ()
-  toLaTeX d (Simple _ (_, b)) = pure $ if b then call False "checkmark" [] else mempty
+  toLaTeX d (Simple _ (_, b)) = pure $ if b then call False "typosCheckmark" [] else mempty
 
 instance LaTeX (Series () (Int, Bool)) where
   type Format (Series () (Int, Bool)) = ()
@@ -175,7 +175,7 @@ instance LaTeX (Series () (Int, Bool)) where
           let start = minimum ns
           let end = maximum ns
           let only = concat ["uncover<", show start, "-", show end, ">"]
-          call False (fromString only) [call False "checkmark" []]
+          call False (fromString only) [call False "typosCheckmark" []]
         display1 _ = ""
 
 instance Functor (Series t) where
@@ -574,6 +574,7 @@ ldiagnostic' cfg table fs ats =
    , "\\newcommand{\\typosEndPrems}{\\end{array}}"
    , "\\newcommand{\\typosInput}[1]{\\textcolor{blue}{#1}}"
    , "\\newcommand{\\typosOutput}[1]{\\textcolor{red}{#1}}"
+   , "\\newcommand{\\typosCheckmark}{^\\checkmark}"
    , "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"
    , ""
    ] ++
