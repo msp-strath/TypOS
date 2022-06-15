@@ -13,6 +13,15 @@ protocol. Actors may spawn other actors: child processes which
 correspond to the premises of typing rules. Actors communicate with
 one another along channels, in accordance with their stated protocol.
 
+## Installation
+
+You will need to have the `GHC` Haskell compiler and the `cabal` tool on your system. To install, clone the repository, and execute
+
+```shell
+make install
+```
+
+This should give you a `typos` executable to run.
 
 ## What's in a TypOS program?
 
