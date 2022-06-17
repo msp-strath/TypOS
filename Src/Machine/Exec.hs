@@ -30,7 +30,10 @@ import Machine.Trace
 import System.IO.Unsafe
 
 import Debug.Trace
-import Unelaboration (nameSel, Naming)
+import qualified Data.Map as Map
+import Data.Maybe (fromJust)
+import Unelaboration (nameSel)
+
 dmesg = trace
 
 lookupRules :: JudgementForm -> Bwd Frame -> Maybe (AProtocol, (Channel, AActor))
@@ -145,8 +148,9 @@ exec p@Process { actor = m@(Match _ s cls), ..}
 exec p@Process { actor = FreshMeta _ cat (av@(ActorMeta x), a), ..} =
   let (xm, root') = meta root x
       xt = xm $: sbstI (length (globalScope env) + length (localScope env))
+      store' = declareMeta xm (objectNaming $ frDisplayEnv stack) store
       env' = newActorVar av (localScope env <>> [], xt) env
-  in exec (p { env = env', root = root', actor = a })
+  in exec (p { env = env', store = store', root = root', actor = a })
 exec p@Process { actor = Let _ av@(ActorMeta x) cat tm a, ..}
   | Just term <- mangleActors options env tm
   =  let (xm, root') = meta root x
@@ -272,10 +276,11 @@ deepCheck th tm p =
                           pure (unhide nm \\ sc, p)
     m :$ sg -> do (sg', th', p) <- pure $ strengthenSbst th sg p
                   let (xm, root') = meta (root p) (fst $ last $ unMeta m)
+                  let naming = fst $ fromJust $ Map.lookup m (solutions $ store p)
+                  let store' = declareMeta xm (nameSel th' naming) (store p)
                   let p' = p { root = root' }
-                  let naming = undefined -- nameSel th' $ objectNaming $ frDisplayEnv (stack p)
-                  let store' = updateStore m naming (xm $: sbstI (weeEnd th') *^ th') (store p')
-                  pure ((xm :$) $^ sg', p' { store = store' })
+                  let store'' = updateStore m (xm $: sbstI (weeEnd th') *^ th') store'
+                  pure ((xm :$) $^ sg', p' { store = store'' })
 
 strengthenSbst :: Th        -- D0 <= D
                -> Sbst Meta -- G --> D
@@ -304,8 +309,7 @@ solveMeta :: Meta   -- The meta (m) we're solving
           -> Maybe (Process log Store Cursor)
 solveMeta m (CdB (S0 :^^ _) th) tm p = do
   (tm, p) <- deepCheck th tm p
-  let naming = nameSel th $ objectNaming $ frDisplayEnv (stack p)
-  return (p { store = updateStore m naming tm (store p) })
+  return (p { store = updateStore m tm (store p) })
 
 
 connect :: AConnect

@@ -13,13 +13,14 @@ import Term
 import Thin
 import Concrete.Base (ExtractMode)
 import Syntax (SyntaxDesc)
+import Control.Monad (join)
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
 
 -- | i stores extra information, typically a naming
 data StoreF i = Store
-  { solutions :: Map.Map Meta (i, Term)
+  { solutions :: Map.Map Meta (i, Maybe Term)
   , today :: Date
   } deriving (Show)
 
@@ -29,14 +30,18 @@ initStore = Store Map.empty 0
 tick :: StoreF i -> StoreF i
 tick st@Store{..} = st { today = today + 1 }
 
-updateStore :: Meta -> i -> Term -> StoreF i -> StoreF i
-updateStore m i t st@Store{..} = tick $ st
-  { solutions = Map.insert m (i, t) solutions }
+declareMeta :: Meta -> i -> StoreF i -> StoreF i
+declareMeta m i st@Store{..} = st
+  { solutions = Map.insert m (i, Nothing) solutions }
+
+updateStore :: Meta -> Term -> StoreF i -> StoreF i
+updateStore m t st@Store{..} = tick $ st
+  { solutions = Map.adjust (Just t <$) m solutions }
 
 headUp :: StoreF i -> Term -> Term
 headUp store term
   | m :$: sg <- expand term
-  , Just (_, t) <- Map.lookup m (solutions store)
+  , Just (_, Just t) <- Map.lookup m (solutions store)
   = headUp store (t //^ sg)
   | otherwise = term
 
@@ -55,9 +60,9 @@ instance Instantiable Term where
     AX{}     -> term
     s :%: t  -> instantiate store s % instantiate store t
     x :.: b  -> x \\ instantiate store b
-    m :$: sg -> case Map.lookup m (solutions store) of
+    m :$: sg -> case join $ fmap snd $ Map.lookup m (solutions store) of
       Nothing -> m $: sg -- TODO: instantiate sg
-      Just (_, tm) -> instantiate store (tm //^ sg)
+      Just tm -> instantiate store (tm //^ sg)
 
 instance (Show t, Instantiable t, Instantiated t ~ t) =>
   Instantiable (Format Directive dbg t) where
