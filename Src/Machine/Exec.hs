@@ -30,6 +30,7 @@ import Machine.Trace
 import System.IO.Unsafe
 
 import Debug.Trace
+import Unelaboration (nameSel, Naming)
 dmesg = trace
 
 lookupRules :: JudgementForm -> Bwd Frame -> Maybe (AProtocol, (Channel, AActor))
@@ -252,11 +253,15 @@ unify p@Process { stack = zf :<+>: UnificationProblem date s t : fs, ..} =
     (_, _) -> unify (p { stack = zf :< UnificationProblem date s t :<+>: fs })
 unify p = move p
 
-deepCheck :: Th -> Term -> Process log Store Cursor -> Maybe (Term, Process log Store Cursor)
-deepCheck th tm p@Process{..} =
-  let (CdB t ph) = headUp store tm in
-  let (th', _, ph') = pullback th ph in
-  if is1s ph' then pure (CdB t th', p) else case t of
+deepCheck :: Th    -- D0 <= D
+          -> Term  -- D
+          -> Process log Store Cursor
+          -> Maybe (Term -- D0
+                   , Process log Store Cursor)
+deepCheck th tm p =
+  let (CdB t ph) = headUp (store p) tm in
+  let (ph', _, th') = pullback th ph in
+  if is1s th' then pure (CdB t ph', p) else case t of
     V -> Nothing
     A at -> error "The IMPOSSIBLE happened in deepCheck"
     P rp -> splirp (CdB rp ph) $ \a b -> do
@@ -266,9 +271,11 @@ deepCheck th tm p@Process{..} =
     (nm := b) :. sc -> do (sc, p) <- deepCheck (th -? b) (CdB sc (ph -? b)) p
                           pure (unhide nm \\ sc, p)
     m :$ sg -> do (sg', th', p) <- pure $ strengthenSbst th sg p
-                  let (xm, root') = meta root (fst $ last $ unMeta m)
-                  let store' = updateStore m (objectNaming $ frDisplayEnv stack) (xm $: sbstI (weeEnd th') *^ th') store
-                  pure ((xm :$) $^ sg', p { root = root', store = store' })
+                  let (xm, root') = meta (root p) (fst $ last $ unMeta m)
+                  let p' = p { root = root' }
+                  let naming = undefined -- nameSel th' $ objectNaming $ frDisplayEnv (stack p)
+                  let store' = updateStore m naming (xm $: sbstI (weeEnd th') *^ th') (store p')
+                  pure ((xm :$) $^ sg', p' { store = store' })
 
 strengthenSbst :: Th        -- D0 <= D
                -> Sbst Meta -- G --> D
@@ -295,9 +302,10 @@ solveMeta :: Meta   -- The meta (m) we're solving
           -> Term   -- The term (t) that must be equal to m :$ sg and depends on ms
           -> Process log Store Cursor
           -> Maybe (Process log Store Cursor)
-solveMeta m (CdB (S0 :^^ _) th) tm p@Process{..} = do
+solveMeta m (CdB (S0 :^^ _) th) tm p = do
   (tm, p) <- deepCheck th tm p
-  return (p { store = updateStore m (objectNaming $ frDisplayEnv stack) tm store })
+  let naming = nameSel th $ objectNaming $ frDisplayEnv (stack p)
+  return (p { store = updateStore m naming tm (store p) })
 
 
 connect :: AConnect
