@@ -30,7 +30,7 @@ instance Foldable Tm where foldMap = foldMapDefault
 isMetaFree :: CdB (Tm m) -> Maybe (CdB (Tm Void))
 isMetaFree (CdB t th) = (`CdB` th) <$> traverse (const Nothing) t
 
-newtype Meta = Meta [(String, Int)]
+newtype Meta = Meta { unMeta :: [(String, Int)] }
   deriving (Show, Ord, Eq)
 type Term = CdB (Tm Meta)
 type Subst = CdB (Sbst Meta)

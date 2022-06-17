@@ -252,15 +252,53 @@ unify p@Process { stack = zf :<+>: UnificationProblem date s t : fs, ..} =
     (_, _) -> unify (p { stack = zf :< UnificationProblem date s t :<+>: fs })
 unify p = move p
 
+deepCheck :: Th -> Term -> Process log Store Cursor -> Maybe (Term, Process log Store Cursor)
+deepCheck th tm p@Process{..} =
+  let (CdB t ph) = headUp store tm in
+  let (th', _, ph') = pullback th ph in
+  if is1s ph' then pure (CdB t th', p) else case t of
+    V -> Nothing
+    A at -> error "The IMPOSSIBLE happened in deepCheck"
+    P rp -> splirp (CdB rp ph) $ \a b -> do
+              (a, p) <- deepCheck th a p
+              (b, p) <- deepCheck th b p
+              pure (P $^ (a <&> b), p)
+    (nm := b) :. sc -> do (sc, p) <- deepCheck (th -? b) (CdB sc (ph -? b)) p
+                          pure (unhide nm \\ sc, p)
+    m :$ sg -> do (sg', th', p) <- pure $ strengthenSbst th sg p
+                  let (xm, root') = meta root (fst $ last $ unMeta m)
+                  let store' = updateStore m (objectNaming $ frDisplayEnv stack) (xm $: sbstI (weeEnd th') *^ th') store
+                  pure ((xm :$) $^ sg', p { root = root', store = store' })
+
+strengthenSbst :: Th        -- D0 <= D
+               -> Sbst Meta -- G --> D
+               -> Process log Store Cursor
+               -> ( Subst   -- G0 --> D0
+                  , Th      -- G0 <= G
+                  , Process log Store Cursor)
+strengthenSbst th sg p | is1s th = (CdB sg th, ones (sbstDom sg), p)
+strengthenSbst th (S0 :^^ 0) p = (CdB (S0 :^^ 0) (none (weeEnd th)), ones 0, p)
+strengthenSbst th (ST (CdB sg ps :<>: CdB (nm := t) xi) :^^ 0) p =
+  let (ps', _, th') = pullback th ps in
+  let (sg', ph, p') = strengthenSbst th' sg p in
+  let sg'' = sg' *^ ps' in
+  case deepCheck th (CdB t xi) p' of
+    Nothing -> (sg'', ph -? False, p')
+    Just (t', p) -> (sbstT sg'' ((nm :=) $^ t'), ph -? True, p)
+strengthenSbst th (sg :^^ n) p =
+  let (th', b) = thun th in
+  let (sg', ph, p') = strengthenSbst th' (sg :^^ (n-1)) p in
+  (if b then sbstW sg' (ones 1) else sg', ph -? b, p')
+
 solveMeta :: Meta   -- The meta (m) we're solving
           -> Subst  -- The substitution (sg) which acts on m
           -> Term   -- The term (t) that must be equal to m :$ sg and depends on ms
           -> Process log Store Cursor
           -> Maybe (Process log Store Cursor)
-solveMeta m (CdB (S0 :^^ _) ph) tm p@Process{..} = do
-  tm <- thickenCdB ph tm
-  -- FIXME: do a deep occurs check here to avoid the bug from match
+solveMeta m (CdB (S0 :^^ _) th) tm p@Process{..} = do
+  (tm, p) <- deepCheck th tm p
   return (p { store = updateStore m (objectNaming $ frDisplayEnv stack) tm store })
+
 
 connect :: AConnect
         -> Process Shots Store Cursor
