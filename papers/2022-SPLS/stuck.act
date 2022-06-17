@@ -1,0 +1,68 @@
+trace { unify } -- exec, send, recv, move, unify }
+
+------------------------------------------------------------------------------
+-- Interface
+
+syntax
+  { 'Type = ['EnumOrTag  ['Nat]
+                         [['Arr  'Type 'Type]]
+            ]
+  }
+
+/type : ?'Type.
+
+syntax
+  { 'Check = ['EnumOrTag [] [ ['Lam ['Bind 'Synth 'Check]]
+                              ['Emb 'Synth]
+             ]]
+  ; 'Synth = ['EnumOrTag [] [ ['Ann 'Check 'Type]
+                              ['App 'Synth 'Check]
+             ]]
+  }
+
+check : ?'Type. ?'Check.
+synth : ?'Synth. !'Type.
+ctxt |- 'Synth -> 'Type -- ctxt maps synthesisable variables to types
+
+------------------------------------------------------------------------------
+-- Implementation
+
+type@p = p?ty. case ty
+  { 'Nat ->
+  ; ['Arr S T] ->
+      ( type@q. q!S.
+      | type@r. r!T.
+      )
+  }
+
+check@p = p?ty. p?tm. case tm
+  { ['Lam \x. body] ->
+      'Type?S. 'Type?T.
+      ( ty ~ ['Arr S T]
+      | \x.
+        ctxt |- x -> S .
+        check@q. q!T. q!body.)
+  ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
+  }
+
+synth@p = p?tm . if tm in ctxt { S -> p!S. } else case tm
+   { ['Ann t ty] ->
+        ( type@q. q!ty.
+        | check@r. r!ty. r!t.
+        | p!ty.
+        )
+   ; ['App f s] -> 'Type?U. 'Type?V. p!V.
+        ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
+        | check@r. r!U. r!s.
+        )
+   }
+
+------------------------------------------------------------------------------
+-- Examples
+
+exec 'Type?FRESH. 'Check?t.
+   check@p.
+   p! ['Arr 'Nat 'Nat].
+   p! ['Lam \z. ['Emb
+         ['App ['Ann ['Lam \w. t] FRESH]
+         ['Emb z]]]].
