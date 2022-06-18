@@ -109,7 +109,10 @@
     (kill-buffer "*typos output*"))
   (let ((typos-command-to-run (concat typos-command " " options " " typos-file)))
     (with-current-buffer (get-buffer-create "*typos output*")
-      (compilation-start typos-command-to-run 'typos-compilation-mode (lambda (m) (buffer-name))))))
+      (compilation-start typos-command-to-run 'typos-compilation-mode (lambda (m) (buffer-name)))
+      (overlay-put (make-overlay (point-min) (point-max) (current-buffer) nil t)
+                   'face
+                   `(:background "black",:foreground "white",:extend t)))))
 
 ;;;###autoload
 (defun typos-run (override-options)
