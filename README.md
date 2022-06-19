@@ -501,7 +501,7 @@ declarations and definitions. After the actors have finished running, a
 "typing derivation" is extracted and printed on the screen.
 For example, running the actor
 ```
-exec  check@p. 'Check?t.
+exec  check@p.
    p! ['Arr 'Nat 'Nat].
    p! ['Lam \z. ['Emb
          ['App ['Rad ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]]

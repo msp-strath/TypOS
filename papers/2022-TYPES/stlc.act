@@ -71,7 +71,7 @@ exec  check@p. p! ['Arr 'Nat 'Nat].
 
 -}
 
-exec  check@p. 'Check?t.
+exec  check@p.
    p! ['Arr 'Nat 'Nat].
    p! ['Lam \z. ['Emb
          ['App ['Ann ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]]
