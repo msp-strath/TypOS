@@ -67,7 +67,7 @@ main = do
                       ++ " Unsolved meta" ++ (if length ms > 1 then "s" else "")
                       ++ " (" ++ intercalate ", " (show <$> ms) ++ ")"
 
-      -- Resultign derivation
+      -- Resulting derivation
       unless (quiet opts) $ do
         putStrLn $ diagnostic opts sto fs
 
