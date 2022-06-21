@@ -118,8 +118,8 @@
 (defun typos-run (override-options)
   "Run typOS on the current file."
   (interactive "P")
-  (let ((opts (if override-options (read-string "Options:") typos-options)))
-    (typos-run-on-file (buffer-file-name) opts)))
+  (let ((opts (if override-options (read-string "Options: ") typos-options)))
+    (typos-run-on-file (shell-quote-argument (buffer-file-name)) opts)))
 
 (define-key typos-mode-map (kbd "C-c C-l") 'typos-run)
 
