@@ -31,7 +31,11 @@ isMetaFree :: CdB (Tm m) -> Maybe (CdB (Tm Void))
 isMetaFree (CdB t th) = (`CdB` th) <$> traverse (const Nothing) t
 
 newtype Meta = Meta { unMeta :: [(String, Int)] }
-  deriving (Show, Ord, Eq)
+  deriving (Ord, Eq)
+
+instance Show Meta where
+  show = foldMap (\(str, n) -> str ++ ":" ++ show n) . unMeta
+
 type Term = CdB (Tm Meta)
 type Subst = CdB (Sbst Meta)
 type Root = ( Bwd (String, Int) -- name prefix
