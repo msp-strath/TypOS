@@ -1,0 +1,744 @@
+\documentclass[xcolor=dvipsnames]{beamer}
+
+%%%%% TODO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%% Title etc %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\title{\texorpdfstring{\centerline{\mbox{TypOS: An ``Operating System'' for Typechecking Actors}}}{TypOS: An ``Operating System'' for Typechecking Actors}}
+\author{
+  Guillaume Allais
+  \and
+  Malin Altenm\"uller
+  \and
+  Conor McBride
+  \and
+  Georgi Nakov
+  \and
+  \textbf{Fredrik Nordvall Forsberg}
+  \and
+  Craig Roy
+}
+\institute{
+University of St Andrews,
+University of Strathclyde,
+and Quantinuum
+}
+\date[22 June 2022]{22 June 2022, TYPES, Nantes}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%% Packages %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage[skins]{tcolorbox}
+\usepackage{alltt}
+\usepackage[overlay, absolute]{textpos}
+\usepackage{mathtools}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%% Macros %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newenvironment{transbox}[1][\textwidth]{%
+ \begin{tikzpicture}
+ \node[text width=#1, rounded corners,
+ fill=brown!20, fill opacity=0.8,text opacity=1] \bgroup%
+}{\egroup;\end{tikzpicture}}
+\newcommand{\titleslide}[3][\textwidth]{
+\addtocounter{framenumber}{-1}%
+{
+  \usebackgroundtemplate{\includegraphics[height=\paperheight]{#2}}
+\begin{frame}[plain]
+\begin{center}
+  \begin{transbox}[#1]
+\begin{center}
+{\Huge{{\color{black}{#3}}}}
+\end{center}
+  \end{transbox}
+\end{center}
+\end{frame}
+}
+}
+\newcommand{\heading}[1]{{\usebeamercolor[fg]{frametitle}\textbf{#1}}}
+\newcommand{\citing}[1]{{\usebeamercolor[fg]{hlightcitingcolor}#1}}
+\newcommand{\hlight}[1]{{\usebeamercolor[fg]{hlighthlightcolor}#1}}
+
+\newcommand{\circlepic}[2]{\tikz\node[circle,draw, inner sep=#1, fill overzoom image=#2] {};}
+
+% TypOS helpers
+\newcommand{\keyword}[1]{{\usebeamercolor[fg]{kwordcolor}{#1}}}
+\newcommand{\syntax}{\keyword{\texttt{syntax}\;}}
+\newcommand{\exec}{\texttt{exec}}
+\newcommand{\InMode}[1]{\keyword{?}#1\keyword{.}}
+\newcommand{\OutMode}[1]{\keyword{!}#1\keyword{.}}
+\newcommand{\lsq}{\texttt{[}}
+\newcommand{\rsq}{\texttt{]}}
+\newcommand{\atquote}{\symbol{39}}
+\newcommand{\atom}[1]{\texttt{\atquote}#1}
+\newcommand{\bsl}{\texttt{\symbol{92}}}
+\newcommand{\bind}[1]{\bsl #1\!\texttt{.}}
+
+% STLC Syntax
+\renewcommand{\Check}{\syntaxcat{Check}}
+\newcommand{\Synth}{\syntaxcat{Synth}}
+\newcommand{\Type}{\syntaxcat{Type}}
+
+% Syntax description syntax
+\newcommand{\Syntax}{\texttt{\atom{Syntax}}}
+\newcommand{\Tag}{\texttt{\atom{Tag}}}
+\newcommand{\Rec}{\texttt{\atom{Rec}}}
+\newcommand{\Atom}{\texttt{\atom{Atom}}}
+\newcommand{\Nil}{\texttt{\atom{Nil}}}
+\newcommand{\Cons}{\texttt{\atom{Cons}}}
+\newcommand{\NilOrCons}{\texttt{\atom{NilOrCons}}}
+\newcommand{\Bind}{\keyword{\texttt{\atom{Bind}}}}
+\newcommand{\Fix}{\texttt{\atom{Fix}}}
+\newcommand{\EnumOrTag}{\texttt{\keyword{\atom{EnumOrTag}}}}
+\newcommand{\Enum}{\texttt{\keyword{\atom{Enum}}}}
+\newcommand{\Wildcard}{\texttt{\keyword{\atom{Wildcard}}}}
+
+% STLC commands
+\renewcommand{\check}{\judgement{check}}
+\newcommand{\synth}{\judgement{synth}}
+\newcommand{\type}{\judgement{type}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%% Notations %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\typosBinding}[1]{#1 \vdash}
+\newcommand{\typosPushing}[3]{\textsc{#1} \vdash #2 \to #3.}
+\newcommand{\typosStuckUnifying}[2]{#1 \not\sim #2}
+\newcommand{\typosFailed}[1]{\text{#1}}
+\newcommand{\typosAtom}[1]{\tt`#1}
+\newcommand{\typosNil}{[]}
+\newcommand{\typosListStart}[2]{[#1#2}
+\newcommand{\typosListEnd}{]}
+\newcommand{\typosListTail}[1]{\textbar #1]}
+\newcommand{\typosScope}[2]{\lambda #1. #2}
+\newcommand{\typosAxiom}[1]{#1}
+\newcommand{\typosError}[1]{\colorbox{red}{\ensuremath{#1}}}
+\newcommand{\typosDerivation}[2]{#1 \\ #2}
+\newcommand{\typosBeginPrems}{\begin{array}{|@{\ }l@{}}}
+\newcommand{\typosBetweenPrems}{\\}
+\newcommand{\typosEndPrems}{\end{array}}
+\newcommand{\typosInput}[1]{\textcolor{blue}{#1}}
+\newcommand{\typosOutput}[1]{\textcolor{red}{#1}}
+\newcommand{\typosCheckmark}{^\checkmark}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\enumNat}[0]{\mathsf{Nat}}
+\newcommand{\enumZero}[0]{\mathsf{Zero}}
+\newcommand{\tagAnnForTwo}[2]{[ \mathsf{Ann} \ #1 \ #2 ]}
+\newcommand{\tagAppForTwo}[2]{[ \mathsf{App} \ #1 \ #2 ]}
+\newcommand{\tagArrForTwo}[2]{[ \mathsf{Arr} \ #1 \ #2 ]}
+\newcommand{\tagEmbForOne}[1]{[ \mathsf{Emb} \ #1 ]}
+\newcommand{\tagLamForOne}[1]{[ \mathsf{Lam} \ #1 ]}
+\newcommand{\tagSuccForOne}[1]{[ \mathsf{Succ} \ #1 ]}
+\newcommand{\callingtype}[1]{\textsc{type}\ #1}
+\newcommand{\callingcheck}[2]{\textsc{check}\ #1 \ #2}
+\newcommand{\callingsynth}[2]{\textsc{synth}\ #1 \ #2}
+\input{examples/build/notations.tex}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%% Tweaking %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usecolortheme[named=RawSienna]{structure}
+\defbeamertemplate*{footline}{my theme}
+{
+  \leavevmode%
+  \hbox{%
+    \usebeamerfont{date in head/foot}
+    \hspace*{0.97\paperwidth}\raisebox{2pt}{\insertframenumber{}}}
+  \vskip0pt%
+}
+\beamertemplatenavigationsymbolsempty
+
+%%% Colors %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\setbeamercolor{hlightcitingcolor}{fg=red!70!yellow}
+\setbeamercolor{hlighthlightcolor}{fg=green!70!red}
+\setbeamercolor{kwordcolor}{fg=red!50!blue}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\begin{frame}[noframenumbering,plain]
+\titlepage
+\centerline{
+  \circlepic{0.8cm}{pictures/actors/gallais}
+  \circlepic{0.8cm}{pictures/actors/malin}
+  \circlepic{0.8cm}{pictures/actors/conor}
+  \circlepic{0.8cm}{pictures/actors/georgi}
+  \circlepic{0.8cm}{pictures/actors/craig-cropped}
+}
+\end{frame}
+
+\section{Motivation}
+
+\begin{frame}{A domain-specific language for typecheckers}
+
+  An experiment in how to write typecheckers that make (more) sense.
+
+  \bigskip
+
+  \uncover<2->{
+    Similar endeavours: Andromeda \citing{[Bauer, Haselwarter and Petkovic 2020]}, Redex \citing{[Felleisen, Findler and Flatt 2009]},  Turnstyle+ \citing{[Chang, Ballantyne, Turner and Bowman]}, \ldots
+
+    \bigskip
+
+    However we try to minimise demands on the order in which subproblems are solved.
+  }
+
+  \bigskip
+
+  \uncover<3->{
+  Conor McBride, 20 years ago implementing Epigram 1:
+  \begin{quote}
+    ``[redacted] me, I'm implementing an operating system!''
+  \end{quote}
+  }
+
+  \bigskip
+
+  \uncover<5->{
+    \heading{Concrete motivation:} implementing a type theory with
+    rich equational theory for free monoids and free Abelian groups.
+  }
+
+\end{frame}
+
+\begin{frame}{Why not just a shallow embedding?}
+
+  \uncover<2->{
+    \heading{Logical Framework aspects:} we implement syntax with binding once, and then it Just Works.
+  }
+
+  \bigskip
+
+  \uncover<3->{
+    \heading{Resumptions should be updatable:} progress might have happened while a process was asleep.
+  }
+
+  \bigskip
+
+  \uncover<4->{
+    \heading{Ruling out design errors by construction:} a first-order representation means we can do static analysis on the typecheckers themselves.
+  }
+
+\end{frame}
+
+\titleslide[15em]{pictures/globe}{A Tour of TypOS}
+
+\section{A Tour of TypOS}
+
+\subsection{Syntax descriptions}
+
+\begin{frame}{Syntax descriptions}
+
+  \uncover<2->{
+    We support a Lisp-style generic syntax for terms:
+    \begin{itemize}
+    \item atoms \atquote{}$a$
+    \item cons lists \lsq $t_0$ $t_1$ \ldots\ $t_n$\rsq
+    \item variables $x$ and bindings $\bind x t$
+    \end{itemize}
+  }
+
+  \bigskip
+
+  \uncover<3->{
+  Simple and uniform to write and parse.
+  }
+
+  \bigskip
+
+  \uncover<4->{ Users can restrict the shape of terms using
+    context-free \hlight{syntax descriptions}.
+    \uncover<5->{We always offer a \texttt{Wildcard} description allowing anything.}
+  }
+
+  \bigskip
+
+  \uncover<6->{There is a syntax description of syntax descriptions, which we use to check syntax descriptions.}
+
+\end{frame}
+
+%\begin{frame}[fragile]{A syntax description for bidirectional STLC}
+%
+%\begin{alltt}
+%\syntax
+%  \keyword{\{} 'Type  = [\EnumOrTag  ['Nat] [ ['Arr 'Type 'Type]]]
+%  \keyword{;} 'Check = [\EnumOrTag [] [ ['Lam [\Bind 'Synth 'Check]]
+%                              ['Emb 'Synth]]]
+%  \keyword{;} 'Synth = [\EnumOrTag [] [ ['Ann 'Check 'Type]
+%                              ['App 'Synth 'Check]]]
+%  \keyword{\}}
+%\end{alltt}
+%
+%\end{frame}
+
+\subsection{Judgement forms as interaction protocols}
+
+\begin{frame}[fragile]{Judgement forms as interaction protocols}
+
+  We recast the notion of \fbox{judgement form} as
+  \hlight{communication protocol}:
+
+  \begin{itemize}
+  \item What to communicate (of what syntax description)?
+    \smallskip
+  \item In which direction (input or output)?
+  \end{itemize}
+
+  \bigskip
+
+  \uncover<2->{
+    A basic form of session types \citing{[Honda 1993]}.
+  }
+
+  \bigskip
+
+  \uncover<3->{
+    For example:
+    \begin{alltt}
+      \ \ \ type : \InMode{'Type} \\
+      \ \ \ check : \InMode{'Type} \InMode{'Check} \\
+      \ \ \ synth : \InMode{'Synth} \OutMode{'Type}
+    \end{alltt}
+    }
+    \end{frame}
+
+% TODO: expression vs pattern distinction
+
+\subsection{Typing rules as actors}
+
+\begin{frame}[fragile]{Typing rules as actors}
+
+``A rule is a server for its conclusion, and a client for its premises.''
+
+\bigskip
+
+\uncover<2->{
+
+  That is: typing rules are implemented by actors, which
+
+  \begin{itemize}
+  \item must fulfill their protocol with respect to their parent;
+    \smallskip
+  \item typically spawns children processes for all its premises.
+  \end{itemize}
+}
+
+\bigskip
+
+\uncover<3->{
+  Inspired by the actor model \citing{[Hewitt, Bishop and Steiger 1973]} of concurrent programming.
+}
+
+\bigskip
+
+\uncover<4->{
+  Typechecking process $actor$ with parent channel $p$ is defined by
+\begin{alltt}
+\ \ \ actor@p = ...
+\end{alltt}
+}
+
+\end{frame}
+
+\begin{frame}{Actor constructs: winning}
+
+  \begin{center}
+    \begin{tabular}{c}
+      \scalebox{4}{\textvisiblespace}
+      \\[1em]
+      a successful, finished actor
+    \end{tabular}
+  \end{center}
+
+  \bigskip
+
+  (Victory is silent.)
+
+\end{frame}
+
+\begin{frame}{Actor constructs: failing}
+
+  \begin{center}
+    \begin{tabular}{c}
+      \scalebox{2}{\texttt{\# "error message"}}
+      \\[1em]
+      an unsuccessful, finished actor
+    \end{tabular}
+  \end{center}
+
+\end{frame}
+
+\begin{frame}{Actor constructs: printing}
+
+  \begin{center}
+    \begin{tabular}{c}
+      \scalebox{2}{\texttt{PRINTF "message text".}}
+      \\[1em]
+      printing a message before continuing
+    \end{tabular}
+  \end{center}
+
+\end{frame}
+
+\begin{frame}{Actor constructs: generating fresh meta variables}
+
+  \begin{center}
+    \begin{tabular}{c}
+      \scalebox{2}{\texttt{$sd?X$.}}
+      \\[1em]
+      generate a fresh meta $X$ of syntax description $sd$
+    \end{tabular}
+  \end{center}
+
+  \bigskip
+
+  \uncover<2->{
+    Meta variables stand for \emph{unknown} terms.
+  }
+
+\end{frame}
+
+\begin{frame}{Actor constructs: matching on terms}
+
+  \begin{center}
+    \begin{tabular}{c}
+      \scalebox{2}{\texttt{case} t \texttt{\{ $p_1$ \texttt{->} $a_1$ \texttt{;} \ldots \texttt{\}}}}
+      \\[1em]
+      match term $t$ against patterns $p_i$; continue as actor $a_i$ when matching
+    \end{tabular}
+  \end{center}
+
+  \bigskip
+
+  \uncover<2->{
+    Blocks if $t$ is a metavariable.
+  }
+
+\end{frame}
+
+\begin{frame}{Actor constructs: forking}
+
+  \begin{center}
+    \begin{tabular}{c}
+      \scalebox{2}{\texttt{a | b}}
+      \\[1em]
+      continue as \texttt{a} and \texttt{b} in parallel
+    \end{tabular}
+  \end{center}
+
+  \bigskip
+
+  \uncover<2->{
+    Progress in \texttt{b} might enable further progress in \texttt{a} and vice versa.
+  }
+
+\end{frame}
+
+\begin{frame}{Actor constructs: declaring constraints}
+
+  \begin{center}
+    \begin{tabular}{c}
+      \scalebox{2}{$t_1 \sim t_2$}
+      \\[1em]
+      make $t_1$ unify with $t_2$
+    \end{tabular}
+  \end{center}
+
+\end{frame}
+
+\begin{frame}{Actor constructs: spawning children}
+
+  \begin{center}
+    \begin{tabular}{c}
+      \scalebox{2}{$actor$\texttt{@}$p$.}
+      \\[1em]
+      spawn a new child $actor$ on channel $p$
+    \end{tabular}
+  \end{center}
+
+\end{frame}
+
+\begin{frame}{Actor constructs: sending and receiving messages}
+
+  \begin{center}
+    \begin{tabular}{c}
+      \scalebox{2}{$p$\texttt{!}$t$.}
+      \\[1em]
+      send term $t$ on channel $p$
+    \end{tabular}
+  \end{center}
+
+  \uncover<2->{
+  \begin{center}
+    \begin{tabular}{c}
+      \scalebox{2}{$p$\texttt{?}$t$.}
+      \\[1em]
+      receive term $t$ on channel $p$
+    \end{tabular}
+  \end{center}
+  }
+
+  \bigskip
+
+  \uncover<3->{
+    Messages must conform to $p$'s protocol.
+  }
+
+\end{frame}
+
+\begin{frame}{Actor constructs: binding local variables}
+
+  \begin{center}
+    \begin{tabular}{c}
+      \scalebox{2}{\texttt{\textbackslash} $x$.}
+      \\[1em]
+      bring fresh object variable $x$ into scope
+    \end{tabular}
+  \end{center}
+
+\end{frame}
+
+\begin{frame}{Actor constructs: extending local contexts}
+
+  \begin{center}
+    \begin{tabular}{c}
+      \scalebox{2}{$ctx$ \texttt{|-} $x$ \texttt{->} $t$}
+      \\[1em]
+      extend declared context $ctx$ to map object variable $x$ to term $t$
+    \end{tabular}
+  \end{center}
+
+\end{frame}
+
+\begin{frame}{Actor constructs: querying local contexts}
+
+  \begin{center}
+    \begin{tabular}{c}
+      \scalebox{2}{\texttt{if} $x$ \texttt{in} $ctx$ \texttt{\{} $t$ \texttt{->} $a$ \texttt{\}} \texttt{else} $b$}
+      \\[1em]
+      Look up variable $x$ in declared context $ctx$; \\ if found, bind associated value as $t$ and continue as $a$, \\ otherwise continue as $b$
+    \end{tabular}
+  \end{center}
+
+\end{frame}
+
+\begin{frame}[fragile]{Actors for bidirectional type checking of STLC}
+
+\begin{verbatim}
+check@p = p?ty. p?tm. case tm
+  { ['Lam \x. body] -> 'Type?S. 'Type?T.
+     ( ty ~ ['Arr S T]
+     | \x. ctxt |- x -> S. check@q. q!T. q!body.)
+  ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty }
+
+synth@p = p?tm. if tm in ctxt
+  { S -> p!S. }
+  else case tm
+  { ['Ann t T] -> ( type@q. q!T.
+                  | check@r. r!T. r!t.
+                  | p!T. )
+  ; ['App f s] -> 'Type?S. 'Type?T. p!T.
+     ( synth@q. q!f. q?F. F ~ ['Arr S T]
+     | check@r. r!S. r!s.) }
+\end{verbatim}
+
+\end{frame}
+
+\subsection{Executing actors}
+
+\begin{frame}{Executing actors}
+
+  \uncover<2->{
+    We currently run actors on a stack-based virtual machine.
+  }
+
+  \bigskip
+
+  \uncover<3->{
+    We run each actor until it blocks, and then try the next one, until execution stabilises.
+  }
+
+  \bigskip
+
+  \uncover<4->{
+    Metavariables are shared, which is okay, since they are updated monotonically \citing{[Kuper 2015]}.
+  }
+
+  \bigskip
+
+  \uncover<5->{
+    We can extract a typing derivation from the final configuration of the stack.
+  }
+
+\end{frame}
+
+\section{Examples}
+
+\titleslide[14em]{pictures/graslin}{Some examples}
+
+\begin{frame}[fragile]{\texttt{typos --latex=stlc.tex stlc.act}}
+$\displaystyle
+\begin{array}{l}
+\typosDerivation{\callingcheck{\typosInput{\tagArrForTwo{\enumNat}{\enumNat}}}{\typosInput{\tagLamForOne{\typosScope{z}{\tagEmbForOne{\tagAppForTwo{\tagAnnForTwo{\tagLamForOne{\typosScope{\_}{?u}}}{\tagArrForTwo{\enumNat}{\enumNat}}}{\tagEmbForOne{\mathit{z}}}}}}}} }
+ {\typosBeginPrems
+  \typosDerivation{\typosBinding{z_0}\typosPushing{ctxt}{z_0}{\enumNat}}
+   {\typosBeginPrems
+    \typosDerivation{\callingcheck{\typosInput{\enumNat}}{\typosInput{\tagEmbForOne{\tagAppForTwo{\tagAnnForTwo{\tagLamForOne{\typosScope{\_}{?u}}}{\tagArrForTwo{\enumNat}{\enumNat}}}{\tagEmbForOne{\mathit{z_0}}}}}} }
+     {\typosBeginPrems
+      \typosDerivation{\callingsynth{\typosInput{\tagAppForTwo{\tagAnnForTwo{\tagLamForOne{\typosScope{\_}{?u}}}{\tagArrForTwo{\enumNat}{\enumNat}}}{\tagEmbForOne{\mathit{z_0}}}}}{\typosOutput{\enumNat}} }
+       {\typosBeginPrems
+        \typosDerivation{\callingsynth{\typosInput{\tagAnnForTwo{\tagLamForOne{\typosScope{\_}{?u}}}{\tagArrForTwo{\enumNat}{\enumNat}}}}{\typosOutput{\tagArrForTwo{\enumNat}{\enumNat}}} }
+         {\typosBeginPrems
+          \typosAxiom{\callingtype{\typosInput{\tagArrForTwo{\enumNat}{\enumNat}}} \typosCheckmark}
+          \typosBetweenPrems
+          \typosDerivation{\callingcheck{\typosInput{\tagArrForTwo{\enumNat}{\enumNat}}}{\typosInput{\tagLamForOne{\typosScope{\_}{?u}}}} }
+           {\typosBeginPrems
+            \typosDerivation{\typosBinding{w_1}\typosPushing{ctxt}{w_1}{\enumNat}}
+             {\typosBeginPrems
+              \typosAxiom{\callingcheck{\typosInput{\enumNat}}{\typosInput{?u}} }
+              \typosEndPrems}
+            \typosEndPrems}
+          \typosEndPrems}
+        \typosBetweenPrems
+        \typosDerivation{\callingcheck{\typosInput{\enumNat}}{\typosInput{\tagEmbForOne{\mathit{z_0}}}} \typosCheckmark}
+         {\typosBeginPrems
+          \typosAxiom{\callingsynth{\typosInput{\mathit{z_0}}}{\typosOutput{\enumNat}} \typosCheckmark}
+          \typosEndPrems}
+        \typosEndPrems}
+      \typosEndPrems}
+    \typosEndPrems}
+  \typosEndPrems}
+\end{array}
+$
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{typos --latex=stlc.tex stlc.act} completed}
+$\displaystyle
+\begin{array}{l}
+\typosDerivation{\callingcheck{\typosInput{\tagArrForTwo{\enumNat}{\enumNat}}}{\typosInput{\tagLamForOne{\typosScope{z}{\tagEmbForOne{\tagAppForTwo{\tagAnnForTwo{\tagLamForOne{\typosScope{\_}{\tagSuccForOne{\enumZero}}}}{\tagArrForTwo{\enumNat}{\enumNat}}}{\tagEmbForOne{\mathit{z}}}}}}}} \typosCheckmark}
+ {\typosBeginPrems
+  \typosDerivation{\typosBinding{z_0}\typosPushing{ctxt}{z_0}{\enumNat}}
+   {\typosBeginPrems
+    \typosDerivation{\callingcheck{\typosInput{\enumNat}}{\typosInput{\tagEmbForOne{\tagAppForTwo{\tagAnnForTwo{\tagLamForOne{\typosScope{\_}{\tagSuccForOne{\enumZero}}}}{\tagArrForTwo{\enumNat}{\enumNat}}}{\tagEmbForOne{\mathit{z_0}}}}}} \typosCheckmark}
+     {\typosBeginPrems
+      \typosDerivation{\callingsynth{\typosInput{\tagAppForTwo{\tagAnnForTwo{\tagLamForOne{\typosScope{\_}{\tagSuccForOne{\enumZero}}}}{\tagArrForTwo{\enumNat}{\enumNat}}}{\tagEmbForOne{\mathit{z_0}}}}}{\typosOutput{\enumNat}} \typosCheckmark}
+       {\typosBeginPrems
+        \typosDerivation{\callingsynth{\typosInput{\tagAnnForTwo{\tagLamForOne{\typosScope{\_}{\tagSuccForOne{\enumZero}}}}{\tagArrForTwo{\enumNat}{\enumNat}}}}{\typosOutput{\tagArrForTwo{\enumNat}{\enumNat}}} \typosCheckmark}
+         {\typosBeginPrems
+          \typosAxiom{\callingtype{\typosInput{\tagArrForTwo{\enumNat}{\enumNat}}} \typosCheckmark}
+          \typosBetweenPrems
+          \typosDerivation{\callingcheck{\typosInput{\tagArrForTwo{\enumNat}{\enumNat}}}{\typosInput{\tagLamForOne{\typosScope{\_}{\tagSuccForOne{\enumZero}}}}} \typosCheckmark}
+           {\typosBeginPrems
+            \typosDerivation{\typosBinding{w_1}\typosPushing{ctxt}{w_1}{\enumNat}}
+             {\typosBeginPrems
+              \typosDerivation{\callingcheck{\typosInput{\enumNat}}{\typosInput{\tagSuccForOne{\enumZero}}} \typosCheckmark}
+               {\typosBeginPrems
+                \typosAxiom{\callingcheck{\typosInput{\enumNat}}{\typosInput{\enumZero}} \typosCheckmark}
+                \typosEndPrems}
+              \typosEndPrems}
+            \typosEndPrems}
+          \typosEndPrems}
+        \typosBetweenPrems
+        \typosDerivation{\callingcheck{\typosInput{\enumNat}}{\typosInput{\tagEmbForOne{\mathit{z_0}}}} \typosCheckmark}
+         {\typosBeginPrems
+          \typosAxiom{\callingsynth{\typosInput{\mathit{z_0}}}{\typosOutput{\enumNat}} \typosCheckmark}
+          \typosEndPrems}
+        \typosEndPrems}
+      \typosEndPrems}
+    \typosEndPrems}
+  \typosEndPrems}
+\end{array}
+$
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{typos --latex-animated=stlc-ann.tex stlc.act}}
+\input{stlc-animated.tex}
+\end{frame}
+
+\section{Verification of actors}
+
+\begin{frame}{Verification of actors}
+
+  What do we get by construction?
+
+  \bigskip
+
+  \begin{itemize}
+  \item<2-> Protocols and modes \hlight{$\implies$} rely/guarantee contracts
+    \smallskip
+  \item<3-> Actors only knowing about free variables they themselves create \hlight{$\implies$} stability under substitution
+    \smallskip
+  \item<4-> ``Schematic variables'' have one explicit binding site \hlight{$\implies$} scopes are not escaped
+    \smallskip
+  \item<5-> \ldots
+  \end{itemize}
+
+\end{frame}
+
+\section{Summary and future work}
+
+\begin{frame}{Summary and future work}
+
+  TypOS is an domain-specific language for writing typecheckers.
+
+  \bigskip
+
+  Judgements have \hlight{modes} (input/output protocols), typing rules are \hlight{actors} (spawning and communicating with children).
+
+  \bigskip
+
+  A wide range of typechecking, evaluation and elaboration processes
+  can be implemented this way.
+
+  \bigskip
+
+  \heading{In the future:} a truly concurrent runtime.
+
+  \bigskip
+
+  \begin{center}
+    {\Large \url{https://github.com/msp-strath/TypOS}}
+  \end{center}
+
+
+  \only<2>{
+    \TPshowboxestrue
+    \TPMargin{6pt}
+    \textblockcolor{brown!15}
+    \setlength{\TPboxrulesize}{2pt}
+    \begin{textblock}{6.2}(5,6)
+      { \Huge
+        \usebeamercolor[fg]{frametitle}
+        \centerline{Thank you!}
+      }
+    \end{textblock}
+  }
+
+\end{frame}
+
+
+\section{References}
+
+\begin{frame}{References}
+\framesubtitle{In order of appearance}
+
+\footnotesize
+
+\begin{itemize}
+  \item  \citing{Andrej Bauer, Philipp G. Haselwarter, and Anja Petkovic}. Equality checking for general type theories in Andromeda 2. In Anna Maria Bigatti, Jacques Carette, James H. Davenport, Michael Joswig, and Timo de Wolff, editors, \textit{ICMS ’20}, pages 253--259. Springer, 2020.
+  \item \citing{Matthias Felleisen, Robert Bruce Findler, and Matthew Flatt}. \textit{Semantics Engineering with PLT Redex}. MIT Press, 2009.
+  \item \citing{Stephen Chang, Michael Ballantyne, Milo Turner, and William J. Bowman.} Dependent type systems as macros. \textit{Proc. ACM Program. Lang.}, 4(POPL):3:1--3:29, 2020.
+  \item  \citing{Kohei Honda}. Types for dyadic interaction. In Eike Best, editor, \textit{CONCUR ’93}, pages 509--523. Springer, 1993.
+  \item  \citing{Carl Hewitt, Peter Bishop, and Richard Steiger}. A universal modular actor formalism for artificial intelligence. In \textit{IJCAI ’73}, pages 235--245. Morgan Kaufmann Publishers, 1973.
+  \item  \citing{Lindsey Kuper}. \emph{Lattice-Based Data Structures For Deterministic Parallel And Distributed Programming}. PhD thesis, Indiana University, 2015.
+\end{itemize}
+
+
+{ \tiny
+\textbf{Image credits:}
+\begin{itemize}
+\item ``Shakespeare's Globe Theatre, London'' by Neil Howard, \url{https://flic.kr/p/LtqfmA}, CC BY-NC 2.0
+\item ``L'Op\'era Graslin (Le Voyage \`a Nantes)'' by Jean-Pierre Dalbéra, \url{https://flic.kr/p/f9BB5h}, CC BY 2.0
+\end{itemize}
+}
+\end{frame}
+
+\end{document}

@@ -1,0 +1,18 @@
+\usepackage{amssymb}
+\usepackage{proof}
+
+\renewcommand{\typosBinding}[1]{}
+\renewcommand{\typosPushing}[3]{#2 \mapsto #3 \vdash}
+
+\renewcommand{\typosAxiom}[1]{\infer{#1}{}}
+\renewcommand{\typosDerivation}[2]{\infer{#1}{#2}}
+\renewcommand{\typosBeginPrems}{}
+\renewcommand{\typosBetweenPrems}{&}
+\renewcommand{\typosEndPrems}{}
+
+\renewcommand{\typosScope}[2]{(\lambda #1. #2)}
+\renewcommand{\tagLamForOne}[1]{#1}
+\renewcommand{\tagAppForTwo}[2]{#1\,#2}
+
+\providecommand\callingeval{}
+\renewcommand{\callingeval}[2]{#1 \leadsto #2}

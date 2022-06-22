@@ -1,0 +1,56 @@
+syntax
+  {  -- untyped lambda terms
+    'Term = ['Tag [ ['Lam ['Bind 'Term 'Term]]
+                    ['App 'Term 'Term] ]]
+  ; 'Stack = ['NilOrCons 'Term 'Stack]
+  ; 'Entry = ['Tag [
+       ['Argument 'Term]
+       ['Variable 'Term]
+     ]]
+  }
+
+env |- 'Term -> 'Entry
+
+krivine : ?'Term. ?'Stack. !'Term.
+unwind : ?'Term. ?'Stack. !'Term.
+
+unwind@p = p?tm. p?stk. case stk
+  { [] -> case tm
+    { ['Lam \x.b] ->
+       -- stack is empty: evaluate under a binder with a placeholder variable
+       \x. env |- x -> ['Variable x].
+           krivine@q. q!b. q![]. q?res. p!['Lam \x.res].
+    ; _ -> p!tm.
+    }
+  ; [a | as] -> case tm
+    { ['Lam \x.b] ->
+      -- stack is not empty: add an environment entry for x
+      \x. env |- x -> ['Argument a].
+      krivine@q. q!b. q!as. q?res.
+      case res { {x*}rr -> p!rr.
+               ; _ -> # "This should not happen! %r should not occur in %i" x res
+               }
+    ; _ -> unwind@q. q!['App tm a]. q!as. q?res. p!res.
+    }
+  }
+
+krivine@p = p?tm. p?stk.
+  if tm in env { rec -> case rec
+    -- if the variable maps to an argument, we have some more
+    -- evaluating to do. Otherwise we can just unwind the stack
+    -- on top of the placeholder variable.
+    { ['Argument val] -> krivine@q. q!val. q!stk. q?res. p!res.
+    ; ['Variable var] -> unwind@q. q!var. q!stk. q?res. p!res.
+    }}
+  else case tm
+  { ['App f t] -> 'Term?vt.
+       ( krivine@q. q!t. q![]. q?res. res ~ vt
+       | krivine@q. q!f. q![vt|stk]. q?res. p!res.
+       )
+  ; _ -> unwind@q. q!tm. q!stk. q?res. p!res.
+  }
+
+exec krivine@p.
+  p!['App ['Lam \f. ['Lam \x. ['App f ['App f x]]]]
+          ['Lam \g. ['Lam \y. ['App g ['App g y]]]]].
+  p![]. p?v. PRINTF "%i" v .

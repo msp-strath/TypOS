@@ -1,0 +1,176 @@
+syntax
+  { 'Check = ['EnumOrTag ['Ty 'One 'Tt 'Fst 'Snd]
+                         [ ['Lam ['Bind 'Synth 'Check]]
+                           ['Pair 'Check 'Check]
+                           ['Pi  'Check ['Bind 'Synth 'Check]]
+                           ['Sg  'Check ['Bind 'Synth 'Check]]
+                           ['Emb 'Synth]
+                         ]
+             ]
+  ; 'Synth = ['Tag [ ['Ann 'Check 'Check]
+                     ['App 'Synth 'Check]
+             ]]
+  }
+
+type  : ?'Check.
+
+check : ?'Check. {- Type -} ?'Check. {- Term -}
+^checkWorker : ?'Check. {- Type -} ?'Check. {- Term -}
+synth : ?'Synth. !'Check. {-Type-}
+^synthWorker : ?'Synth. !'Check. {-Type-}
+
+ctxt |- 'Synth -> 'Check {-Type-}
+
+^checkEval : ?'Check. !'Check.
+^evalSynth : ?'Synth. !'Synth.
+
+^checkEqual : ?'Check{-Type-}. ?'Check. ?'Check.
+^checkEqualWorker : ?'Check{-Type-}. ?'Check. ?'Check.
+^equalSynth : ?'Synth.?'Synth.!'Check{-Type-}.
+^equalSynthWorker : ?'Synth.?'Synth.!'Check{-Type-}.
+
+------------------------------------------------------------------------------
+-- Implementation
+
+type@p = p?ty. ^check@q. q!'Ty. q!ty.
+
+check@p = p?ty. checkEval@q. q!ty. q?nty. checkWorker@r. r!nty. p <-> r
+synth@p = p?tm. synthWorker@r. r!tm. r?ty.checkEval@q. q!ty. q <-> p
+
+checkEqual@p = p?ty. p?tm1. p?tm2. checkEval@qty. qty!ty. checkEval@q. q!tm1. checkEval@r. r!tm2. qty?nty. q?ntm1. r?ntm2. checkEqualWorker@w. w!nty. w!ntm1. w!ntm2.
+equalSynth@p = p?tm1. p?tm2. evalSynth@q. q!tm1. evalSynth@r. r!tm2. q?ntm1. r?ntm2. equalSynthWorker@u. u!ntm1. u!ntm2.u?ty.checkEval@v. v!ty. v <-> p
+
+-- type assumed to be head normal
+checkWorker@p = p?ty. p?tm. case tm
+  { 'Ty -> ty ~ 'Ty
+  ; 'One -> ty ~ 'Ty
+  ; ['Pi S \x. T] ->
+    (ty ~ 'Ty
+    |type@q. q!S.
+    | \x. ctxt |- x -> S. type@r. r!T.
+    )
+  ; ['Sg S \x. T] ->
+    (ty ~ 'Ty
+    |type@q. q!S.
+    | \x. ctxt |- x -> S. type@r. r!T.
+    )
+  ; ['Pair s t] -> case ty
+    { ['Sg S \x. T] -> (check@q. q!S. q!s. | check@r. r!{x=['Ann s S]}T. r!t.)
+    ; _ -> #"Expected Sg; got %i" ty
+    }
+  ; 'Tt -> ty ~ 'One
+  ; ['Lam \x. body] -> case ty
+    { ['Pi S \x. T] -> \x. ctxt |- x -> S. check@q. q!T. q!body.
+    ; _ -> #"Expected Pi; got %i" ty
+    }
+  ; ['Emb e] -> synth@q. q!e. q?ety. checkEqual@r. r!'Ty. r!ty. r!ety.
+  }
+
+synthWorker@p = p?tm . if tm in ctxt { S -> p!S. } else case tm
+   { ['Ann t ty] -> ( type@q. q!ty.
+                    | check@r. r!ty. r!t.
+                    | p!ty.)
+   ; ['App f s] -> synth@q. q!f. q?ty. case ty
+     { ['Pi S \v. T] -> ( check@r. r!S. r!s.
+                        | p!{v=['Ann s S]}T.)
+     ; ['Sg S \v. T] -> case s
+       { 'Fst -> p!S.
+       ; 'Snd -> p!{v=['App f 'Fst]}T.
+       ; _ -> #"Expected Fst or Snd; got %i" s
+       }
+     ; _ -> #"Expected Pi or Sg; got %i" ty
+     }
+   }
+
+checkEval@p = p?tm. case tm
+  { ['Emb e] -> {-PRINTF "Emb" .-} evalSynth@q. q!e. q?ne. case ne
+    { ['Ann t ty] -> !. PRINTF "Ups". p!t.
+    ; x -> p!['Emb x].
+    }
+  ; x -> {- PRINTF "Other %i" x . -} p!x.
+  }
+
+-- types in radicals are head normal
+evalSynth@p = p?tm. case tm
+  { ['Ann t ty] -> {-PRINTF "Ann" .-} checkEval@q. q!t. checkEval@r. r!ty. q?nt. r?nty. p!['Ann nt nty].
+  ; ['App f s] -> {-PRINTF "App" .-} evalSynth@q. q!f. q?nf. case nf
+    { ['Ann ['Lam \ x. t] ['Pi S \ x. T]] -> !. PRINTF "Beta" . evalSynth@w. w!{x=['Ann s S]}['Ann t T]. w <-> p
+    ; ['Ann ['Pair a b] ['Sg S \ x. T]] -> !. case s
+      { 'Fst -> PRINTF "Fst" . evalSynth@w. w!['Ann a S]. w <-> p
+      ; 'Snd -> PRINTF "Snd" . evalSynth@w. w!['Ann b {x=['Ann a S]}T]. w <-> p
+      ; _ -> #"Expected Fst or Snd; got %i" s
+      }
+    ; g -> p!['App g s].
+    }
+  ; x -> p!x.
+  }
+
+checkEqualWorker@p = p?ty. p?tm1. p?tm2. {- PRINTF "checkEqual %i\n %i\n %i" ty tm1 tm2. -} case ty
+  { ['Pi S \x. T] ->
+    PRINTF "Eta Pi" . \x. ctxt |- x -> S. checkEqual@q. q!T.
+    q!['Emb ['App ['Ann tm1 ty] ['Emb x]]].
+    q!['Emb ['App ['Ann tm2 ty] ['Emb x]]].
+  ; ['Sg S \x. T] ->
+    PRINTF "Eta Sg".
+    ( checkEqual@q. q!S. q!['Emb ['App ['Ann tm1 ty] 'Fst]].
+                         q!['Emb ['App ['Ann tm2 ty] 'Fst]].
+    | checkEqual@q. q!{x=['App ['Ann tm1 ty] 'Fst]}T.
+      q!['Emb ['App ['Ann tm1 ty] 'Snd]].
+      q!['Emb ['App ['Ann tm2 ty] 'Snd]].)
+  ; 'One ->
+  ; _ -> checkEval@q. q!tm1. checkEval@r. r!tm2. q?ntm1. r?ntm2. case [ntm1|ntm2]
+    { ['Ty|'Ty] -> {- PRINTF "Ty" . -}
+    ; [['Pi S1 \x. T1] | ['Pi S2 \x. T2]] -> {- PRINTF "Pi" . -}
+      ( checkEqual@w. w!'Ty. w!S1. w!S2.
+      | \ x. ctxt |- x -> S1. checkEqual@u. u!'Ty. u!T1. u!T2.)
+    ; [['Sg S1 \x. T1] | ['Sg S2 \x. T2]] -> {- PRINTF "Sg" . -}
+      ( checkEqual@w. w!'Ty. w!S1. w!S2.
+      | \ x. ctxt |- x -> S1. checkEqual@u. u!'Ty. u!T1. u!T2.)
+    ; ['One|'One] -> {- PRINTF "One" . -}
+    ; [['Emb e1] | ['Emb e2] ] -> {- PRINTF "Emb" . -} equalSynth@w. w!e1.w!e2.w?ety.
+    ; [x|y] -> # "%i not checkEqual to %i" x y
+    }
+  }
+
+equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %i\n %i" e1 e2.
+  if e1 in ctxt { S1 -> {- PRINTF "Var" . -}(e1 ~ e2 | p!S1.)} else case [e1|e2]
+  { [['Ann ['Emb e1'] ty1] | _ ] -> {- PRINTF "Ann-L" . -} equalSynth@q. q!e1'. q!e2. p <-> q
+  ; [_  | ['Ann ['Emb e2'] ty2]] -> {- PRINTF "Ann-R" . -} equalSynth@q. q!e1. q!e2'. p <-> q
+  ; [['Ann t1 ty1] | ['Ann t2 ty2]] -> {- PRINTF "Ann-Ann" . -} (checkEqual@q. q!'Ty. q!ty1. q!ty2. | checkEqual@r. r!ty1. r!t1. r!t2.|p!ty1.)
+  ; [['App f1 s1] | ['App f2 s2] ] -> {- PRINTF "App" . -} equalSynth@q. q!f1. q!f2. q?ty. case ty
+    { ['Pi S \ x. T] -> (checkEqual@r. r!S. r!s1. r!s2.|p!{x=['Ann s1 S]}T.)
+    ; ['Sg S \ x. T] -> s1 ~ s2 | case s1
+      { 'Fst -> p!S.
+      ; 'Snd -> p!{x=['App f1 'Fst]}T.
+      ; _ -> #"Expected Fst or Snd; got %i" s1
+      }
+    }
+  ; [x|y] -> # "%i not equalSynth to %i" x y
+  }
+
+exec let Id : 'Synth =
+           ['Ann ['Lam \T. ['Lam \x. ['Lam \y.
+                   ['Pi ['Pi ['Emb T] \_. 'Ty] \P.
+                        ['Pi ['Emb ['App P ['Emb x]]] \_. ['Emb ['App P ['Emb y]]]]]]]]
+                 ['Pi 'Ty \T. ['Pi ['Emb T] \_. ['Pi ['Emb T] \_. 'Ty]]]].
+     let refl : 'Synth =
+           ['Ann ['Lam \T. ['Lam \x. ['Lam \P. ['Lam \px. ['Emb px]]]]]
+                 ['Pi 'Ty \T. ['Pi ['Emb T] \x. ['Emb ['App ['App ['App Id ['Emb T]] ['Emb x]] ['Emb x]]]]]].
+     let swap : 'Synth =
+           ['Ann ['Lam \A. ['Lam \B. ['Lam \x . ['Pair ['Emb ['App x 'Snd]] ['Emb ['App x 'Fst]]]]]]
+                 ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B] ] \_. ['Sg ['Emb B] \_. ['Emb A] ]]]]].
+     let swapswap : 'Synth =
+           ['Ann ['Lam \A. ['Lam \B. ['Lam \x . ['Emb ['App ['App ['App swap ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App swap ['Emb A]] ['Emb B]] ['Emb x]]]]]]]]
+                 ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B] ] \_. ['Sg ['Emb A] \_. ['Emb B] ]]]]].
+         synth@p. p!Id. p?ity. PRINTF "\n>>> Id : %i\n" ity.
+         synth@q. q!refl. q?rty. PRINTF "\n>>> refl : %i\n" rty.
+         synth@r. r!swap. r?sty. PRINTF "\n>>> swap : %i\n" sty.
+         synth@r2. r2!swapswap. r2?sty2. BREAK "\n>>> swapswap : %i\n" sty2.
+         synth@e1. e1!['Ann ['Emb ['App ['App refl ['Pi ['Sg 'Ty \_. 'Ty ] \_. ['Sg 'Ty \_. 'Ty]]] ['Lam \x . ['Emb x]]]]
+                            ['Emb ['App ['App ['App Id ['Pi ['Sg 'Ty \_. 'Ty ] \_. ['Sg 'Ty \_. 'Ty]]]
+                                                       ['Lam \x . ['Emb x]]]
+                                                       ['Emb ['App ['App swapswap 'Ty] 'Ty]]]]]. e1?ety1. PRINTF "\n>>> refl swapswap : %i\n" ety1.
+         synth@e2. e2!['Ann ['Emb ['App ['App refl ['Pi ['Sg 'One \_. 'One ] \_. ['Sg 'One \_. 'One]]] ['Lam \x . ['Emb x]]]]
+                            ['Emb ['App ['App ['App Id ['Pi ['Sg 'One \_. 'One ] \_. ['Sg 'One \_. 'One]]]
+                                                       ['Lam \x . ['Emb x]]]
+                                                       ['Emb ['App ['App swap 'One] 'One]]]]]. e2?ety2. PRINTF "\n>>> refl swap One : %i\n" ety2.

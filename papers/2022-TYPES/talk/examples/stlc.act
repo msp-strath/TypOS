@@ -1,0 +1,65 @@
+
+------------------------------------------------------------------------------
+-- Interface
+
+syntax
+  { 'Type = ['EnumOrTag  ['Nat]
+                         [['Arr  'Type 'Type]]
+            ]
+  ; 'Check = ['EnumOrTag ['Zero] [ ['Lam ['Bind 'Synth 'Check]]
+                                   ['Emb 'Synth]
+                                   ['Succ 'Check]
+             ]]
+  ; 'Synth = ['EnumOrTag [] [ ['Ann 'Check 'Type]
+                              ['App 'Synth 'Check]
+             ]]
+  }
+
+/type : ?'Type.
+check : ?'Type. ?'Check.
+synth : ?'Synth. !'Type.
+
+ctxt |- 'Synth -> 'Type -- ctxt maps synthesisable variables to types
+
+------------------------------------------------------------------------------
+-- Implementation
+
+type@p = p?ty. case ty
+  { 'Nat ->
+  ; ['Arr S T] ->
+      ( type@q. q!S.
+      | type@r. r!T.
+      )
+  }
+
+
+check@p = p?ty. p?tm. case tm
+  { ['Lam \x. body] -> 'Type?S. 'Type?T.
+     ( ty ~ ['Arr S T]
+     | \x. ctxt |- x -> S. check@q. q!T. q!body.)
+  ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
+  ; 'Zero -> ty ~ 'Nat
+  ; ['Succ n] -> check@q. q!'Nat. q!n. | ty ~ 'Nat }
+
+synth@p = p?tm. if tm in ctxt
+  { S -> p!S. }
+  else case tm
+  { ['Ann t T] -> ( type@q. q!T.
+                  | check@r. r!T. r!t.
+                  | p!T. )
+  ; ['App f s] -> 'Type?S. 'Type?T. p!T.
+     ( synth@q. q!f. q?F. F ~ ['Arr S T]
+     | check@r. r!S. r!s.) }
+
+------------------------------------------------------------------------------
+-- Typechecking an incomplete program
+
+exec 'Type?U. 'Check?u.
+   (check@p.
+   p! ['Arr 'Nat 'Nat].
+   p! ['Lam \z. ['Emb
+         ['App ['Ann ['Lam \w. u] U]
+         ['Emb z]]]].
+   | u ~ ['Succ 'Zero]
+   | PRINTF "U = %i" U.)
+
