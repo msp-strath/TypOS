@@ -1,0 +1,5 @@
+ret > ExitSuccess
+out > ['Lam \x. ['Lam \y. ['App x ['App x ['App x ['App x y]]]]]]
+out >
+err >
+err >
