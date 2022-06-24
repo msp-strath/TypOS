@@ -12,7 +12,7 @@ import Options
 import Term
 import qualified Term.Substitution as Substitution
 import Thin
-import Concrete.Base (ExtractMode, isWin, ACTOR)
+import Concrete.Base (ExtractMode, ACTOR (..))
 import Syntax (SyntaxDesc)
 import Control.Monad (join)
 
@@ -120,9 +120,12 @@ data Interface c p = Interface
 data Status
   = New
   | StuckOn Date
+  | Dead
   | Done
   deriving (Show, Eq, Ord)
 
+instance Semigroup Status where
+  (<>) = min
 
 isDone :: Status -> Bool
 isDone Done = True
@@ -140,26 +143,27 @@ data Frame
   | UnificationProblem Date Term Term
   | Noted
   deriving (Show)
-
 status :: [Frame] -> ACTOR ph -> Date -> Status
-status fs a d = if foldr (\ f acc -> acc && hasWon f) (isWin a) fs
-                then Done
-                else StuckOn d
+status fs a d = minimum (actorStatus a : map frameStatus fs)
+
   where
 
-  hasWon :: Frame -> Bool
-  hasWon Rules{} = True
-  hasWon (LeftBranch Hole p)  = isDone (store p)
-  hasWon (RightBranch p Hole) = isDone (store p)
-  hasWon (Spawnee i) = isDone (store $ snd $ spawner i)
-  hasWon (Spawner i) = isDone (store $ fst $ spawnee i)
-  hasWon (Sent ch t) = False
-  hasWon (Pushed s tm) = True
-  hasWon (Binding s) = True
-  hasWon (UnificationProblem d t t') = False
-  hasWon Noted = True
+  actorStatus :: ACTOR ph -> Status
+  actorStatus Win{} = Done
+  actorStatus Fail{} = Dead
+  actorStatus _ = StuckOn d
 
-
+  frameStatus :: Frame -> Status
+  frameStatus Rules{} = Done
+  frameStatus (LeftBranch Hole p) = store p
+  frameStatus (RightBranch p Hole) = store p
+  frameStatus (Spawnee i) = store (snd $ spawner i)
+  frameStatus (Spawner i) = store (fst $ spawnee i)
+  frameStatus Sent{} = StuckOn d
+  frameStatus Pushed{} = Done
+  frameStatus Binding{} = Done
+  frameStatus UnificationProblem{} = StuckOn d
+  frameStatus Noted = Done
 
 data Process l s t
   = Process
