@@ -1,4 +1,4 @@
-\documentclass[xcolor=dvipsnames]{beamer}
+\documentclass[xcolor=usenames,dvipsnames]{beamer}
 
 %%%%% TODO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -31,6 +31,7 @@ and Quantinuum
 \usepackage{alltt}
 \usepackage[overlay, absolute]{textpos}
 \usepackage{mathtools}
+\usepackage{listings}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%%%%% Macros %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -145,6 +146,12 @@ and Quantinuum
   \vskip0pt%
 }
 \beamertemplatenavigationsymbolsempty
+
+\lstset{basicstyle=\tt}
+\lstset{
+    literate={~}{\raisebox{0.5ex}{\tt\texttildelow}}{1}
+}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%% Colors %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \setbeamercolor{hlightcitingcolor}{fg=red!70!yellow}
@@ -522,7 +529,7 @@ and Quantinuum
 
 \begin{frame}[fragile]{Actors for bidirectional type checking of STLC}
 
-\begin{verbatim}
+\begin{lstlisting}[columns=fullflexible,keepspaces=true]
 check@p = p?ty. p?tm. case tm
   { ['Lam \x. body] -> 'Type?S. 'Type?T.
      ( ty ~ ['Arr S T]
@@ -538,7 +545,7 @@ synth@p = p?tm. if tm in ctxt
   ; ['App f s] -> 'Type?S. 'Type?T. p!T.
      ( synth@q. q!f. q?F. F ~ ['Arr S T]
      | check@r. r!S. r!s.) }
-\end{verbatim}
+\end{lstlisting}
 
 \end{frame}
 
