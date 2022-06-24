@@ -30,6 +30,10 @@ import Machine.Trace
 import System.IO.Unsafe
 
 import Debug.Trace
+import qualified Data.Map as Map
+import Data.Maybe (fromJust)
+import Unelaboration (nameSel)
+
 dmesg = trace
 
 lookupRules :: JudgementForm -> Bwd Frame -> Maybe (AProtocol, (Channel, AActor))
@@ -168,8 +172,9 @@ exec p@Process { actor = m@(Match _ s cls), ..}
 exec p@Process { actor = FreshMeta _ cat (av@(ActorMeta x), a), ..} =
   let (xm, root') = meta root x
       xt = xm $: sbstI (length (globalScope env) + length (localScope env))
+      store' = declareMeta xm (objectNaming $ frDisplayEnv stack) store
       env' = newActorVar av (localScope env <>> [], xt) env
-  in exec (p { env = env', root = root', actor = a })
+  in exec (p { env = env', store = store', root = root', actor = a })
 exec p@Process { actor = Let _ av@(ActorMeta x) cat tm a, ..}
   | Just term <- mangleActors options env tm
   =  let (xm, root') = meta root x
@@ -256,15 +261,60 @@ unify p@Process { stack = zf :<+>: UnificationProblem date s t : fs, ..} =
     (_, _) -> unify (p { stack = zf :< UnificationProblem date s t :<+>: fs })
 unify p = move p
 
+deepCheck :: Th    -- D0 <= D
+          -> Term  -- D
+          -> Process log Store Cursor
+          -> Maybe (Term -- D0
+                   , Process log Store Cursor)
+deepCheck th tm p =
+  let (CdB t ph) = headUp (store p) tm in
+  let (ph', _, th') = pullback th ph in
+  if is1s th' then pure (CdB t ph', p) else case t of
+    V -> Nothing
+    A at -> error "The IMPOSSIBLE happened in deepCheck"
+    P rp -> splirp (CdB rp ph) $ \a b -> do
+              (a, p) <- deepCheck th a p
+              (b, p) <- deepCheck th b p
+              pure (P $^ (a <&> b), p)
+    (nm := b) :. sc -> do (sc, p) <- deepCheck (th -? b) (CdB sc (ph -? b)) p
+                          pure (unhide nm \\ sc, p)
+    m :$ sg -> do (sg', th', p) <- pure $ strengthenSbst th sg p
+                  let (xm, root') = meta (root p) (fst $ last $ unMeta m)
+                  let naming = fst $ fromJust $ Map.lookup m (solutions $ store p)
+                  let store' = declareMeta xm (nameSel th' naming) (store p)
+                  let p' = p { root = root' }
+                  let store'' = updateStore m (xm $: sbstI (weeEnd th') *^ th') store'
+                  pure ((xm :$) $^ sg', p' { store = store'' })
+
+strengthenSbst :: Th        -- D0 <= D
+               -> Sbst Meta -- G --> D
+               -> Process log Store Cursor
+               -> ( Subst   -- G0 --> D0
+                  , Th      -- G0 <= G
+                  , Process log Store Cursor)
+strengthenSbst th sg p | is1s th = (CdB sg th, ones (sbstDom sg), p)
+strengthenSbst th (S0 :^^ 0) p = (CdB (S0 :^^ 0) (none (weeEnd th)), ones 0, p)
+strengthenSbst th (ST (CdB sg ps :<>: CdB (nm := t) xi) :^^ 0) p =
+  let (ps', _, th') = pullback th ps in
+  let (sg', ph, p') = strengthenSbst th' sg p in
+  let sg'' = sg' *^ ps' in
+  case deepCheck th (CdB t xi) p' of
+    Nothing -> (sg'', ph -? False, p')
+    Just (t', p) -> (sbstT sg'' ((nm :=) $^ t'), ph -? True, p)
+strengthenSbst th (sg :^^ n) p =
+  let (th', b) = thun th in
+  let (sg', ph, p') = strengthenSbst th' (sg :^^ (n-1)) p in
+  (if b then sbstW sg' (ones 1) else sg', ph -? b, p')
+
 solveMeta :: Meta   -- The meta (m) we're solving
           -> Subst  -- The substitution (sg) which acts on m
           -> Term   -- The term (t) that must be equal to m :$ sg and depends on ms
           -> Process log Store Cursor
           -> Maybe (Process log Store Cursor)
-solveMeta m (CdB (S0 :^^ _) ph) tm p@Process{..} = do
-  tm <- thickenCdB ph tm
-  -- FIXME: do a deep occurs check here to avoid the bug from match
-  return (p { store = updateStore m (objectNaming $ frDisplayEnv stack) tm store })
+solveMeta m (CdB (S0 :^^ _) th) tm p = do
+  (tm, p) <- deepCheck th tm p
+  return (p { store = updateStore m tm (store p) })
+
 
 connect :: AConnect
         -> Process Shots Store Cursor
@@ -346,21 +396,23 @@ move :: Process Shots Store Cursor -> Process Shots Store []
 move p | debug MachineMove "" p = undefined
 
 move p@Process { stack = B0 :<+>: fs } = p { stack = fs }
-move p@Process { stack = zf :< LeftBranch Hole rp :<+>: fs, ..}
-  = let lp = p { stack = fs, store = StuckOn (today store), logs = () }
-    in exec (rp { stack = zf :< RightBranch lp Hole <>< stack rp, store, logs })
+move p@Process { stack = zf :< LeftBranch Hole rp :<+>: fs, store = st, ..}
+  | StuckOn (today st) > store rp
+  = let lp = p { stack = fs, store = status fs actor (today st), logs = () }
+    in exec (rp { stack = zf :< RightBranch lp Hole <>< stack rp, store = st, logs })
 move p@Process { stack = zf :< RightBranch lp Hole :<+>: fs, store = st, ..}
   | StuckOn (today st) > store lp
-  = let rp = p { stack = fs, store = StuckOn (today st), logs = () }
+  = let rp = p { stack = fs, store = status fs actor (today st), logs = () }
     in exec (lp { stack = zf :< LeftBranch Hole rp <>< stack lp, store = st, logs})
-move p@Process { stack = zf :< Spawnee (Interface (Hole, q) (rxs, parentP) jd jdp em tr) :<+>: fs, ..}
-  = let childP = p { stack = fs, store = StuckOn (today store), logs = () }
+move p@Process { stack = zf :< Spawnee (Interface (Hole, q) (rxs, parentP) jd jdp em tr) :<+>: fs, store = st, ..}
+  -- no guard here! We've reached the end of the stack frame
+  = let childP = p { stack = fs, store = status fs actor (today st), logs = () }
         stack' = zf :< Spawner (Interface (childP, q) (rxs, Hole) jd jdp em tr) <>< stack parentP
-    in exec (parentP { stack = stack', store, logs })
+    in exec (parentP { stack = stack', store = st, logs })
 move p@Process { stack = zf :< Spawner (Interface (childP, q) (rxs, Hole) jd jdp em tr) :<+>: fs
                , store = st, ..}
   | StuckOn (today st) > store childP
-  = let parentP = p { stack = fs, store = StuckOn (today st), logs = () }
+  = let parentP = p { stack = fs, store = status fs actor (today st), logs = () }
         stack'  = zf :< Spawnee (Interface (Hole, q) (rxs, parentP) jd jdp em tr) <>< stack childP
     in exec (childP { stack = stack', store = st, logs })
 move p@Process { stack = zf :< UnificationProblem date s t :<+>: fs, .. }

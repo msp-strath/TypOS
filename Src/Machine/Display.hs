@@ -34,7 +34,7 @@ instance Display Status where
   display = \case
     StuckOn d -> display d
     New -> pure "New"
---    Done -> pure "Done"
+    Done -> pure "Done"
 
 instance Display Hole where
   type DisplayEnv Hole = ()
@@ -156,12 +156,15 @@ instance Display Store where
                           , SetColour Foreground Black]
                  (collapse sols)
     where
-    go :: (Meta, (Naming, Term)) -> DisplayM () (Doc Annotations)
-    go (k, (na, t)) = do
+    -- TODO: display namings too (one day)
+    go :: (Meta, (Naming, Maybe Term)) -> DisplayM () (Doc Annotations)
+    go (k, (na, Just t)) = do
       t <- withEnv na $ display t
       k <- subdisplay k
       pure $ k <+> ":=" <+> t
-
+    go (k, (na, Nothing)) = do
+      k <- subdisplay k
+      pure $ k <+> ":= ?"
 
 instance Display MachineStep where
   type DisplayEnv MachineStep = ()

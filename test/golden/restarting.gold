@@ -1,5 +1,7 @@
 ret > ExitSuccess
-out > U = ['Arr 'Nat 'Nat]
+out > Ping
+out > Pong
+out > Done
 out >
 err >
 err >

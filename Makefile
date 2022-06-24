@@ -6,7 +6,7 @@ build:
 all: install test
 
 install:
-	cabal install
+	cabal install --overwrite-policy=always
 
 clean:
 	rm -rf dist dist-newstyle TAGS
@@ -39,3 +39,12 @@ gif: build/stlc.gif
 bash-completion:
 # Use as follows: source <(make bash-completion)
 	typos --bash-completion-script `which typos`
+
+trace: build/stlc.gif
+	cp build/stlc.gif build/trace.gif
+	rm build/stlc.tex
+	typos examples/stlc.act --latex build/stlc.tex
+	sed -i "s|%\\\\input|\\\\input|" build/stlc.tex
+	cd build && \
+	latexmk -pdf stlc.tex && \
+	pdf2svg stlc.pdf trace.svg

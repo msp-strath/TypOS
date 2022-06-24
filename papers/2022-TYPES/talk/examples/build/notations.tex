@@ -1,0 +1,23 @@
+\usepackage{amssymb}
+\usepackage{proof}
+
+\renewcommand{\typosBinding}[1]{}
+\renewcommand{\typosPushing}[3]{#2 : #3 \vdash}
+
+\renewcommand{\typosAxiom}[1]{\infer{#1}{}}
+\renewcommand{\typosDerivation}[2]{\infer{#1}{#2}}
+\renewcommand{\typosBeginPrems}{}
+\renewcommand{\typosBetweenPrems}{&}
+\renewcommand{\typosEndPrems}{}
+
+\renewcommand{\typosScope}[2]{\lambda #1. #2}
+
+\renewcommand{\tagLamForOne}[1]{#1}
+\renewcommand{\tagEmbForOne}[1]{\underline{#1}}
+\renewcommand{\tagAnnForTwo}[2]{(#1 : #2)}
+\renewcommand{\tagAppForTwo}[2]{#1 #2}
+\renewcommand{\enumNat}[0]{\mathbb{N}}
+\renewcommand{\tagArrForTwo}[2]{#1 \to #2}
+\renewcommand{\callingtype}[1]{\textsc{type}~ #1}
+\renewcommand{\callingcheck}[2]{#1 \ni #2}
+\renewcommand{\callingsynth}[2]{#1 \in #2}

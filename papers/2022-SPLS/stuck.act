@@ -1,4 +1,4 @@
--- trace { exec, send, recv, move, unify }
+trace { unify } -- exec, send, recv, move, unify }
 
 ------------------------------------------------------------------------------
 -- Interface
@@ -45,36 +45,24 @@ check@p = p?ty. p?tm. case tm
   ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
   }
 
-synth@p = p?tm . case (lookup ctxt tm)
-  { ['Just S] -> p!S.
-  ; 'Nothing -> case tm
-    { ['Ann t ty] ->
-         ( type@q. q!ty.
-         | check@r. r!ty. r!t.
-         | p!ty.
-         )
-    ; ['App f s] -> 'Type?U. 'Type?V. p!V.
-         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
-         | check@r. r!U. r!s.
-         )
-    }
-  }
+synth@p = p?tm . if tm in ctxt { S -> p!S. } else case tm
+   { ['Ann t ty] ->
+        ( type@q. q!ty.
+        | check@r. r!ty. r!t.
+        | p!ty.
+        )
+   ; ['App f s] -> 'Type?U. 'Type?V. p!V.
+        ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
+        | check@r. r!U. r!s.
+        )
+   }
 
 ------------------------------------------------------------------------------
 -- Examples
-{-
-exec  check@p. p! ['Arr 'Nat ['Arr 'Nat 'Nat]].
-              p! ['Lam \z. ['Lam \_. ['Emb z]]].
--}
-{-
-exec  check@p. p! ['Arr 'Nat 'Nat].
-              p! ['Lam \z. ['Emb z]].
 
--}
-
-exec  check@p.
+exec 'Type?FRESH. 'Check?t.
+   check@p.
    p! ['Arr 'Nat 'Nat].
    p! ['Lam \z. ['Emb
-         ['App ['Ann ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]]
+         ['App ['Ann ['Lam \w. t] FRESH]
          ['Emb z]]]].
-   PRINTF "Victory!".

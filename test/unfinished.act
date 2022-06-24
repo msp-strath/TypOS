@@ -1,4 +1,15 @@
-stuck :
-stuck@p = 'a ~ 'b
+duplicate : ?'Wildcard. !'Wildcard.
+driver : ?'Wildcard. ?'Wildcard.
+stuck : ?'Wildcard. ?'Wildcard.
 
-exec (stuck@p. | PRINTF "%S".)
+duplicate@p = p?a. p![a a].
+
+driver@p = p?a.
+  duplicate@q. q!a. q?aa.
+  stuck@r. r!aa. r <-> p
+
+stuck@p = p?a. p?b.
+  duplicate@q. q!b. q?bb.
+  a ~ bb
+
+exec driver@p. p!'a. p!'b.
