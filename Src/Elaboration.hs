@@ -636,13 +636,15 @@ open ch p = do
   nm <- getName
   modify (channelInsert ch (nm, p))
 
-close :: Range -> Channel -> Elab ()
-close r ch = do
+close :: Bool -> Range -> Channel -> Elab ()
+close b r ch = do
   -- make sure the protocol was run all the way
   mp <- gets (channelLookup ch)
   case snd (fromJust mp) of
     [] -> pure ()
-    p -> throwError (UnfinishedProtocol r ch p)
+    p -> when b $
+           -- if we cannot win, we don't care
+           throwError (UnfinishedProtocol r ch p)
   modify (channelDelete ch)
 
 withChannel :: Range -> Channel -> AProtocol -> Elab a -> Elab a
@@ -650,8 +652,8 @@ withChannel r ch@(Channel rch) p ma = do
   open ch p
   -- run the actor in the extended context
   ovs <- asks objVars
-  a <- local (declare (Used rch) (AChannel ovs)) $ ma
-  close r ch
+  (a, All b) <- local (declare (Used rch) (AChannel ovs)) $ listen ma
+  close b r ch
   pure a
 
 guessDesc :: Bool -> -- is this in tail position?
