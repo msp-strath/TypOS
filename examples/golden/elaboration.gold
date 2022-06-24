@@ -1,0 +1,8 @@
+ret > ExitSuccess
+out > Data 'Tree elaborated to:
+out > [['Bool] [['Pair 'Rec ['Pair 'Bool 'Rec]]]]
+out > Data 'Bits elaborated to:
+out > [[] ['Bool 'Rec]]
+out >
+err >
+err >

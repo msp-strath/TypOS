@@ -25,7 +25,7 @@ main = defaultMain . testGroup "TypOS" =<< sequence
   [ typosExamples
   , typosTests
   , markdown
-  , paperTYPES
+  -- , paperTYPES -- using an old version of the language
   ]
 
 paperTYPES :: IO TestTree
