@@ -1,0 +1,12 @@
+ret > ExitSuccess
+out > Warning:
+out > covered.act:5:4-9
+out > Unreachable clause 'Atom
+out > covered.act:2:22-6:3
+out > Incomplete pattern matching. The following pattern is for instance not covered: _
+out > covered.act:14:4-14
+out > Unreachable clause ['Arr a b]
+out >
+out >
+err >
+err >

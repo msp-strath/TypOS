@@ -1,0 +1,16 @@
+coveredAtom : ?'Atom.
+coveredAtom@p = p?at. case at
+  { 'Atom ->
+  ; 'NotAtom ->
+  ; 'Atom ->
+  }
+
+syntax { 'Type = ['EnumOrTag ['Nat] [['Arr 'Type 'Type]]] }
+
+type : ?'Type.
+type@p = p?ty. case ty
+  { 'Nat ->
+  ; ['Arr 'Nat 'Nat] ->
+  ; ['Arr a b] ->
+  ; _ ->
+  }

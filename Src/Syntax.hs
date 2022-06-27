@@ -13,6 +13,9 @@ import Pattern (Pat(..))
 import Data.Maybe (fromJust)
 import Data.List (partition)
 import Hide (Hide(Hide))
+import Concrete.Base (RawP(..), Binder (..))
+import Location (unknown)
+import Scope (Scope(..))
 
 type SyntaxCat = String
 type SyntaxDesc = CdB (Tm Void)
@@ -170,6 +173,20 @@ data Covering' sd
 
 type Covering = Covering' SyntaxDesc
 
+-- These semigroup & monoid instances try to merge all of the
+-- information for a set of disjoint descriptions the pattern
+-- could match
+instance Semigroup (Covering' sd) where
+  AlreadyCovered <> c = c
+  c <> AlreadyCovered = c
+  Covering <> c = c
+  c <> Covering = c
+  PartiallyCovering p ps <> PartiallyCovering q qs
+    = PartiallyCovering p (ps ++ qs)
+
+instance Monoid (Covering' sd) where
+  mempty = AlreadyCovered
+
 -- Precondition:
 --   The pattern has been elaborated against a description that contains the
 --   description so it should not be possible for the description to be incompatible.
@@ -280,24 +297,27 @@ shrinkBy table = start where
       PartiallyCovering p ps -> PartiallyCovering (VBind s p) (VBind s <$> ps)
     VWildcard -> contract <$> PartiallyCovering vempty [VWildcard]
     _ -> error "Impossible"
-  go desc (MP s th) = Covering -- TODO: handle thinnings too
+  go vdesc (MP s th)
+    | is1s th = Covering
+    | otherwise = PartiallyCovering empty [contract vdesc] -- TODO already covered
   go vdesc GP = PartiallyCovering empty [contract vdesc]
   go _ HP = Covering
 
-
-missing :: SyntaxTable -> SyntaxDesc -> Pat
+missing :: SyntaxTable -> SyntaxDesc -> RawP
 missing table = start where
 
-  start :: SyntaxDesc -> Pat
+  start :: SyntaxDesc -> RawP
   start = go . fromJust . expand table
 
-  go :: VSyntaxDesc -> Pat
-  go VAtom = HP
-  go (VAtomBar ss) = HP
-  go VNil = AP ""
-  go (VCons cb cb') = PP (start cb) (start cb')
-  go (VNilOrCons cb cb') = AP ""
-  go (VBind s cb) = BP (Hide "x") (start cb)
-  go (VEnumOrTag (s:_) _) = AP s
-  go (VEnumOrTag [] ((s, ds):_)) = PP (AP s) (foldr (PP . start) (AP "") ds)
-  go VWildcard = HP
+  go :: VSyntaxDesc -> RawP
+  go VAtom = UnderscoreP unknown
+  go (VAtomBar ss) = UnderscoreP unknown
+  go VNil = AtP unknown ""
+  go (VCons cb cb') = ConsP unknown (start cb) (start cb')
+  go (VNilOrCons cb cb') = AtP unknown ""
+  go (VBind s cb) = LamP unknown (Scope (Hide Unused) (start cb))
+  go (VEnumOrTag (s:_) _) = AtP unknown s
+  go (VEnumOrTag [] ((s, ds):_))
+     = ConsP unknown (AtP unknown s)
+     $ foldr (ConsP unknown . start) (AtP unknown "") ds
+  go VWildcard = UnderscoreP unknown

@@ -8,7 +8,7 @@ pong : ?'Msg. !'Msg.
 ping@p = p?a. case a {'Hi -> PRINTF "Ping". p!'Ping. p?m. case m
   { 'Pong -> PRINTF "Done".
   ; x -> # "Expected Pong; got %i" x
-  } }
+  } ; _ -> # "Expected Hi; got %i" a }
 pong@p = p?m. case m
   { 'Ping -> PRINTF "Pong". p!'Pong.
   ; x -> # "Expected Ping; got %i" x

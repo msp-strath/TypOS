@@ -29,6 +29,7 @@ instance Pretty MachineStep where
 
 data Options = Options
   { filename :: String
+  , wAll :: Bool
   , quiet :: Bool
   , colours :: Bool
   , tracingOption :: Maybe [MachineStep]
@@ -41,6 +42,7 @@ data Options = Options
 poptions :: Parser Options
 poptions = Options
   <$> argument str (metavar "FILE" <> completer (bashCompleter "file") <> help "Actor file")
+  <*> flag False True (long "wAll" <> help "Print all warnings")
   <*> flag False True (short 'q' <> long "quiet" <> help "Silence tracing")
   <*> flag True False (long "no-colour" <> help "Do not use colours in the output")
   <*> (optional $ option (str >>= (readSteps . words))
@@ -74,4 +76,3 @@ getOptions = do
 
 isTermDumb :: IO Bool
 isTermDumb = ("dumb"==) <$> getEnv "TERM"
-

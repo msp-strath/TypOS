@@ -36,7 +36,7 @@ type@p = p?ty. if ty in isType { s -> } else case ty
     ; ['Pair S T] -> type@q. q!S. | type@r. r!T.
     ; ['List S]   -> type@q. q!S.
     ; ['Arr S T]  -> type@q. q!S. | type@r. r!T.
-    ; otherwise   -> #"not a valid type"
+--    ; otherwise   -> #"not a valid type"
     }
 
 check@p = p?ty. p?tm. case tm
@@ -92,7 +92,7 @@ checkEval@p = p?ty. p?tm. case tm
   ; ['Cons s t] -> 'Type?A. 'Type?B. 'Check?VS. 'Check?VT. (case ty
     { ['List a]   -> (A ~ a | B ~ ['List a])
     ; ['Pair a b] -> (A ~ a | B ~ b)
---    ; otherwise -> #"Expected a type compatible with a cons-cell"
+    ; otherwise -> #"Expected a type compatible with a cons-cell"
     }
     | checkEval@q. q!A. q!s. q?vs. VS ~ vs
     | checkEval@r. r!B. r!t. r?vt. VT ~ vt
@@ -151,7 +151,6 @@ listElimSynth@p = p?rty. p?lnf. p?lty. p?nil. p?cons. case lnf
         r!{y=['Rad x a],ys=['Rad xs ['List a]],ih=ihnf}c.
         -- BREAK "returning from cons".
         r?res. p!['Rad res rty]. p!rty.
-      ; _ -> #"Internal Error: the IMPOSSIBLE has happened"
       }
   ; _ -> checkEval@q. q!rty. q!nil. q?nilnf. case lty
       { ['List a] -> case cons
@@ -161,7 +160,6 @@ listElimSynth@p = p?rty. p?lnf. p?lty. p?nil. p?cons. case lnf
           \jh. evalCtxt |- jh -> [jh | rty].
           checkEval@r. r!rty. r!{x=y,xs=ys,ih=jh}c. r?cnf.
           p!['ListElim rty lnf nilnf (\x.\xs.\ih. {y=x,ys=xs,jh=ih}cnf)]. p!rty.
-       ; _ -> #"Internal Error: the IMPOSSIBLE has happened"
        }
      ; _ -> #"Failed to evaluate ListElim: Expected a list type"
      }

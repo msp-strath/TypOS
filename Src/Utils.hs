@@ -27,5 +27,9 @@ whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
 whenJust Nothing k = pure ()
 whenJust (Just a) k = k a
 
+whenCons :: Applicative m => [a] -> (a -> [a] -> m ()) -> m ()
+whenCons [] k = pure ()
+whenCons (a:as) k = k a as
+
 unlessM :: Monad m => m Bool -> m () -> m ()
 unlessM cond m = cond >>= flip unless m

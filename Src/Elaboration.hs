@@ -139,6 +139,14 @@ isFresh x = do
   whenJust res $ \ _ -> throwError (VariableShadowing (getRange x) x)
   pure (getVariable x)
 
+data Warning
+  = UnreachableClause Range RawP
+  | MissingClause Range RawP
+
+raiseWarning :: Warning -> Elab ()
+raiseWarning w = do
+  modify (\ r -> r { warnings = w : warnings r })
+
 data Complaint
   -- scope
   = OutOfScope Range Variable
@@ -274,10 +282,13 @@ instance HasGetRange Complaint where
     ProtocolElaboration _ c -> getRange c
     ConnectElaboration _ _ c -> getRange c
 
+type ChannelStates = Map Channel ([Turn], AProtocol)
+
 data ElabState = ElabState
-  { channelStates :: Map Channel ([Turn], AProtocol)
+  { channelStates :: ChannelStates
   , syntaxCats    :: SyntaxTable
-  } deriving (Eq)
+  , warnings      :: [Warning]
+  }
 
 addHint :: String -> Info SyntaxDesc -> Context -> Context
 addHint str cat ctx =
@@ -319,7 +330,7 @@ channelDelete :: Channel -> ElabState -> ElabState
 channelDelete ch st = st { channelStates = Map.delete ch (channelStates st) }
 
 initElabState :: ElabState
-initElabState = ElabState Map.empty Map.empty
+initElabState = ElabState Map.empty Map.empty []
 
 newtype Elab a = Elab
   { runElab :: StateT ElabState
@@ -775,7 +786,11 @@ sact = \case
     desc <- fromInfo (getRange rtm) =<< guessDesc False rtm
     tm <- during (MatchTermElaboration tm) $ stm desc tm
     chs <- get
-    clsts <- traverse (sclause desc) cls
+    (clsts, cov) <- traverse (sclause desc) cls `runStateT` [desc]
+    whenCons cov $  \ d _ -> do
+      table <- gets syntaxCats
+      let example = missing table d
+      raiseWarning $ MissingClause r example
     let (cls, sts) = unzip clsts
     during (MatchElaboration rtm) $ consistentCommunication r sts
     pure $ Match r tm cls
@@ -801,7 +816,8 @@ sact = \case
                     Nothing -> a
                     Just (var, pat) -> Match r var [(pat, a)]
     (b, mchb) <- sbranch b
-    during (LookupHandlersElaboration rt) $ consistentCommunication r [mcha, mchb]
+    during (LookupHandlersElaboration rt) $
+      consistentCommunication r [mcha, mchb]
     pure $ Lookup r t stk (ActorMeta <$> av, a) b
 
   Fail r fmt -> Fail r <$> sformat fmt <* tell (All False)
@@ -814,27 +830,38 @@ sformat fmt = do
   desc <- fromInfo unknown Unknown
   traverse (traverse $ stm desc) fmt
 
-consistentCommunication :: Range -> [Maybe ElabState] -> Elab ()
+consistentCommunication :: Range -> [Maybe ChannelStates] -> Elab ()
 consistentCommunication r sts = do
- case List.groupBy ((==) `on` fmap snd . channelStates) [ p | Just p <- sts ] of
+ case List.groupBy ((==) `on` fmap snd) [ p | Just p <- sts ] of
    [] -> tell (All False) -- all branches are doomed, we don't care
-   [(c:_)] -> put c
+   [(c:_)] -> modify (\ r -> r { channelStates = c })
    _ -> throwError (InconsistentCommunication r)
 
-sbranch :: CActor -> Elab (AActor, Maybe ElabState)
+sbranch :: CActor -> Elab (AActor, Maybe ChannelStates)
 sbranch ra = do
-  chs <- get
+  chs <- gets channelStates
   (a, All b) <- censor (const (All True)) $ listen $ sact ra
-  chs' <- get
-  unless b $ unless (chs == chs') $ throwError (DoomedBranchCommunicated (getRange ra) ra)
-  put chs
-  pure (a, chs' <$ guard b)
+  st <- get
+  unless b $ unless (chs == channelStates st) $
+    throwError (DoomedBranchCommunicated (getRange ra) ra)
+  put (st { channelStates = chs })
+  pure (a, channelStates st <$ guard b)
 
 sclause :: SyntaxDesc -> (RawP, CActor) ->
-           Elab ((Pat, AActor), Maybe ElabState)
-sclause desc (rp, a) = during (MatchBranchElaboration rp) $ do
-  (p, ds, hs) <- spat desc rp
-  (a, me) <- local (setDecls ds . setHints hs) $ sbranch a
+           StateT [SyntaxDesc] Elab ((Pat, AActor), Maybe ChannelStates)
+sclause desc (rp, a) = do
+  (p, ds, hs) <- lift $ during (MatchBranchElaboration rp) $ spat desc rp
+  leftovers <- get
+  table <- lift $ gets syntaxCats
+  leftovers <- lift $ case foldMap (\ d -> shrinkBy table d p) leftovers of
+    Covering -> pure []
+    AlreadyCovered -> do
+      raiseWarning (UnreachableClause (getRange rp) rp)
+      pure leftovers
+    PartiallyCovering _ ps -> pure ps
+  put leftovers
+  (a, me) <- lift $ during (MatchBranchElaboration rp) $
+               local (setDecls ds . setHints hs) $ sbranch a
   pure ((p, a), me)
 
 sprotocol :: CProtocol -> Elab AProtocol

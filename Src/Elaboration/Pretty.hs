@@ -51,6 +51,13 @@ instance Pretty ObjVar where
 instance Pretty (Mode, SyntaxDesc) where
   pretty (m, desc) = hsep [ pretty m, prettyPrec 1 desc ]
 
+instance Pretty Warning where
+  pretty = \case
+    UnreachableClause r pat ->
+      pretty r <> hsep ["Unreachable clause", pretty pat]
+    MissingClause r pat ->
+      pretty r <> hsep ["Incomplete pattern matching. The following pattern is for instance not covered:", pretty pat]
+
 instance Pretty Complaint where
 
   pretty = vcat . (<>> []) . go where

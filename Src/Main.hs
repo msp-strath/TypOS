@@ -13,7 +13,7 @@ import ANSI hiding (withANSI)
 import qualified ANSI
 import Bwd
 import Concrete.Base
-import Doc (Config(..), Orientation(..), flush)
+import Doc (Config(..), Orientation(..), flush, vcat)
 import Doc.Render.Terminal
 import Parse
 import Actor
@@ -48,8 +48,15 @@ main = do
         , pretty err
         ]
       exitFailure
-    Right (acs, table) -> do
+    Right (ws, acs, table) -> do
   -- putStrLn $ unsafeEvalDisplay initNaming $ collapse <$> traverse display acs
+
+      -- Elaboration warnings
+      unless ((quiet opts && not (wAll opts)) || null ws) $ do
+        putStrLn $ render (colours opts) cfg $ vcat $
+          withANSI [SetColour Background Yellow] "Warning:"
+          : map pretty ws
+
       let p = Process opts B0 initRoot (initEnv B0) initStore (Win unknown) []
       let res@(Process _ fs _ env sto a _) = run opts p acs
 
