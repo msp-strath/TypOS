@@ -858,7 +858,7 @@ sclause desc (rp, a) = do
     AlreadyCovered -> do
       raiseWarning (UnreachableClause (getRange rp) rp)
       pure leftovers
-    PartiallyCovering _ ps -> pure ps
+    PartiallyCovering ps -> pure ps
   put leftovers
   (a, me) <- lift $ during (MatchBranchElaboration rp) $
                local (setDecls ds . setHints hs) $ sbranch a
