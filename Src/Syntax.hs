@@ -12,6 +12,7 @@ import Term hiding (contract, expand)
 import Pattern (Pat(..))
 import Data.Maybe (fromJust)
 import Data.List (partition)
+import Hide (Hide(Hide))
 
 type SyntaxCat = String
 type SyntaxDesc = CdB (Tm Void)
@@ -282,3 +283,21 @@ shrinkBy table = start where
   go desc (MP s th) = Covering -- TODO: handle thinnings too
   go vdesc GP = PartiallyCovering empty [contract vdesc]
   go _ HP = Covering
+
+
+missing :: SyntaxTable -> SyntaxDesc -> Pat
+missing table = start where
+
+  start :: SyntaxDesc -> Pat
+  start = go . fromJust . expand table
+
+  go :: VSyntaxDesc -> Pat
+  go VAtom = HP
+  go (VAtomBar ss) = HP
+  go VNil = AP ""
+  go (VCons cb cb') = PP (start cb) (start cb')
+  go (VNilOrCons cb cb') = AP ""
+  go (VBind s cb) = BP (Hide "x") (start cb)
+  go (VEnumOrTag (s:_) _) = AP s
+  go (VEnumOrTag [] ((s, ds):_)) = PP (AP s) (foldr (PP . start) (AP "") ds)
+  go VWildcard = HP
