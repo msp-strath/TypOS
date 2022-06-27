@@ -213,7 +213,7 @@ elaborate :: [CCommand] -> Either Complaint ([Warning], [ACommand], SyntaxTable)
 elaborate ccs = evalElab $ do
   acs <- scommands ccs
   st <- get
-  pure (reverse (warnings st), acs, syntaxCats st)
+  pure (warnings st <>> [], acs, syntaxCats st)
 
 run :: Options -> Process Shots Store Bwd -> [ACommand] -> Process Shots Store []
 run opts p [] = exec p

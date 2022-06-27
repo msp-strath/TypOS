@@ -145,7 +145,7 @@ data Warning
 
 raiseWarning :: Warning -> Elab ()
 raiseWarning w = do
-  modify (\ r -> r { warnings = w : warnings r })
+  modify (\ r -> r { warnings = warnings r :< w })
 
 data Complaint
   -- scope
@@ -287,7 +287,7 @@ type ChannelStates = Map Channel ([Turn], AProtocol)
 data ElabState = ElabState
   { channelStates :: ChannelStates
   , syntaxCats    :: SyntaxTable
-  , warnings      :: [Warning]
+  , warnings      :: Bwd Warning
   }
 
 addHint :: String -> Info SyntaxDesc -> Context -> Context
@@ -330,7 +330,7 @@ channelDelete :: Channel -> ElabState -> ElabState
 channelDelete ch st = st { channelStates = Map.delete ch (channelStates st) }
 
 initElabState :: ElabState
-initElabState = ElabState Map.empty Map.empty []
+initElabState = ElabState Map.empty Map.empty B0
 
 newtype Elab a = Elab
   { runElab :: StateT ElabState
