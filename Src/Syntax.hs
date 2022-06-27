@@ -279,14 +279,14 @@ shrinkBy table = start where
     VEnumOrTag ss ts -> case pat of
       AP s ->
         let (matches, ts') = partition ((s ==) . fst) ts in
-        case matches of
-          [(_, ds)] -> contract <$> case starts ds pat' of
-            Covering | null ss && null ts' -> Covering
-            Covering -> PartiallyCovering (VEnumOrTag [] matches) [VEnumOrTag ss ts']
-            AlreadyCovered -> AlreadyCovered
-            PartiallyCovering p ps ->
-              PartiallyCovering (VEnumOrTag [] [(s, p)]) [VEnumOrTag ss (map (s,) ps ++ ts')]
-          _ -> AlreadyCovered
+        contract <$> case foldMap (\ (_, ds) -> starts ds pat') matches of
+          Covering | null ss && null ts' -> Covering
+          Covering -> PartiallyCovering (VEnumOrTag [] matches) [VEnumOrTag ss ts']
+          AlreadyCovered -> AlreadyCovered
+          PartiallyCovering p ps ->
+            PartiallyCovering
+               (VEnumOrTag [] [(s, p)])
+               [VEnumOrTag ss (map (s,) ps ++ ts')]
       _ -> error "Impossible"
     VWildcard -> contract <$> PartiallyCovering vempty [VWildcard]
     _ -> error "Impossible"

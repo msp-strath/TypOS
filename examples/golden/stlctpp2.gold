@@ -1,7 +1,4 @@
 ret > ExitSuccess
-out > Warning:
-out > stlctpp2.act:144:4-33
-out > Unreachable clause ['Rad ['Cons x xs] ['List a]]
 out > Result:
 out > [0,1] ++ [2]
 out >   : ['List ['List 'One]]
