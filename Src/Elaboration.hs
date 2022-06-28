@@ -26,6 +26,7 @@ import Term.Base
 import Term.Substitution
 import Pattern as P
 import Location
+import Data.List.NonEmpty (toList)
 
 dual :: Protocol t -> Protocol t
 dual = map $ \case
@@ -141,12 +142,12 @@ isFresh x = do
 
 data Warning
   = UnreachableClause Range RawP
-  | MissingClause Range RawP
+  | MissingClauses Range [RawP]
 
 instance HasGetRange Warning where
   getRange = \case
     UnreachableClause r _ -> r
-    MissingClause r _ -> r
+    MissingClauses r _ -> r
 
 raiseWarning :: Warning -> Elab ()
 raiseWarning w = do
@@ -794,8 +795,8 @@ sact = \case
     (clsts, cov) <- traverse (sclause desc) cls `runStateT` [desc]
     whenCons cov $  \ d _ -> do
       table <- gets syntaxCats
-      let example = missing table d
-      raiseWarning $ MissingClause r example
+      let examples = missing table d
+      raiseWarning $ MissingClauses r (toList examples)
     let (cls, sts) = unzip clsts
     during (MatchElaboration rtm) $ consistentCommunication r sts
     pure $ Match r tm cls
@@ -863,7 +864,7 @@ sclause desc (rp, a) = do
     AlreadyCovered -> do
       raiseWarning (UnreachableClause (getRange rp) rp)
       pure leftovers
-    PartiallyCovering ps -> pure ps
+    PartiallyCovering _ ps -> pure ps
   put leftovers
   (a, me) <- lift $ during (MatchBranchElaboration rp) $
                local (setDecls ds . setHints hs) $ sbranch a

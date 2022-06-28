@@ -59,8 +59,9 @@ instance Pretty Warning where
     go = \case
       UnreachableClause r pat ->
         hsep ["Unreachable clause", pretty pat]
-      MissingClause r pat ->
-        hsep ["Incomplete pattern matching. The following pattern is for instance not covered:", pretty pat]
+      MissingClauses r pats ->
+        vcat ("Incomplete pattern matching. The following patterns are missing:"
+             : map (indent 2 . pretty) pats)
 
 instance Pretty Complaint where
 

@@ -2,13 +2,19 @@ ret > ExitSuccess
 out > Warning: covered.act:5:4-9
 out > Unreachable clause 'Atom
 out > Warning: covered.act:2:22-6:3
-out > Incomplete pattern matching. The following pattern is for instance not covered: _
+out > Incomplete pattern matching. The following patterns are missing:
+out >   _
 out > Warning: covered.act:15:4-5
 out > Unreachable clause _
 out > Warning: covered.act:22:13-25:3
-out > Incomplete pattern matching. The following pattern is for instance not covered: ['Succ a]
+out > Incomplete pattern matching. The following patterns are missing:
+out >   ['Succ a]
 out > Warning: covered.act:30:15-33:3
-out > Incomplete pattern matching. The following pattern is for instance not covered: ['Node a b ['Leaf c]]
+out > Incomplete pattern matching. The following patterns are missing:
+out >   ['Node ['Node a b c] d ['Leaf e]]
+out >   ['Node ['Leaf a] b ['Node c d e]]
+out >   ['Node ['Leaf a] b ['Leaf c]]
+out >   ['Leaf ['Succ a]]
 out >
 out >
 err >
