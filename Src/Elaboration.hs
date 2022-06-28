@@ -859,7 +859,7 @@ sclause desc (rp, a) = do
   (p, ds, hs) <- lift $ during (MatchBranchElaboration rp) $ spat desc rp
   leftovers <- get
   table <- lift $ gets syntaxCats
-  leftovers <- lift $ case foldMap (\ d -> shrinkBy table d p) leftovers of
+  leftovers <- lift $ case combine' $ map (\ d -> (d, shrinkBy table d p)) leftovers of
     Covering -> pure []
     AlreadyCovered -> do
       raiseWarning (UnreachableClause (getRange rp) rp)

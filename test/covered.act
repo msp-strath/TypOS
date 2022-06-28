@@ -38,4 +38,6 @@ separate@p = p?t. case t
   ; ['Node ['Node _ _ _] _ ['Leaf _]] ->
   ; ['Node ['Leaf _] _ ['Node _ _ _]] ->
   ; ['Node _ 'Zero _] ->
+  ; ['Node ['Node _ _ _] _ ['Leaf _]] ->
+  ; ['Node ['Leaf _] _ ['Node _ _ _]] ->
   }

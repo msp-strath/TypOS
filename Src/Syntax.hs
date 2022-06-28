@@ -5,6 +5,7 @@ import Control.Monad
 
 import Data.Void
 import Data.Functor ((<&>))
+import Data.Maybe (mapMaybe)
 import Data.Map (Map)
 import qualified Data.Map as Map
 
@@ -199,19 +200,39 @@ data Covering' sd
 
 type Covering = Covering' SyntaxDesc
 
--- These semigroup & monoid instances try to merge all of the
--- information for a set of disjoint descriptions the pattern
--- could match
-instance Semigroup (Covering' sd) where
-  AlreadyCovered <> c = c
-  c <> AlreadyCovered = c
-  Covering <> c = c
-  c <> Covering = c
-  PartiallyCovering p ps <> PartiallyCovering q qs
-    = PartiallyCovering p (ps ++ qs)
+isCovering :: Covering' sd -> Bool
+isCovering Covering = True
+isCovering _ = False
 
-instance Monoid (Covering' sd) where
-  mempty = AlreadyCovered
+isAlreadyCovered :: Covering' sd -> Bool
+isAlreadyCovered AlreadyCovered = True
+isAlreadyCovered _ = False
+
+isPartiallyCovering :: Covering' sd -> Maybe (sd, [sd])
+isPartiallyCovering (PartiallyCovering p ps) = Just (p, ps)
+isPartiallyCovering _ = Nothing
+
+combine' :: [(sd, Covering' sd)] -> Covering' sd
+combine' covs = case filter (not . isAlreadyCovered . snd) covs of
+  [] -> AlreadyCovered
+  xs -> case partition (isCovering . snd) xs of
+    (_, []) -> Covering
+    (cds, (_, PartiallyCovering p ps) : rest) ->
+     PartiallyCovering p $ concat
+       ( ps
+       : map fst cds
+       : mapMaybe (fmap snd . isPartiallyCovering . snd) rest)
+
+combine :: [(sd, Covering' sd)] -> Covering' sd
+combine covs = case filter (not . isCovering . snd) covs of
+  [] -> Covering
+  xs -> case partition (isAlreadyCovered . snd) xs of
+    (_, []) -> AlreadyCovered
+    (cds, (_, PartiallyCovering p ps) : rest) ->
+     PartiallyCovering p $ concat
+       ( ps
+       : map fst cds
+       : mapMaybe (fmap snd . isPartiallyCovering . snd) rest)
 
 -- Precondition:
 --   The pattern has been elaborated against a description that
@@ -313,7 +334,7 @@ shrinkBy table = start where
     VEnumOrTag ss ts -> case pat of
       AP s ->
         let (matches, ts') = partition ((s ==) . fst) ts in
-        contract <$> case foldMap (\ (_, ds) -> starts ds pat') matches of
+        contract <$> case combine $ map (\ (_, ds) -> (ds, starts ds pat')) matches of
           Covering | null ss && null ts' -> Covering
           Covering -> PartiallyCovering (VEnumOrTag [] matches) [VEnumOrTag ss ts']
           AlreadyCovered -> AlreadyCovered
