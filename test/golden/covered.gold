@@ -6,7 +6,9 @@ out > Incomplete pattern matching. The following pattern is for instance not cov
 out > Warning: covered.act:15:4-5
 out > Unreachable clause _
 out > Warning: covered.act:22:13-25:3
-out > Incomplete pattern matching. The following pattern is for instance not covered: ['Succ 'Zero]
+out > Incomplete pattern matching. The following pattern is for instance not covered: ['Succ a]
+out > Warning: covered.act:30:15-33:3
+out > Incomplete pattern matching. The following pattern is for instance not covered: ['Node a b ['Leaf c]]
 out >
 out >
 err >

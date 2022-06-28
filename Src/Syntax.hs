@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 module Syntax where
 
 import Control.Monad
@@ -13,16 +14,17 @@ import Pattern (Pat(..))
 import Data.Maybe (fromJust)
 import Data.List (partition)
 import Hide (Hide(Hide))
-import Concrete.Base (RawP(..), Binder (..))
+import Concrete.Base (RawP(..), Binder (..), Variable (..))
 import Location (unknown)
 import Scope (Scope(..))
+import Control.Monad.State (State, evalState, get, put)
 
 type SyntaxCat = String
 type SyntaxDesc = CdB (Tm Void)
 
 type SyntaxTable = Map SyntaxCat SyntaxDesc
 
-data VSyntaxDesc
+data VSyntaxDesc' a
   = VAtom
   | VAtomBar [String]
   | VNil
@@ -31,13 +33,20 @@ data VSyntaxDesc
   | VBind SyntaxCat SyntaxDesc
   | VEnumOrTag [String] [(String, [SyntaxDesc])]
   | VWildcard
+  | VSyntaxCat a
   deriving (Eq, Show)
+
+type VSyntaxDesc = VSyntaxDesc' Void
+
+data WithSyntaxCat a where
+  Yes :: WithSyntaxCat SyntaxCat
+  No :: WithSyntaxCat Void
 
 asRec :: OrBust x => (SyntaxCat -> x) -> SyntaxDesc -> x
 asRec f = asAtom $ \ (at, _) -> f at
 
-expand :: SyntaxTable -> SyntaxDesc -> Maybe VSyntaxDesc
-expand table = go True where
+expand' :: WithSyntaxCat a -> SyntaxTable -> SyntaxDesc -> Maybe (VSyntaxDesc' a)
+expand' w table = go True where
 
   go b s = ($ s) $ asAtomOrTagged (goAtoms b) (goTagged b s)
 
@@ -46,9 +55,11 @@ expand table = go True where
     "Nil"  -> pure VNil
     "Wildcard" -> pure VWildcard
     a -> do
-      guard b
       s <- Map.lookup a table
-      go False s
+      case w of
+        Yes -> pure (VSyntaxCat a)
+        No -> do guard b
+                 go False s
 
   goTagged b s (a, n) = case a of
     "AtomBar" -> asPair $ asListOf (asAtom $ Just . fst)
@@ -65,8 +76,11 @@ expand table = go True where
     "Fix" -> asPair $ asBind $ \ x s' _ -> go False (s' //^ topSbst x s)
     _ -> bust
 
-contract :: VSyntaxDesc -> SyntaxDesc
-contract = \case
+expand :: SyntaxTable -> SyntaxDesc -> Maybe VSyntaxDesc
+expand = expand' No
+
+contract' :: WithSyntaxCat a -> VSyntaxDesc' a -> SyntaxDesc
+contract' w = \case
   VAtom -> atom "Atom" 0
   VAtomBar xs -> "AtomBar" #%+ [enums (\ s -> atom s 0) xs]
   VNil -> atom "Nil" 0
@@ -76,8 +90,14 @@ contract = \case
   VEnumOrTag es ts -> "EnumOrTag" #%+
     [enums (\ s -> atom s 0) es, enums ( \ (t, s) -> (t,0) #% s) ts]
   VWildcard -> atom "Wildcard" 0
+  VSyntaxCat cat -> case w of
+    Yes -> atom cat 0
+    No -> absurd cat
   where
     enums f = foldr (%) (nil 0) . map f
+
+contract :: VSyntaxDesc -> SyntaxDesc
+contract = contract' No
 
 catToDesc :: SyntaxCat -> SyntaxDesc
 catToDesc c = atom c 0
@@ -196,12 +216,12 @@ shrinkBy :: SyntaxTable -> SyntaxDesc -> Pat -> Covering
 shrinkBy table = start where
 
   start :: SyntaxDesc -> Pat -> Covering
-  start desc = go (fromJust $ expand table desc)
+  start desc = go (desc, fromJust (expand table desc))
 
   starts :: [SyntaxDesc] -> Pat -> Covering' [SyntaxDesc]
-  starts descs = gos (map (fromJust . expand table) descs)
+  starts descs = gos (map (\ d -> (d, fromJust (expand table d))) descs)
 
-  gos :: [VSyntaxDesc] -> Pat -> Covering' [SyntaxDesc]
+  gos :: [(SyntaxDesc, VSyntaxDesc)] -> Pat -> Covering' [SyntaxDesc]
   gos [] (AP "") = Covering
   gos (d:ds) (PP p ps) = case (go d p, gos ds ps) of
     (Covering, Covering) -> Covering
@@ -209,17 +229,17 @@ shrinkBy table = start where
     (_, AlreadyCovered) -> AlreadyCovered
     (PartiallyCovering p1s, PartiallyCovering p2s) ->
       PartiallyCovering
-        (map (contract d :) p2s ++ map (: map contract ds) p1s)
+        (map (fst d :) p2s ++ map (: map fst ds) p1s)
     (PartiallyCovering p1s, Covering) ->
-      PartiallyCovering (map (: map contract ds) p1s)
+      PartiallyCovering (map (: map fst ds) p1s)
     (Covering, PartiallyCovering p2s) ->
-      PartiallyCovering (map (contract d :) p2s)
+      PartiallyCovering (map (fst d :) p2s)
   gos _ _ = error "Impossible"
 
-  go :: VSyntaxDesc -> Pat -> Covering
+  go :: (SyntaxDesc, VSyntaxDesc) -> Pat -> Covering
   go desc (AT s pat) = go desc pat
-  go desc (VP db) = PartiallyCovering [contract desc] -- TODO: handle bound variables too
-  go desc (AP s) = contract <$> case desc of
+  go (desc, _) (VP db) = PartiallyCovering [desc] -- TODO: handle bound variables too
+  go (desc, vdesc) (AP s) = contract <$> case vdesc of
     VAtom -> PartiallyCovering [VAtomBar [s]]
     VAtomBar ss | s `notElem` ss -> PartiallyCovering [VAtomBar (s:ss)]
     VNil | null s -> Covering
@@ -232,7 +252,7 @@ shrinkBy table = start where
         _ -> PartiallyCovering [VEnumOrTag ss' ts]
     VWildcard -> PartiallyCovering [VWildcard]
     _ -> AlreadyCovered
-  go desc (PP pat pat') = case desc of
+  go (desc, vdesc) (PP pat pat') = case vdesc of
     VCons cb cb' -> contract <$> case (start cb pat, start cb' pat') of
       (Covering, Covering) -> Covering
       (AlreadyCovered, _) -> AlreadyCovered
@@ -276,34 +296,46 @@ shrinkBy table = start where
       _ -> error "Impossible"
     VWildcard -> contract <$> PartiallyCovering [VWildcard]
     _ -> error "Impossible"
-  go vdesc (BP hi pat) = case vdesc of
+  go (desc, vdesc) (BP hi pat) = case vdesc of
     VBind s d -> contract <$> case start d pat of
       Covering -> Covering
       AlreadyCovered -> AlreadyCovered
       PartiallyCovering ps -> PartiallyCovering (VBind s <$> ps)
     VWildcard -> contract <$> PartiallyCovering [VWildcard]
     _ -> error "Impossible"
-  go vdesc (MP s th)
+  go (desc, vdesc) (MP s th)
     | is1s th = Covering
-    | otherwise = PartiallyCovering [contract vdesc] -- TODO already covered
-  go vdesc GP = PartiallyCovering [contract vdesc]
+    | otherwise = PartiallyCovering [desc] -- TODO already covered
+  go (desc, vdesc) GP = PartiallyCovering [desc]
   go _ HP = Covering
 
 missing :: SyntaxTable -> SyntaxDesc -> RawP
-missing table = start where
+missing table desc = start desc `evalState` names where
 
-  start :: SyntaxDesc -> RawP
-  start = go . fromJust . expand table
+  names :: [String]
+  names = concat
+        $ zipWith (map . flip (++)) ("" : map show [1..])
+        $ repeat (map pure "abcdefghijklmnopqrstuvwxyz")
 
-  go :: VSyntaxDesc -> RawP
-  go VAtom = UnderscoreP unknown
-  go (VAtomBar ss) = UnderscoreP unknown
-  go VNil = AtP unknown ""
-  go (VCons cb cb') = ConsP unknown (start cb) (start cb')
-  go (VNilOrCons cb cb') = AtP unknown ""
-  go (VBind s cb) = LamP unknown (Scope (Hide Unused) (start cb))
-  go (VEnumOrTag (s:_) _) = AtP unknown s
+  start :: SyntaxDesc -> State [String] RawP
+  start = go . fromJust . expand' Yes table
+
+  go :: VSyntaxDesc' SyntaxCat -> State [String] RawP
+  go VAtom = pure $ UnderscoreP unknown
+  go (VAtomBar ss) = pure $ UnderscoreP unknown
+  go VNil = pure $ AtP unknown ""
+  go (VCons cb cb') = ConsP unknown <$> start cb <*> start cb'
+  go (VNilOrCons cb cb') = pure $ AtP unknown ""
+  go (VBind s cb) = LamP unknown . Scope (Hide Unused) <$> start cb
+  go (VEnumOrTag (s:_) _) = pure $ AtP unknown s
   go (VEnumOrTag [] ((s, ds):_))
-     = ConsP unknown (AtP unknown s)
-     $ foldr (ConsP unknown . start) (AtP unknown "") ds
-  go VWildcard = UnderscoreP unknown
+     = ConsP unknown (AtP unknown s) . foldr (ConsP unknown) (AtP unknown "")
+     <$> traverse start ds
+  go VWildcard = pure $ UnderscoreP unknown
+  go (VSyntaxCat _) = do
+    ns <- get
+    (n, ns) <- case ns of
+                 (n:ns) -> pure (n, ns)
+                 _ -> error "Impossible"
+    put ns
+    pure $ VarP unknown (Variable unknown n)

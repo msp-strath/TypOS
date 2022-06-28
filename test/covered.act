@@ -23,3 +23,11 @@ foo@p = p?n. case n
   { 'Zero -> p!'Zero.
 --  ; ['Succ k] -> foo@q. q!k . q?k'. p!['Succ k'].
   }
+
+syntax { 'Tree = ['Tag [['Leaf 'Nat] ['Node 'Tree 'Nat 'Tree]]] }
+
+toNat : ?'Tree. !'Nat.
+toNat@p = p?t. case t
+  { ['Leaf 'Zero] -> p!'Zero.
+  ; ['Node ['Node _ _ _] _ ['Node _ _ _]] -> p!['Succ 'Zero].
+  }

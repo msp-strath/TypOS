@@ -28,7 +28,7 @@ import Machine.Base
 import Machine.Display
 import Options
 import Pretty
-import Syntax (SyntaxDesc, SyntaxTable, expand, VSyntaxDesc (..), contract)
+import Syntax (SyntaxDesc, SyntaxTable, expand, VSyntaxDesc'(..), contract)
 import Term.Base
 import Unelaboration
 import Data.String (fromString)
