@@ -214,12 +214,13 @@ instance Monoid (Covering' sd) where
   mempty = AlreadyCovered
 
 -- Precondition:
---   The pattern has been elaborated against a description that contains the
---   description so it should not be possible for the description to be incompatible.
+--   The pattern has been elaborated against a description that
+--   contains the description so it should not be possible for
+--   the description to be incompatible.
 --   It can at most not have enough cases to handle the pat.
 -- Postcondition:
---   The output is a description corresponding to the original one minus the case
---   covered by the input pattern.
+--   The output is a description corresponding to the original
+--   one minus the case covered by the input pattern.
 shrinkBy :: SyntaxTable -> SyntaxDesc -> Pat -> Covering
 shrinkBy table = start where
 
@@ -355,7 +356,7 @@ missing table desc = fmap (`evalState` names) (start desc) where
     ps <- start cb
     qs <- start cb'
     pure (ConsP unknown <$> ps <*> qs)
-  go (VNilOrCons cb cb') = (pure $ AtP unknown "") :| []
+  go (VNilOrCons cb cb') = go VNil <> go (VCons cb cb')
   go (VBind s cb) = fmap (LamP unknown . Scope (Hide Unused)) <$> start cb
   go (VEnumOrTag ss ts) =
     let enums = map (\ s -> (pure $ AtP unknown s) :| []) ss

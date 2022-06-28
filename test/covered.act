@@ -31,3 +31,11 @@ toNat@p = p?t. case t
   { ['Leaf 'Zero] -> p!'Zero.
   ; ['Node ['Node _ _ _] _ ['Node _ _ _]] -> p!['Succ 'Zero].
   }
+
+separate : ?'Tree.
+separate@p = p?t. case t
+  { ['Leaf ['Succ 'Zero]] ->
+  ; ['Node ['Node _ _ _] _ ['Leaf _]] ->
+  ; ['Node ['Leaf _] _ ['Node _ _ _]] ->
+  ; ['Node _ 'Zero _] ->
+  }

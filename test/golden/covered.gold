@@ -15,6 +15,12 @@ out >   ['Node ['Node a b c] d ['Leaf e]]
 out >   ['Node ['Leaf a] b ['Node c d e]]
 out >   ['Node ['Leaf a] b ['Leaf c]]
 out >   ['Leaf ['Succ a]]
+out > Warning: covered.act:40:4-21
+out > Unreachable clause ['Node _ 'Zero _]
+out > Warning: covered.act:36:18-41:3
+out > Incomplete pattern matching. The following patterns are missing:
+out >   ['Leaf 'Zero]
+out >   ['Leaf ['Succ ['Succ a]]]
 out >
 out >
 err >

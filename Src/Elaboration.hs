@@ -26,7 +26,7 @@ import Term.Base
 import Term.Substitution
 import Pattern as P
 import Location
-import Data.List.NonEmpty (NonEmpty)
+import Data.List.NonEmpty (NonEmpty, fromList)
 
 dual :: Protocol t -> Protocol t
 dual = map $ \case
@@ -793,9 +793,9 @@ sact = \case
     tm <- during (MatchTermElaboration tm) $ stm desc tm
     chs <- get
     (clsts, cov) <- traverse (sclause desc) cls `runStateT` [desc]
-    whenCons cov $  \ d _ -> do
+    unless (null cov) $ do
       table <- gets syntaxCats
-      let examples = missing table d
+      let examples = fromList cov >>= missing table
       raiseWarning $ MissingClauses r examples
     let (cls, sts) = unzip clsts
     during (MatchElaboration rtm) $ consistentCommunication r sts
