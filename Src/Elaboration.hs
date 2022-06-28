@@ -26,7 +26,7 @@ import Term.Base
 import Term.Substitution
 import Pattern as P
 import Location
-import Data.List.NonEmpty (toList)
+import Data.List.NonEmpty (NonEmpty)
 
 dual :: Protocol t -> Protocol t
 dual = map $ \case
@@ -142,7 +142,7 @@ isFresh x = do
 
 data Warning
   = UnreachableClause Range RawP
-  | MissingClauses Range [RawP]
+  | MissingClauses Range (NonEmpty RawP)
 
 instance HasGetRange Warning where
   getRange = \case
@@ -796,7 +796,7 @@ sact = \case
     whenCons cov $  \ d _ -> do
       table <- gets syntaxCats
       let examples = missing table d
-      raiseWarning $ MissingClauses r (toList examples)
+      raiseWarning $ MissingClauses r examples
     let (cls, sts) = unzip clsts
     during (MatchElaboration rtm) $ consistentCommunication r sts
     pure $ Match r tm cls

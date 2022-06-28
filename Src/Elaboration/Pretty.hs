@@ -16,6 +16,7 @@ import Location
 import Pretty
 import Syntax
 import Unelaboration (unsafeEvalUnelab, unelab, initNaming)
+import Data.List.NonEmpty (NonEmpty((:|)))
 
 instance Pretty Range where
   pretty r | r == unknown = ""
@@ -60,8 +61,9 @@ instance Pretty Warning where
       UnreachableClause r pat ->
         hsep ["Unreachable clause", pretty pat]
       MissingClauses r pats ->
-        vcat ("Incomplete pattern matching. The following patterns are missing:"
-             : map (indent 2 . pretty) pats)
+        let sIsAre = case pats of { _ :| [] -> " is"; _ -> "s are" } in
+          vcat ("Incomplete pattern matching. The following pattern" <> sIsAre <+> "missing:"
+             : map (indent 2 . pretty) (toList pats))
 
 instance Pretty Complaint where
 
