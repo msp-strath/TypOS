@@ -53,9 +53,7 @@ main = do
 
       -- Elaboration warnings
       unless ((quiet opts && not (wAll opts)) || null ws) $ do
-        putStrLn $ render (colours opts) cfg $ vcat $
-          withANSI [SetColour Background Yellow] "Warning:"
-          : map pretty ws
+        putStrLn $ render (colours opts) cfg $ vcat $ map pretty ws
 
       let p = Process opts B0 initRoot (initEnv B0) initStore (Win unknown) []
       let res@(Process _ fs _ env sto a _) = run opts p acs

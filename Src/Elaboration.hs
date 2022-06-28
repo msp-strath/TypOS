@@ -143,6 +143,11 @@ data Warning
   = UnreachableClause Range RawP
   | MissingClause Range RawP
 
+instance HasGetRange Warning where
+  getRange = \case
+    UnreachableClause r _ -> r
+    MissingClause r _ -> r
+
 raiseWarning :: Warning -> Elab ()
 raiseWarning w = do
   modify (\ r -> r { warnings = warnings r :< w })

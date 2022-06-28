@@ -14,3 +14,12 @@ type@p = p?ty. case ty
   ; ['Arr a b] ->
   ; _ ->
   }
+
+syntax { 'Nat = ['EnumOrTag ['Zero] [['Succ 'Nat]]] }
+
+foo : ?'Nat.!'Nat.
+
+foo@p = p?n. case n
+  { 'Zero -> p!'Zero.
+--  ; ['Succ k] -> foo@q. q!k . q?k'. p!['Succ k'].
+  }

@@ -1,11 +1,12 @@
 ret > ExitSuccess
-out > Warning:
-out > covered.act:5:4-9
+out > Warning: covered.act:5:4-9
 out > Unreachable clause 'Atom
-out > covered.act:2:22-6:3
+out > Warning: covered.act:2:22-6:3
 out > Incomplete pattern matching. The following pattern is for instance not covered: _
-out > covered.act:15:4-5
+out > Warning: covered.act:15:4-5
 out > Unreachable clause _
+out > Warning: covered.act:22:13-25:3
+out > Incomplete pattern matching. The following pattern is for instance not covered: ['Succ 'Zero]
 out >
 out >
 err >
