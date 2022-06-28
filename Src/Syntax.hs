@@ -194,7 +194,7 @@ data Covering' sd
   = AlreadyCovered
   | Covering
   | PartiallyCovering
-      sd   -- what is covered
+      [sd] -- what is covered
       [sd] -- what is left to cover
   deriving (Functor)
 
@@ -208,31 +208,20 @@ isAlreadyCovered :: Covering' sd -> Bool
 isAlreadyCovered AlreadyCovered = True
 isAlreadyCovered _ = False
 
-isPartiallyCovering :: Covering' sd -> Maybe (sd, [sd])
+isPartiallyCovering :: Covering' sd -> Maybe ([sd], [sd])
 isPartiallyCovering (PartiallyCovering p ps) = Just (p, ps)
 isPartiallyCovering _ = Nothing
 
-combine' :: [(sd, Covering' sd)] -> Covering' sd
-combine' covs = case filter (not . isAlreadyCovered . snd) covs of
-  [] -> AlreadyCovered
-  xs -> case partition (isCovering . snd) xs of
-    (_, []) -> Covering
-    (cds, (_, PartiallyCovering p ps) : rest) ->
-     PartiallyCovering p $ concat
-       ( ps
-       : map fst cds
-       : mapMaybe (fmap snd . isPartiallyCovering . snd) rest)
-
 combine :: [(sd, Covering' sd)] -> Covering' sd
-combine covs = case filter (not . isCovering . snd) covs of
-  [] -> Covering
-  xs -> case partition (isAlreadyCovered . snd) xs of
-    (_, []) -> AlreadyCovered
-    (cds, (_, PartiallyCovering p ps) : rest) ->
-     PartiallyCovering p $ concat
-       ( ps
-       : map fst cds
-       : mapMaybe (fmap snd . isPartiallyCovering . snd) rest)
+combine covs = case partition (isAlreadyCovered . snd) covs of
+  (_, []) -> AlreadyCovered
+  (acs, covs) -> case (acs, partition (isCovering . snd) covs) of
+    ([] , (cds, []))   -> Covering
+    (acs, (cds, []))   -> PartiallyCovering (map fst cds) (map fst acs)
+    (acs, (cds, covs)) ->
+     let (ps, pss) = unzip $ mapMaybe (isPartiallyCovering . snd) covs in
+     PartiallyCovering (concat (map fst cds : ps)) $
+       concat (map fst acs : pss)
 
 -- Precondition:
 --   The pattern has been elaborated against a description that
@@ -244,12 +233,6 @@ combine covs = case filter (not . isCovering . snd) covs of
 --   one minus the case covered by the input pattern.
 shrinkBy :: SyntaxTable -> SyntaxDesc -> Pat -> Covering
 shrinkBy table = start where
-
-  vempty :: VSyntaxDesc
-  vempty = VEnumOrTag [] []
-
-  empty :: SyntaxDesc
-  empty = contract $ VEnumOrTag [] []
 
   start :: SyntaxDesc -> Pat -> Covering
   start desc = go (desc, fromJust (expand table desc))
@@ -264,31 +247,32 @@ shrinkBy table = start where
     (AlreadyCovered, _) -> AlreadyCovered
     (_, AlreadyCovered) -> AlreadyCovered
     (PartiallyCovering p1 p1s, PartiallyCovering p2 p2s) ->
-      PartiallyCovering (p1 : p2) $ concat
-        [ map (p1 :) p2s
-        , map (: p2) p1s
+      PartiallyCovering ((:) <$> p1 <*> p2) $ concat
+        [ (:) <$> p1  <*> p2s
+        , (:) <$> p1s <*> p2
         , (:) <$> p1s <*> p2s ]
     (PartiallyCovering p1 p1s, Covering) ->
-      PartiallyCovering (p1 : map fst ds) (map (: map fst ds) p1s)
+      PartiallyCovering (map (: map fst ds) p1) (map (: map fst ds) p1s)
     (Covering, PartiallyCovering p2 p2s) ->
-      PartiallyCovering (fst d : p2) (map (fst d :) p2s)
+      PartiallyCovering (map (fst d :) p2) (map (fst d :) p2s)
   gos _ _ = error "Impossible"
 
   go :: (SyntaxDesc, VSyntaxDesc) -> Pat -> Covering
   go desc (AT s pat) = go desc pat
-  go (desc, _) (VP db) = PartiallyCovering empty [desc] -- TODO: handle bound variables too
+  go (desc, _) (VP db) = PartiallyCovering [] [desc] -- TODO: handle bound variables too
   go (desc, vdesc) (AP s) = contract <$> case vdesc of
-    VAtom -> PartiallyCovering (VEnumOrTag [s] []) [VAtomBar [s]]
-    VAtomBar ss | s `notElem` ss -> PartiallyCovering (VEnumOrTag [s] []) [VAtomBar (s:ss)]
+    VAtom -> PartiallyCovering [VEnumOrTag [s] []] [VAtomBar [s]]
+    VAtomBar ss | s `notElem` ss ->
+      PartiallyCovering [VEnumOrTag [s] []] [VAtomBar (s:ss)]
     VNil | null s -> Covering
-    VNilOrCons cb cb' | null s -> PartiallyCovering VNil [VCons cb cb']
+    VNilOrCons cb cb' | null s -> PartiallyCovering [VNil] [VCons cb cb']
     VEnumOrTag ss ts ->
       let (matches, ss') = partition (s ==) ss in
       case (ss', ts) of
         _ | null matches -> AlreadyCovered
         ([], []) -> Covering
-        _ -> PartiallyCovering (VEnumOrTag matches []) [VEnumOrTag ss' ts]
-    VWildcard -> PartiallyCovering vempty [VWildcard]
+        _ -> PartiallyCovering [VEnumOrTag matches []] [VEnumOrTag ss' ts]
+    VWildcard -> PartiallyCovering [] [VWildcard]
     _ -> AlreadyCovered
   go (desc, vdesc) (PP pat pat') = case vdesc of
     VCons cb cb' -> contract <$> case (start cb pat, start cb' pat') of
@@ -296,9 +280,9 @@ shrinkBy table = start where
       (AlreadyCovered, _) -> AlreadyCovered
       (_, AlreadyCovered) -> AlreadyCovered
       (PartiallyCovering p1 p1s, PartiallyCovering p2 p2s) ->
-        PartiallyCovering (VCons p1 p2) $ concat
-          [ map (VCons p1) p2s
-          , map (`VCons` p2) p1s
+        PartiallyCovering (VCons <$> p1 <*> p2) $ concat
+          [ VCons <$> p1  <*> p2s
+          , VCons <$> p1s <*> p2
           , VCons <$> p1s <*> p2s ]
 -- Input desc: ['Cons ['Enum ['a 'b 'c]] ['Enum ['d 'e 'f]]]
 -- Pattern: ['a | 'e]
@@ -312,50 +296,56 @@ shrinkBy table = start where
 --     ['Cons ['Enum ['b 'c]] ['Enum ['e]]]
 --     ['Cons ['Enum ['b 'c]] ['Enum ['d 'f]]]]
       (PartiallyCovering p1 p1s, Covering) ->
-        PartiallyCovering (VCons p1 cb') (map (`VCons` cb') p1s)
+        PartiallyCovering (map (`VCons` cb') p1) (map (`VCons` cb') p1s)
       (Covering, PartiallyCovering p2 p2s) ->
-        PartiallyCovering (VCons cb p2) (map (VCons cb) p2s)
+        PartiallyCovering (map (VCons cb) p2) (map (VCons cb) p2s)
 
     VNilOrCons cb cb' -> contract <$> case (start cb pat, start cb' pat') of
-      (Covering, Covering) -> PartiallyCovering (VCons cb cb') [VNil]
+      (Covering, Covering) -> PartiallyCovering [VCons cb cb'] [VNil]
       (AlreadyCovered, _) -> AlreadyCovered
       (_, AlreadyCovered) -> AlreadyCovered
       (PartiallyCovering p1 p1s, PartiallyCovering p2 p2s) ->
-        PartiallyCovering (VCons p1 p2) $ concat
+        PartiallyCovering (VCons <$> p1 <*> p2) $ concat
           [ [VNil]
-          , map (VCons p1) p2s
-          , map (`VCons` p2) p1s
+          , VCons <$> p1  <*> p2s
+          , VCons <$> p1s <*> p2
           , VCons <$> p1s <*> p2s ]
       (PartiallyCovering p1 p1s, Covering) ->
-        PartiallyCovering (VCons p1 cb') (VNil : map (`VCons` cb') p1s)
+        PartiallyCovering (map (`VCons` cb') p1)
+          (VNil : map (`VCons` cb') p1s)
       (Covering, PartiallyCovering p2 p2s) ->
-        PartiallyCovering (VCons cb p2) (VNil : map (VCons cb) p2s)
+        PartiallyCovering (map (VCons cb) p2)
+          (VNil : map (VCons cb) p2s)
 
     VEnumOrTag ss ts -> case pat of
       AP s ->
         let (matches, ts') = partition ((s ==) . fst) ts in
         contract <$> case combine $ map (\ (_, ds) -> (ds, starts ds pat')) matches of
+          _ | null matches -> AlreadyCovered
           Covering | null ss && null ts' -> Covering
-          Covering -> PartiallyCovering (VEnumOrTag [] matches) [VEnumOrTag ss ts']
+          Covering ->
+            PartiallyCovering
+              [VEnumOrTag [] matches]
+              [VEnumOrTag ss ts']
           AlreadyCovered -> AlreadyCovered
           PartiallyCovering p ps ->
             PartiallyCovering
-               (VEnumOrTag [] [(s, p)])
+               [VEnumOrTag [] (map (s,) p)]
                [VEnumOrTag ss (map (s,) ps ++ ts')]
       _ -> error "Impossible"
-    VWildcard -> contract <$> PartiallyCovering vempty [VWildcard]
+    VWildcard -> contract <$> PartiallyCovering [] [VWildcard]
     _ -> error "Impossible"
   go (desc, vdesc) (BP hi pat) = case vdesc of
     VBind s d -> contract <$> case start d pat of
       Covering -> Covering
       AlreadyCovered -> AlreadyCovered
-      PartiallyCovering p ps -> PartiallyCovering (VBind s p) (VBind s <$> ps)
-    VWildcard -> contract <$> PartiallyCovering vempty [VWildcard]
+      PartiallyCovering p ps -> PartiallyCovering (VBind s <$> p) (VBind s <$> ps)
+    VWildcard -> contract <$> PartiallyCovering [] [VWildcard]
     _ -> error "Impossible"
   go (desc, vdesc) (MP s th)
     | is1s th = Covering
-    | otherwise = PartiallyCovering empty [desc] -- TODO already covered
-  go (desc, vdesc) GP = PartiallyCovering empty [desc]
+    | otherwise = PartiallyCovering [] [desc] -- TODO already covered
+  go (desc, vdesc) GP = PartiallyCovering [] [desc]
   go _ HP = Covering
 
 missing :: SyntaxTable -> SyntaxDesc -> NonEmpty RawP
