@@ -57,6 +57,7 @@ library
                        Options,
                        Parse,
                        Pattern,
+                       Pattern.Coverage,
                        Pretty,
                        Scope,
                        Syntax,

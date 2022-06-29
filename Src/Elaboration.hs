@@ -27,6 +27,7 @@ import Term.Substitution
 import Pattern as P
 import Location
 import Data.List.NonEmpty (NonEmpty, fromList)
+import Pattern.Coverage (Covering'(..), combine, shrinkBy, missing)
 
 dual :: Protocol t -> Protocol t
 dual = map $ \case
