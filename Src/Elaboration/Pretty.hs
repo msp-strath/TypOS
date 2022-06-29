@@ -11,7 +11,7 @@ import Concrete.Base (Mode)
 import Concrete.Pretty()
 import Doc
 import Doc.Render.Terminal
-import Elaboration
+import Elaboration.Monad
 import Location
 import Pretty
 import Syntax

@@ -42,6 +42,7 @@ library
                        Doc.Internal,
                        Doc.Render.Terminal,
                        Elaboration,
+                       Elaboration.Monad,
                        Elaboration.Pretty,
                        Forget,
                        Format,

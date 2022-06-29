@@ -22,6 +22,7 @@ import Bwd
 import Display(Display(..), viaPretty)
 import Doc
 import Elaboration
+import Elaboration.Monad
 import Elaboration.Pretty()
 import Machine.Base
 import Machine.Display (Store)
