@@ -20,11 +20,7 @@ import Concrete.Base (RawP(..), Binder (..), Variable (..))
 import Location (unknown)
 import Scope (Scope(..))
 import Control.Monad.State (State, evalState, get, put)
-import Data.List.NonEmpty (NonEmpty ((:|)), toList)
-
-appendList :: NonEmpty a -> [a] -> NonEmpty a
-appendList xs [] = xs
-appendList xs (y : ys) = xs <> (y :| ys)
+import Data.List.NonEmpty (NonEmpty ((:|)), fromList, toList)
 
 type SyntaxCat = String
 type SyntaxDesc = CdB (Tm Void)
@@ -374,9 +370,7 @@ missing table desc = fmap (`evalState` names) (start desc) where
         tagged = ts <&> \ (s, ds) -> do
           args <- traverse start ds
           pure $ ConsP unknown (AtP unknown s) . foldr (ConsP unknown) (AtP unknown "") <$> sequence args
-    in case enums ++ tagged of
-      (p : ps) -> p `appendList` concatMap toList ps
-      [] -> error "Impossible"
+    in fromList (concatMap toList (enums ++ tagged))
   go VWildcard = (pure $ UnderscoreP unknown) :| []
   go (VSyntaxCat _) = (:| []) $ do
     ns <- get
