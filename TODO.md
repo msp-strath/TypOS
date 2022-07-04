@@ -26,7 +26,7 @@
 * [ ] Concurrent runtime
 * [ ] Construct error messages from unfinished runs
 * [ ] Deadlock detection
-* [ ] Coverage checker for `case`
+* [x] Coverage checker for `case`
 * [x] Standalone stacks (attached to strings, not judgements)
 
 ### CLI

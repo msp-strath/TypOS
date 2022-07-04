@@ -34,7 +34,7 @@ type@p = p?ty. case (lookup isType ty)
     ; ['Pair S T] -> type@q. q!S. | type@r. r!T.
     ; ['List S]   -> type@q. q!S.
     ; ['Arr S T]  -> type@q. q!S. | type@r. r!T.
-    ; otherwise   -> #"not a valid type"
+--    ; otherwise   -> #"not a valid type"
     }
   }
 
