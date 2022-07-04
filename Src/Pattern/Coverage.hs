@@ -44,7 +44,7 @@ data Covering' sd
   -- Description:  ['EnumOrTag ['Zero 'Suc] [['Rad 'Synth 'Type]]]
   = AlreadyCovered
   -- It could be that `pat` is general enough that it covers the whole of
-  -- `desc`, leaving no leftovers at all e.g. undescores, variables, or:
+  -- `desc`, leaving no leftovers at all e.g. underscores, variables, or:
   -- Pattern:     ['Node _ ['Succ n] ['Leaf a]]
   -- Description: ['Tag [['Node ['Tag [['Leaf 'Nat] ['Node 'Tree ['Enum ['Zero]] 'Tree]]]
   --                            ['Tag [['Succ ['Enum ['Zero]]]]]
