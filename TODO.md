@@ -13,6 +13,7 @@
 * [x] as-patterns
 * [x] irrefutable patterns in binders
 * [x] literate markdown
+* [ ] literate LaTeX
 
 ### Features
 
@@ -26,6 +27,18 @@
 * [ ] Deadlock detection
 * [x] Coverage checker for `case`
 * [x] Standalone stacks (attached to strings, not judgements)
+* [ ] Unification modulo computation
+
+### Judgement Contracts
+
+* [ ] Syntax have an associated Semantics (what's canonical)
+* [ ] Judgement take inputs / subjects / outputs
+   + [ ] Subject should be syntatic
+   + [ ] Inputs / outputs should be in the semantics of the given syntax
+   + [ ] child subjects are structural components of parent subjects
+   + [ ] if a subject pattern variable is transmitted, it is the subject of some child
+   * [ ] Each syntax has a designated judgement with that syntax as subject (the justifier / gatekeeper)
+* [ ] Contracts (constraints on inputs, guarantees on outputs)
 
 ### CLI
 
