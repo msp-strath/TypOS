@@ -1,0 +1,13 @@
+syntax { 'Nat = ['EnumOrTag ['Zero] [['Succ 'Nat]]]}
+
+foo : ?'Nat.!'Nat.
+foo@p = p?n. case n
+  { 'Zero -> p!'Zero.
+  ; 'Zero -> p!'Zero.
+  }
+
+foo' : ?'Nat.!'Nat.
+foo'@p = p?n. case n
+  { ['Succ k] -> p!['Succ k].
+  ; ['Succ k] -> p!['Succ k].
+  }

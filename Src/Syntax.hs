@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 module Syntax where
 
 import Control.Monad
@@ -7,15 +8,15 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Bwd
-import Thin
-import Term
+import Thin (CdB(..), DB(..), weak, scope, lsb)
+import Term hiding (contract, expand)
 
 type SyntaxCat = String
 type SyntaxDesc = CdB (Tm Void)
 
 type SyntaxTable = Map SyntaxCat SyntaxDesc
 
-data VSyntaxDesc
+data VSyntaxDesc' a
   = VAtom
   | VAtomBar [String]
   | VNil
@@ -24,13 +25,20 @@ data VSyntaxDesc
   | VBind SyntaxCat SyntaxDesc
   | VEnumOrTag [String] [(String, [SyntaxDesc])]
   | VWildcard
+  | VSyntaxCat a
   deriving (Eq, Show)
+
+type VSyntaxDesc = VSyntaxDesc' Void
+
+data WithSyntaxCat a where
+  Yes :: WithSyntaxCat SyntaxCat
+  No :: WithSyntaxCat Void
 
 asRec :: OrBust x => (SyntaxCat -> x) -> SyntaxDesc -> x
 asRec f = asAtom $ \ (at, _) -> f at
 
-expand :: SyntaxTable -> SyntaxDesc -> Maybe VSyntaxDesc
-expand table = go True where
+expand' :: WithSyntaxCat a -> SyntaxTable -> SyntaxDesc -> Maybe (VSyntaxDesc' a)
+expand' w table = go True where
 
   go b s = ($ s) $ asAtomOrTagged (goAtoms b) (goTagged b s)
 
@@ -39,9 +47,11 @@ expand table = go True where
     "Nil"  -> pure VNil
     "Wildcard" -> pure VWildcard
     a -> do
-      guard b
       s <- Map.lookup a table
-      go False s
+      case w of
+        Yes -> pure (VSyntaxCat a)
+        No -> do guard b
+                 go False s
 
   goTagged b s (a, n) = case a of
     "AtomBar" -> asPair $ asListOf (asAtom $ Just . fst)
@@ -58,8 +68,11 @@ expand table = go True where
     "Fix" -> asPair $ asBind $ \ x s' _ -> go False (s' //^ topSbst x s)
     _ -> bust
 
-contract :: VSyntaxDesc -> SyntaxDesc
-contract = \case
+expand :: SyntaxTable -> SyntaxDesc -> Maybe VSyntaxDesc
+expand = expand' No
+
+contract' :: WithSyntaxCat a -> VSyntaxDesc' a -> SyntaxDesc
+contract' w = \case
   VAtom -> atom "Atom" 0
   VAtomBar xs -> "AtomBar" #%+ [enums (\ s -> atom s 0) xs]
   VNil -> atom "Nil" 0
@@ -69,8 +82,14 @@ contract = \case
   VEnumOrTag es ts -> "EnumOrTag" #%+
     [enums (\ s -> atom s 0) es, enums ( \ (t, s) -> (t,0) #% s) ts]
   VWildcard -> atom "Wildcard" 0
+  VSyntaxCat cat -> case w of
+    Yes -> atom cat 0
+    No -> absurd cat
   where
     enums f = foldr (%) (nil 0) . map f
+
+contract :: VSyntaxDesc -> SyntaxDesc
+contract = contract' No
 
 catToDesc :: SyntaxCat -> SyntaxDesc
 catToDesc c = atom c 0

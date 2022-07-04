@@ -22,6 +22,11 @@ data Pat
   | HP -- happy pattern
   deriving (Show, Eq)
 
+isCatchall :: Pat -> Bool
+isCatchall (MP x th) = is1s th
+isCatchall HP = True
+isCatchall _ = False
+
 instance Thable Pat where
   AT v p *^ th = AT v (p *^ th)
   VP v *^ th = VP (v *^ th)
