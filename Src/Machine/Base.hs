@@ -52,9 +52,8 @@ compareUp store s t = case (expand (headUp store s), expand (headUp store t)) of
   (AX a _, AX b _) -> pure (compare a b)
   (p :%: q, a :%:b) -> do
     c1 <- compareUp store p a
-    c2 <- compareUp store q b
     case c1 of
-      EQ -> pure c2
+      EQ -> compareUp store q b
       _ -> pure c1
   (x :.: b, y :.: c) -> compareUp store b c
   (m :$: sg, n :$: sg') | m == n, Just EQ <- comparesUp store sg sg' -> pure EQ
