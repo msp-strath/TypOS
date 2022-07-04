@@ -529,7 +529,10 @@ sclause desc (rp, a) = do
   leftovers <- lift $ case combine $ map (\ d -> (d, shrinkBy table d p)) leftovers of
     Covering -> pure []
     AlreadyCovered -> do
-      raiseWarning (UnreachableClause (getRange rp) rp)
+      unless (isCatchall p) $
+        -- For now we don't complain about catchalls because they may
+        -- catching variables.
+        raiseWarning (UnreachableClause (getRange rp) rp)
       pure leftovers
     PartiallyCovering _ ps -> pure ps
   put leftovers

@@ -103,7 +103,7 @@ equalSynthWorker@p = p?e1. p?e2.
   ; [['App f1 s1] | ['App f2 s2] ] -> PRINTF "App" . equalSynth@q. q!f1. q!f2. q?ty. case ty
     { ['Pi S \ x. T] -> (checkEqual@r. r!S. r!s1. r!s2.|p!{x=['Rad s1 S]}T.)
     }
-  ; [x|y] -> # "%i not equalSynth to %i" x y
+--  ; [x|y] -> # "%i not equalSynth to %i" x y
   }
 
 {-

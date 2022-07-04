@@ -4,8 +4,6 @@ out > Unreachable clause 'Atom
 out > Warning: covered.act:2:22-6:3
 out > Incomplete pattern matching. The following pattern is missing:
 out >   _
-out > Warning: covered.act:15:4-5
-out > Unreachable clause _
 out > Warning: covered.act:22:13-25:3
 out > Incomplete pattern matching. The following pattern is missing:
 out >   ['Succ a]
