@@ -137,7 +137,7 @@ The other permitted syntax descriptions are as follows:
 * `['NilOrCons` *head* *tail*`]` admits the union of the above two.
 * `['Atom]` admits any atom.
 * `['AtomBar *as*]` admits any atom, *except* those listed in *as*.
-* `['Fix \`*x*`.` ..`]` takes a syntax decsription in which the bound
+* `['Fix \`*x*`.` ..`]` takes a syntax description in which the bound
   *x* is treated as a syntax description, allowing local recursion.
 * `['Wildcard]` admits anything.
 
@@ -244,7 +244,7 @@ is exactly `'Nat`, and the action taken in that case is nothing
 at all! The empty actor denotes glorious success! Meanwhile, the
 pattern `['Arr S T]` matches any three element list whose head is
 the atom `'Arr`: the other two elements are brought into scope as
-`S` and `T`, repsectively, then we proceed with the nonempty actor
+`S` and `T`, respectively, then we proceed with the nonempty actor
 to the right of `->`. What have we, now?
 
 We have a *parallel* composition, *actor* `|` *actor*, and both
