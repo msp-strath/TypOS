@@ -6,7 +6,7 @@
 (setq typos-keywords  '("syntax" "exec" "trace"
                         "break" "unify" "send" "recv" "move"
                         "case" "if" "let" "in" "else"
-                        "Wildcard" "EnumOrTag" "Enum" "Tag" "Cons" "Nil" "NilOrCons" "Fix" "Bind"
+                        "Atom" "AtomBar" "Wildcard" "EnumOrTag" "Enum" "Tag" "Cons" "Nil" "NilOrCons" "Fix" "Bind"
                         "BREAK" "PRINT" "PRINTF"))
 (setq typos-operators '("@" "!" "?" "~" "#"))
 (setq typos-symbols   '("|-" "|" "<->" "->" ";" "=" "{" "}"))

@@ -27,13 +27,16 @@ check : ?'Type. ?'Check.
 ctxt |- 'Synth -> 'Type
 synth : ?'Synth. !'Type.
 
-type@p = p?ty. if ty in isType { S -> } else case ty
+type@p = p?ty. case (lookup isType ty)
+  { ['Just S] ->
+  ; 'Nothing  -> case ty
     { 'One        -> -- winning is silent
     ; ['Pair S T] -> type@q. q!S. | type@r. r!T.
     ; ['List S]   -> type@q. q!S.
     ; ['Arr S T]  -> type@q. q!S. | type@r. r!T.
 --    ; otherwise   -> #"not a valid type"
     }
+  }
 
 check@p = p?ty. p?tm. case tm
     { ['Lam \x. body] ->
@@ -59,24 +62,27 @@ check@p = p?ty. p?tm. case tm
 
 synth@p = p?tm .
   -- lookup: in case tm is a free variable and a type has been pushed for it
-  if tm in ctxt { S -> p!S. } else case tm
-   { ['Rad t ty] -> (type@r. r!ty. | check@q. q!ty. q!t. | p!ty.)
-   ; ['Fst e]    -> 'Type?S. 'Type?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!S.)
-   ; ['Snd e]    -> 'Type?S. 'Type?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!T.)
-   ; ['ListElim ty e n (\x. \xs. \ih. c)] ->
-        p!ty. | type@r. r!ty. | check@q. q!ty. q!n. |
-        'Type?X. (synth@u. u!e. u?V. V ~ ['List X] |
-             \y.  ctxt |- y  -> X.
-             \ys. ctxt |- ys -> ['List X].
-             \jh. ctxt |- jh -> ty.
-                  check@v. v!ty. v!{x=y,xs=ys,ih=jh}c.
-            )
-   ; ['App f s]  -> 'Type?U. 'Type?V.
-        ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
-        | check@r. r!U. r!s.
-        | p!V.)
+  case (lookup ctxt tm)
+    { ['Just S] -> p!S.
+    ; 'Nothing -> case tm
+      { ['Rad t ty] -> (type@r. r!ty. | check@q. q!ty. q!t. | p!ty.)
+      ; ['Fst e]    -> 'Type?S. 'Type?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!S.)
+      ; ['Snd e]    -> 'Type?S. 'Type?T. (synth@q. q!e. q?ty. ty ~ ['Pair S T] | p!T.)
+      ; ['ListElim ty e n (\x. \xs. \ih. c)] ->
+           p!ty. | type@r. r!ty. | check@q. q!ty. q!n. |
+           'Type?X. (synth@u. u!e. u?V. V ~ ['List X] |
+                \y.  ctxt |- y  -> X.
+                \ys. ctxt |- ys -> ['List X].
+                \jh. ctxt |- jh -> ty.
+                     check@v. v!ty. v!{x=y,xs=ys,ih=jh}c.
+               )
+      ; ['App f s]  -> 'Type?U. 'Type?V.
+           ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
+           | check@r. r!U. r!s.
+           | p!V.)
+      }
    }
-
+ 
 exec \A. isType |- A -> []. check@p.
         p!['Arr ['List A] ['Arr ['List A] ['List A]]].
         p!['Lam \as. ['Lam \bs.

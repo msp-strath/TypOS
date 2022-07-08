@@ -1,0 +1,61 @@
+syntax { 'Source = ['Tag [['Data 'Atom ['Fix \cs. ['NilOrCons ['Cons 'Atom 'Tele] cs]]]]]
+       ; 'Tele = ['Tag [['Ret 'Atom]
+                        ['Arr 'Wildcard 'Tele]]]
+       }
+
+syntax { 'Type = ['EnumOrTag ['Unit 'Bool 'Rec] [['Pair 'Type 'Type]]]
+       ; 'Desc = ['Fix \s. ['NilOrCons 'Prod s]] -- sums
+       ; 'Prod = ['Fix \p. ['NilOrCons 'Type p]] -- of products
+       }
+
+elabTele : ?'Atom. ?'Tele. !'Prod.
+type : ?'Atom. ?'Wildcard. !'Type.
+
+elabTele@p = p?dat. p?tm. case tm
+  { ['Ret ty] -> (ty ~ dat | p![].)
+  ; ['Arr ty tel] ->
+      type@q. q!dat. q!ty. q?ty'.
+      elabTele@r. r!dat. r!tel. r?ps.
+      p![ty'|ps].
+  }
+
+type@p = p?dat. p?tm. case tm
+  { 'Bool -> p!'Bool.
+  ; 'Unit -> p!'Unit.
+  ; ['Pair ty1 ty2] ->
+      'Type?T1 T2.
+      ( type@q. q!dat. q!ty1. q?res. res ~ T1
+      | type@q. q!dat. q!ty2. q?res. res ~ T2
+      | p!['Pair T1 T2].
+      )
+  ; _ -> case compare tm dat
+         { 'EQ -> p!'Rec.
+         ; _ -> # "Invalid type: %i" tm
+         }
+  }
+
+elabDat : ?'Atom. ?['Fix \cs. ['NilOrCons ['Cons 'Atom 'Tele] cs]]. !'Desc.
+elabDat@p = p?dat. p?cs. case cs
+  { [] -> p![].
+  ; [[_ | c] | cs'] ->
+    elabTele@q. q!dat. q!c. q?desc.
+    elabDat@r. r!dat. r!cs'. r?descs.
+    p![desc | descs].
+  }
+
+elab : ?'Source. !['Cons 'Atom 'Desc].
+elab@p = p?['Data nm cs]. elabDat@q. q!nm. q!cs. q?desc. p![nm | desc].
+
+exec elab@p.
+  p!['Data 'Bits [ ['Nil  | ['Ret 'Bits]]
+                   ['Cons | ['Arr 'Bool ['Arr 'Bits ['Ret 'Bits]]]]]
+                 ].
+  p?[nm | desc].
+  PRINTF "Data %i elaborated to:\n%i" nm desc.
+
+exec elab@p.
+  p!['Data 'Tree [ ['Leaf | ['Arr 'Bool ['Ret 'Tree]]]
+                   ['Node | ['Arr ['Pair 'Tree ['Pair 'Bool 'Tree]] ['Ret 'Tree]]]]
+                 ].
+  p?[nm | desc].
+  PRINTF "Data %i elaborated to:\n%i" nm desc.

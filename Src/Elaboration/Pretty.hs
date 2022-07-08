@@ -138,18 +138,18 @@ instance Pretty Complaint where
      SyntaxPError r d p -> singleton $ (flush $ pretty r) <> hsep ["Pattern", pretty p, "does not match", pretty d]
      -- contextual info
      SendTermElaboration ch t c -> go c :< hsep ["when elaborating", fold [ pretty ch, "!", pretty t ] ]
-     MatchTermElaboration t c -> go c :< hsep ["when elaborating the case scrutinee", pretty t]
+     MatchScrutineeElaboration t c -> go c :< hsep ["when elaborating the case scrutinee", pretty t]
      MatchElaboration t c -> go c :< hsep ["when elaborating a match with case scrutinee", pretty t]
      MatchBranchElaboration p c -> go c :< hsep ["when elaborating a case branch handling the pattern", pretty p]
      ConstrainTermElaboration t c -> go c :< hsep ["when elaborating a constraint involving", pretty t]
      ConstrainSyntaxCatGuess s t c -> go c :< hsep ["when guessing syntactic categories for", pretty s, pretty t]
+     CompareTermElaboration t c -> go c :< hsep ["when elaborating a comparison involving", pretty t]
+     CompareSyntaxCatGuess s t c -> go c :< hsep ["when guessing syntactic categories for", pretty s, pretty t]
      FreshMetaElaboration c -> go c :< "when declaring a fresh metavariable"
      UnderElaboration c -> go c :<  "when binding a local variable"
      RecvMetaElaboration ch c -> go c :< hsep ["when receiving a value on channel", pretty ch]
      PushTermElaboration t c -> go c :< hsep ["when pushing the term", pretty t]
      LookupTermElaboration t c -> go c :< hsep ["when looking up the term", pretty t]
-     LookupHandlersElaboration t c ->
-        go c :< hsep ["when elaborating the handlers for the lookup acting on", pretty t]
      DeclJElaboration jd c -> go c :< hsep ["when elaborating the judgement declaration for", pretty jd]
      DefnJElaboration jd c -> go c :< hsep ["when elaborating the judgement definition for", pretty jd]
      ExecElaboration c -> go c :< hsep ["when elaborating an exec statement"]

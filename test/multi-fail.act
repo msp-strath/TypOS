@@ -1,0 +1,4 @@
+fail : ?'Atom. !'Atom.
+fail@p = p?at. 'Atom?at'. (# "fail" | at ~ at' | p!at'.)
+
+exec fail@p. p!'Hi. p?res.

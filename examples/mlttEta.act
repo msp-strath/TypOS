@@ -66,21 +66,24 @@ checkWorker@p = p?ty. p?tm. case tm
   ; ['Emb e] -> synth@q. q!e. q?ety. checkEqual@r. r!'Ty. r!ty. r!ety.
   }
 
-synthWorker@p = p?tm . if tm in ctxt { S -> p!S. } else case tm
-   { ['Rad t ty] -> ( type@q. q!ty.
-                    | check@r. r!ty. r!t.
-                    | p!ty.)
-   ; ['App f s] -> synth@q. q!f. q?ty. case ty
-     { ['Pi S \v. T] -> ( check@r. r!S. r!s.
-                        | p!{v=['Rad s S]}T.)
-     ; ['Sg S \v. T] -> case s
-       { 'Fst -> p!S.
-       ; 'Snd -> p!{v=['App f 'Fst]}T.
-       ; _ -> #"Expected Fst or Snd; got %i" s
-       }
-     ; _ -> #"Expected Pi or Sg; got %i" ty
-     }
-   }
+synthWorker@p = p?tm . case (lookup ctxt tm)
+  { ['Just S] -> p!S.
+  ; 'Nothing -> case tm
+    { ['Rad t ty] -> ( type@q. q!ty.
+                     | check@r. r!ty. r!t.
+                     | p!ty.)
+    ; ['App f s] -> synth@q. q!f. q?ty. case ty
+      { ['Pi S \v. T] -> ( check@r. r!S. r!s.
+                         | p!{v=['Rad s S]}T.)
+      ; ['Sg S \v. T] -> case s
+        { 'Fst -> p!S.
+        ; 'Snd -> p!{v=['App f 'Fst]}T.
+        ; _ -> #"Expected Fst or Snd; got %i" s
+        }
+      ; _ -> #"Expected Pi or Sg; got %i" ty
+      }
+    }
+  }
 
 checkEval@p = p?tm. case tm
   { ['Emb e] -> {-PRINTF "Emb" .-} evalSynth@q. q!e. q?ne. case ne
@@ -133,19 +136,22 @@ checkEqualWorker@p = p?ty. p?tm1. p?tm2. {- PRINTF "checkEqual %i\n %i\n %i" ty 
   }
 
 equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %i\n %i" e1 e2.
-  if e1 in ctxt { S1 -> {- PRINTF "Var" . -}(e1 ~ e2 | p!S1.)} else case [e1|e2]
-  { [['Rad ['Emb e1'] ty1] | _ ] -> {- PRINTF "Rad-L" . -} equalSynth@q. q!e1'. q!e2. p <-> q
-  ; [_  | ['Rad ['Emb e2'] ty2]] -> {- PRINTF "Rad-R" . -} equalSynth@q. q!e1. q!e2'. p <-> q
-  ; [['Rad t1 ty1] | ['Rad t2 ty2]] -> {- PRINTF "Rad-Rad" . -} (checkEqual@q. q!'Ty. q!ty1. q!ty2. | checkEqual@r. r!ty1. r!t1. r!t2.|p!ty1.)
-  ; [['App f1 s1] | ['App f2 s2] ] -> {- PRINTF "App" . -} equalSynth@q. q!f1. q!f2. q?ty. case ty
-    { ['Pi S \ x. T] -> (checkEqual@r. r!S. r!s1. r!s2.|p!{x=['Rad s1 S]}T.)
-    ; ['Sg S \ x. T] -> s1 ~ s2 | case s1
-      { 'Fst -> p!S.
-      ; 'Snd -> p!{x=['App f1 'Fst]}T.
-      ; _ -> #"Expected Fst or Snd; got %i" s1
+  case (lookup ctxt e1)
+  { ['Just S1] -> {- PRINTF "Var" . -}(e1 ~ e2 | p!S1.)
+  ; 'Nothing -> case [e1|e2]
+    { [['Rad ['Emb e1'] ty1] | _ ] -> {- PRINTF "Rad-L" . -} equalSynth@q. q!e1'. q!e2. p <-> q
+    ; [_  | ['Rad ['Emb e2'] ty2]] -> {- PRINTF "Rad-R" . -} equalSynth@q. q!e1. q!e2'. p <-> q
+    ; [['Rad t1 ty1] | ['Rad t2 ty2]] -> {- PRINTF "Rad-Rad" . -} (checkEqual@q. q!'Ty. q!ty1. q!ty2. | checkEqual@r. r!ty1. r!t1. r!t2.|p!ty1.)
+    ; [['App f1 s1] | ['App f2 s2] ] -> {- PRINTF "App" . -} equalSynth@q. q!f1. q!f2. q?ty. case ty
+      { ['Pi S \ x. T] -> (checkEqual@r. r!S. r!s1. r!s2.|p!{x=['Rad s1 S]}T.)
+      ; ['Sg S \ x. T] -> s1 ~ s2 | case s1
+        { 'Fst -> p!S.
+        ; 'Snd -> p!{x=['App f1 'Fst]}T.
+        ; _ -> #"Expected Fst or Snd; got %i" s1
+        }
       }
+    ; [x|y] -> # "%i not equalSynth to %i" x y
     }
-  ; [x|y] -> # "%i not equalSynth to %i" x y
   }
 
 exec  'Synth?Id.'Synth?refl.'Synth?swap.'Synth?swapswap.

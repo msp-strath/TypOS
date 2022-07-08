@@ -22,6 +22,8 @@
    + [ ] Profiling
    + [ ] Bookkeep parts of the tree that are not stuck on new metas
    + [ ] Record more precise "Date" information (e.g. sets of blocking meta)
+   + [x] 'Done' status for winning branches
+   + [x] 'Fail' status for dead branches
 * [ ] Concurrent runtime
 * [ ] Construct error messages from unfinished runs
 * [ ] Deadlock detection

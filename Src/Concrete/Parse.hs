@@ -1,6 +1,7 @@
 module Concrete.Parse where
 
 import Control.Applicative
+import Control.Monad
 
 import Bwd
 import Concrete.Base
@@ -40,7 +41,6 @@ pvariable = do
     then Other ("'" ++ candidate ++ "' is a reserved keyword") <!> pfail
     else pure v
 
-
 pbinder :: Parser (Binder Variable)
 pbinder = Used <$> pvariable
       <|> Unused <$ plit "_"
@@ -50,8 +50,8 @@ ptm = withRange $
   Var unknown <$> pvariable
   <|> At unknown <$> patom
   <|> pscoped Lam pbinder ptm
-  <|> id <$ pch (== '[') <* pspc <*> pmustwork "Expected a list" plisp
-  <|> id <$ pch (== '(') <* pspc <*> ptm <* pspc <* plit ")"
+  <|> id <$ pch (== '[') <* pspc <*> plisp
+  <|> pparens ptm
   <|> Sbst unknown <$ pch (== '{') <* pspc <*> ppes (punc ",") psbstC <* punc "}" <*> ptm
 
 psbstC :: Parser SbstC
@@ -71,7 +71,7 @@ ppat = withRange $
   <|> VarP unknown <$> pvariable
   <|> AtP unknown <$> patom
   <|> id <$ pch (== '[') <* pspc <*> pmustwork "Expected a list pattern" plisp
-  <|> id <$ pch (== '(') <* pspc <*> ppat <* pspc <* plit ")"
+  <|> pparens ppat
   <|> pscoped LamP pbinder ppat
   <|> ThP unknown <$ pch (== '{') <* pspc <*> pth <* punc "}" <*> ppat
   <|> UnderscoreP unknown <$ pch (== '_')
@@ -123,6 +123,20 @@ pextractmode
   <|> InterestingExtract <$ pch (== '^') <* pspc
   <|> pure AlwaysExtract
 
+instance Lisp CScrutinee where
+  mkNil = Term unknown mkNil
+  mkCons = Pair unknown
+  pCar = pscrutinee
+
+pscrutinee :: Parser CScrutinee
+pscrutinee = withRange $ do
+  Term unknown <$> ptm
+  <|> Lookup unknown <$ pkeyword KwLookup <* pspc <*> pvariable <* pspc <*> ptm
+  <|> Compare unknown <$ pkeyword KwCompare <* pspc <*> ptm <* pspc <*> ptm
+  <|> pparens pscrutinee
+  <|> (do sc <- id <$ pch (== '[') <* pspc <*> plisp
+          sc <$ unless (isProper sc) pfail)
+
 pact :: Parser CActor
 pact = withRange $
   pscoped Under pvariable pact
@@ -137,10 +151,10 @@ pact = withRange $
   <|> Spawn unknown <$> pextractmode <*> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
   <|> Constrain unknown <$> ptm <* punc "~" <*> pmustwork "Expected a term" ptm
   <|> Connect unknown <$> (CConnect <$> pvariable <* punc "<->" <*> pvariable)
-  <|> Match unknown <$ pkeyword KwCase <* pspc <*> ptm <* punc "{"
+  <|> Match unknown <$ pkeyword KwCase <* pspc <*> pscrutinee <* punc "{"
        <*> psep (punc ";") ((,) <$> ppat <* punc "->" <*> pACT)
        <* pspc <* pch (== '}')
-  <|> id <$ pch (== '(') <* pspc <*> pACT <* pspc <* plit ")"
+  <|> pparens pACT
   <|> Break unknown <$ pkeyword KwBREAK <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Print unknown <$ pkeyword KwPRINT <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
   <|> Print unknown <$ pkeyword KwPRINTF <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
@@ -148,9 +162,6 @@ pact = withRange $
   <|> Push unknown <$> pvariable <* punc "|-"
                    <*> ((\ (a, b) -> (a, (), b)) <$> withVar pvariable "->" ptm)
                    <* punc "." <*> pact
-  <|> Lookup unknown <$ pkeyword KwIf <* pspc <*> ptm <* pspc <* pkeyword KwIn <* pspc <*> pvariable
-                     <* pspc <*> pcurlies (withVar ppat "->" pACT)
-                     <* pspc <* pmustwork "Expected an else branch" (pkeyword KwElse) <* pspc <*> pact
   <|> Note unknown <$ plit "!" <* punc "." <*> pact
   <|> pure (Win unknown)
 

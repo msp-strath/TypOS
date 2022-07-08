@@ -140,7 +140,7 @@ data ExtractMode
 
 data Keyword
   = KwSyntax | KwExec | KwTrace
-  | KwLet | KwCase | KwIf | KwIn | KwElse
+  | KwLet | KwCase | KwLookup | KwCompare
   | KwBREAK | KwPRINT | KwPRINTF
   deriving (Enum, Bounded)
 
@@ -150,9 +150,8 @@ instance Show Keyword where
   show KwTrace = "trace"
   show KwLet = "let"
   show KwCase = "case"
-  show KwIf = "if"
-  show KwIn = "in"
-  show KwElse = "else"
+  show KwLookup = "lookup"
+  show KwCompare = "compare"
   show KwBREAK = "BREAK"
   show KwPRINT = "PRINT"
   show KwPRINTF = "PRINTF"
@@ -185,6 +184,32 @@ type instance STACKDESC Concrete = ()
 
 type FORMAT (ph :: Phase) = [Format Directive Debug (TERM ph)]
 
+data SCRUTINEE (ph :: Phase)
+ = Term Range (TERM ph)
+ | Pair Range (SCRUTINEE ph) (SCRUTINEE ph)
+ | Lookup Range (STACK ph) (TERM ph)
+ | Compare Range (TERM ph) (TERM ph)
+
+isProper :: SCRUTINEE ph -> Bool
+isProper Term{} = False
+isProper (Pair _ s t) = isProper s || isProper t
+isProper Lookup{} = True
+isProper Compare{} = True
+
+instance HasSetRange (SCRUTINEE ph) where
+  setRange r = \case
+    Term _ t -> Term r t
+    Pair _ p q -> Pair r p q
+    Lookup _ stk t -> Lookup r stk t
+    Compare _ s t -> Compare r s t
+
+instance HasGetRange (SCRUTINEE ph) where
+  getRange = \case
+    Term r t -> r
+    Pair r p q -> r
+    Lookup r stk t -> r
+    Compare r s t -> r
+
 data ACTOR (ph :: Phase)
  = Branch Range (ACTOR ph) (ACTOR ph)
  | Spawn Range ExtractMode (JUDGEMENTFORM ph) (CHANNEL ph) (ACTOR ph)
@@ -195,15 +220,19 @@ data ACTOR (ph :: Phase)
  | FreshMeta Range (SYNTAXDESC ph) (ACTORVAR ph, ACTOR ph)
  | Let Range (ACTORVAR ph) (SYNTAXDESC ph) (TERM ph) (ACTOR ph)
  | Under Range (Scope Variable (ACTOR ph))
- | Match Range (TERM ph) [(PATTERN ph, ACTOR ph)]
+ | Match Range (SCRUTINEE ph) [(PATTERN ph, ACTOR ph)]
  -- This is going to bite us when it comes to dependent types
  | Constrain Range (TERM ph) (TERM ph)
  | Push Range (STACK ph) (TERMVAR ph, STACKDESC ph, TERM ph) (ACTOR ph)
- | Lookup Range (TERM ph) (STACK ph) (BINDER ph, ACTOR ph) (ACTOR ph)
  | Win Range
  | Fail  Range (FORMAT ph)
  | Print Range (FORMAT ph) (ACTOR ph)
  | Break Range (FORMAT ph) (ACTOR ph)
+
+deriving instance
+  ( Show (TERM ph)
+  , Show (STACK ph)) =>
+  Show (SCRUTINEE ph)
 
 deriving instance
   ( Show (JUDGEMENTFORM ph)
@@ -233,7 +262,6 @@ instance HasSetRange (ACTOR ph) where
     Match _ tm x0 -> Match r tm x0
     Constrain _ tm tm' -> Constrain r tm tm'
     Push _ jd x0 ac -> Push r jd x0 ac
-    Lookup _ tm stk x0 ac -> Lookup r tm stk x0 ac
     Win _ -> Win r
     Fail _ fors -> Fail r fors
     Print _ fors ac -> Print r fors ac
@@ -253,7 +281,6 @@ instance HasGetRange (ACTOR ph) where
     Match r tm x0 -> r
     Constrain r tm tm' -> r
     Push r jd x0 ac -> r
-    Lookup r tm stk x0 ac -> r
     Win r -> r
     Fail r fors -> r
     Print r fors ac -> r
@@ -266,3 +293,4 @@ isWin _ = False
 type CProtocol = Protocol Raw
 type CContextStack = ContextStack Raw
 type CActor = ACTOR Concrete
+type CScrutinee = SCRUTINEE Concrete

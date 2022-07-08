@@ -1,0 +1,24 @@
+syntax { 'Bool = ['Enum ['True 'False]]
+       ; 'Ordering = ['Enum ['LT 'EQ 'GT]]
+       }
+
+ctxt |- 'Wildcard -> 'Ordering
+
+example : ?'Wildcard. ?'Wildcard. !'Ordering.
+example@p = p?s. p?t.
+  case [(lookup ctxt s) (lookup ctxt t) [s t]]
+    { [['Just S] ['Just T] _] -> p!S.
+    ; _ -> case (compare s t) { cmp -> p!cmp. }
+    }
+
+exec
+  example@p. p![]. p![[] []]. p?res. PRINTF "Result: %i" res.
+exec
+  example@p. p!'a. p!'b. p?res. PRINTF "Result: %i" res.
+exec \x.
+  example@p. p!\y.y. p!x. p?res. PRINTF "Result: %i" res.
+exec
+  example@p. p!\y.y. p!\t.t. p?res. PRINTF "Result: %i" res.
+exec
+  \x. ctxt |- x -> 'GT. \y. ctxt |- y -> 'EQ.
+  example@p. p!x. p!y. p?res. PRINTF "Result: %i" res.

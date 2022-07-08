@@ -81,6 +81,19 @@ prettyCdrP = \case
   ConsP _ p q -> pretty p : prettyCdrP q
   p -> [pipe, pretty p]
 
+instance Pretty CScrutinee where
+  prettyPrec d = \case
+    Term _ t -> prettyPrec d t
+    Pair _ s t -> brackets $ sep (pretty s : prettyCdrS t)
+    Lookup _ stk t -> hsep ["lookup", pretty stk, pretty t]
+    Compare _ s t -> hsep ["compare", pretty s, pretty t]
+
+prettyCdrS :: CScrutinee -> [Doc Annotations]
+prettyCdrS = \case
+  Term _ t -> prettyCdr t
+  Pair _ p q -> pretty p : prettyCdrS q
+  p -> [pipe, pretty p]
+
 instance Pretty ExtractMode where
   pretty = \case
     AlwaysExtract -> ""
@@ -147,10 +160,6 @@ instance Pretty CActor where
              ]
       , hsep [ match , braces (sep $ intersperse ";" cls) ]
       ]
-    Lookup r stk tm (av, a) b -> sep
-      [ hsep [ keyword "if", pretty tm, keyword "in", pretty stk
-             , braces (hsep [ pretty av, "->", pretty a ]), keyword "else" ]
-      , prettyPrec 1 a ]
     Connect r cnnct -> pretty cnnct
     -- final actors
     Win r -> ""

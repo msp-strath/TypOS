@@ -247,8 +247,7 @@ data Complaint
   -- shouldn't contain ranges because there should be a more precise one
   -- on the decorated complaint
   | SendTermElaboration Channel Raw Complaint
-  | MatchTermElaboration Raw Complaint
-  | MatchElaboration Raw Complaint
+  | MatchElaboration CScrutinee Complaint
   | MatchBranchElaboration RawP Complaint
   | ConstrainTermElaboration Raw Complaint
   | ConstrainSyntaxCatGuess Raw Raw Complaint
@@ -257,7 +256,6 @@ data Complaint
   | RecvMetaElaboration Channel Complaint
   | PushTermElaboration Raw Complaint
   | LookupTermElaboration Raw Complaint
-  | LookupHandlersElaboration Raw Complaint
   | DeclJElaboration Variable Complaint
   | DefnJElaboration Variable Complaint
   | ExecElaboration Complaint
@@ -267,6 +265,9 @@ data Complaint
   | TermVariableElaboration Variable Complaint
   | ProtocolElaboration CProtocol Complaint
   | ConnectElaboration Variable Variable Complaint
+  | CompareTermElaboration Raw Complaint
+  | MatchScrutineeElaboration CScrutinee Complaint
+  | CompareSyntaxCatGuess Raw Raw Complaint
   deriving (Show)
 
 instance HasGetRange Complaint where
@@ -315,7 +316,6 @@ instance HasGetRange Complaint where
   -- shouldn't contain ranges because there should be a more precise one
   -- on the decorated complaint
     SendTermElaboration _ _ c -> getRange c
-    MatchTermElaboration _ c -> getRange c
     MatchElaboration _ c -> getRange c
     MatchBranchElaboration _ c -> getRange c
     ConstrainTermElaboration _ c -> getRange c
@@ -325,7 +325,6 @@ instance HasGetRange Complaint where
     RecvMetaElaboration _ c -> getRange c
     PushTermElaboration _ c -> getRange c
     LookupTermElaboration _ c -> getRange c
-    LookupHandlersElaboration _ c -> getRange c
     DeclJElaboration _ c -> getRange c
     DefnJElaboration _ c -> getRange c
     ExecElaboration c -> getRange c
@@ -335,6 +334,9 @@ instance HasGetRange Complaint where
     TermVariableElaboration _ c -> getRange c
     ProtocolElaboration _ c -> getRange c
     ConnectElaboration _ _ c -> getRange c
+    CompareTermElaboration _ c -> getRange c
+    MatchScrutineeElaboration _ c -> getRange c
+    CompareSyntaxCatGuess _ _ c -> getRange c
 
 ------------------------------------------------------------------------------
 -- Syntaxes

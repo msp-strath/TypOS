@@ -115,31 +115,34 @@ checkWorker@p = p?ty. p?tm. case tm
     }
   }
 
-synthWorker@p = p?tm . if tm in ctxt { S -> p!S. } else case tm
-   { ['Rad t ty] -> ( type@q. q!ty.
-                    | check@r. r!ty. r!t.
-                    | p!ty.)
-   ; ['App f s] -> synth@q. q!f. q?ty. case ty
-     { ['Pi S \v. T] -> ( check@r. r!S. r!s.
-                        | p!{v=['Rad s S]}T.)
-     ; ['Sg S \v. T] -> case s
-       { 'Fst -> p!S.
-       ; 'Snd -> p!{v=['App f 'Fst]}T.
-       ; _ -> #"Expected Fst or Snd; got %i" s
-       }
-     ; ['List S] -> case s
-       { ['ListRec (\xs. T) n (\y.\ys.\ih. c)] ->
-         ( \xs. ctxt |- xs -> ty. type@v. v!T.
-         | check@r. r!{xs = ['Rad 'Null ty]}T. r!n.
-         | \y.  ctxt |- y -> S.
-           \ys. ctxt |- ys -> ty.
-           \ih. ctxt |- ih -> {xs = ys}T.
-           check@u. u!{xs = ['Rad ['Plus ['Sing ['Emb y 'Id]] ['Emb ys 'Id]] ty]}T. u!c.
-         | p!{xs = f}T. )
-       }
-     ; _ -> #"Expected Pi, Sg or List; got %i" ty
-     }
-   }
+synthWorker@p = p?tm . case (lookup ctxt tm)
+  { ['Just S] -> p!S.
+  ; 'Nothing -> case tm
+    { ['Rad t ty] -> ( type@q. q!ty.
+                     | check@r. r!ty. r!t.
+                     | p!ty.)
+    ; ['App f s] -> synth@q. q!f. q?ty. case ty
+      { ['Pi S \v. T] -> ( check@r. r!S. r!s.
+                         | p!{v=['Rad s S]}T.)
+      ; ['Sg S \v. T] -> case s
+        { 'Fst -> p!S.
+        ; 'Snd -> p!{v=['App f 'Fst]}T.
+        ; _ -> #"Expected Fst or Snd; got %i" s
+        }
+      ; ['List S] -> case s
+        { ['ListRec (\xs. T) n (\y.\ys.\ih. c)] ->
+          ( \xs. ctxt |- xs -> ty. type@v. v!T.
+          | check@r. r!{xs = ['Rad 'Null ty]}T. r!n.
+          | \y.  ctxt |- y -> S.
+            \ys. ctxt |- ys -> ty.
+            \ih. ctxt |- ih -> {xs = ys}T.
+            check@u. u!{xs = ['Rad ['Plus ['Sing ['Emb y 'Id]] ['Emb ys 'Id]] ty]}T. u!c.
+          | p!{xs = f}T. )
+        }
+      ; _ -> #"Expected Pi, Sg or List; got %i" ty
+      }
+    }
+  }
 
 -- never returns a left-nested 'Plus
 checkEval@p = p?tty. p?tm. case tm
@@ -247,47 +250,57 @@ checkEqualWorker@p = p?ty. p?tm1. p?tm2. {- PRINTF "checkEqual %i\n %i\n %i" ty 
   }
 
 equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %i\n %i" e1 e2.
-  if e1 in ctxt
-    { S1 -> {- PRINTF "Var" . -} if e2 in ctxt {S2 -> (e1 ~ e2 | p!S1.)}
-      else case e2
-        { ['Rad ['Emb e2' a2] ty2] ->
-          ( e1 ~ e2'
-          | p!S1.
-          | adaptEqual@q. q!S1. q!S1. q!a2. q!'Id.)
-        ; _ -> #"Expected an adapter, behaviourally equal to 'Id"
-        }}
-  else if e2 in ctxt { S2 -> case e1
-        { ['Rad ['Emb e1' a1] ty1] ->
-          ( e1' ~ e2
-          | p!S2.
-          | adaptEqual@q. q!S2. q!S2. q!a1. q!'Id.)
-        ; _ -> #"Expected an adapter, behaviourally equal to 'Id"
-        }}
-  else case [e1|e2]
+  case [lookup ctxt e1 | lookup ctxt e2]
+  { [['Just S1] | ['Just S2]] -> (e1 ~ e2 | p!S1.)
+  ; [['Just S1] | 'Nothing  ] -> case e2
+      { ['Rad ['Emb e2' a2] ty2] ->
+        ( e1 ~ e2'
+        | p!S1.
+        | adaptEqual@q. q!S1. q!S1. q!a2. q!'Id.)
+      ; _ -> #"Expected an adapter, behaviourally equal to 'Id"
+      }
+  ; ['Nothing   | ['Just S2]] -> case e1
+      { ['Rad ['Emb e1' a1] ty1] ->
+        ( e1' ~ e2
+        | p!S2.
+        | adaptEqual@q. q!S2. q!S2. q!a1. q!'Id.)
+      ; _ -> #"Expected an adapter, behaviourally equal to 'Id"
+      }
+  ; ['Nothing   | 'Nothing  ] -> case [e1|e2]
   {- FIXME : Rad-L and Rad-R are (too) syntactic" -}
-  { [['Rad ['Emb e1' 'Id] ty1] | _ ] -> {- PRINTF "Rad-L" . -} equalSynth@q. q!e1'. q!e2. p <-> q
-  ; [_  | ['Rad ['Emb e2' 'Id] ty2]] -> {- PRINTF "Rad-R" . -} equalSynth@q. q!e1. q!e2'. p <-> q
-  ; [['Rad t1 ty1] | ['Rad t2 ty2]] -> {- PRINTF "Rad-Rad" . -} (checkEqual@q. q!'Ty. q!ty1. q!ty2. | checkEqual@r. r!ty1. r!t1. r!t2.|p!ty1.)
-  ; [['App f1 s1] | ['App f2 s2] ] -> {- PRINTF "App" . -} equalSynth@q. q!f1. q!f2. q?ty. case ty
-    { ['Pi S \ x. T] -> (checkEqual@r. r!S. r!s1. r!s2.|p!{x=['Rad s1 S]}T.)
-    ; ['Sg S \ x. T] -> s1 ~ s2 | case s1
-      { 'Fst -> p!S.
-      ; 'Snd -> p!{x=['App f1 'Fst]}T.
-      ; _ -> #"Expected Fst or Snd; got %i" s1
-      }
-    ; ['List S] -> case [s1 | s2]
-      { [['ListRec (\xs. T1) n1 (\y.\ys.\ih. c1)] | ['ListRec (\xs. T2) n2 (\y.\ys.\ih. c2)]] ->
-           ( \xs. ctxt |- xs -> ty. checkEqual@u. u!'Ty. u!T1. u!T2.
-           | checkEqual@v. v!{xs = ['Rad 'Null ty]}T1. v!n1 . v!n2.
-           | \y.  ctxt |- y  -> S.
-             \ys. ctxt |- ys -> ty.
-             \ih. ctxt |- ih -> {xs = ys}T1.
-             checkEqual@u. u!{xs = ['Rad ['Plus ['Sing ['Emb y 'Id]] ['Emb ys 'Id]] ty]}T1. u!c1. u!c2.
-           | p!{xs = f1}T1.)
-      ; _ -> #"Expected ListRec's; got %i and %i" s1 s2
-      }
+    { [['Rad ['Emb e1' 'Id] ty1] | _ ] -> {- PRINTF "Rad-L" . -}
+       equalSynth@q. q!e1'. q!e2. p <-> q
+    ; [_  | ['Rad ['Emb e2' 'Id] ty2]] -> {- PRINTF "Rad-R" . -}
+       equalSynth@q. q!e1. q!e2'. p <-> q
+    ; [['Rad t1 ty1] | ['Rad t2 ty2]] -> {- PRINTF "Rad-Rad" . -}
+       ( checkEqual@q. q!'Ty. q!ty1. q!ty2.
+       | checkEqual@r. r!ty1. r!t1. r!t2.
+       | p!ty1.)
+    ; [['App f1 s1] | ['App f2 s2] ] -> {- PRINTF "App" . -}
+       equalSynth@q. q!f1. q!f2. q?ty. case ty
+        { ['Pi S \ x. T] -> ( checkEqual@r. r!S. r!s1. r!s2.
+                            | p!{x=['Rad s1 S]}T.)
+        ; ['Sg S \ x. T] -> s1 ~ s2 | case s1
+           { 'Fst -> p!S.
+           ; 'Snd -> p!{x=['App f1 'Fst]}T.
+           ; _ -> #"Expected Fst or Snd; got %i" s1
+           }
+        ; ['List S] -> case [s1 | s2]
+          { [ ['ListRec (\xs. T1) n1 (\y.\ys.\ih. c1)]
+            | ['ListRec (\xs. T2) n2 (\y.\ys.\ih. c2)]] ->
+            ( \xs. ctxt |- xs -> ty. checkEqual@u. u!'Ty. u!T1. u!T2.
+            | checkEqual@v. v!{xs = ['Rad 'Null ty]}T1. v!n1 . v!n2.
+            | \y.  ctxt |- y  -> S.
+              \ys. ctxt |- ys -> ty.
+              \ih. ctxt |- ih -> {xs = ys}T1.
+              let yys : 'Check = ['Plus ['Sing ['Emb y 'Id]] ['Emb ys 'Id]].
+              checkEqual@u. u!{xs = ['Rad yys ty]}T1. u!c1. u!c2.
+            | p!{xs = f1}T1.)
+          ; _ -> #"Expected ListRec's; got %i and %i" s1 s2
+          }
+        }
+    ; [x|y] -> # "%i not equalSynth to %i" x y
     }
-  ; [x|y] -> # "%i not equalSynth to %i" x y
   }
 
 adaptEqual@p = p?sty. p?tty. p?a1. p?a2. case [sty|tty]
@@ -341,35 +354,38 @@ normSynth@p = p?tm. evalSynth@q. q!tm. q?ntm.
               normSynthWorker@r. r!ntm. r?nntm. p!nntm. r?ty. checkEval@v. v!'Ty. v!ty. v <-> p
 
 normSynthWorker@p = p?e.
-  if e in ctxt { S -> p!e. p!S.}
-  else case e
-  { ['Rad ['Emb e1 a] tty] -> normSynth@q. q!e1. q?ne1. q?sty. adaptNorm@r. r!sty. r!tty. r!a. r?na. case na
-    { 'Id -> p!ne1. p!sty.
-    ; _ -> checkNorm@v. v!'Ty. v!tty. v?ntty. p!['Rad ['Emb ne1 na] ntty]. p!ntty.
-    }
-  ; ['Rad t ty] -> checkNormWorker@q. q!'Ty. q!ty. q?nty. checkNorm@r. r!nty. r!t. r?nt. p!['Rad nt nty]. p!nty.
-  ; ['App f s] -> normSynth@q. q!f. q?nf. q?fty. case fty
-    { ['Pi S \ x. T] -> checkNorm@r. r!S. r!s. r?ns. p!['App nf ns]. p!{x=['Rad ns S]}T.
-    ; ['Sg S \ x. T] -> p!['App nf s]. case s
-      { 'Fst -> p!S.
-      ; 'Snd -> p!{x=['App nf 'Fst]}T.
-      ; _ -> #"Expected Fst or Snd; got %i" s
+  case (lookup ctxt e)
+  { ['Just S] -> p!e. p!S.
+  ; 'Nothing -> case e
+    { ['Rad ['Emb e1 a] tty] -> normSynth@q. q!e1. q?ne1. q?sty. adaptNorm@r. r!sty. r!tty. r!a. r?na. case na
+      { 'Id -> p!ne1. p!sty.
+      ; _ -> checkNorm@v. v!'Ty. v!tty. v?ntty. p!['Rad ['Emb ne1 na] ntty]. p!ntty.
       }
-    ; ['List S] -> case s
-      { ['ListRec (\xs. T) n (\y ys ih. c)] ->
-           ['Bind 'Synth 'Check]?NT. 'Check?nn. ['Bind 'Synth ['Bind 'Synth ['Bind 'Synth 'Check]]]?nc.
-           (\xs. ctxt |- xs -> fty. checkNorm@u. u!'Ty. u!T. u?NT1. NT ~ {xs*}\xs.NT1
-           | checkNorm@v. v!{xs = ['Rad 'Null fty]}T. v!n . v?nn1. nn ~ nn1
-           | \y.  ctxt |- y  -> S.
-             \ys. ctxt |- ys -> fty.
-             \ih. ctxt |- ih -> {xs = ys}T.
-             checkNorm@u. u!{xs = ['Rad ['Plus ['Sing ['Emb y 'Id]] ['Emb ys 'Id]] fty]}T. u!c. u?nc1. nc ~ {y*,ys*,ih*}\y ys ih.nc1
-           | p!['App nf ['ListRec NT nn nc]]. p!{xs = nf}T.)
-      ; _ -> #"Expected ListRec's; got %i" s
+    ; ['Rad t ty] -> checkNormWorker@q. q!'Ty. q!ty. q?nty. checkNorm@r. r!nty. r!t. r?nt. p!['Rad nt nty]. p!nty.
+    ; ['App f s] -> normSynth@q. q!f. q?nf. q?fty. case fty
+      { ['Pi S \ x. T] -> checkNorm@r. r!S. r!s. r?ns. p!['App nf ns]. p!{x=['Rad ns S]}T.
+      ; ['Sg S \ x. T] -> p!['App nf s]. case s
+        { 'Fst -> p!S.
+        ; 'Snd -> p!{x=['App nf 'Fst]}T.
+        ; _ -> #"Expected Fst or Snd; got %i" s
+        }
+      ; ['List S] -> case s
+        { ['ListRec (\xs. T) n (\y ys ih. c)] ->
+             ['Bind 'Synth 'Check]?NT. 'Check?nn. ['Bind 'Synth ['Bind 'Synth ['Bind 'Synth 'Check]]]?nc.
+             (\xs. ctxt |- xs -> fty. checkNorm@u. u!'Ty. u!T. u?NT1. NT ~ {xs*}\xs.NT1
+             | checkNorm@v. v!{xs = ['Rad 'Null fty]}T. v!n . v?nn1. nn ~ nn1
+             | \y.  ctxt |- y  -> S.
+               \ys. ctxt |- ys -> fty.
+               \ih. ctxt |- ih -> {xs = ys}T.
+               checkNorm@u. u!{xs = ['Rad ['Plus ['Sing ['Emb y 'Id]] ['Emb ys 'Id]] fty]}T. u!c. u?nc1. nc ~ {y*,ys*,ih*}\y ys ih.nc1
+             | p!['App nf ['ListRec NT nn nc]]. p!{xs = nf}T.)
+        ; _ -> #"Expected ListRec's; got %i" s
+        }
       }
+    ; x -> # "Panic! Don't know how to normalise %i" x
     }
-  ; x -> # "Panic! Don't know how to normalise %i" x
   }
+
 
 adaptNorm@p = p?sty. p?tty. p?a. p!a. --TODO
 {-

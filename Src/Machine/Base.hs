@@ -10,8 +10,9 @@ import Bwd
 import Format
 import Options
 import Term
+import qualified Term.Substitution as Substitution
 import Thin
-import Concrete.Base (ExtractMode, isWin, ACTOR)
+import Concrete.Base (ExtractMode, ACTOR (..))
 import Syntax (SyntaxDesc)
 import Control.Monad (join)
 
@@ -44,6 +45,31 @@ headUp store term
   , Just (_, Just t) <- Map.lookup m (solutions store)
   = headUp store (t //^ sg)
   | otherwise = term
+
+compareUp :: StoreF i -> Term -> Term -> Maybe Ordering
+compareUp store s t = case (expand (headUp store s), expand (headUp store t)) of
+  (VX i _, VX j _) -> pure (compare i j)
+  (AX a _, AX b _) -> pure (compare a b)
+  (p :%: q, a :%:b) -> do
+    c1 <- compareUp store p a
+    case c1 of
+      EQ -> compareUp store q b
+      _ -> pure c1
+  (x :.: b, y :.: c) -> compareUp store b c
+  (m :$: sg, n :$: sg') | m == n, Just EQ <- comparesUp store sg sg' -> pure EQ
+  (m :$: sg, _) -> Nothing
+  (_, m :$: sg) -> Nothing
+  (VX{}, _) -> pure LT
+  (_, VX{}) -> pure GT
+  (AX{}, _) -> pure LT
+  (_, AX{}) -> pure GT
+  ((:%:){}, _) -> pure LT
+  (_, (:%:){}) -> pure GT
+
+comparesUp :: StoreF i -> Subst -> Subst -> Maybe Ordering
+comparesUp store sg sg' = compareUp store (toTerm sg) (toTerm sg') where
+
+  toTerm (CdB sg th) = ("Hack", bigEnd th) #% (Substitution.expand sg th <>> [])
 
 class Instantiable t where
   type Instantiated t
@@ -93,9 +119,12 @@ data Interface c p = Interface
 data Status
   = New
   | StuckOn Date
+  | Dead
   | Done
   deriving (Show, Eq, Ord)
 
+instance Semigroup Status where
+  (<>) = min
 
 isDone :: Status -> Bool
 isDone Done = True
@@ -113,26 +142,27 @@ data Frame
   | UnificationProblem Date Term Term
   | Noted
   deriving (Show)
-
 status :: [Frame] -> ACTOR ph -> Date -> Status
-status fs a d = if foldr (\ f acc -> acc && hasWon f) (isWin a) fs
-                then Done
-                else StuckOn d
+status fs a d = minimum (actorStatus a : map frameStatus fs)
+
   where
 
-  hasWon :: Frame -> Bool
-  hasWon Rules{} = True
-  hasWon (LeftBranch Hole p)  = isDone (store p)
-  hasWon (RightBranch p Hole) = isDone (store p)
-  hasWon (Spawnee i) = isDone (store $ snd $ spawner i)
-  hasWon (Spawner i) = isDone (store $ fst $ spawnee i)
-  hasWon (Sent ch t) = False
-  hasWon (Pushed s tm) = True
-  hasWon (Binding s) = True
-  hasWon (UnificationProblem d t t') = False
-  hasWon Noted = True
+  actorStatus :: ACTOR ph -> Status
+  actorStatus Win{} = Done
+  actorStatus Fail{} = Dead
+  actorStatus _ = StuckOn d
 
-
+  frameStatus :: Frame -> Status
+  frameStatus Rules{} = Done
+  frameStatus (LeftBranch Hole p) = store p
+  frameStatus (RightBranch p Hole) = store p
+  frameStatus (Spawnee i) = store (snd $ spawner i)
+  frameStatus (Spawner i) = store (fst $ spawnee i)
+  frameStatus Sent{} = StuckOn d
+  frameStatus Pushed{} = Done
+  frameStatus Binding{} = Done
+  frameStatus UnificationProblem{} = StuckOn d
+  frameStatus Noted = Done
 
 data Process l s t
   = Process

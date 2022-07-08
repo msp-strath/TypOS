@@ -28,3 +28,9 @@ cabal.project.local~
 *.log
 *.out
 *.pdf
+*.nav
+*.snm
+*.toc
+*.vrb
+*.fls
+*.fdb_latexmk

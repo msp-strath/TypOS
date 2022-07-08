@@ -106,6 +106,29 @@ stms [] t = throwError (ExpectedANilGot (getRange t) t)
 stms (d:ds) (Cons r p q) = (%) <$> stm d p <*> stms ds q
 stms _ t = throwError (ExpectedAConsGot (getRange t) t)
 
+sscrutinee :: CScrutinee -> Elab (SyntaxDesc, AScrutinee)
+sscrutinee (Term r t) = do
+  desc <- fromInfo (getRange t) =<< guessDesc False t
+  (desc,) . Term r <$> stm desc t
+sscrutinee (Pair r sc1 sc2) = do
+  (desc1, sc1) <- sscrutinee sc1
+  (desc2, sc2) <- sscrutinee sc2
+  pure (Syntax.contract (VCons desc1 desc2), Pair r sc1 sc2)
+sscrutinee (Lookup r stk t) = do
+  (stk, stkTy) <- isContextStack stk
+  t <- during (LookupTermElaboration t) $ stm (keyDesc stkTy) t
+  pure (Syntax.contract (VEnumOrTag ["Nothing"] [("Just", [valueDesc stkTy])])
+       , Lookup r stk t)
+sscrutinee (Compare r s t) = do
+  infoS <- guessDesc False s
+  infoT <- guessDesc False t
+  desc <- during (CompareSyntaxCatGuess s t) $
+      fromInfo r =<< compatibleInfos r infoS infoT
+  s <- during (CompareTermElaboration s) $ stm desc s
+  t <- during (CompareTermElaboration t) $ stm desc t
+  pure (Syntax.contract (VEnumOrTag ["LT", "EQ", "GT"] [])
+       , Compare r s t)
+
 stm :: SyntaxDesc -> Raw -> Elab ACTm
 stm desc (Var r v) = during (TermVariableElaboration v) $ do
   table <- gets syntaxCats
@@ -295,13 +318,15 @@ open ch p = do
   nm <- getName
   modify (channelInsert ch (nm, p))
 
-close :: Range -> Channel -> Elab ()
-close r ch = do
+close :: Bool -> Range -> Channel -> Elab ()
+close b r ch = do
   -- make sure the protocol was run all the way
   mp <- gets (channelLookup ch)
   case snd (fromJust mp) of
     [] -> pure ()
-    p -> throwError (UnfinishedProtocol r ch p)
+    p -> when b $
+           -- if we cannot win, we don't care
+           throwError (UnfinishedProtocol r ch p)
   modify (channelDelete ch)
 
 withChannel :: Range -> Channel -> AProtocol -> Elab a -> Elab a
@@ -309,8 +334,8 @@ withChannel r ch@(Channel rch) p ma = do
   open ch p
   -- run the actor in the extended context
   ovs <- asks objVars
-  a <- local (declare (Used rch) (AChannel ovs)) $ ma
-  close r ch
+  (a, All b) <- local (declare (Used rch) (AChannel ovs)) $ listen ma
+  close b r ch
   pure a
 
 guessDesc :: Bool -> -- is this in tail position?
@@ -411,7 +436,7 @@ sact = \case
     sc <- channelScope ch
     a <- local (declare av (ActVar (Known cat) sc)) $ sact $ case pat of
       Nothing -> a
-      Just (var, p) -> Match r var [(p, a)]
+      Just (var, p) -> Match r (Term (getRange var) var) [(p, a)]
     pure $ Recv r ch (ActorMeta <$> av, a)
 
   Connect r (CConnect ch1 ch2) -> during (ConnectElaboration ch1 ch2) $ do
@@ -455,9 +480,8 @@ sact = \case
     a <- local (declareObjVar (getVariable x, Unknown)) $ sact a
     pure $ Under r (Scope v a)
 
-  Match r rtm@tm cls -> do
-    desc <- fromInfo (getRange rtm) =<< guessDesc False rtm
-    tm <- during (MatchTermElaboration tm) $ stm desc tm
+  Match r rsc cls -> do
+    (desc, sc) <- during (MatchScrutineeElaboration rsc) $ sscrutinee rsc
     chs <- get
     (clsts, cov) <- traverse (sclause desc) cls `runStateT` [desc]
     unless (null cov) $ do
@@ -465,8 +489,8 @@ sact = \case
       let examples = fromList cov >>= missing table
       raiseWarning $ MissingClauses r examples
     let (cls, sts) = unzip clsts
-    during (MatchElaboration rtm) $ consistentCommunication r sts
-    pure $ Match r tm cls
+    during (MatchElaboration rsc) $ consistentCommunication r sts
+    pure $ Match r sc cls
 
   Push r stk (p, (), t) a -> do
     (stk, stkTy) <- isContextStack stk
@@ -478,20 +502,6 @@ sact = \case
     t <- during (PushTermElaboration t) $ stm (valueDesc stkTy) t
     a <- sact a
     pure $ Push r stk (p, valueDesc stkTy, t) a
-
-  Lookup r rt@t stk (p, a) b -> do
-    (stk, stkTy) <- isContextStack stk
-    t <- during (LookupTermElaboration t) $ stm (keyDesc stkTy) t
-    (av, mpat) <- sirrefutable "lookup" p
-    ovs <- asks objVars
-    (a, mcha) <- local (declare av (ActVar (Known $ valueDesc stkTy) ovs))
-                 $ sbranch $ case mpat of
-                    Nothing -> a
-                    Just (var, pat) -> Match r var [(pat, a)]
-    (b, mchb) <- sbranch b
-    during (LookupHandlersElaboration rt) $
-      consistentCommunication r [mcha, mchb]
-    pure $ Lookup r t stk (ActorMeta <$> av, a) b
 
   Fail r fmt -> Fail r <$> sformat fmt <* tell (All False)
   Print r fmt a -> Print r <$> sformat fmt <*> sact a

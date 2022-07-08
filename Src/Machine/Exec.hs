@@ -79,9 +79,33 @@ exec p@Process { actor = Recv _ ch (x, a), ..}
 exec p@Process { actor = Connect _ ac, ..}
   = connect ac (p { stack = stack :<+>: []})
 exec p@Process { actor = m@(Match _ s cls), ..}
-  | Just term <- mangleActors options env s
+  | Just term <- mangleScrutinee s
   = switch term cls
  where
+
+  search :: Bwd Frame -> Int -> Stack -> Int -> Maybe Term
+  search B0 i stk bd = Nothing
+  search (zf :< f) i stk bd = case f of
+      Binding x | i <= 0 -> Nothing
+                | otherwise -> search zf (i-1) stk (bd + 1)
+      Pushed stk' (DB i', _, t) | stk == stk' && i == i' -> Just (weaks bd t)
+      _ -> search zf i stk bd
+
+  mangleScrutinee :: AScrutinee -> Maybe Term
+  mangleScrutinee (Term _ t) = mangleActors options env t
+  mangleScrutinee (Pair _ sc1 sc2) = (%) <$> mangleScrutinee sc1 <*> mangleScrutinee sc2
+  mangleScrutinee (Lookup _ stk t)
+    | Just t' <- mangleActors options env t
+    = case expand (headUp store t') of
+      VX (DB i) _ | Just t' <- search stack i stk 0 -> pure ("Just" #%+ [t'])
+      _ :$: _ -> Nothing
+      _ -> pure (atom "Nothing" (scope t'))
+  mangleScrutinee (Compare _ s t)
+    | Just s' <- mangleActors options env s
+    , Just t' <- mangleActors options env t
+    , Just cmp <- compareUp store s' t'
+    = pure (atom (show cmp) (scope s'))
+  mangleScrutinee _ = Nothing
 
   switch :: Term -> [(Pat, AActor)] -> Process Shots Store []
   switch t [] =
@@ -178,26 +202,6 @@ exec p@Process { actor = Push _ jd (pv, d, t) a, ..}
         -- if we're pushing on the most local variable, this will all get merged in the trace
         -- so we don't bother generating a logging frame for it
     in exec ((if pv == DB 0 then id else recordFrame) $ p { stack = stack', actor = a })
-
-exec p@Process { actor = Lookup _ t stk (av, a) b, ..}
-  | Just t' <- mangleActors options env t
-  = case expand (headUp store t') of
-      VX (DB i) _ | Just t' <- search stack i stk 0 ->
-        let env' = case av of
-                     Unused -> env
-                     Used av -> newActorVar av (localScope env <>> [], t') env
-        in exec (p {actor = a, env = env'})
-      _ :$: _ -> move (p { stack = stack :<+>: [] })
-      _ -> exec (p {actor = b})
-  where
-
-    search :: Bwd Frame -> Int -> Stack -> Int -> Maybe Term
-    search B0 i stk bd = Nothing
-    search (zf :< f) i stk bd = case f of
-      Binding x | i <= 0 -> Nothing
-                | otherwise -> search zf (i-1) stk (bd + 1)
-      Pushed stk' (DB i', _, t) | stk == stk' && i == i' -> Just (weaks bd t)
-      _ -> search zf i stk bd
 
 exec p@Process { actor = Print _ fmt a, ..}
   | Just fmt <- traverse (traverse $ mangleActors options env) fmt
