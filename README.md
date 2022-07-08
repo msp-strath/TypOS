@@ -237,8 +237,8 @@ terms, and may be used in terms as placeholders. Our actor has
 received a type to validate. How does it proceed?
 
 It performs a `case` analysis on the structure of the type. The
-actor construct is `case` *term* `{` *pattern* `->` *actor* `;` ..`}`.
-We shall specify patterns in more detail shortly, but let us
+actor construct is `case` *scrutinee* `{` *pattern* `->` *actor* `;` ..`}`.
+We shall specify scrutinees and patterns in more detail shortly, but let us
 continue the overview. The `'Nat` pattern matches only if `ty`
 is exactly `'Nat`, and the action taken in that case is nothing
 at all! The empty actor denotes glorious success! Meanwhile, the
@@ -317,9 +317,10 @@ incarnation is to allow the declaration of stacks of
 *contextual data* for free variables. The form
 *stackname* `|-` *variable* `->` *term* `.` *actor* pushes the
 association of *term* with *variable* into the context
-*stackname*, then continues as *actor*. Before we can make use of such a context, we must explain the syntactic
-descriptions involved in. For our running example, we declare a context `ctxt`
-which maps variables of syntactic category `'Synth` to types, as follows:
+*stackname*, then continues as *actor*. Before we can make use of
+such a context, we must explain the syntactic descriptions involved in.
+For our running example, we declare a context `ctxt` which maps
+variables of syntactic category `'Synth` to types, as follows:
 
 ```typos-ignore
 ctxt |- 'Synth -> 'Type
@@ -327,11 +328,11 @@ ctxt |- 'Synth -> 'Type
 In our example, we have `ctxt |- x -> S. check@q. q!T. q!body.`, so
 any actor which is a descendant of the `check` actor on
 channel `q` will be able to access the `S` associated with `x` by
-quering the `ctxt` context. To see an example how, let us look at the `synth`
+querying the `ctxt` context. To see an example how, let us look at the `synth`
 actor's definition.
 
 ```
-synth@p = p?tm . case (lookup ctxt tm) 
+synth@p = p?tm . case (lookup ctxt tm)
  { ['Just S] -> p!S.
  ; 'Nothing -> case tm
    { ['Rad t ty] ->
@@ -347,16 +348,18 @@ synth@p = p?tm . case (lookup ctxt tm)
    }
  }
 ```
-We have only one new feature, which is invoked immediately we have
-received `tm`. The actor `if` *term* `in` *stackname* `{` *actor-variable* `->` *actor*
-`} else` *actor* attempts to access the context *stackname*, in this case `ctxt`. It will succeed if `tm` stands for a
-free term variable with a context entry in scope, and in that case,
-the *actor-variable* binds the associated value and the *actor* after `->`
-is executed. As you can see, `ctxt` interprets the contextual data
-associated with a free variable as exactly the type to send out.
-If the *term* is not a free variable, or if there is no associated
-data in the context, the `if-in` actor falls through to its `else`
-clause.
+We have only one new feature, which is invoked immediately after we have
+received `tm`. The scrutinee `lookup` *stackname* *term* attempts to
+access the context *stackname*, in this case `ctxt`. Given that `ctxt`
+maps `'Synth` variables to `'Type`, `lookup ctxt` maps `Synth` terms to
+an optional value described by the syntax `['EnumOrTag ['Nothing] [['Just 'Type]]]`.
+It will succeed if `tm` stands for a free term variable with a context
+entry in scope, and in that case, the returned *term* is of the form
+`['Just S]` where `S` is the context entry associated to `tm`.
+As you can see, the *actor* `synth` interprets the contextual data associated
+with a free variable in `ctx` as exactly the type to send back out.
+If the *term* `tm` is not a free variable, or if there is no associated
+data in the context, the `lookup` scrutinee returns `'Nothing`.
 
 Here, we fall back on the hope that `tm` might take one of the
 two forms specified in the syntax of `'Synth` terms. For `'Rad`icals, we
@@ -372,12 +375,11 @@ You have been watching
 * guessing: *syntax-desc*`?`*actor-variable*`.` *actor*
 * receiving: *channel* `?`*actor-variable*`.` *actor*
 * sending: *channel*`!`*term*`.` *actor*
-* casing: `case` *term* `{` *pattern* `->` *actor* `;` ..`}`
+* casing: `case` *scrutinee* `{` *pattern* `->` *actor* `;` ..`}`
 * forking: *actor* `|` *actor*
 * spawning: *judgement*`@`*channel*`.` *actor*
 * constraining: *term* `~` *term*
 * extending: *stackname* `|-` *variable* `->` *term* `.` *actor*
-* querying: `if` *term* `in` *stackname* `{` *actor-variable* `->` *actor* `} else` *actor*
 * winning:
 
 and there's five more:
@@ -387,6 +389,19 @@ and there's five more:
 * losing: `#` *format-string*
 * printing: `PRINTF` *format-string*
 * breaking: `BREAK` *format-string*
+
+## Scrutinees
+
+The scrutinees of a case match can be:
+
+* term:                *term*
+* pair of scrutinees:  `[` *scrutinee* `|` *scrutinee* `]`
+* context lookup:      `lookup` *stackname* *term*
+* terms comparison:    `compare` *term* *term*
+
+The `compare` operator invokes a builtin total order on terms and returns
+a term described by the syntax `['Enum ['LT 'EQ 'GT]]`. The comparison
+result is of course stable under metavariable instantiations.
 
 ## Patterns
 
@@ -470,7 +485,7 @@ achieve stability under substitution. In particular, the fact that
 binders from the action of substitution means that an actor's
 `case` choices cannot be changed by the action of substitution on its
 inputs. There is some sort of stability property to be proven about
-`lookup` .. `else`, characterizing the things it is safe to substitute
+`lookup`, characterizing the things it is safe to substitute
 for free variables.
 
 Meanwhile, channels also have a notion of scope, restricting the
