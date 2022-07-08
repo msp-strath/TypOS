@@ -28,7 +28,13 @@ data ElabState = ElabState
   , syntaxCats    :: SyntaxTable
   , warnings      :: Bwd Warning
   }
-type ChannelStates = Map Channel ([Turn], AProtocol)
+
+type ChannelState = (Direction, [Turn], AProtocol)
+type ChannelStates = Map Channel ChannelState
+
+data Direction = Rootwards
+               | Leafwards
+  deriving (Eq, Show)
 
 initElabState :: ElabState
 initElabState = ElabState Map.empty Map.empty B0
@@ -359,10 +365,10 @@ withSyntax desc ma = do
 ------------------------------------------------------------------------------
 -- Channels
 
-channelLookup :: Channel -> ElabState -> Maybe ([Turn], AProtocol)
+channelLookup :: Channel -> ElabState -> Maybe ChannelState
 channelLookup ch = Map.lookup ch . channelStates
 
-channelInsert :: Channel -> ([Turn], AProtocol) -> ElabState -> ElabState
+channelInsert :: Channel -> ChannelState -> ElabState -> ElabState
 channelInsert ch x st = st { channelStates = Map.insert ch x (channelStates st) }
 
 channelDelete :: Channel -> ElabState -> ElabState

@@ -184,7 +184,7 @@ scommand = \case
     let rp = getRange jd <> getRange ch
     ch <- Channel <$> isFresh ch
     jd <- isJudgement jd
-    a <- withChannel rp ch (judgementProtocol jd) $ sact a
+    a <- withChannel rp Rootwards ch (judgementProtocol jd) $ sact a
     (DefnJudge (judgementName jd, judgementProtocol jd, ch) a,) <$> asks declarations
   DeclSyntax syns -> do
     oldsyndecls <- gets (Map.keys . syntaxCats)

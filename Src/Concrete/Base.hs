@@ -119,7 +119,7 @@ instance HasGetRange RawP where
 data ThDirective = ThKeep | ThDrop
   deriving (Show)
 
-data Mode = Input | {- Subject | -} Output
+data Mode = Input | Subject | Output
   deriving (Show, Eq)
 
 type Protocol t = [(Mode, t)]

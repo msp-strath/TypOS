@@ -10,10 +10,10 @@ syntax
              ]]
   }
 
-type  : ?'Check. !'Check.
+type  : $'Check. !'Check.
 
-check : ?'Check. {- Type -} ?'Check. {- Term -} !'Check. {-Normal form-}
-synth : ?'Synth. !'Check. {-Type-} !'Check. {-Normal form-}
+check : ?'Check. {- Type -} $'Check. {- Term -} !'Check. {-Normal form-}
+synth : $'Synth. !'Check. {-Type-} !'Check. {-Normal form-}
 ctxt |- 'Synth -> 'Check
 
 ------------------------------------------------------------------------------
@@ -48,7 +48,9 @@ synth@p = p?tm . case (lookup ctxt tm)
                          case nf
         { ['Lam \x. body] -> check@w. w!NT. w!{x=['Rad ns S]}body. w <-> p
         ; ['Emb e] -> p!['Emb ['App e ns]].
+        ; _ -> #"Expected Lam or Emb; got %i" nf
         }
+      ; _ -> #"Expected Pi; got %i" ty 
       }
     }
   }

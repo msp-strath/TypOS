@@ -21,9 +21,9 @@ syntax
   }
 
 isType |- 'Type -> 'Nil
-type  : ?'Type.
-check : ?'Type. ?'Check.
-synth : ?'Synth. !'Type.
+type  : $'Type.
+check : ?'Type. $'Check.
+synth : $'Synth. !'Type.
 ctxt |- 'Synth -> 'Type
 
 checkEval : ?'Type. ?'Check. !'Check.

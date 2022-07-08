@@ -209,8 +209,9 @@ instance Pretty (RawP, CActor) where
           , hsep [pp, "->"] $$ indent 2 pa ]
 
 instance Pretty Mode where
-  pretty Input = "?"
-  pretty Output = "!"
+  pretty Input   = "?"
+  pretty Subject = "$"
+  pretty Output  = "!"
 
 instance Pretty t => Pretty (Protocol t) where
   pretty = foldMap $ \ (m, d) -> fold [pretty m, pretty d, ". "]

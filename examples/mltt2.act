@@ -11,12 +11,12 @@ syntax
              ]]
   }
 
-type  : ?'Check.
+type  : $'Check.
 
-check : ?'Check. {- Type -} ?'Check. {- Term -}
-^checkWorker : ?'Check. {- Type -} ?'Check. {- Term -}
-synth : ?'Synth. !'Check. {-Type-}
-^synthWorker : ?'Synth. !'Check. {-Type-}
+check : ?'Check. {- Type -} $'Check. {- Term -}
+^checkWorker : ?'Check. {- Type -} $'Check. {- Term -}
+synth : $'Synth. !'Check. {-Type-}
+^synthWorker : $'Synth. !'Check. {-Type-}
 ctxt |- 'Synth -> 'Check {-Type-}
 
 ^checkEval : ?'Check. !'Check.

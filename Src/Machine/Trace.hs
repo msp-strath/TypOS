@@ -262,11 +262,12 @@ instance Bitraversable f => Unelab (ATrace f ann) where
   unelab (Error a e) = Error a <$> unelab e
 
 instance Pretty (CArgument Simple ()) where
-  pretty (Argument m _ t) = withANSI [ SetColour Background (pick m) ] (pretty t) where
-
-    pick :: Mode -> Colour
-    pick Input = Blue
-    pick Output = Red
+  pretty (Argument m _ t) = withANSI [ SetColour Background bg, SetColour Foreground fg ] (pretty t) where
+    (bg, fg) = pick m
+    pick :: Mode -> (Colour, Colour) -- background, foreground
+    pick Input   = (Blue, White)
+    pick Subject = (White, Blue)
+    pick Output  = (Red, White)
 
 instance Pretty (CStep Simple ()) where
   pretty = \case
@@ -573,6 +574,7 @@ ldiagnostic' cfg table fs ats =
    , "\\newcommand{\\typosBetweenPrems}{\\\\}"
    , "\\newcommand{\\typosEndPrems}{\\end{array}}"
    , "\\newcommand{\\typosInput}[1]{\\textcolor{blue}{#1}}"
+   , "\\newcommand{\\typosSubject}[1]{\\fbox{$\\textcolor{blue}{#1}$}}"
    , "\\newcommand{\\typosOutput}[1]{\\textcolor{red}{#1}}"
    , "\\newcommand{\\typosCheckmark}{^\\checkmark}"
    , "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%"

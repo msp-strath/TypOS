@@ -81,7 +81,9 @@ pth = (,) <$> ppes pspc pvariable
           <*> (ThDrop <$ pspc <* pch ('*' ==) <|> pure ThKeep)
 
 pmode :: Parser Mode
-pmode = Input <$ pch (== '?') <|> Output <$ pch (== '!')
+pmode = Input <$ pch (== '?')
+    <|> Subject <$ pch (== '$')
+    <|> Output <$ pch (== '!')
 
 pprotocol :: Parser (Protocol Raw)
 pprotocol = psep pspc

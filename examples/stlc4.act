@@ -11,8 +11,8 @@ syntax
                          [['Arr  'Type 'Type]
             ]]
   }
-check : ?'Type. ?'Check.
-synth : ?'Synth. !'Type.
+check : ?'Type. $'Check.
+synth : $'Synth. !'Type.
 ctxt |- 'Synth -> 'Type
 
 check@p = p?ty. p?tm. case tm

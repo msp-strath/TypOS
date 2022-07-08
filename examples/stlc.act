@@ -9,7 +9,7 @@ syntax
             ]
   }
 
-/type : ?'Type.
+/type : $'Type.
 
 syntax
   { 'Check = ['EnumOrTag [] [ ['Lam ['Bind 'Synth 'Check]]
@@ -20,8 +20,8 @@ syntax
              ]]
   }
 
-check : ?'Type. ?'Check.
-synth : ?'Synth. !'Type.
+check : ?'Type. $'Check.
+synth : $'Synth. !'Type.
 ctxt |- 'Synth -> 'Type -- ctxt maps synthesisable variables to types
 
 ------------------------------------------------------------------------------

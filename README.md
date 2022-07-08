@@ -168,9 +168,15 @@ Before we can implement the actors which process our terms, we must
 say which actors exist and how to communicate with them. Our version
 of Milner's judgement-form-in-a-box names is to declare
 *name* `:` *protocol*. A protocol is a sequence of *actions*. Each
-action is specified by `?` for input or `!` for output, then the
-intended syntax description for that transmission, then `.` as a closing
-delimiter.
+action is specified by
+1. `?` for input, `$` for subject, or `!` for output, followed by
+2. the intended syntax description for that transmission, then
+3. `.` as a closing delimiter.
+
+A *subject* is an *untrusted* input whose validity the judgement is
+intended to establish. Morally, when you send a subject, you also
+receive trust in that subject. If this trust has been misplaced, then
+it has at least been displaced.
 
 For our example language, we have
 
@@ -181,34 +187,33 @@ ctxt |- 'Synth -> 'Type
 -->
 
 ```
-type  : ?'Type.
-check : ?'Type. ?'Check.
-synth : ?'Synth. !'Type.
+type  : $'Type.
+check : ?'Type. $'Check.
+synth : $'Synth. !'Type.
 ```
-indicating that `type` actors receive only a `'Type` which they may
-validate; `check` actors receive a `'Type` to check and a `'Check`able
-term which we hope the type admits; `synth` actors receive a
-`'Synth`esizable term, then (we hope) transmit the `'Type` synthesized
-for that term.
+indicating that
+* `type` actors receive only a `'Type` subject;
+* `check` actors receive a `'Type`, which they may presume is
+already valid, and a `'Check`able term as a subject to check against the type; and
+* `synth` actors receive a `'Synth`esizable term as subject, then (we
+hope) transmit the (valid, we should ensure) `'Type` synthesized for that term.
 
 Our protocols are nowhere near as exciting as session types, offering
-only a rigid sequence of actions to do (or die). In the future, we
-plan to enrich the notion of protocol in two ways:
+only a rigid sequence of actions to do (or die). For the moment, the
+properties of inputs that actors rely on, and the properties of
+outputs that actors guarantee, are not documented, let alone enforced.
+In the future, we plan to enrich the notion of protocol with
+*contracts* for every signal which is not the subject.  A contract
+should specify a judgement of which the signal *is* the subject.  For
+the above, we should let `check` rely on receiving a `'Type` which
+`type` accepts, but demand that `synth` always yields a `'Type` which
+`type` accepts.
 
-1. Designate one input as the *subject* of the judgement, i.e., the
-   currently untrusted thing whose validity the judgement is intended
-   to establish. Above, the clue is in the name.
-2. For every signal which is not the subject, indicate the
-   *contract*. The actor is allowed to *rely* on properties of its
-   inputs, but it must *guarantee* properties of its outputs. For the
-   above, we should let `check` rely on receiving a `'Type` which
-   `type` accepts, but demand that `synth` always yields a `'Type`
-   which `type` accepts.
-
-That is, we plan to check the checkers: at the moment we
-check that actors stick to the designated interleaving of input and
-output operations, and that syntax descriptions are adhered to.
-
+That is, we plan to check the checkers: at the moment we check that
+actors stick to the designated interleaving of input and output
+operations, and that syntax descriptions are adhered to.  Subjects can
+be marked as such, and are checked to be transmitted only from client
+to server.
 
 ## TypOS actors
 

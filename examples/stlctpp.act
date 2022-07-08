@@ -21,11 +21,11 @@ syntax
   }
 
 isType |- 'Type -> 'Nil
-type  : ?'Type.
-check : ?'Type. ?'Check.
+type  : $'Type.
+check : ?'Type. $'Check.
 
 ctxt |- 'Synth -> 'Type
-synth : ?'Synth. !'Type.
+synth : $'Synth. !'Type.
 
 type@p = p?ty. case (lookup isType ty)
   { ['Just S] ->

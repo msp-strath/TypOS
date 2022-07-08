@@ -32,7 +32,19 @@ import Pattern.Coverage (Covering'(..), combine, shrinkBy, missing)
 dual :: Protocol t -> Protocol t
 dual = map $ \case
   (Input, c) -> (Output, c)
+  (Subject, c) -> (Subject, c)
   (Output, c) -> (Input, c)
+
+data Comm = SEND | RECV
+  deriving (Eq, Show)
+
+whatComm :: Mode -> Direction -> Comm
+whatComm m d = case m of
+  Input -> RECV
+  Subject -> case d of
+    Rootwards -> RECV
+    Leafwards -> SEND
+  Output -> SEND
 
 isFresh :: Variable -> Elab String
 isFresh x = do
@@ -303,35 +315,35 @@ channelScope (Channel ch) = do
   case fromJust (focusBy (\ (y, k) -> k <$ guard (ch == y)) ds) of
     (_, AChannel sc, _) -> pure sc
 
-steppingChannel :: Range -> Channel -> (AProtocol -> Elab (a, AProtocol)) ->
+steppingChannel :: Range -> Channel -> (Direction -> AProtocol -> Elab (a, AProtocol)) ->
                    Elab a
 steppingChannel r ch step = do
   nm <- getName
-  (pnm, p) <- gets (fromJust . channelLookup ch)
+  (dir, pnm, p) <- gets (fromJust . channelLookup ch)
   unless (pnm `isPrefixOf` nm) $ throwError (NonLinearChannelUse r ch)
-  (cat, p) <- step p
-  modify (channelInsert ch (nm, p))
+  (cat, p) <- step dir p
+  modify (channelInsert ch (dir, nm, p))
   pure cat
 
-open :: Channel -> AProtocol -> Elab ()
-open ch p = do
+open :: Direction -> Channel -> AProtocol -> Elab ()
+open dir ch p = do
   nm <- getName
-  modify (channelInsert ch (nm, p))
+  modify (channelInsert ch (dir, nm, p))
 
 close :: Bool -> Range -> Channel -> Elab ()
 close b r ch = do
   -- make sure the protocol was run all the way
-  mp <- gets (channelLookup ch)
-  case snd (fromJust mp) of
-    [] -> pure ()
-    p -> when b $
-           -- if we cannot win, we don't care
-           throwError (UnfinishedProtocol r ch p)
+  gets (channelLookup ch) >>= \case
+    Just (_,_,p) -> case p of
+      [] -> pure ()
+      _ -> when b $
+            -- if we cannot win, we don't care
+            throwError (UnfinishedProtocol r ch p)
   modify (channelDelete ch)
 
-withChannel :: Range -> Channel -> AProtocol -> Elab a -> Elab a
-withChannel r ch@(Channel rch) p ma = do
-  open ch p
+withChannel :: Range -> Direction -> Channel -> AProtocol -> Elab a -> Elab a
+withChannel r dir ch@(Channel rch) p ma = do
+  open dir ch p
   -- run the actor in the extended context
   ovs <- asks objVars
   (a, All b) <- local (declare (Used rch) (AChannel ovs)) $ listen ma
@@ -353,17 +365,18 @@ guessDesc b (Cons _ p q) = do
 guessDesc True (At _ "") = pure (Known $ Syntax.contract VNil)
 guessDesc _ _ = pure Unknown
 
-compatibleChannels :: Range -> AProtocol -> Ordering -> AProtocol -> Elab Int
-compatibleChannels r [] dir [] = pure 0
-compatibleChannels r (p@(m, s) : ps) dir (q@(n, t) : qs) = do
+compatibleChannels :: Range -> (Direction, AProtocol) -> Ordering -> (Direction, AProtocol) -> Elab Int
+compatibleChannels r (dp, []) dir (dq, []) = pure 0
+compatibleChannels r (dp, p@(m, s) : ps) dir (dq, q@(n, t) : qs) = do
   unless (s == t) $ throwError (IncompatibleSyntaxDescs r s t)
-  when (m == n) $ throwError (IncompatibleModes r p q)
-  case (m, dir) of
-    (Input, LT) -> throwError (WrongDirection r p dir q)
-    (Output, GT) -> throwError (WrongDirection r p dir q)
+  let (cp , cq) = (whatComm m dp, whatComm n dq)
+  when (cp == cq) $ throwError (IncompatibleModes r p q)
+  case (cp, dir) of
+    (RECV, LT) -> throwError (WrongDirection r p dir q)
+    (SEND, GT) -> throwError (WrongDirection r p dir q)
     _ -> pure ()
-  (+1) <$> compatibleChannels r ps dir qs
-compatibleChannels r ps _ qs = throwError (ProtocolsNotDual r ps qs)
+  (+1) <$> compatibleChannels r (dp, ps) dir (dq , qs)
+compatibleChannels r (_,ps) _ (_,qs) = throwError (ProtocolsNotDual r ps qs)
 
 sirrefutable :: String -> RawP -> Elab (Binder String, Maybe (Raw, RawP))
 sirrefutable nm = \case
@@ -398,7 +411,7 @@ sact = \case
     ch <- Channel <$> isFresh ch
     jd <- isJudgement jd
 
-    a <- withChannel rp ch (dual $ judgementProtocol jd) $ sact a
+    a <- withChannel rp Leafwards ch (dual $ judgementProtocol jd) $ sact a
 
     em <- pure $ case em of
       AlwaysExtract -> judgementExtract jd
@@ -409,8 +422,8 @@ sact = \case
   Send r ch tm a -> do
     ch <- isChannel ch
     -- Check the channel is in sending mode, & step it
-    desc <- steppingChannel r ch $ \case
-      (Output, desc) : p -> pure (desc, p)
+    desc <- steppingChannel r ch $ \ dir -> \case
+      (m, desc) : p | whatComm m dir == SEND -> pure (desc, p)
       _ -> throwError (InvalidSend r ch tm)
 
     -- Send
@@ -428,8 +441,8 @@ sact = \case
     (av, pat) <- during (RecvMetaElaboration ch) $ sirrefutable "recv" p
 
     -- Check the channel is in receiving mode & step it
-    cat <- steppingChannel r ch $ \case
-      (Input, cat) : p -> pure (cat, p)
+    cat <- steppingChannel r ch $ \ dir -> \case
+      (m, cat) : p | whatComm m dir == RECV -> pure (cat, p)
       _ -> throwError (InvalidRecv r ch av)
 
     -- Receive
@@ -442,8 +455,8 @@ sact = \case
   Connect r (CConnect ch1 ch2) -> during (ConnectElaboration ch1 ch2) $ do
     ch1 <- isChannel ch1
     ch2 <- isChannel ch2
-    p <- steppingChannel r ch1 $ \ p -> pure (p, [])
-    q <- steppingChannel r ch2 $ \ p -> pure (p, [])
+    p <- steppingChannel r ch1 $ \ dir p -> pure ((dir,p), [])
+    q <- steppingChannel r ch2 $ \ dir p -> pure ((dir,p), [])
     sc1 <- channelScope ch1
     sc2 <- channelScope ch2
     (dir, th) <- case (findSub sc1 sc2, findSub sc2 sc1) of
@@ -515,7 +528,7 @@ sformat fmt = do
 
 consistentCommunication :: Range -> [Maybe ChannelStates] -> Elab ()
 consistentCommunication r sts = do
- case List.groupBy ((==) `on` fmap snd) [ p | Just p <- sts ] of
+ case List.groupBy ((==) `on` fmap (\ (_,_,x) -> x)) [ p | Just p <- sts ] of
    [] -> tell (All False) -- all branches are doomed, we don't care
    [(c:_)] -> modify (\ r -> r { channelStates = c })
    _ -> throwError (InconsistentCommunication r)
