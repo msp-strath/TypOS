@@ -100,6 +100,8 @@ instance Pretty Complaint where
              , "refers to", maybe "a bound variable" pretty mk]
      NotAValidBoundVar r x -> singleton $ (flush $ pretty r) <>
        hsep ["Invalid bound variable", pretty x]
+     NotAValidActorVar r x -> singleton $ (flush $ pretty r) <>
+       hsep ["Invalid actor variable", pretty x]
      -- protocol
      InvalidSend r ch tm -> singleton $ (flush $ pretty r) <> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
      InvalidRecv r ch v -> singleton $ (flush $ pretty r) <> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]

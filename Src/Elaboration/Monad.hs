@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wincomplete-patterns #-}
 module Elaboration.Monad where
 
 import Control.Monad.Except
@@ -116,8 +117,22 @@ compatibleInfos r desc desc' = do
 type ObjVar = (String, Info SyntaxDesc)
 type ObjVars = Bwd ObjVar
 
+data Provenance = Parent | Pattern
+  deriving (Show)
+
+data IsSubject' a = IsSubject a | IsNotSubject
+  deriving (Show, Functor)
+
+type IsSubject = IsSubject' Provenance
+
+type instance SCRUTINEEVAR Elaboration = (IsSubject, SyntaxDesc)
+type instance STACK Elaboration = SyntaxDesc
+type instance TERM Elaboration = ()
+
+type EScrutinee = SCRUTINEE Elaboration
+
 data Kind
-  = ActVar (Info SyntaxDesc) ObjVars
+  = ActVar IsSubject (Info SyntaxDesc) ObjVars
   | AChannel ObjVars
   | AJudgement ExtractMode AProtocol
   | AStack AContextStack
@@ -222,6 +237,7 @@ data Complaint
   | NotAValidStack Range Variable (Maybe Kind)
   | NotAValidChannel Range Variable (Maybe Kind)
   | NotAValidBoundVar Range Variable
+  | NotAValidActorVar Range Variable
   -- protocol
   | InvalidSend Range Channel Raw
   | InvalidRecv Range Channel (Binder String)
@@ -291,6 +307,7 @@ instance HasGetRange Complaint where
     NotAValidStack r _ _ -> r
     NotAValidChannel r _ _ -> r
     NotAValidBoundVar r _ -> r
+    NotAValidActorVar r _ -> r
   -- protocol
     InvalidSend r _ _ -> r
     InvalidRecv r _ _ -> r

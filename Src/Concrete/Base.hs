@@ -156,7 +156,7 @@ instance Show Keyword where
   show KwPRINT = "PRINT"
   show KwPRINTF = "PRINTF"
 
-data Phase = Concrete | Abstract
+data Phase = Concrete | Elaboration | Abstract
 
 type family JUDGEMENTFORM (ph :: Phase) :: *
 type family CHANNEL (ph :: Phase) :: *
@@ -169,6 +169,7 @@ type family PATTERN (ph :: Phase) :: *
 type family CONNECT (ph :: Phase) :: *
 type family STACK (ph :: Phase) :: *
 type family STACKDESC (ph :: Phase) :: *
+type family SCRUTINEEVAR (ph :: Phase) :: *
 
 type instance JUDGEMENTFORM Concrete = Variable
 type instance CHANNEL Concrete = Variable
@@ -181,31 +182,29 @@ type instance PATTERN Concrete = RawP
 type instance CONNECT Concrete = CConnect
 type instance STACK Concrete = Variable
 type instance STACKDESC Concrete = ()
+type instance SCRUTINEEVAR Concrete = Variable
 
 type FORMAT (ph :: Phase) = [Format Directive Debug (TERM ph)]
 
 data SCRUTINEE (ph :: Phase)
- = Term Range (TERM ph)
+ = ActorVar Range (SCRUTINEEVAR ph)
+ | Nil Range
  | Pair Range (SCRUTINEE ph) (SCRUTINEE ph)
  | Lookup Range (STACK ph) (TERM ph)
  | Compare Range (TERM ph) (TERM ph)
 
-isProper :: SCRUTINEE ph -> Bool
-isProper Term{} = False
-isProper (Pair _ s t) = isProper s || isProper t
-isProper Lookup{} = True
-isProper Compare{} = True
-
 instance HasSetRange (SCRUTINEE ph) where
   setRange r = \case
-    Term _ t -> Term r t
+    ActorVar _ v -> ActorVar r v
+    Nil _ -> Nil r
     Pair _ p q -> Pair r p q
     Lookup _ stk t -> Lookup r stk t
     Compare _ s t -> Compare r s t
 
 instance HasGetRange (SCRUTINEE ph) where
   getRange = \case
-    Term r t -> r
+    ActorVar r t -> r
+    Nil r -> r
     Pair r p q -> r
     Lookup r stk t -> r
     Compare r s t -> r
@@ -231,6 +230,7 @@ data ACTOR (ph :: Phase)
 
 deriving instance
   ( Show (TERM ph)
+  , Show (SCRUTINEEVAR ph)
   , Show (STACK ph)) =>
   Show (SCRUTINEE ph)
 
@@ -239,6 +239,7 @@ deriving instance
   , Show (CHANNEL ph)
   , Show (BINDER ph)
   , Show (ACTORVAR ph)
+  , Show (SCRUTINEEVAR ph)
   , Show (SYNTAXDESC ph)
   , Show (TERMVAR ph)
   , Show (TERM ph)

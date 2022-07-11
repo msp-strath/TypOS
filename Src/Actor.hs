@@ -41,6 +41,7 @@ type instance PATTERN Abstract = Pat
 type instance CONNECT Abstract = AConnect
 type instance STACK Abstract = Stack
 type instance STACKDESC Abstract = SyntaxDesc
+type instance SCRUTINEEVAR Abstract = ACTm
 
 data AConnect = AConnect Channel Th Channel Int deriving (Show)
 type AProtocol = Protocol SyntaxDesc

@@ -1,7 +1,6 @@
 module Concrete.Parse where
 
 import Control.Applicative
-import Control.Monad
 
 import Bwd
 import Concrete.Base
@@ -126,18 +125,17 @@ pextractmode
   <|> pure AlwaysExtract
 
 instance Lisp CScrutinee where
-  mkNil = Term unknown mkNil
+  mkNil = Nil unknown
   mkCons = Pair unknown
   pCar = pscrutinee
 
 pscrutinee :: Parser CScrutinee
 pscrutinee = withRange $ do
-  Term unknown <$> ptm
+  ActorVar unknown <$> pvariable
   <|> Lookup unknown <$ pkeyword KwLookup <* pspc <*> pvariable <* pspc <*> ptm
   <|> Compare unknown <$ pkeyword KwCompare <* pspc <*> ptm <* pspc <*> ptm
   <|> pparens pscrutinee
-  <|> (do sc <- id <$ pch (== '[') <* pspc <*> plisp
-          sc <$ unless (isProper sc) pfail)
+  <|> id <$ pch (== '[') <* pspc <*> plisp
 
 pact :: Parser CActor
 pact = withRange $

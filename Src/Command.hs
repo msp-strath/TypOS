@@ -58,6 +58,7 @@ deriving instance
   , Show (CHANNEL ph)
   , Show (BINDER ph)
   , Show (ACTORVAR ph)
+  , Show (SCRUTINEEVAR ph)
   , Show (SYNTAXDESC ph)
   , Show (TERMVAR ph)
   , Show (TERM ph)
