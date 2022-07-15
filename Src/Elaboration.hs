@@ -513,15 +513,11 @@ sact = \case
 
     usage <- case m of
       Output -> pure $ SentInOutput r
-      Subject -> pure $ SentAsSubject r
-      {-
-         case tm of
+      Subject -> case tm of
           Var r v -> resolve v >>= \case
             Just (Left (ActVar (IsSubject {}) _ _)) -> pure $ SentAsSubject r
             _ -> throwError (SentSubjectNotASubjectVar (getRange tm) tm)
           _ -> throwError (SentSubjectNotASubjectVar (getRange tm) tm)
--}
-        
 
     -- Send
     tm <- during (SendTermElaboration ch tm) $ do
