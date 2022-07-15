@@ -1,7 +1,6 @@
 module Elaboration where
 
 import Control.Monad.Except
-import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
 
@@ -64,14 +63,15 @@ isFresh x = do
   whenJust res $ \ _ -> throwError (VariableShadowing (getRange x) x)
   pure (getVariable x)
 
-svar :: Variable -> Elab (IsSubject, Info SyntaxDesc, ACTm)
-svar x = do
-  ovs <- asks objVars
-  res <- resolve x
-  case res of
+svar :: Usage -> Variable -> Elab (IsSubject, Info SyntaxDesc, ACTm)
+svar usage x = do
+  ovs <- gets (objVars . context)
+  resolve x >>= \case
     Just (Left k) -> case k of -- TODO: come back and remove fst <$>
       ActVar isSub desc sc -> case findSub (fst <$> sc) (fst <$> ovs) of
-        Just th -> pure (isSub, desc, ActorMeta (getVariable x) $: sbstW (sbst0 0) th)
+        Just th -> do
+          logUsage (getVariable x) usage
+          pure (isSub, desc, ActorMeta (getVariable x) $: sbstW (sbst0 0) th)
         Nothing -> throwError (MetaScopeTooBig (getRange x) x sc ovs)
       _ -> throwError (NotAValidTermVariable (getRange x) x k)
     Just (Right (desc, i)) -> pure (IsNotSubject, desc, var i (length ovs))
@@ -79,7 +79,7 @@ svar x = do
 
 spop :: Range -> Elab (ObjVars, (Variable, Info SyntaxDesc))
 spop r = do
-  ovs <- asks objVars
+  ovs <- gets (objVars . context)
   case ovs of
     B0 -> throwError (EmptyContext r)
     (xz :< (x, cat)) -> pure (xz, (Variable r x, cat))
@@ -87,52 +87,52 @@ spop r = do
 ssyntaxdecl :: [SyntaxCat] -> Raw -> Elab SyntaxDesc
 ssyntaxdecl syndecls syn = do
   let desc = catToDesc "Syntax"
-  syn <- withSyntax (syntaxDesc syndecls) $ stm desc syn
+  syn <- withSyntax (syntaxDesc syndecls) $ stm DontLog desc syn
   case isMetaFree syn of
     Nothing -> throwError undefined -- this should be impossible, since parsed in empty context
     Just syn0 -> pure syn0
 
-ssbst :: Bwd SbstC -> Elab (ACTSbst, ObjVars)
-ssbst B0 = do
-    ovs <- asks objVars
+ssbst :: Usage -> Bwd SbstC -> Elab (ACTSbst, ObjVars)
+ssbst _ B0 = do
+    ovs <- gets (objVars . context)
     pure (sbstI (length ovs), ovs)
-ssbst (sg :< sgc) = case sgc of
+ssbst usage (sg :< sgc) = case sgc of
     Keep r v -> do
       (xz, (w, cat)) <- spop r
       when (v /= w) $ throwError (NotTopVariable r v w)
-      (sg, ovs) <- local (setObjVars xz) (ssbst sg)
+      (sg, ovs) <- locallyModifyObjVars (const xz) (ssbst usage sg)
       pure (sbstW sg (ones 1), ovs :< (getVariable w, cat))
     Drop r v -> do
       (xz, (w, cat)) <- spop r
       when (v /= w) $ throwError (NotTopVariable r v w)
-      (sg, ovs) <- local (setObjVars xz) (ssbst sg)
+      (sg, ovs) <- locallyModifyObjVars (const xz) (ssbst usage sg)
       pure (weak sg, ovs)
     Assign r v t -> do
       info <- getHint (getVariable v)
       desc <- fromInfo r info
-      t <- stm desc t
-      (sg, ovs) <- ssbst sg
-      v <- local (setObjVars ovs) $ isFresh v
+      t <- stm usage desc t
+      (sg, ovs) <- ssbst usage sg
+      v <- locallyModifyObjVars (const ovs) $ isFresh v
       pure (sbstT sg ((Hide v :=) $^ t), ovs :< (v, info))
 
 sth :: (Bwd Variable, ThDirective) -> Elab Th
 sth (xz, b) = do
-  ovs <- asks objVars
+  ovs <- gets (objVars . context)
   let th = which (`elem` (getVariable <$> xz)) (fst <$> ovs)
   pure $ case b of
     ThKeep -> th
     ThDrop -> comp th
 
-stms :: [SyntaxDesc] -> Raw -> Elab ACTm
-stms [] (At r "") = atom "" <$> asks (length . objVars)
-stms [] (At r a) = throwError (ExpectedNilGot r a)
-stms [] t = throwError (ExpectedANilGot (getRange t) t)
-stms (d:ds) (Cons r p q) = (%) <$> stm d p <*> stms ds q
-stms _ t = throwError (ExpectedAConsGot (getRange t) t)
+stms :: Usage -> [SyntaxDesc] -> Raw -> Elab ACTm
+stms _ [] (At r "") = atom "" <$> gets (length . objVars . context)
+stms _ [] (At r a) = throwError (ExpectedNilGot r a)
+stms _ [] t = throwError (ExpectedANilGot (getRange t) t)
+stms usage (d:ds) (Cons r p q) = (%) <$> stm usage d p <*> stms usage ds q
+stms _ _ t = throwError (ExpectedAConsGot (getRange t) t)
 
 sscrutinee :: CScrutinee -> Elab (EScrutinee, AScrutinee)
 sscrutinee (ActorVar r v) = do
-  (isSub, info, actm) <- svar v
+  (isSub, info, actm) <- svar (Scrutinised r) v
   desc <- fromInfo r info
   case actm of
     CdB (m :$ sg) _ -> pure (ActorVar r (isSub, desc), ActorVar r actm)
@@ -144,7 +144,7 @@ sscrutinee (Pair r sc1 sc2) = do
   pure (Pair r esc1 esc2, Pair r asc1 asc2)
 sscrutinee (Lookup r stk t) = do
   (stk, stkTy) <- isContextStack stk
-  t <- during (LookupTermElaboration t) $ stm (keyDesc stkTy) t
+  t <- during (LookupTermElaboration t) $ stm (LookedUp r) (keyDesc stkTy) t
   let desc = Syntax.contract (VEnumOrTag ["Nothing"] [("Just", [valueDesc stkTy])])
   pure (Lookup r desc (), Lookup r stk t)
 sscrutinee (Compare r s t) = do
@@ -152,21 +152,21 @@ sscrutinee (Compare r s t) = do
   infoT <- guessDesc False t
   desc <- during (CompareSyntaxCatGuess s t) $
       fromInfo r =<< compatibleInfos r infoS infoT
-  s <- during (CompareTermElaboration s) $ stm desc s
-  t <- during (CompareTermElaboration t) $ stm desc t
+  s <- during (CompareTermElaboration s) $ stm (Compared (getRange s)) desc s
+  t <- during (CompareTermElaboration t) $ stm (Compared (getRange t)) desc t
   pure (Compare r () (), Compare r s t)
 
-stm :: SyntaxDesc -> Raw -> Elab ACTm
-stm desc (Var r v) = during (TermVariableElaboration v) $ do
+stm :: Usage -> SyntaxDesc -> Raw -> Elab ACTm
+stm usage desc (Var r v) = during (TermVariableElaboration v) $ do
   table <- gets syntaxCats
-  (_, desc', t) <- svar v
+  (_, desc', t) <- svar usage v
   compatibleInfos (getRange v) (Known desc) desc'
   pure t
-stm desc (Sbst r sg t) = do
-    (sg, ovs) <- during (SubstitutionElaboration sg) $ ssbst sg
-    t <- local (setObjVars ovs) (stm desc t)
+stm usage desc (Sbst r sg t) = do
+    (sg, ovs) <- during (SubstitutionElaboration sg) $ ssbst usage sg
+    t <- locallyModifyObjVars (const ovs) (stm usage desc t)
     pure (t //^ sg)
-stm desc rt = do
+stm usage desc rt = do
   table <- gets syntaxCats
   case Syntax.expand table desc of
     Nothing -> throwError (InvalidSyntaxDesc (getRange rt) desc)
@@ -180,15 +180,15 @@ stm desc rt = do
           VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
           VWildcard -> pure ()
           _ -> throwError (SyntaxError r desc rt)
-        atom a <$> asks (length . objVars)
+        atom a <$> gets (length . objVars . context)
       Cons r p q -> case vdesc of
-        VNilOrCons d1 d2 -> (%) <$> stm d1 p <*> stm d2 q
-        VCons d1 d2 -> (%) <$> stm d1 p <*> stm d2 q
-        VWildcard -> (%) <$> stm desc p <*> stm desc q
+        VNilOrCons d1 d2 -> (%) <$> stm usage d1 p <*> stm usage d2 q
+        VCons d1 d2 -> (%) <$> stm usage d1 p <*> stm usage d2 q
+        VWildcard -> (%) <$> stm usage desc p <*> stm usage desc q
         VEnumOrTag _ ds -> case p of
           At r a -> case lookup a ds of
             Nothing -> throwError (ExpectedTagGot r (fst <$> ds) a)
-            Just descs -> (%) <$> stm (atom "Atom" 0) p <*> stms descs q
+            Just descs -> (%) <$> stm usage (atom "Atom" 0) p <*> stms usage descs q
           _ -> throwError (SyntaxError r desc rt)
         _ -> throwError (SyntaxError r desc rt)
       Lam r (Scope (Hide x) sc) -> do
@@ -199,66 +199,65 @@ stm desc rt = do
         case x of
           Used x -> do
             x <- isFresh x
-            sc <- local (declareObjVar (x, s)) $ stm desc sc
+            sc <- locallyModifyObjVars (:< (x, s)) $ stm usage desc sc
             pure (x \\ sc)
           Unused -> do
-            sc <- stm desc sc
+            sc <- stm usage desc sc
             pure ((Hide "_" := False :.) $^ sc)
 
-spats :: [EScrutinee] -> RawP -> Elab (Pat, Decls, Hints)
-spats [] (AtP r "") = (AP "",,) <$> asks declarations <*> asks binderHints
+spats :: [EScrutinee] -> RawP -> Elab (Pat, [Decl], Hints)
+spats [] (AtP r "") = (AP "",[],) <$> gets (binderHints . context)
 spats [] (AtP r a) = throwError (ExpectedNilGot r a)
 spats [] t = throwError (ExpectedANilPGot (getRange t) t)
 spats (d:ds) (ConsP r p q) = do
   (p, decls, hints) <- spat d p
-  (q, decls, hints) <- local (setDecls decls . setHints hints) $ spats ds q
-  pure (PP p q, decls, hints)
+  (ds, (q, decls, hints)) <- withDecls decls $ withHints hints $ spats ds q
+  pure (PP p q, ds <> decls, hints)
 spats _ t = throwError (ExpectedAConsPGot (getRange t) t)
 
 -- Returns:
 -- 1. Elaborated pattern
 -- 2. Bound variables (together with their syntactic categories)
 -- 3. Binder hints introduced by \x. patterns
-spat :: EScrutinee -> RawP -> Elab (Pat, Decls, Hints)
+spat :: EScrutinee -> RawP -> Elab (Pat, [Decl], Hints)
 spat esc (AsP r v p) = do
   let isSub = isSubject esc
   let desc = escrutinee esc
   v <- isFresh v
-  ds <- asks declarations
-  ovs <- asks objVars
-  (p, ds, hs) <- local (setDecls (ds :< (v, ActVar isSub (Known desc) ovs))) $ spat esc p
-  pure (AT v p, ds, hs)
+  ds <- gets (declarationz . context)
+  ovs <- gets (objVars . context)
+  (d, (p, ds, hs)) <- withDecl (v, (ActVar isSub (Known desc) ovs, [])) $ spat esc p
+  pure (AT v p, d:ds, hs)
 spat esc (VarP r v) = during (PatternVariableElaboration v) $ do
   let isSub = isSubject esc
   let desc = escrutinee esc
   table <- gets syntaxCats
-  ds <- asks declarations
-  hs <- asks binderHints
+  hs <- gets (binderHints . context)
   res <- resolve v
   case res of
     Just (Left k)  -> throwError (NotAValidPatternVariable r v k)
     Just (Right (desc', i)) -> do
       compatibleInfos (getRange v) (Known desc) desc'
-      pure (VP i, ds, hs)
+      pure (VP i, [], hs)
     Nothing -> do
-      ovs <- asks objVars
+      ovs <- gets (objVars . context)
       v <- pure (getVariable v)
-      pure (MP v (ones (length ovs)), ds :< (v, ActVar isSub (Known desc) ovs), hs)
+      pure (MP v (ones (length ovs)), [(v, (ActVar isSub (Known desc) ovs, []))], hs)
 spat esc (ThP r th p) = do
   th <- sth th
-  (p, ds, hs) <- local (th ^?) $ spat esc p
+  (p, ds, hs) <- locallyModifyObjVars (th ^?) $ spat esc p
   pure (p *^ th, ds, hs)
-spat _ (UnderscoreP r) = (HP,,) <$> asks declarations <*> asks binderHints
+spat _ (UnderscoreP r) = (HP,[],) <$> gets (binderHints . context)
 spat esc@(Nil r) rp = case rp of
   AtP r a | a == "" ->
-    (AP a,,) <$> asks declarations <*> asks binderHints
+    (AP a,[],) <$> gets (binderHints . context)
   AtP r a -> throwError (ExpectedNilGot (getRange rp) a)
   _ -> throwError (SyntaxPError (getRange rp) (escrutinee esc) rp)
 spat esc@(Pair r esc1 esc2) rp = case rp of
   ConsP r p q -> do
     (p, ds, hs) <- spat esc1 p
-    (q, ds, hs) <- local (setDecls ds . setHints hs) (spat esc2 q)
-    pure (PP p q, ds, hs)
+    (ds, (q, ds', hs)) <- withDecls ds $ withHints hs $ (spat esc2 q)
+    pure (PP p q, ds <> ds', hs)
   _ -> throwError (SyntaxPError (getRange rp) (escrutinee esc) rp)
 spat (ActorVar r (isSub, desc)) rp = do
   let isSub' = Pattern <$ isSub
@@ -276,28 +275,28 @@ spat (ActorVar r (isSub, desc)) rp = do
           VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
           VWildcard -> pure ()
           _ -> throwError (SyntaxPError r desc rp)
-        (AP a,,) <$> asks declarations <*> asks binderHints
+        (AP a,[],) <$> gets (binderHints . context)
 
       ConsP r p q -> case vdesc of
         VNilOrCons d1 d2 -> do
           (p, ds, hs) <- spat (rewrap d1) p
-          (q, ds, hs) <- local (setDecls ds . setHints hs) (spat (rewrap d2) q)
-          pure (PP p q, ds, hs)
+          (ds, (q, ds', hs)) <- withDecls ds $ withHints hs $ spat (rewrap d2) q
+          pure (PP p q, ds <> ds', hs)
         VCons d1 d2 -> do
           (p, ds, hs) <- spat (rewrap d1) p
-          (q, ds, hs) <- local (setDecls ds . setHints hs) (spat (rewrap d2) q)
-          pure (PP p q, ds, hs)
+          (ds, (q, ds', hs)) <- withDecls ds $ withHints hs $ spat (rewrap d2) q
+          pure (PP p q, ds <> ds', hs)
         VWildcard -> do
           (p, ds, hs) <- spat (rewrap desc) p
-          (q, ds, hs) <- local (setDecls ds . setHints hs) (spat (rewrap desc) q)
-          pure (PP p q, ds, hs)
+          (ds, (q, ds', hs)) <- withDecls ds $ withHints hs $ spat (rewrap desc) q
+          pure (PP p q, ds <> ds', hs)
         VEnumOrTag _ ds -> case p of
           AtP r a -> case lookup a ds of
             Nothing -> throwError (ExpectedTagGot r (fst <$> ds) a)
             Just descs ->  do
               (p, ds, hs) <- spat (rewrap (atom "Atom" 0)) p
-              (q, ds, hs) <- local (setDecls ds . setHints hs) (spats (rewrap <$> descs) q)
-              pure (PP p q, ds, hs)
+              (ds, (q, ds', hs)) <- withDecls ds $ withHints hs $ spats (rewrap <$> descs) q
+              pure (PP p q, ds <> ds', hs)
           _ -> throwError (SyntaxPError r desc rp)
         _ -> throwError (SyntaxPError r desc rp)
 
@@ -313,9 +312,62 @@ spat (ActorVar r (isSub, desc)) rp = do
             pure (BP (Hide "_") p, ds, hs)
           Used x -> do
             x <- isFresh x
-            (p, ds, hs) <- local (declareObjVar (x, s) . addHint x s) $ spat (rewrap desc) p
+            ctx <- gets context
+            (p, ds, hs) <- locallyModifyObjVars (:< (x, s)) $ locallyModifyHints (addHint x s) $ spat (rewrap desc) p
             pure (BP (Hide x) p, ds, hs)
 spat esc rp = spat (ActorVar (getRange esc) (IsNotSubject, escrutinee esc)) rp
+
+locallyModifyObjVars :: (ObjVars -> ObjVars) -> Elab a -> Elab a
+locallyModifyObjVars f m = do
+  oldVars <- gets (objVars . context)
+  modify (modifyContext (modifyObjVars f))
+  result <- m
+  modify (modifyContext (setObjVars oldVars))
+  pure result
+
+locallyModifyLocation :: (Bwd Turn -> Bwd Turn) -> Elab a -> Elab a
+locallyModifyLocation f m = do
+  oldLocation <- gets (location . context)
+  modify (modifyContext (\c -> c { location = f oldLocation }))
+  result <- m
+  modify (modifyContext (\c -> c { location = oldLocation }))
+  pure result
+
+locallyModifyHints :: (Hints -> Hints) -> Elab a -> Elab a
+locallyModifyHints f m = do
+  oldHints <- gets (binderHints . context)
+  modify (modifyContext (modifyHints f))
+  result <- m
+  modify (modifyContext (setHints oldHints))
+  pure result
+
+withHints :: Hints -> Elab a -> Elab a
+withHints = locallyModifyHints . const
+
+withDecls :: [Decl] -> Elab a -> Elab ([Decl], a)
+withDecls [] m = ([],) <$> m
+withDecls (d:ds) m = do
+  (d, (ds, a)) <- withDecl d (withDecls ds m)
+  pure (d:ds, a)
+
+withDecl :: Decl -> Elab a -> Elab (Decl, a)
+withDecl d m = do
+  st <- get
+  let decls = declarationz (context st)
+  put st { context = setDecls (decls :< d) (context st) }
+  result <- m
+  st <- get
+  let decls = declarationz (context st)
+  case decls of
+    (zd :< d')
+      | (fst d) == (fst d') -> do
+          put (st { context = setDecls zd (context st) })
+          pure (d', result)
+    _ -> error "Declaration stack invariant violated"
+
+withNewDecl :: Binder String -> Kind -> Elab a -> Elab (Decl, a)
+withNewDecl (Used x) k m = withDecl (x, (k, [])) m
+withNewDecl Unused k m = (("",(k,[])),) <$> m
 
 isChannel :: Variable -> Elab Channel
 isChannel ch = resolve ch >>= \case
@@ -344,9 +396,9 @@ isContextStack stk = resolve stk >>= \case
 
 channelScope :: Channel -> Elab ObjVars
 channelScope (Channel ch) = do
-  ds <- asks declarations
+  ds <- gets (declarationz . context)
   case fromJust (focusBy (\ (y, k) -> k <$ guard (ch == y)) ds) of
-    (_, AChannel sc, _) -> pure sc
+    (_, (AChannel sc, _), _) -> pure sc
 
 steppingChannel :: Range -> Channel -> (Direction -> AProtocol -> Elab (a, AProtocol)) ->
                    Elab a
@@ -378,8 +430,8 @@ withChannel :: Range -> Direction -> Channel -> AProtocol -> Elab a -> Elab a
 withChannel r dir ch@(Channel rch) p ma = do
   open dir ch p
   -- run the actor in the extended context
-  ovs <- asks objVars
-  (a, All b) <- local (declare (Used rch) (AChannel ovs)) $ listen ma
+  ovs <- gets (objVars . context)
+  (_, (a, All b)) <- withNewDecl (Used rch) (AChannel ovs) $ listen ma
   close b r ch
   pure a
 
@@ -415,10 +467,10 @@ sirrefutable :: String -> RawP -> Elab (Binder String, Maybe (Variable, RawP))
 sirrefutable nm = \case
   VarP _ v -> (, Nothing) . Used <$> isFresh v
   UnderscoreP _ -> pure (Unused, Nothing)
-  p -> do ctxt <- ask
+  p -> do ctxt <- gets context
           -- this should be a unique name & is not user-writable
           let r = getRange p
-          let av = "$" ++ nm ++ show (length (objVars ctxt) + length (declarations ctxt))
+          let av = "$" ++ nm ++ show (length (objVars ctxt) + length (declarationz ctxt))
           pure (Used av, Just (Variable r av, p))
 
 sact :: CActor -> Elab AActor
@@ -429,13 +481,13 @@ sact = \case
     infoT <- guessDesc False t
     desc <- during (ConstrainSyntaxCatGuess s t) $
       fromInfo r =<< compatibleInfos r infoS infoT
-    s <- during (ConstrainTermElaboration s) $ stm desc s
-    t <- during (ConstrainTermElaboration t) $ stm desc t
+    s <- during (ConstrainTermElaboration s) $ stm (Constrained (getRange s)) desc s
+    t <- during (ConstrainTermElaboration t) $ stm (Constrained (getRange t)) desc t
     pure $ Constrain r s t
 
   Branch r a b -> do
-    a <- local (turn West) $ sact a
-    b <- local (turn East) $ sact b
+    a <- locallyModifyLocation (:< West) $ sact a
+    b <- locallyModifyLocation (:< East) $ sact b
     pure (Branch r a b)
 
   Spawn r em jd ch a -> do
@@ -455,18 +507,31 @@ sact = \case
   Send r ch tm a -> do
     ch <- isChannel ch
     -- Check the channel is in sending mode, & step it
-    desc <- steppingChannel r ch $ \ dir -> \case
-      (m, desc) : p | whatComm m dir == SEND -> pure (desc, p)
+    (m, desc) <- steppingChannel r ch $ \ dir -> \case
+      (m, desc) : p | whatComm m dir == SEND -> pure ((m, desc), p)
       _ -> throwError (InvalidSend r ch tm)
+
+    usage <- case m of
+      Output -> pure $ SentInOutput r
+      Subject -> pure $ SentAsSubject r
+      {-
+         case tm of
+          Var r v -> resolve v >>= \case
+            Just (Left (ActVar (IsSubject {}) _ _)) -> pure $ SentAsSubject r
+            _ -> throwError (SentSubjectNotASubjectVar (getRange tm) tm)
+          _ -> throwError (SentSubjectNotASubjectVar (getRange tm) tm)
+-}
+        
 
     -- Send
     tm <- during (SendTermElaboration ch tm) $ do
       sc <- channelScope ch
-      ovs <- asks objVars
+      ovs <- gets (objVars . context)
       let (thx, xyz, thy) = lintersection sc ovs
-      (*^ thx) <$> local (setObjVars xyz) (stm desc tm)
+      (*^ thx) <$> locallyModifyObjVars (const xyz) (stm usage desc tm)
 
     a <- sact a
+
     pure $ Send r ch tm a
 
   Recv r ch (p, a) -> do
@@ -484,11 +549,12 @@ sact = \case
 
     -- Receive
     sc <- channelScope ch
-    a <- local (declare av (ActVar isSub (Known cat) sc))
-           $ sact
-           $ case pat of
-               Nothing -> a
-               Just (var, p) -> Match r (ActorVar (getRange var) var) [(p, a)]
+    (d, a) <- withNewDecl av (ActVar isSub (Known cat) sc)
+              $ sact
+              $ case pat of
+                  Nothing -> a
+                  Just (var, p) -> Match r (ActorVar (getRange var) var) [(p, a)]
+    -- TODO: Analyse d - was it a subject?
     pure $ Recv r ch (ActorMeta <$> av, a)
 
   Connect r (CConnect ch1 ch2) -> during (ConnectElaboration ch1 ch2) $ do
@@ -511,9 +577,9 @@ sact = \case
       syndecls <- gets (Map.keys . syntaxCats)
       desc <- ssyntaxdecl syndecls desc
       av <- isFresh av
-      ovs <- asks objVars
+      ovs <- gets (objVars . context)
       pure (desc, av, ovs)
-    a <- local (declare (Used av) (ActVar IsNotSubject (Known desc) ovs)) $ sact a
+    (_, a) <- withNewDecl (Used av) (ActVar IsNotSubject (Known desc) ovs) $ sact a
     pure $ FreshMeta r desc (ActorMeta av, a)
 
   Let r av desc t a -> do
@@ -521,15 +587,15 @@ sact = \case
       syndecls <- gets (Map.keys . syntaxCats)
       desc <- ssyntaxdecl syndecls desc
       av <- isFresh av
-      ovs <- asks objVars
+      ovs <- gets (objVars . context)
       pure (desc, av, ovs)
-    t <- stm desc t
-    a <- local (declare (Used av) (ActVar IsNotSubject (Known desc) ovs)) $ sact a
+    t <- stm (LetBound (getRange t)) desc t
+    (_, a) <- withNewDecl (Used av) (ActVar IsNotSubject (Known desc) ovs) $ sact a
     pure (Let r (ActorMeta av) desc t a)
 
   Under r (Scope v@(Hide x) a) -> do
     during UnderElaboration $ () <$ isFresh x
-    a <- local (declareObjVar (getVariable x, Unknown)) $ sact a
+    a <- locallyModifyObjVars (:< (getVariable x, Unknown)) $ sact a
     pure $ Under r (Scope v a)
 
   Match r rsc cls -> do
@@ -551,7 +617,7 @@ sact = \case
       Just (Right (cat, i)) -> i <$ compatibleInfos (getRange p) cat (Known $ keyDesc stkTy)
       Just (Left k) -> throwError $ NotAValidPatternVariable r p k
       _ -> throwError $ OutOfScope (getRange p) p
-    t <- during (PushTermElaboration t) $ stm (valueDesc stkTy) t
+    t <- during (PushTermElaboration t) $ stm (Pushed r) (valueDesc stkTy) t
     a <- sact a
     pure $ Push r stk (p, valueDesc stkTy, t) a
 
@@ -563,7 +629,7 @@ sact = \case
 sformat :: [Format Directive Debug Raw] -> Elab [Format Directive Debug ACTm]
 sformat fmt = do
   desc <- fromInfo unknown Unknown
-  traverse (traverse $ stm desc) fmt
+  traverse (traverse $ stm DontLog desc) fmt
 
 consistentCommunication :: Range -> [Maybe ChannelStates] -> Elab ()
 consistentCommunication r sts = do
@@ -598,8 +664,9 @@ sclause esc (rp, a) = do
       pure leftovers
     PartiallyCovering _ ps -> pure ps
   put leftovers
-  (a, me) <- lift $ during (MatchBranchElaboration rp) $
-               local (setDecls ds . setHints hs) $ sbranch a
+  (ds', (a, me)) <- lift $ during (MatchBranchElaboration rp) $
+                    withDecls ds $ withHints hs $ sbranch a
+  -- TODO: Analyse ds' for BAD USES
   pure ((p, a), me)
 
 sprotocol :: CProtocol -> Elab AProtocol

@@ -1,8 +1,8 @@
 {-# OPTIONS_GHC -Wincomplete-patterns #-}
 module Elaboration.Monad where
 
+import Control.Arrow ((***))
 import Control.Monad.Except
-import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
 
@@ -28,6 +28,7 @@ data ElabState = ElabState
   { channelStates :: ChannelStates
   , syntaxCats    :: SyntaxTable
   , warnings      :: Bwd Warning
+  , context       :: Context
   }
 
 type ChannelState = (Direction, [Turn], AProtocol)
@@ -38,26 +39,35 @@ data Direction = Rootwards
   deriving (Eq, Show)
 
 initElabState :: ElabState
-initElabState = ElabState Map.empty Map.empty B0
+initElabState = ElabState Map.empty Map.empty B0 initContext
 
 newtype Elab a = Elab
   { runElab :: StateT ElabState
-               (ReaderT Context
                (WriterT All       -- Can we win?
-               (Either Complaint)))
+               (Either Complaint))
                a }
   deriving ( Functor, Applicative, Monad
            , MonadError Complaint
-           , MonadReader Context
            , MonadState ElabState
            , MonadWriter All)
 
 evalElab :: Elab a -> Either Complaint a
 evalElab = fmap fst
          . runWriterT
-         . (`runReaderT` initContext)
          . (`evalStateT` initElabState)
          . runElab
+
+setContext :: Context -> ElabState -> ElabState
+setContext ctx st = st { context = ctx }
+
+modifyContext :: (Context -> Context) -> ElabState -> ElabState
+modifyContext f st = st { context = f (context st) }
+
+modifyObjVars :: (ObjVars -> ObjVars) -> Context -> Context
+modifyObjVars f ctx = ctx { objVars = f (objVars ctx) }
+
+modifyHints :: (Hints -> Hints) -> Context -> Context
+modifyHints f ctx = ctx { binderHints = f (binderHints ctx) }
 
 ------------------------------------------------------------------------------
 -- Partial Info
@@ -138,10 +148,31 @@ data Kind
   | AStack AContextStack
   deriving (Show)
 
-type Decls = Bwd (String, Kind)
+logUsage :: String -> Usage -> Elab ()
+logUsage _ DontLog = pure ()
+logUsage var usage = do
+  ctx <- gets context
+  let decls = declarationz ctx
+  decls <- mayComplain (error $ "undeclared " ++ var) $ update decls var (id *** (usage:))
+  modify (\st -> st { context = ctx { declarationz = decls } })
+
+data Usage
+  = SentAsSubject Range
+  | SentInOutput Range
+  | LookedUp Range
+  | Scrutinised Range
+  | Compared Range
+  | Constrained Range
+  | LetBound Range
+  | Pushed Range
+  | DontLog
+ deriving Show
+
+type UsageLog = [Usage]
+type Decl = (String, (Kind, UsageLog))
 data Context = Context
   { objVars      :: ObjVars
-  , declarations :: Decls
+  , declarationz :: Bwd Decl
   , location     :: Bwd Turn
   , binderHints  :: Hints
   } deriving (Show)
@@ -162,10 +193,10 @@ instance Selable Context where
 
 declare :: Binder String -> Kind -> Context -> Context
 declare Unused k ctx = ctx
-declare (Used x) k ctx = ctx { declarations = declarations ctx :< (x, k) }
+declare (Used x) k ctx = ctx { declarationz = declarationz ctx :< (x, (k, [])) }
 
-setDecls :: Decls -> Context -> Context
-setDecls ds ctx = ctx { declarations = ds }
+setDecls :: Bwd Decl -> Context -> Context
+setDecls ds ctx = ctx { declarationz = ds }
 
 ------------------------------------------------------------------------------
 -- Hierarchical path names generation
@@ -175,7 +206,7 @@ data Turn = West | East
 
 getName :: Elab [Turn]
 getName = do
-  loc <- asks location
+  loc <- gets (location . context)
   pure (loc <>> [])
 
 turn :: Turn -> Context -> Context
@@ -187,17 +218,14 @@ turn t ds = ds { location = location ds :< t }
 setHints :: Hints -> Context -> Context
 setHints hs ctx = ctx { binderHints = hs }
 
-addHint :: String -> Info SyntaxDesc -> Context -> Context
-addHint str cat ctx =
-  let hints = binderHints ctx
-      hints' = case Map.lookup str hints of
-                 Nothing -> Map.insert str cat hints
-                 Just cat' -> Map.insert str (cat <> cat') hints
-  in ctx { binderHints = hints' }
+addHint :: String -> Info SyntaxDesc -> Hints -> Hints
+addHint str cat hints = case Map.lookup str hints of
+                          Nothing -> Map.insert str cat hints
+                          Just cat' -> Map.insert str (cat <> cat') hints
 
 getHint :: String -> Elab (Info SyntaxDesc)
 getHint str = do
-  hints <- asks binderHints
+  hints <- gets (binderHints . context)
   pure $ fromMaybe Unknown $ Map.lookup str hints
 
 ------------------------------------------------------------------------------
@@ -265,6 +293,8 @@ data Complaint
   | ExpectedAConsPGot Range RawP
   | SyntaxError Range SyntaxDesc Raw
   | SyntaxPError Range SyntaxDesc RawP
+  -- Subject tracking
+  | SentSubjectNotASubjectVar Range Raw
   -- contextual info
   -- shouldn't contain ranges because there should be a more precise one
   -- on the decorated complaint
@@ -335,6 +365,8 @@ instance HasGetRange Complaint where
     ExpectedAConsPGot r _ -> r
     SyntaxError r _ _ -> r
     SyntaxPError r _ _ -> r
+    -- Subject analysis
+    SentSubjectNotASubjectVar r _ -> r
   -- contextual info
   -- shouldn't contain ranges because there should be a more precise one
   -- on the decorated complaint
@@ -396,11 +428,11 @@ channelDelete ch st = st { channelStates = Map.delete ch (channelStates st) }
 
 resolve :: Variable -> Elab (Maybe (Either Kind (Info SyntaxDesc, DB)))
 resolve (Variable r x) = do
-  ctx <- ask
-  let ds  = declarations ctx
+  ctx <- gets context
+  let ds  = declarationz ctx
   let ovs = objVars ctx
   case focusBy (\ (y, k) -> k <$ guard (x == y)) ds of
-    Just (_, k, _) -> pure (Just $ Left k)
+    Just (_, (k,_), _) -> pure (Just $ Left k)
     _ -> case focusBy (\ (y, desc) -> desc <$ guard (x == y)) ovs of
       Just (xz, desc, xs) -> pure (Just $ Right (desc, DB $ length xs))
       Nothing -> pure Nothing

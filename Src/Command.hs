@@ -4,7 +4,6 @@ module Command where
 
 import Control.Applicative
 import Control.Monad.Except
-import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Bifunctor (first)
@@ -174,19 +173,19 @@ pmarkdown = concat <$ pmdspc <*> psep pmdspc (id <$> pfile <* pspc <* plit "```"
   pmdspc :: Parser ()
   pmdspc = Parser $ \ (Source str loc) -> here ((), toBlock str loc)
 
-scommand :: CCommand -> Elab (ACommand, Decls)
+scommand :: CCommand -> Elab (ACommand, Bwd Decl)
 scommand = \case
   DeclJudge em jd p -> during (DeclJElaboration jd) $ do
     jd <- isFresh jd
     p <- sprotocol p
-    local (declare (Used jd) (AJudgement em p)) $
-      (DeclJudge em jd p,) <$> asks declarations
+    fmap snd $ withNewDecl (Used jd) (AJudgement em p) $
+      (DeclJudge em jd p,) <$> gets (declarationz . context)
   DefnJudge (jd, (), ch) a -> during (DefnJElaboration jd) $ do
     let rp = getRange jd <> getRange ch
     ch <- Channel <$> isFresh ch
     jd <- isJudgement jd
     a <- withChannel rp Rootwards ch (judgementProtocol jd) $ sact a
-    (DefnJudge (judgementName jd, judgementProtocol jd, ch) a,) <$> asks declarations
+    (DefnJudge (judgementName jd, judgementProtocol jd, ch) a,) <$> gets (declarationz . context)
   DeclSyntax syns -> do
     oldsyndecls <- gets (Map.keys . syntaxCats)
     let newsyndecls = map (theValue . fst) syns
@@ -195,20 +194,20 @@ scommand = \case
               during (DeclaringSyntaxCat (theValue cat)) $
                 traverse (ssyntaxdecl syndecls) syn
     forM_ syns (uncurry declareSyntax)
-    (DeclSyntax (map (first theValue) syns),) <$> asks declarations
+    (DeclSyntax (map (first theValue) syns),) <$> gets (declarationz . context)
   DeclStack stk stkTy -> do
     stk <- isFresh stk
     stkTy <- scontextstack stkTy
-    local (declare (Used stk) (AStack stkTy)) $ do
-      (DeclStack (Stack stk) stkTy,) <$> asks declarations
-  Go a -> during ExecElaboration $ (,) . Go <$> sact a <*> asks declarations
-  Trace ts -> (Trace ts,) <$> asks declarations
+    fmap snd $ withNewDecl (Used stk) (AStack stkTy) $ do
+      (DeclStack (Stack stk) stkTy,) <$> gets (declarationz . context)
+  Go a -> during ExecElaboration $ (,) . Go <$> sact a <*> gets (declarationz . context)
+  Trace ts -> (Trace ts,) <$> gets (declarationz . context)
 
 scommands :: [CCommand] -> Elab [ACommand]
 scommands [] = pure []
 scommands (c:cs) = do
   (c, ds) <- scommand c
-  cs <- local (setDecls ds) $ scommands cs
+  (_, cs) <- withDecls (ds <>> []) $ scommands cs
   pure (c:cs)
 
 elaborate :: [CCommand] -> Either Complaint ([Warning], [ACommand], SyntaxTable)

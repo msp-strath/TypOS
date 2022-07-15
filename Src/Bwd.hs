@@ -2,6 +2,7 @@
 
 module Bwd where
 
+import Data.Functor ((<&>))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
@@ -119,3 +120,9 @@ unzipWith f (az :< a) =
   let (bz, cz) = unzipWith f az in
   let (b, c) = f a in
   (bz :< b, cz :< c)
+
+update :: Eq a => Bwd (a, b) -> a -> (b -> b) -> Maybe (Bwd (a, b))
+update (zx :< x@(a,b)) a' f
+  | a == a' = Just (zx :< (a, f b))
+  | otherwise = update zx a f <&> (:< x)
+update B0 _ _ = Nothing
