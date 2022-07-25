@@ -7,7 +7,7 @@ import Data.Foldable
 import ANSI hiding (withANSI)
 import Actor (ActorMeta(..), Channel(..), Stack(..))
 import Bwd
-import Concrete.Base (Mode)
+import Concrete.Base (Mode, Binder (..))
 import Concrete.Pretty()
 import Doc
 import Doc.Render.Terminal
@@ -66,6 +66,10 @@ instance Pretty Warning where
              : map (indent 2 . pretty) (toList pats))
       -- Subject analysis
       SentSubjectNotASubjectVar r raw -> hsep ["Sent subject", pretty raw, "is not a subject variable"]
+      RecvSubjectNotScrutinised r ch Unused -> hsep ["Ignored received subject on channel", pretty ch]
+      RecvSubjectNotScrutinised r ch (Used x) -> hsep ["Received subject", pretty x,"on channel", pretty ch, "and did not scrutinise it"]
+      PatternSubjectNotScrutinised r x -> hsep ["Pattern subject", pretty x, "did not get scrutinised"]
+      UnderscoreOnSubject r -> hsep ["Subject pattern thrown away using an underscore"]
 
 instance Pretty Complaint where
 

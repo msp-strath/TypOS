@@ -28,6 +28,7 @@ import Pattern as P
 import Location
 import Data.List.NonEmpty (fromList)
 import Pattern.Coverage (Covering'(..), combine, shrinkBy, missing)
+import Control.Applicative ((<|>))
 
 isSubject :: EScrutinee -> IsSubject
 isSubject (ActorVar _ (isSub, _)) = isSub
@@ -207,29 +208,30 @@ stm usage desc rt = do
             sc <- stm usage desc sc
             pure ((Hide "_" := False :.) $^ sc)
 
-spats :: [EScrutinee] -> RawP -> Elab (Pat, Decls, Hints)
-spats [] (AtP r "") = (AP "",,) <$> asks declarations <*> asks binderHints
+spats :: [EScrutinee] -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
+spats [] (AtP r "") = (Nothing, AP "",,) <$> asks declarations <*> asks binderHints
 spats [] (AtP r a) = throwError (ExpectedNilGot r a)
 spats [] t = throwError (ExpectedANilPGot (getRange t) t)
 spats (d:ds) (ConsP r p q) = do
-  (p, decls, hints) <- spat d p
-  (q, decls, hints) <- local (setDecls decls . setHints hints) $ spats ds q
-  pure (PP p q, decls, hints)
+  (mr1, p, decls, hints) <- spat d p
+  (mr2, q, decls, hints) <- local (setDecls decls . setHints hints) $ spats ds q
+  pure (mr1 <|> mr2, PP p q, decls, hints)
 spats _ t = throwError (ExpectedAConsPGot (getRange t) t)
 
 -- Returns:
+-- 0. Whether a subject pattern was thrown away
 -- 1. Elaborated pattern
 -- 2. Bound variables (together with their syntactic categories)
 -- 3. Binder hints introduced by \x. patterns
-spat :: EScrutinee -> RawP -> Elab (Pat, Decls, Hints)
+spat :: EScrutinee -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
 spat esc (AsP r v p) = do
   let isSub = isSubject esc
   let desc = escrutinee esc
   v <- isFresh v
   ds <- asks declarations
   ovs <- asks objVars
-  (p, ds, hs) <- local (setDecls (ds :< (v, ActVar isSub (Known desc) ovs))) $ spat esc p
-  pure (AT v p, ds, hs)
+  (mr, p, ds, hs) <- local (setDecls (ds :< (v, ActVar isSub (Known desc) ovs))) $ spat esc p
+  pure (mr, AT v p, ds, hs)
 spat esc (VarP r v) = during (PatternVariableElaboration v) $ do
   let isSub = isSubject esc
   let desc = escrutinee esc
@@ -241,26 +243,27 @@ spat esc (VarP r v) = during (PatternVariableElaboration v) $ do
     Just (Left k)  -> throwError (NotAValidPatternVariable r v k)
     Just (Right (desc', i)) -> do
       compatibleInfos (getRange v) (Known desc) desc'
-      pure (VP i, ds, hs)
+      pure (Nothing, VP i, ds, hs)
     Nothing -> do
       ovs <- asks objVars
       v <- pure (getVariable v)
-      pure (MP v (ones (length ovs)), ds :< (v, ActVar isSub (Known desc) ovs), hs)
+      pure (Nothing, MP v (ones (length ovs)), ds :< (v, ActVar isSub (Known desc) ovs), hs)
 spat esc (ThP r th p) = do
   th <- sth th
-  (p, ds, hs) <- local (th ^?) $ spat esc p
-  pure (p *^ th, ds, hs)
-spat _ (UnderscoreP r) = (HP,,) <$> asks declarations <*> asks binderHints
+  (mr, p, ds, hs) <- local (th ^?) $ spat esc p
+  pure (mr, p *^ th, ds, hs)
+spat esc (UnderscoreP r) = do
+  (r <$ guard (not $ isSubjectFree esc),HP,,) <$> asks declarations <*> asks binderHints
 spat esc@(Nil r) rp = case rp of
   AtP r a | a == "" ->
-    (AP a,,) <$> asks declarations <*> asks binderHints
+    (Nothing, AP a,,) <$> asks declarations <*> asks binderHints
   AtP r a -> throwError (ExpectedNilGot (getRange rp) a)
   _ -> throwError (SyntaxPError (getRange rp) (escrutinee esc) rp)
 spat esc@(Pair r esc1 esc2) rp = case rp of
   ConsP r p q -> do
-    (p, ds, hs) <- spat esc1 p
-    (q, ds, hs) <- local (setDecls ds . setHints hs) (spat esc2 q)
-    pure (PP p q, ds, hs)
+    (mr1, p, ds, hs) <- spat esc1 p
+    (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spat esc2 q)
+    pure (mr1 <|> mr2, PP p q, ds, hs)
   _ -> throwError (SyntaxPError (getRange rp) (escrutinee esc) rp)
 spat (ActorVar r (isSub, desc)) rp = do
   let isSub' = Pattern <$ isSub
@@ -278,28 +281,28 @@ spat (ActorVar r (isSub, desc)) rp = do
           VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
           VWildcard -> pure ()
           _ -> throwError (SyntaxPError r desc rp)
-        (AP a,,) <$> asks declarations <*> asks binderHints
+        (Nothing, AP a,,) <$> asks declarations <*> asks binderHints
 
       ConsP r p q -> case vdesc of
         VNilOrCons d1 d2 -> do
-          (p, ds, hs) <- spat (rewrap d1) p
-          (q, ds, hs) <- local (setDecls ds . setHints hs) (spat (rewrap d2) q)
-          pure (PP p q, ds, hs)
+          (mr1, p, ds, hs) <- spat (rewrap d1) p
+          (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spat (rewrap d2) q)
+          pure (mr1 <|> mr2, PP p q, ds, hs)
         VCons d1 d2 -> do
-          (p, ds, hs) <- spat (rewrap d1) p
-          (q, ds, hs) <- local (setDecls ds . setHints hs) (spat (rewrap d2) q)
-          pure (PP p q, ds, hs)
+          (mr1, p, ds, hs) <- spat (rewrap d1) p
+          (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spat (rewrap d2) q)
+          pure (mr1 <|> mr2, PP p q, ds, hs)
         VWildcard -> do
-          (p, ds, hs) <- spat (rewrap desc) p
-          (q, ds, hs) <- local (setDecls ds . setHints hs) (spat (rewrap desc) q)
-          pure (PP p q, ds, hs)
+          (mr1, p, ds, hs) <- spat (rewrap desc) p
+          (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spat (rewrap desc) q)
+          pure (mr1 <|> mr2, PP p q, ds, hs)
         VEnumOrTag _ ds -> case p of
           AtP r a -> case lookup a ds of
             Nothing -> throwError (ExpectedTagGot r (fst <$> ds) a)
             Just descs ->  do
-              (p, ds, hs) <- spat (rewrap (atom "Atom" 0)) p
-              (q, ds, hs) <- local (setDecls ds . setHints hs) (spats (rewrap <$> descs) q)
-              pure (PP p q, ds, hs)
+              (mr1, p, ds, hs) <- spat (rewrap (atom "Atom" 0)) p
+              (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spats (rewrap <$> descs) q)
+              pure (mr1 <|> mr2, PP p q, ds, hs)
           _ -> throwError (SyntaxPError r desc rp)
         _ -> throwError (SyntaxPError r desc rp)
 
@@ -311,12 +314,12 @@ spat (ActorVar r (isSub, desc)) rp = do
 
         case x of
           Unused -> do
-            (p, ds, hs) <- spat (rewrap desc) p
-            pure (BP (Hide "_") p, ds, hs)
+            (mr, p, ds, hs) <- spat (rewrap desc) p
+            pure (mr, BP (Hide "_") p, ds, hs)
           Used x -> do
             x <- isFresh x
-            (p, ds, hs) <- local (declareObjVar (x, s) . addHint x s) $ spat (rewrap desc) p
-            pure (BP (Hide x) p, ds, hs)
+            (mr, p, ds, hs) <- local (declareObjVar (x, s) . addHint x s) $ spat (rewrap desc) p
+            pure (mr, BP (Hide x) p, ds, hs)
 spat esc rp = spat (ActorVar (getRange esc) (IsNotSubject, escrutinee esc)) rp
 
 isChannel :: Variable -> Elab Channel
@@ -423,6 +426,16 @@ sirrefutable nm = \case
           let av = "$" ++ nm ++ show (length (objVars ctxt) + length (declarations ctxt))
           pure (Used av, Just (Variable r av, p))
 
+checkScrutinised :: Binder String -> Elab Bool
+checkScrutinised Unused = pure False
+checkScrutinised (Used nm) = do
+  avs <- gets actvarStates
+  b <- case Map.lookup nm avs of
+    Just logs | wasScrutinised logs -> pure True
+    _ -> pure False
+  modify (\ st -> st { actvarStates = Map.delete nm (actvarStates st) })
+  pure b
+
 sact :: CActor -> Elab AActor
 sact = \case
   Win r -> pure (Win r)
@@ -499,12 +512,18 @@ sact = \case
 
     -- Receive
     sc <- channelScope ch
-    a <- local (declare av (ActVar isSub (Known cat) sc))
+    (a, All canwin) <- local (declare av (ActVar isSub (Known cat) sc))
+           $ listen
            $ sact
            $ case pat of
                Nothing -> a
                Just (var, p) -> Match r (ActorVar (getRange var) var) [(p, a)]
-    -- TODO: Analyse d - was it a subject?
+
+    -- Check we properly scrutinised a subject input
+    unlessM (checkScrutinised av) $
+      when (m == Subject) $ do
+        when canwin $ raiseWarning (RecvSubjectNotScrutinised r ch av)
+
     pure $ Recv r ch (ActorMeta <$> av, a)
 
   Connect r (CConnect ch1 ch2) -> during (ConnectElaboration ch1 ch2) $ do
@@ -558,6 +577,7 @@ sact = \case
       raiseWarning $ MissingClauses r examples
     let (cls, sts) = unzip clsts
     during (MatchElaboration rsc) $ consistentCommunication r sts
+    -- TODO: consistent scrutinisation
     pure $ Match r sc cls
 
   Push r stk (p, (), t) a -> do
@@ -601,7 +621,8 @@ sbranch ra = do
 sclause :: EScrutinee -> (RawP, CActor) ->
            StateT [SyntaxDesc] Elab ((Pat, AActor), Maybe ChannelStates)
 sclause esc (rp, a) = do
-  (p, ds, hs) <- lift $ during (MatchBranchElaboration rp) $ spat esc rp
+  ds0 <- asks declarations
+  (mr, p, ds, hs) <- lift $ during (MatchBranchElaboration rp) $ spat esc rp
   leftovers <- get
   table <- lift $ gets syntaxCats
   leftovers <- lift $ case combine $ map (\ d -> (d, shrinkBy table d p)) leftovers of
@@ -616,7 +637,19 @@ sclause esc (rp, a) = do
   put leftovers
   (a, me) <- lift $ during (MatchBranchElaboration rp) $
                local (setDecls ds . setHints hs) $ sbranch a
-  -- TODO: Analyse ds' for BAD USES
+
+  -- make sure no catchall on subject pattern, except in dead branches
+  whenJust (me *> mr) (lift . raiseWarning . UnderscoreOnSubject)
+
+  -- make sure that the *newly bound* subject variables have been scrutinised
+  lift $ forM (takez ds (length ds - length ds0)) $ \case -- HACK
+    (nm, ActVar isSub _ _) ->
+      unlessM (checkScrutinised (Used nm)) $
+--        whenJust me $ \ _ -> -- HACK: do not complain about dead branches
+          case isSub of
+            IsSubject{} -> raiseWarning (PatternSubjectNotScrutinised (getRange rp) nm)
+            _ -> pure ()
+    _ -> pure ()
   pure ((p, a), me)
 
 sprotocol :: CProtocol -> Elab AProtocol

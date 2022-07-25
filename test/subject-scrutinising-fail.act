@@ -1,0 +1,34 @@
+syntax { 'Bool = ['Enum ['True 'False]] }
+
+not : $'Bool. !'Bool.
+not@p = p?b. case (compare b 'True)
+  { 'GT -> p!'True.
+  ; _ -> p!'False.
+  }
+
+silly : $'Bool. !'Bool.
+silly@p = p?b. case (compare 'True 'True)
+  { 'EQ -> p!'True.
+  ; _ -> case b
+    { 'True -> p!'False.
+    ; 'False -> p!'False.
+    }
+  }
+
+rejectedFake : $'Bool. !'Bool.
+rerejectedFake : $'Bool. !'Bool.
+
+rejectedFake  @p = p?i. case i { _ -> p!'True. }
+rerejectedFake@p = p?i.               p!'True.
+
+deadcode : $'Bool. !'Bool.
+deadcode@p = p?i. # "Oops"
+
+impossible : $'Bool. !'Bool.
+impossible@p = p?b. case (compare 'True 'True)
+  { 'EQ -> case b
+    { 'False -> p!'True.
+    ; 'True -> p!'True.
+    }
+  ; c -> p!'True. -- Should fail!
+  }

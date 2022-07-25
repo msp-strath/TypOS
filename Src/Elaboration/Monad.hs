@@ -48,6 +48,12 @@ data Usage
   | DontLog
  deriving Show
 
+wasScrutinised :: Foldable t => t Usage -> Bool
+wasScrutinised = any $ \case
+  Scrutinised _ -> True
+  SentAsSubject _ -> True
+  _ -> False
+
 data Direction = Rootwards
                | Leafwards
   deriving (Eq, Show)
@@ -146,6 +152,15 @@ type instance TERM Elaboration = ()
 
 type EScrutinee = SCRUTINEE Elaboration
 
+isSubjectFree :: EScrutinee -> Bool
+isSubjectFree = \case
+  Nil{} -> True
+  Lookup{} -> True
+  Compare{} -> True
+  Pair _ p q -> isSubjectFree p && isSubjectFree q
+  ActorVar _ (IsSubject{}, _) -> False
+  ActorVar _ (IsNotSubject, _) -> True
+
 data Kind
   = ActVar IsSubject (Info SyntaxDesc) ObjVars
   | AChannel ObjVars
@@ -227,7 +242,9 @@ data Warning
   | MissingClauses Range (NonEmpty RawP)
   -- Subject tracking
   | SentSubjectNotASubjectVar Range Raw
-
+  | RecvSubjectNotScrutinised Range Channel (Binder String)
+  | PatternSubjectNotScrutinised Range String
+  | UnderscoreOnSubject Range
 
 instance HasGetRange Warning where
   getRange = \case
@@ -235,6 +252,9 @@ instance HasGetRange Warning where
     MissingClauses r _ -> r
     -- Subject analysis
     SentSubjectNotASubjectVar r _ -> r
+    RecvSubjectNotScrutinised r _ _ -> r
+    PatternSubjectNotScrutinised r _ -> r
+    UnderscoreOnSubject r -> r
 
 raiseWarning :: Warning -> Elab ()
 raiseWarning w = do
