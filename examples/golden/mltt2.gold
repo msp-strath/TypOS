@@ -1,4 +1,11 @@
 ret > ExitSuccess
+out > Warning: mltt2.act:107:87-109:7
+out > Incomplete pattern matching. The following patterns are missing:
+out >   'Ty
+out >   ['Lam \_. a]
+out >   ['Emb a]
+out > Warning: mltt2.act:110:6-11
+out > Unreachable clause [x | y]
 out > Other 'Ty
 out > Other 'Ty
 out > Other 'Ty

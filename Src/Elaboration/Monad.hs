@@ -159,12 +159,16 @@ data Context = Context
   , declarations :: Decls
   , location     :: Bwd Turn
   , binderHints  :: Hints
+  , elabMode     :: ElabMode
   } deriving (Show)
 
 type Hints = Map String (Info SyntaxDesc)
 
+data ElabMode = Definition | Execution
+  deriving (Eq, Show)
+
 initContext :: Context
-initContext = Context B0 B0 B0 Map.empty
+initContext = Context B0 B0 B0 Map.empty Definition
 
 declareObjVar :: ObjVar -> Context -> Context
 declareObjVar x ctx = ctx { objVars = objVars ctx :< x }
@@ -221,11 +225,16 @@ getHint str = do
 data Warning
   = UnreachableClause Range RawP
   | MissingClauses Range (NonEmpty RawP)
+  -- Subject tracking
+  | SentSubjectNotASubjectVar Range Raw
+
 
 instance HasGetRange Warning where
   getRange = \case
     UnreachableClause r _ -> r
     MissingClauses r _ -> r
+    -- Subject analysis
+    SentSubjectNotASubjectVar r _ -> r
 
 raiseWarning :: Warning -> Elab ()
 raiseWarning w = do
@@ -280,8 +289,6 @@ data Complaint
   | ExpectedAConsPGot Range RawP
   | SyntaxError Range SyntaxDesc Raw
   | SyntaxPError Range SyntaxDesc RawP
-  -- Subject tracking
-  | SentSubjectNotASubjectVar Range Raw
   -- contextual info
   -- shouldn't contain ranges because there should be a more precise one
   -- on the decorated complaint
@@ -352,8 +359,6 @@ instance HasGetRange Complaint where
     ExpectedAConsPGot r _ -> r
     SyntaxError r _ _ -> r
     SyntaxPError r _ _ -> r
-  -- Subject analysis
-    SentSubjectNotASubjectVar r _ -> r
   -- contextual info
   -- shouldn't contain ranges because there should be a more precise one
   -- on the decorated complaint
@@ -430,4 +435,9 @@ resolve (Variable r x) = do
 logUsage :: ActorVar -> Usage -> Elab ()
 logUsage _ DontLog = pure ()
 logUsage var usage = do
-  modify (\st -> st { actvarStates = Map.alter (Just . (:< usage) . fromMaybe B0) var (actvarStates st) })
+  em <- asks elabMode
+  when (em == Definition) $
+    modify (\st -> st { actvarStates = Map.alter (Just . (:< usage) . fromMaybe B0) var (actvarStates st) })
+
+setElabMode :: ElabMode -> Context -> Context
+setElabMode em ctx = ctx { elabMode = em }

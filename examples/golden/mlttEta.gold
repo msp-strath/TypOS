@@ -1,4 +1,18 @@
 ret > ExitSuccess
+out > Warning: mlttEta.act:44:28-67:3
+out > Incomplete pattern matching. The following patterns are missing:
+out >   'Fst
+out >   'Snd
+out > Warning: mlttEta.act:145:93-152:7
+out > Incomplete pattern matching. The following patterns are missing:
+out >   'Ty
+out >   'One
+out >   'Tt
+out >   'Fst
+out >   'Snd
+out >   ['Lam \_. a]
+out >   ['Pair a b]
+out >   ['Emb a]
 out > equalSynth
 out >  T_0
 out >  T_0

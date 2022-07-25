@@ -461,16 +461,18 @@ sact = \case
       (m, desc) : p | whatComm m dir == SEND -> pure ((m, desc), p)
       _ -> throwError (InvalidSend r ch tm)
 
-    usage <- case m of
-      Output -> pure $ SentInOutput r
-      Subject -> pure $ SentAsSubject r
-{-
-        case tm of
+    usage <- do
+      em <- asks elabMode
+      case m of
+        Output -> pure $ SentInOutput r
+        Subject -> SentAsSubject r <$ case tm of
+          -- In exec mode we are sending user constructed terms, which
+          -- we do not want to check for subjectness
+          _ | em == Execution -> pure ()
           Var r v -> resolve v >>= \case
-            Just (Left (ActVar (IsSubject {}) _ _)) -> pure $ SentAsSubject r
-            _ -> throwError (SentSubjectNotASubjectVar (getRange tm) tm)
-          _ -> throwError (SentSubjectNotASubjectVar (getRange tm) tm)
--}
+            Just (Left (ActVar (IsSubject {}) _ _)) -> pure ()
+            _ -> raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
+          _ -> raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
 
     -- Send
     tm <- during (SendTermElaboration ch tm) $ do

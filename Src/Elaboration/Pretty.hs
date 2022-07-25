@@ -64,6 +64,8 @@ instance Pretty Warning where
         let sIsAre = case pats of { _ :| [] -> " is"; _ -> "s are" } in
           vcat ("Incomplete pattern matching. The following pattern" <> sIsAre <+> "missing:"
              : map (indent 2 . pretty) (toList pats))
+      -- Subject analysis
+      SentSubjectNotASubjectVar r raw -> hsep ["Sent subject", pretty raw, "is not a subject variable"]
 
 instance Pretty Complaint where
 
@@ -138,8 +140,6 @@ instance Pretty Complaint where
      ExpectedAConsPGot r p -> singleton $ (flush $ pretty r) <> hsep ["Expected a patternf for a cons cell and got", pretty p]
      SyntaxError r d t -> singleton $ (flush $ pretty r) <> hsep ["Term", pretty t, "does not match", pretty d]
      SyntaxPError r d p -> singleton $ (flush $ pretty r) <> hsep ["Pattern", pretty p, "does not match", pretty d]
-     -- Subject analysis
-     SentSubjectNotASubjectVar r raw -> singleton $ (flush $ pretty r) <> hsep ["Sent subject", pretty raw, "is not a subject variable"]
      -- contextual info
      SendTermElaboration ch t c -> go c :< hsep ["when elaborating", fold [ pretty ch, "!", pretty t ] ]
      MatchScrutineeElaboration t c -> go c :< hsep ["when elaborating the case scrutinee", pretty t]
