@@ -138,6 +138,8 @@ instance Pretty Complaint where
      ExpectedAConsPGot r p -> singleton $ (flush $ pretty r) <> hsep ["Expected a patternf for a cons cell and got", pretty p]
      SyntaxError r d t -> singleton $ (flush $ pretty r) <> hsep ["Term", pretty t, "does not match", pretty d]
      SyntaxPError r d p -> singleton $ (flush $ pretty r) <> hsep ["Pattern", pretty p, "does not match", pretty d]
+     -- Subject analysis
+     SentSubjectNotASubjectVar r raw -> singleton $ (flush $ pretty r) <> hsep ["Sent subject", pretty raw, "is not a subject variable"]
      -- contextual info
      SendTermElaboration ch t c -> go c :< hsep ["when elaborating", fold [ pretty ch, "!", pretty t ] ]
      MatchScrutineeElaboration t c -> go c :< hsep ["when elaborating the case scrutinee", pretty t]

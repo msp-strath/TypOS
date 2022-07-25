@@ -64,14 +64,16 @@ isFresh x = do
   whenJust res $ \ _ -> throwError (VariableShadowing (getRange x) x)
   pure (getVariable x)
 
-svar :: Variable -> Elab (IsSubject, Info SyntaxDesc, ACTm)
-svar x = do
+svar :: Usage -> Variable -> Elab (IsSubject, Info SyntaxDesc, ACTm)
+svar usage x = do
   ovs <- asks objVars
   res <- resolve x
   case res of
     Just (Left k) -> case k of -- TODO: come back and remove fst <$>
       ActVar isSub desc sc -> case findSub (fst <$> sc) (fst <$> ovs) of
-        Just th -> pure (isSub, desc, ActorMeta (getVariable x) $: sbstW (sbst0 0) th)
+        Just th -> do
+          logUsage (getVariable x) usage
+          pure (isSub, desc, ActorMeta (getVariable x) $: sbstW (sbst0 0) th)
         Nothing -> throwError (MetaScopeTooBig (getRange x) x sc ovs)
       _ -> throwError (NotAValidTermVariable (getRange x) x k)
     Just (Right (desc, i)) -> pure (IsNotSubject, desc, var i (length ovs))
@@ -87,31 +89,31 @@ spop r = do
 ssyntaxdecl :: [SyntaxCat] -> Raw -> Elab SyntaxDesc
 ssyntaxdecl syndecls syn = do
   let desc = catToDesc "Syntax"
-  syn <- withSyntax (syntaxDesc syndecls) $ stm desc syn
+  syn <- withSyntax (syntaxDesc syndecls) $ stm DontLog desc syn
   case isMetaFree syn of
     Nothing -> throwError undefined -- this should be impossible, since parsed in empty context
     Just syn0 -> pure syn0
 
-ssbst :: Bwd SbstC -> Elab (ACTSbst, ObjVars)
-ssbst B0 = do
+ssbst :: Usage -> Bwd SbstC -> Elab (ACTSbst, ObjVars)
+ssbst usage B0 = do
     ovs <- asks objVars
     pure (sbstI (length ovs), ovs)
-ssbst (sg :< sgc) = case sgc of
+ssbst usage (sg :< sgc) = case sgc of
     Keep r v -> do
       (xz, (w, cat)) <- spop r
       when (v /= w) $ throwError (NotTopVariable r v w)
-      (sg, ovs) <- local (setObjVars xz) (ssbst sg)
+      (sg, ovs) <- local (setObjVars xz) (ssbst usage sg)
       pure (sbstW sg (ones 1), ovs :< (getVariable w, cat))
     Drop r v -> do
       (xz, (w, cat)) <- spop r
       when (v /= w) $ throwError (NotTopVariable r v w)
-      (sg, ovs) <- local (setObjVars xz) (ssbst sg)
+      (sg, ovs) <- local (setObjVars xz) (ssbst usage sg)
       pure (weak sg, ovs)
     Assign r v t -> do
       info <- getHint (getVariable v)
       desc <- fromInfo r info
-      t <- stm desc t
-      (sg, ovs) <- ssbst sg
+      t <- stm usage desc t
+      (sg, ovs) <- ssbst usage sg
       v <- local (setObjVars ovs) $ isFresh v
       pure (sbstT sg ((Hide v :=) $^ t), ovs :< (v, info))
 
@@ -123,16 +125,16 @@ sth (xz, b) = do
     ThKeep -> th
     ThDrop -> comp th
 
-stms :: [SyntaxDesc] -> Raw -> Elab ACTm
-stms [] (At r "") = atom "" <$> asks (length . objVars)
-stms [] (At r a) = throwError (ExpectedNilGot r a)
-stms [] t = throwError (ExpectedANilGot (getRange t) t)
-stms (d:ds) (Cons r p q) = (%) <$> stm d p <*> stms ds q
-stms _ t = throwError (ExpectedAConsGot (getRange t) t)
+stms :: Usage -> [SyntaxDesc] -> Raw -> Elab ACTm
+stms usage [] (At r "") = atom "" <$> asks (length . objVars)
+stms usage [] (At r a) = throwError (ExpectedNilGot r a)
+stms usage [] t = throwError (ExpectedANilGot (getRange t) t)
+stms usage (d:ds) (Cons r p q) = (%) <$> stm usage d p <*> stms usage ds q
+stms usage _ t = throwError (ExpectedAConsGot (getRange t) t)
 
 sscrutinee :: CScrutinee -> Elab (EScrutinee, AScrutinee)
 sscrutinee (ActorVar r v) = do
-  (isSub, info, actm) <- svar v
+  (isSub, info, actm) <- svar (Scrutinised r) v
   desc <- fromInfo r info
   case actm of
     CdB (m :$ sg) _ -> pure (ActorVar r (isSub, desc), ActorVar r actm)
@@ -144,7 +146,7 @@ sscrutinee (Pair r sc1 sc2) = do
   pure (Pair r esc1 esc2, Pair r asc1 asc2)
 sscrutinee (Lookup r stk t) = do
   (stk, stkTy) <- isContextStack stk
-  t <- during (LookupTermElaboration t) $ stm (keyDesc stkTy) t
+  t <- during (LookupTermElaboration t) $ stm (LookedUp r) (keyDesc stkTy) t
   let desc = Syntax.contract (VEnumOrTag ["Nothing"] [("Just", [valueDesc stkTy])])
   pure (Lookup r desc (), Lookup r stk t)
 sscrutinee (Compare r s t) = do
@@ -152,21 +154,21 @@ sscrutinee (Compare r s t) = do
   infoT <- guessDesc False t
   desc <- during (CompareSyntaxCatGuess s t) $
       fromInfo r =<< compatibleInfos r infoS infoT
-  s <- during (CompareTermElaboration s) $ stm desc s
-  t <- during (CompareTermElaboration t) $ stm desc t
+  s <- during (CompareTermElaboration s) $ stm (Compared (getRange s)) desc s
+  t <- during (CompareTermElaboration t) $ stm (Compared (getRange t)) desc t
   pure (Compare r () (), Compare r s t)
 
-stm :: SyntaxDesc -> Raw -> Elab ACTm
-stm desc (Var r v) = during (TermVariableElaboration v) $ do
+stm :: Usage -> SyntaxDesc -> Raw -> Elab ACTm
+stm usage desc (Var r v) = during (TermVariableElaboration v) $ do
   table <- gets syntaxCats
-  (_, desc', t) <- svar v
+  (_, desc', t) <- svar usage v
   compatibleInfos (getRange v) (Known desc) desc'
   pure t
-stm desc (Sbst r sg t) = do
-    (sg, ovs) <- during (SubstitutionElaboration sg) $ ssbst sg
-    t <- local (setObjVars ovs) (stm desc t)
+stm usage desc (Sbst r sg t) = do
+    (sg, ovs) <- during (SubstitutionElaboration sg) $ ssbst usage sg
+    t <- local (setObjVars ovs) (stm usage desc t)
     pure (t //^ sg)
-stm desc rt = do
+stm usage desc rt = do
   table <- gets syntaxCats
   case Syntax.expand table desc of
     Nothing -> throwError (InvalidSyntaxDesc (getRange rt) desc)
@@ -182,13 +184,13 @@ stm desc rt = do
           _ -> throwError (SyntaxError r desc rt)
         atom a <$> asks (length . objVars)
       Cons r p q -> case vdesc of
-        VNilOrCons d1 d2 -> (%) <$> stm d1 p <*> stm d2 q
-        VCons d1 d2 -> (%) <$> stm d1 p <*> stm d2 q
-        VWildcard -> (%) <$> stm desc p <*> stm desc q
+        VNilOrCons d1 d2 -> (%) <$> stm usage d1 p <*> stm usage d2 q
+        VCons d1 d2 -> (%) <$> stm usage d1 p <*> stm usage d2 q
+        VWildcard -> (%) <$> stm usage desc p <*> stm usage desc q
         VEnumOrTag _ ds -> case p of
           At r a -> case lookup a ds of
             Nothing -> throwError (ExpectedTagGot r (fst <$> ds) a)
-            Just descs -> (%) <$> stm (atom "Atom" 0) p <*> stms descs q
+            Just descs -> (%) <$> stm usage (atom "Atom" 0) p <*> stms usage descs q
           _ -> throwError (SyntaxError r desc rt)
         _ -> throwError (SyntaxError r desc rt)
       Lam r (Scope (Hide x) sc) -> do
@@ -199,10 +201,10 @@ stm desc rt = do
         case x of
           Used x -> do
             x <- isFresh x
-            sc <- local (declareObjVar (x, s)) $ stm desc sc
+            sc <- local (declareObjVar (x, s)) $ stm usage desc sc
             pure (x \\ sc)
           Unused -> do
-            sc <- stm desc sc
+            sc <- stm usage desc sc
             pure ((Hide "_" := False :.) $^ sc)
 
 spats :: [EScrutinee] -> RawP -> Elab (Pat, Decls, Hints)
@@ -429,8 +431,8 @@ sact = \case
     infoT <- guessDesc False t
     desc <- during (ConstrainSyntaxCatGuess s t) $
       fromInfo r =<< compatibleInfos r infoS infoT
-    s <- during (ConstrainTermElaboration s) $ stm desc s
-    t <- during (ConstrainTermElaboration t) $ stm desc t
+    s <- during (ConstrainTermElaboration s) $ stm (Constrained (getRange s)) desc s
+    t <- during (ConstrainTermElaboration t) $ stm (Constrained (getRange t)) desc t
     pure $ Constrain r s t
 
   Branch r a b -> do
@@ -455,16 +457,27 @@ sact = \case
   Send r ch tm a -> do
     ch <- isChannel ch
     -- Check the channel is in sending mode, & step it
-    desc <- steppingChannel r ch $ \ dir -> \case
-      (m, desc) : p | whatComm m dir == SEND -> pure (desc, p)
+    (m, desc) <- steppingChannel r ch $ \ dir -> \case
+      (m, desc) : p | whatComm m dir == SEND -> pure ((m, desc), p)
       _ -> throwError (InvalidSend r ch tm)
+
+    usage <- case m of
+      Output -> pure $ SentInOutput r
+      Subject -> pure $ SentAsSubject r
+{-
+        case tm of
+          Var r v -> resolve v >>= \case
+            Just (Left (ActVar (IsSubject {}) _ _)) -> pure $ SentAsSubject r
+            _ -> throwError (SentSubjectNotASubjectVar (getRange tm) tm)
+          _ -> throwError (SentSubjectNotASubjectVar (getRange tm) tm)
+-}
 
     -- Send
     tm <- during (SendTermElaboration ch tm) $ do
       sc <- channelScope ch
       ovs <- asks objVars
       let (thx, xyz, thy) = lintersection sc ovs
-      (*^ thx) <$> local (setObjVars xyz) (stm desc tm)
+      (*^ thx) <$> local (setObjVars xyz) (stm usage desc tm)
 
     a <- sact a
     pure $ Send r ch tm a
@@ -489,6 +502,7 @@ sact = \case
            $ case pat of
                Nothing -> a
                Just (var, p) -> Match r (ActorVar (getRange var) var) [(p, a)]
+    -- TODO: Analyse d - was it a subject?
     pure $ Recv r ch (ActorMeta <$> av, a)
 
   Connect r (CConnect ch1 ch2) -> during (ConnectElaboration ch1 ch2) $ do
@@ -523,7 +537,7 @@ sact = \case
       av <- isFresh av
       ovs <- asks objVars
       pure (desc, av, ovs)
-    t <- stm desc t
+    t <- stm (LetBound (getRange t)) desc t
     a <- local (declare (Used av) (ActVar IsNotSubject (Known desc) ovs)) $ sact a
     pure (Let r (ActorMeta av) desc t a)
 
@@ -551,7 +565,7 @@ sact = \case
       Just (Right (cat, i)) -> i <$ compatibleInfos (getRange p) cat (Known $ keyDesc stkTy)
       Just (Left k) -> throwError $ NotAValidPatternVariable r p k
       _ -> throwError $ OutOfScope (getRange p) p
-    t <- during (PushTermElaboration t) $ stm (valueDesc stkTy) t
+    t <- during (PushTermElaboration t) $ stm (Pushed r) (valueDesc stkTy) t
     a <- sact a
     pure $ Push r stk (p, valueDesc stkTy, t) a
 
@@ -563,7 +577,7 @@ sact = \case
 sformat :: [Format Directive Debug Raw] -> Elab [Format Directive Debug ACTm]
 sformat fmt = do
   desc <- fromInfo unknown Unknown
-  traverse (traverse $ stm desc) fmt
+  traverse (traverse $ stm DontLog desc) fmt
 
 consistentCommunication :: Range -> [Maybe ChannelStates] -> Elab ()
 consistentCommunication r sts = do
@@ -600,6 +614,7 @@ sclause esc (rp, a) = do
   put leftovers
   (a, me) <- lift $ during (MatchBranchElaboration rp) $
                local (setDecls ds . setHints hs) $ sbranch a
+  -- TODO: Analyse ds' for BAD USES
   pure ((p, a), me)
 
 sprotocol :: CProtocol -> Elab AProtocol

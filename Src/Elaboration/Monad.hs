@@ -11,7 +11,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 
-import Actor (AContextStack, AProtocol, Channel)
+import Actor (ActorVar, AContextStack, AProtocol, Channel)
 import Bwd
 import Concrete.Base
 import Location (HasGetRange(..), Range, WithRange (..))
@@ -26,6 +26,7 @@ import Utils
 
 data ElabState = ElabState
   { channelStates :: ChannelStates
+  , actvarStates  :: ActvarStates
   , syntaxCats    :: SyntaxTable
   , warnings      :: Bwd Warning
   }
@@ -33,12 +34,26 @@ data ElabState = ElabState
 type ChannelState = (Direction, [Turn], AProtocol)
 type ChannelStates = Map Channel ChannelState
 
+type ActvarStates = Map ActorVar (Bwd Usage)
+
+data Usage
+  = SentAsSubject Range
+  | SentInOutput Range
+  | LookedUp Range
+  | Scrutinised Range
+  | Compared Range
+  | Constrained Range
+  | LetBound Range
+  | Pushed Range
+  | DontLog
+ deriving Show
+
 data Direction = Rootwards
                | Leafwards
   deriving (Eq, Show)
 
 initElabState :: ElabState
-initElabState = ElabState Map.empty Map.empty B0
+initElabState = ElabState Map.empty Map.empty Map.empty B0
 
 newtype Elab a = Elab
   { runElab :: StateT ElabState
@@ -265,6 +280,8 @@ data Complaint
   | ExpectedAConsPGot Range RawP
   | SyntaxError Range SyntaxDesc Raw
   | SyntaxPError Range SyntaxDesc RawP
+  -- Subject tracking
+  | SentSubjectNotASubjectVar Range Raw
   -- contextual info
   -- shouldn't contain ranges because there should be a more precise one
   -- on the decorated complaint
@@ -335,6 +352,8 @@ instance HasGetRange Complaint where
     ExpectedAConsPGot r _ -> r
     SyntaxError r _ _ -> r
     SyntaxPError r _ _ -> r
+  -- Subject analysis
+    SentSubjectNotASubjectVar r _ -> r
   -- contextual info
   -- shouldn't contain ranges because there should be a more precise one
   -- on the decorated complaint
@@ -404,3 +423,11 @@ resolve (Variable r x) = do
     _ -> case focusBy (\ (y, desc) -> desc <$ guard (x == y)) ovs of
       Just (xz, desc, xs) -> pure (Just $ Right (desc, DB $ length xs))
       Nothing -> pure Nothing
+
+------------------------------------------------------------------------------
+-- Subject usage logging
+
+logUsage :: ActorVar -> Usage -> Elab ()
+logUsage _ DontLog = pure ()
+logUsage var usage = do
+  modify (\st -> st { actvarStates = Map.alter (Just . (:< usage) . fromMaybe B0) var (actvarStates st) })
