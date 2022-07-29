@@ -170,6 +170,7 @@ type family CONNECT (ph :: Phase) :: *
 type family STACK (ph :: Phase) :: *
 type family STACKDESC (ph :: Phase) :: *
 type family SCRUTINEEVAR (ph :: Phase) :: *
+type family LOOKEDUP (ph :: Phase) :: *
 
 type instance JUDGEMENTFORM Concrete = Variable
 type instance CHANNEL Concrete = Variable
@@ -183,6 +184,7 @@ type instance CONNECT Concrete = CConnect
 type instance STACK Concrete = Variable
 type instance STACKDESC Concrete = ()
 type instance SCRUTINEEVAR Concrete = Variable
+type instance LOOKEDUP Concrete = Variable
 
 type FORMAT (ph :: Phase) = [Format Directive Debug (TERM ph)]
 
@@ -190,7 +192,7 @@ data SCRUTINEE (ph :: Phase)
  = ActorVar Range (SCRUTINEEVAR ph)
  | Nil Range
  | Pair Range (SCRUTINEE ph) (SCRUTINEE ph)
- | Lookup Range (STACK ph) (TERM ph)
+ | Lookup Range (STACK ph) (LOOKEDUP ph)
  | Compare Range (TERM ph) (TERM ph)
 
 instance HasSetRange (SCRUTINEE ph) where
@@ -231,7 +233,8 @@ data ACTOR (ph :: Phase)
 deriving instance
   ( Show (TERM ph)
   , Show (SCRUTINEEVAR ph)
-  , Show (STACK ph)) =>
+  , Show (STACK ph)
+  , Show (LOOKEDUP ph)) =>
   Show (SCRUTINEE ph)
 
 deriving instance
@@ -246,7 +249,8 @@ deriving instance
   , Show (PATTERN ph)
   , Show (CONNECT ph)
   , Show (STACK ph)
-  , Show (STACKDESC ph)) =>
+  , Show (STACKDESC ph)
+  , Show (LOOKEDUP ph)) =>
   Show (ACTOR ph)
 
 instance HasSetRange (ACTOR ph) where

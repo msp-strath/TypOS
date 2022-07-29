@@ -45,6 +45,7 @@ data Usage
   | Constrained Range
   | LetBound Range
   | Pushed Range
+  | SuccessfullyLookedUp Range
   | DontLog
  deriving Show
 
@@ -52,6 +53,7 @@ wasScrutinised :: Foldable t => t Usage -> Bool
 wasScrutinised = any $ \case
   Scrutinised _ -> True
   SentAsSubject _ -> True
+  SuccessfullyLookedUp _ -> True
   _ -> False
 
 data Direction = Rootwards
@@ -149,6 +151,7 @@ type IsSubject = IsSubject' Provenance
 type instance SCRUTINEEVAR Elaboration = (IsSubject, SyntaxDesc)
 type instance STACK Elaboration = SyntaxDesc
 type instance TERM Elaboration = ()
+type instance LOOKEDUP Elaboration = String
 
 type EScrutinee = SCRUTINEE Elaboration
 
@@ -323,7 +326,7 @@ data Complaint
   | UnderElaboration Complaint
   | RecvMetaElaboration Channel Complaint
   | PushTermElaboration Raw Complaint
-  | LookupTermElaboration Raw Complaint
+  | LookupVarElaboration Variable Complaint
   | DeclJElaboration Variable Complaint
   | DefnJElaboration Variable Complaint
   | ExecElaboration Complaint
@@ -393,7 +396,7 @@ instance HasGetRange Complaint where
     UnderElaboration c -> getRange c
     RecvMetaElaboration _ c -> getRange c
     PushTermElaboration _ c -> getRange c
-    LookupTermElaboration _ c -> getRange c
+    LookupVarElaboration _ c -> getRange c
     DeclJElaboration _ c -> getRange c
     DefnJElaboration _ c -> getRange c
     ExecElaboration c -> getRange c

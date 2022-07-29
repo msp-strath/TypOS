@@ -132,7 +132,7 @@ instance Lisp CScrutinee where
 pscrutinee :: Parser CScrutinee
 pscrutinee = withRange $ do
   ActorVar unknown <$> pvariable
-  <|> Lookup unknown <$ pkeyword KwLookup <* pspc <*> pvariable <* pspc <*> ptm
+  <|> Lookup unknown <$ pkeyword KwLookup <* pspc <*> pvariable <* pspc <*> pvariable
   <|> Compare unknown <$ pkeyword KwCompare <* pspc <*> ptm <* pspc <*> ptm
   <|> pparens pscrutinee
   <|> id <$ pch (== '[') <* pspc <*> plisp

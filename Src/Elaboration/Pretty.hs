@@ -158,7 +158,7 @@ instance Pretty Complaint where
      UnderElaboration c -> go c :<  "when binding a local variable"
      RecvMetaElaboration ch c -> go c :< hsep ["when receiving a value on channel", pretty ch]
      PushTermElaboration t c -> go c :< hsep ["when pushing the term", pretty t]
-     LookupTermElaboration t c -> go c :< hsep ["when looking up the term", pretty t]
+     LookupVarElaboration t c -> go c :< hsep ["when looking up the actor variable", pretty t]
      DeclJElaboration jd c -> go c :< hsep ["when elaborating the judgement declaration for", pretty jd]
      DefnJElaboration jd c -> go c :< hsep ["when elaborating the judgement definition for", pretty jd]
      ExecElaboration c -> go c :< hsep ["when elaborating an exec statement"]
