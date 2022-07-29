@@ -67,7 +67,8 @@ deriving instance
   , Show (STACK ph)
   , Show (STACKDESC ph)
   , Show (SYNTAXCAT ph)
-  , Show (PROTOCOL ph)) =>
+  , Show (PROTOCOL ph)
+  , Show (LOOKEDUP ph)) =>
   Show (COMMAND ph)
 
 type CCommand = COMMAND Concrete

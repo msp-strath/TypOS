@@ -42,6 +42,7 @@ type instance CONNECT Abstract = AConnect
 type instance STACK Abstract = Stack
 type instance STACKDESC Abstract = SyntaxDesc
 type instance SCRUTINEEVAR Abstract = ACTm
+type instance LOOKEDUP Abstract = ACTm
 
 data AConnect = AConnect Channel Th Channel Int deriving (Show)
 type AProtocol = Protocol SyntaxDesc

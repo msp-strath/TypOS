@@ -264,11 +264,16 @@ instance Unelab AScrutinee where
     ActorVar r t -> do
       v <- unelab t
       case v of
-        Sbst _ _ (Var r m) -> pure (ActorVar r m)
+        -- Sbst _ _ (Var r m) -> pure (ActorVar r m)
         Var r m -> pure (ActorVar r m)
     Nil r -> pure (Nil r)
     Pair r s t -> Pair r <$> unelab s <*> unelab t
-    Lookup r stk t -> Lookup r <$> subunelab stk <*> unelab t
+    Lookup r stk t -> do
+      stk <- subunelab stk
+      t <- unelab t >>= \case
+        -- Sbst _ _ (Var r m) -> pure m
+        Var r m -> pure m
+      pure $ Lookup r stk t
     Compare r s t -> Compare r <$> unelab s <*> unelab t
 
 instance Unelab AActor where

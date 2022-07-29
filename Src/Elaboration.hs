@@ -146,11 +146,14 @@ sscrutinee (Pair r sc1 sc2) = do
   (esc1, asc1) <- sscrutinee sc1
   (esc2, asc2) <- sscrutinee sc2
   pure (Pair r esc1 esc2, Pair r asc1 asc2)
-sscrutinee (Lookup r stk t) = do
+sscrutinee (Lookup r stk v) = do
   (stk, stkTy) <- isContextStack stk
-  t <- during (LookupTermElaboration t) $ stm (LookedUp r) (keyDesc stkTy) t
+  t <- during (LookupVarElaboration v) $ do
+    (isSub, info, t) <- svar (LookedUp r) v
+    void $ compatibleInfos r (Known (keyDesc stkTy)) info
+    pure t
   let desc = Syntax.contract (VEnumOrTag ["Nothing"] [("Just", [valueDesc stkTy])])
-  pure (Lookup r desc (), Lookup r stk t)
+  pure (Lookup r desc (getVariable v), Lookup r stk t)
 sscrutinee (Compare r s t) = do
   infoS <- guessDesc False s
   infoT <- guessDesc False t
@@ -321,6 +324,9 @@ spat (ActorVar r (isSub, desc)) rp = do
             x <- isFresh x
             (mr, p, ds, hs) <- local (declareObjVar (x, s) . addHint x s) $ spat (rewrap desc) p
             pure (mr, BP (Hide x) p, ds, hs)
+spat esc@(Lookup _ _ av) rp@(ConsP r (AtP _ "Just") (ConsP _ _ (AtP _ ""))) = do
+  logUsage av (SuccessfullyLookedUp r)
+  spat (ActorVar (getRange esc) (IsNotSubject, escrutinee esc)) rp
 spat esc rp = spat (ActorVar (getRange esc) (IsNotSubject, escrutinee esc)) rp
 
 isChannel :: Variable -> Elab Channel
