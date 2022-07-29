@@ -1,15 +1,26 @@
 trace { exec }
 
 syntax
+  { 'Type = ['EnumOrTag  [ 'Base 'Nat 'Bool]
+                         [['Arr  'Type 'Type]
+            ]]
+  }
+
+^type : $'Type.
+type@p = p?ty. case ty
+  { 'Base ->
+  ; 'Nat ->
+  ; 'Bool ->
+  ; ['Arr S T] -> (type@q.q!S. | type@q.q!T.)
+  }
+
+syntax
   { 'Check = ['Tag  [ ['Lam ['Bind 'Synth 'Check]]
                       ['Emb 'Synth]
              ]]
   ; 'Synth = ['Tag  [ ['Rad 'Check 'Type]
                       ['App 'Synth 'Check]
              ]]
-  ; 'Type = ['EnumOrTag  [ 'Base 'Nat 'Bool]
-                         [['Arr  'Type 'Type]
-            ]]
   }
 check : ?'Type. $'Check.
 synth : $'Synth. !'Type.
@@ -24,7 +35,7 @@ check@p = p?ty. p?tm. case tm
 synth@p = p?tm . case (lookup ctxt tm)
   { ['Just S] -> p!S.
   ; 'Nothing -> case tm
-    { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)
+    { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty. | type@q.q!ty.)
     ; ['App f s] -> 'Type?U. 'Type?V.
          ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
          | check@r. r!U. r!s.

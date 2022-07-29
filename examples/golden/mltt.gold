@@ -1,4 +1,8 @@
 ret > ExitSuccess
+out > Warning: mltt.act:47:35-51
+out > Sent subject {v=['Rad ns S]} T is not a subject variable
+out > Warning: mltt.act:49:46-65
+out > Sent subject {x=['Rad ns S]} body is not a subject variable
 out > ['Pi ['Pi 'Ty \x. ['Emb x]] \_. ['Pi 'Ty \x. ['Emb x]]]
 out > ['Lam \a. ['Emb a]]
 out >

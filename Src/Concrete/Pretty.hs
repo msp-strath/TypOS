@@ -83,14 +83,15 @@ prettyCdrP = \case
 
 instance Pretty CScrutinee where
   prettyPrec d = \case
-    Term _ t -> prettyPrec d t
+    ActorVar _ t -> prettyPrec d t
+    Nil _ -> brackets ""
     Pair _ s t -> brackets $ sep (pretty s : prettyCdrS t)
     Lookup _ stk t -> hsep ["lookup", pretty stk, pretty t]
     Compare _ s t -> hsep ["compare", pretty s, pretty t]
 
 prettyCdrS :: CScrutinee -> [Doc Annotations]
 prettyCdrS = \case
-  Term _ t -> prettyCdr t
+  Nil _ -> []
   Pair _ p q -> pretty p : prettyCdrS q
   p -> [pipe, pretty p]
 

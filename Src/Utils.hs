@@ -1,6 +1,6 @@
 module Utils where
 
-import Control.Monad (unless)
+import Control.Monad (when, unless)
 
 isAllJustBy :: [a] -> (a -> Maybe b) -> Either a [b]
 isAllJustBy [] f = pure []
@@ -26,6 +26,9 @@ whenNothing (Just _) k = pure ()
 whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
 whenJust Nothing k = pure ()
 whenJust (Just a) k = k a
+
+whenM :: Monad m => m Bool -> m () -> m ()
+whenM cond m = cond >>= flip when m
 
 unlessM :: Monad m => m Bool -> m () -> m ()
 unlessM cond m = cond >>= flip unless m

@@ -1,2 +1,2 @@
 test :
-test@p = \fst. case fst { [fst snd trd] -> \snd. }
+test@p = 'Wildcard?fst. case fst { [_ snd trd] -> \snd. }

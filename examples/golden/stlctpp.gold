@@ -1,3 +1,8 @@
 ret > ExitSuccess
+out > Warning: stlctpp.act:47:31-40
+out > Sent subject {x=y} body is not a subject variable
+out > Warning: stlctpp.act:77:38-56
+out > Sent subject {x=y, xs=ys, ih=jh} c is not a subject variable
+out >
 err >
 err >

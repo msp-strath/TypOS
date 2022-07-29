@@ -80,5 +80,5 @@ ioTests TestConfig{..} = testGroup name <$> do
     let gold = goldenDir </> addExtension name goldenExt
     let flgs = dir </> addExtension name "flags"
     b <- doesFileExist flgs
-    flags <- if b then words <$> readFile flgs else pure ["-q", "--no-colour"]
+    flags <- if b then words <$> readFile flgs else pure ["-q", "--no-colour", "--wAll"]
     pure $ goldenVsProg name gold "typos" (flags ++ [file]) ""

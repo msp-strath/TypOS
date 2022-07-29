@@ -1,0 +1,6 @@
+ret > ExitSuccess
+out > Warning: toonice.act:6:12-8:0
+out > Received subject i on channel p and did not scrutinise it
+out >
+err >
+err >
