@@ -24,6 +24,7 @@ rerejectedFake@p = p?i.               p!'True.
 deadcode : $'Bool. !'Bool.
 deadcode@p = p?i. # "Oops"
 
+
 impossible : $'Bool. !'Bool.
 impossible@p = p?b. case (compare 'True 'True)
   { 'EQ -> case b

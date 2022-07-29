@@ -1,10 +1,14 @@
 ret > ExitSuccess
 out > Warning: subject-scrutinising-fail.act:4:8-7:3
 out > Received subject b on channel p and did not scrutinise it
+out > Warning: subject-scrutinising-fail.act:10:15-16:3
+out > Inconsistent scrutinisation of subject in match
 out > Warning: subject-scrutinising-fail.act:21:33-34
 out > Subject pattern thrown away using an underscore
 out > Warning: subject-scrutinising-fail.act:22:19-24:0
 out > Received subject i on channel p and did not scrutinise it
+out > Warning: subject-scrutinising-fail.act:29:20-35:3
+out > Inconsistent scrutinisation of subject in match
 out >
 err >
 err >

@@ -9,8 +9,8 @@ import Data.Function
 import Data.List (isPrefixOf)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Maybe
-import Data.Foldable
 
 import Actor
 import Bwd
@@ -618,10 +618,18 @@ consistentCommunication r sts =
    _ -> throwError (InconsistentCommunication r)
 
 consistentScrutinisation :: Range -> [ActvarStates] -> Elab ()
-consistentScrutinisation r sts = case List.groupBy cmp sts of
-  [] -> pure ()
-  [_] -> modify (\ r -> r { actvarStates = fold sts })
-  _   -> raiseWarning (InconsistentScrutinisation r)
+consistentScrutinisation r sts = do
+  ds <- asks declarations
+  let subjects = flip foldMap ds $ \case
+        (nm, ActVar IsSubject{} _ _) -> Set.singleton nm
+        _ -> Set.empty
+  let check = List.groupBy cmp (flip Map.restrictKeys subjects <$> sts)
+  unless (null check) $
+    modify (\ r -> r { actvarStates = foldr (Map.unionWith (<>)) Map.empty sts })
+  case check of
+    _:_:_ -> raiseWarning (InconsistentScrutinisation r)
+    _ -> pure ()
+
   where
     cmp x y = let
       x' = fmap (,B0) x
@@ -632,7 +640,6 @@ consistentScrutinisation r sts = case List.groupBy cmp sts of
 sbranch :: Range -> Decls -> CActor -> Elab (AActor, Maybe (ChannelStates, ActvarStates))
 sbranch r ds ra = do
   chs <- gets channelStates
-  avs <- gets actvarStates
   (a, All b) <- censor (const (All True)) $ listen $ sact ra
     -- make sure that the *newly bound* subject variables have been scrutinised
   forM ds $ \case -- HACK
@@ -654,8 +661,19 @@ sclause :: EScrutinee -> (RawP, CActor) ->
            StateT [SyntaxDesc] Elab ((Pat, AActor), Maybe (ChannelStates, ActvarStates))
 sclause esc (rp, a) = do
   ds0 <- asks declarations
+  avs <- lift $ gets actvarStates
   (mr, p, ds, hs) <- lift $ during (MatchBranchElaboration rp) $ spat esc rp
   let pats = takez ds (length ds - length ds0)
+  coverageCheckClause rp p
+  (a, me) <- lift $ during (MatchBranchElaboration rp) $
+               local (setDecls ds . setHints hs) $ sbranch (getRange rp) pats a
+  lift $ modify (\ st -> st { actvarStates = avs })
+  -- make sure no catchall on subject pattern, except in dead branches
+  whenJust (me *> mr) (lift . raiseWarning . UnderscoreOnSubject)
+  pure ((p, a), me)
+
+coverageCheckClause :: RawP -> Pat -> StateT [SyntaxDesc] Elab ()
+coverageCheckClause rp p = do
   leftovers <- get
   table <- lift $ gets syntaxCats
   leftovers <- lift $ case combine $ map (\ d -> (d, shrinkBy table d p)) leftovers of
@@ -668,12 +686,7 @@ sclause esc (rp, a) = do
       pure leftovers
     PartiallyCovering _ ps -> pure ps
   put leftovers
-  (a, me) <- lift $ during (MatchBranchElaboration rp) $
-               local (setDecls ds . setHints hs) $ sbranch (getRange rp) pats a
 
-  -- make sure no catchall on subject pattern, except in dead branches
-  whenJust (me *> mr) (lift . raiseWarning . UnderscoreOnSubject)
-  pure ((p, a), me)
 
 sprotocol :: CProtocol -> Elab AProtocol
 sprotocol ps = during (ProtocolElaboration ps) $ do
