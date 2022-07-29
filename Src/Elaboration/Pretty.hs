@@ -70,6 +70,7 @@ instance Pretty Warning where
       RecvSubjectNotScrutinised r ch (Used x) -> hsep ["Received subject", pretty x,"on channel", pretty ch, "and did not scrutinise it"]
       PatternSubjectNotScrutinised r x -> hsep ["Pattern subject", pretty x, "did not get scrutinised"]
       UnderscoreOnSubject r -> hsep ["Subject pattern thrown away using an underscore"]
+      InconsistentScrutinisation r -> hsep ["Inconsistent scrutinisation of subject in match"]
 
 instance Pretty Complaint where
 

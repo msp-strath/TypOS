@@ -10,6 +10,7 @@ import Data.List (isPrefixOf)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe
+import Data.Foldable
 
 import Actor
 import Bwd
@@ -576,8 +577,10 @@ sact = \case
       let examples = fromList cov >>= missing table
       raiseWarning $ MissingClauses r examples
     let (cls, sts) = unzip clsts
-    during (MatchElaboration rsc) $ consistentCommunication r sts
-    -- TODO: consistent scrutinisation
+    let (chst, avst) = unzip $ catMaybes sts
+    during (MatchElaboration rsc) $ do
+      consistentCommunication  r chst
+      consistentScrutinisation r avst
     pure $ Match r sc cls
 
   Push r stk (p, (), t) a -> do
@@ -601,28 +604,52 @@ sformat fmt = do
   desc <- fromInfo unknown Unknown
   traverse (traverse $ stm DontLog desc) fmt
 
-consistentCommunication :: Range -> [Maybe ChannelStates] -> Elab ()
-consistentCommunication r sts = do
- case List.groupBy ((==) `on` fmap (\ (_,_,x) -> x)) [ p | Just p <- sts ] of
+consistentCommunication :: Range -> [ChannelStates] -> Elab ()
+consistentCommunication r sts =
+ case List.groupBy ((==) `on` fmap (\ (_,_,x) -> x)) sts of
    [] -> tell (All False) -- all branches are doomed, we don't care
    [(c:_)] -> modify (\ r -> r { channelStates = c })
    _ -> throwError (InconsistentCommunication r)
 
-sbranch :: CActor -> Elab (AActor, Maybe ChannelStates)
-sbranch ra = do
+consistentScrutinisation :: Range -> [ActvarStates] -> Elab ()
+consistentScrutinisation r sts = case List.groupBy cmp sts of
+  [] -> pure ()
+  [_] -> modify (\ r -> r { actvarStates = fold sts })
+  _   -> raiseWarning (InconsistentScrutinisation r)
+  where
+    cmp x y = let
+      x' = fmap (,B0) x
+      y' = fmap (B0,) y
+      xy = Map.unionWith (<>) x' y'
+      in flip all xy $ \ (xz, yz) -> wasScrutinised xz == wasScrutinised yz
+
+sbranch :: Range -> Decls -> CActor -> Elab (AActor, Maybe (ChannelStates, ActvarStates))
+sbranch r ds ra = do
   chs <- gets channelStates
+  avs <- gets actvarStates
   (a, All b) <- censor (const (All True)) $ listen $ sact ra
+    -- make sure that the *newly bound* subject variables have been scrutinised
+  forM ds $ \case -- HACK
+    (nm, ActVar isSub _ _) ->
+      unlessM (checkScrutinised (Used nm)) $
+--        whenJust me $ \ _ -> -- HACK: do not complain about dead branches
+          case isSub of
+            IsSubject{} -> raiseWarning (PatternSubjectNotScrutinised r nm)
+            _ -> pure ()
+    _ -> pure ()
+
   st <- get
   unless b $ unless (chs == channelStates st) $
     throwError (DoomedBranchCommunicated (getRange ra) ra)
   put (st { channelStates = chs })
-  pure (a, channelStates st <$ guard b)
+  pure (a, ((,) <$> channelStates <*> actvarStates) st  <$ guard b )
 
 sclause :: EScrutinee -> (RawP, CActor) ->
-           StateT [SyntaxDesc] Elab ((Pat, AActor), Maybe ChannelStates)
+           StateT [SyntaxDesc] Elab ((Pat, AActor), Maybe (ChannelStates, ActvarStates))
 sclause esc (rp, a) = do
   ds0 <- asks declarations
   (mr, p, ds, hs) <- lift $ during (MatchBranchElaboration rp) $ spat esc rp
+  let pats = takez ds (length ds - length ds0)
   leftovers <- get
   table <- lift $ gets syntaxCats
   leftovers <- lift $ case combine $ map (\ d -> (d, shrinkBy table d p)) leftovers of
@@ -636,20 +663,10 @@ sclause esc (rp, a) = do
     PartiallyCovering _ ps -> pure ps
   put leftovers
   (a, me) <- lift $ during (MatchBranchElaboration rp) $
-               local (setDecls ds . setHints hs) $ sbranch a
+               local (setDecls ds . setHints hs) $ sbranch (getRange rp) pats a
 
   -- make sure no catchall on subject pattern, except in dead branches
   whenJust (me *> mr) (lift . raiseWarning . UnderscoreOnSubject)
-
-  -- make sure that the *newly bound* subject variables have been scrutinised
-  lift $ forM (takez ds (length ds - length ds0)) $ \case -- HACK
-    (nm, ActVar isSub _ _) ->
-      unlessM (checkScrutinised (Used nm)) $
---        whenJust me $ \ _ -> -- HACK: do not complain about dead branches
-          case isSub of
-            IsSubject{} -> raiseWarning (PatternSubjectNotScrutinised (getRange rp) nm)
-            _ -> pure ()
-    _ -> pure ()
   pure ((p, a), me)
 
 sprotocol :: CProtocol -> Elab AProtocol

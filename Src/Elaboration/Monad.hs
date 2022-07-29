@@ -245,6 +245,7 @@ data Warning
   | RecvSubjectNotScrutinised Range Channel (Binder String)
   | PatternSubjectNotScrutinised Range String
   | UnderscoreOnSubject Range
+  | InconsistentScrutinisation Range
 
 instance HasGetRange Warning where
   getRange = \case
@@ -255,6 +256,7 @@ instance HasGetRange Warning where
     RecvSubjectNotScrutinised r _ _ -> r
     PatternSubjectNotScrutinised r _ -> r
     UnderscoreOnSubject r -> r
+    InconsistentScrutinisation r -> r
 
 raiseWarning :: Warning -> Elab ()
 raiseWarning w = do
