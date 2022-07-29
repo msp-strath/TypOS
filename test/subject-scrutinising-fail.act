@@ -1,14 +1,14 @@
 syntax { 'Bool = ['Enum ['True 'False]] }
 
 not : $'Bool. !'Bool.
-not@p = p?b. case (compare b 'True)
+not@p = p?b. case (compare b 'True) -- b not scrutinised
   { 'GT -> p!'True.
   ; _ -> p!'False.
   }
 
 silly : $'Bool. !'Bool.
 silly@p = p?b. case (compare 'True 'True)
-  { 'EQ -> p!'True.
+  { 'EQ -> p!'True. -- inconsistent scrutinisation
   ; _ -> case b
     { 'True -> p!'False.
     ; 'False -> p!'False.
@@ -18,11 +18,11 @@ silly@p = p?b. case (compare 'True 'True)
 rejectedFake : $'Bool. !'Bool.
 rerejectedFake : $'Bool. !'Bool.
 
-rejectedFake  @p = p?i. case i { _ -> p!'True. }
-rerejectedFake@p = p?i.               p!'True.
+rejectedFake  @p = p?i. case i { _ -> p!'True. } -- i not scrutinised
+rerejectedFake@p = p?i.               p!'True.   -- i not scrutinised
 
 deadcode : $'Bool. !'Bool.
-deadcode@p = p?i. # "Oops"
+deadcode@p = p?i. # "Oops" -- should succeed subject checks
 
 
 impossible : $'Bool. !'Bool.
@@ -31,5 +31,33 @@ impossible@p = p?b. case (compare 'True 'True)
     { 'False -> p!'True.
     ; 'True -> p!'True.
     }
-  ; c -> p!'True. -- Should fail!
+  ; c -> p!'True. -- Should fail; b not scrutinised
+  }
+
+stack |- 'Bool -> 'Wildcard
+
+strictIsVar : $'Bool. !'Bool. -- should succeed
+strictIsVar@p = p?tm. case (lookup stack tm)
+  { ['Just b] -> p!'True.
+  ; 'Nothing -> case tm { 'True -> p!'False.
+                        ; 'False -> p!'False. }
+  }
+
+isVar : $'Bool. !'Bool.
+isVar@p = p?tm. case (lookup stack tm)
+  { ['Just b] -> p!'True.
+  ; 'Nothing -> p!'False. -- should fail; tm not scrutinised
+  }
+
+strictIsVarCombo : $'Bool. !'Bool. -- should ideally work
+strictIsVarCombo@p = p?tm. case ([ lookup stack tm | tm ])
+  { [ ['Just b] | x ] -> p!'True.
+  ; [ _  | 'False ] -> p!'False.
+  ; [ _  | 'True ] -> p!'False.
+  }
+
+sillyId : $'Bool. !'Bool. -- should ideally work
+sillyId@p = p?tm. case [ tm | tm ]
+  { ['True | _ ] -> p!'True.
+  ; ['False | _ ] -> p!'False.
   }
