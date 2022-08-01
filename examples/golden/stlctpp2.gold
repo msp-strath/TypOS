@@ -1,8 +1,4 @@
 ret > ExitSuccess
-out > Warning: stlctpp2.act:50:31-40
-out > Sent subject {x=y} body is not a subject variable
-out > Warning: stlctpp2.act:80:37-57
-out > Sent subject {x=y, xs=ys, ih=jh} c is not a subject variable
 out > Result:
 out > [0,1] ++ [2]
 out >   : ['List ['List 'One]]

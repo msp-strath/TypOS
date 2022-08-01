@@ -61,3 +61,9 @@ sillyId@p = p?tm. case [ tm | tm ]
   { ['True | _ ] -> p!'True.
   ; ['False | _ ] -> p!'False.
   }
+
+renamingSubjects : $'Wildcard. !'Wildcard.
+renamingSubjects@p = p?t. case t
+  { \ x y . body -> \ z. renamingSubjects@q. q!{x=z, y=z}body. p <-> q -- should not be considered a sent subject, as it only treats the diagonal -- not general enough
+  ;  u -> renamingSubjects@q. q!u. p <-> q -- does not terminate (don't run!)
+  }

@@ -17,6 +17,8 @@ out > Warning: subject-scrutinising-fail.act:61:11-16
 out > Subject pattern thrown away using an underscore
 out > Warning: subject-scrutinising-fail.act:62:12-17
 out > Subject pattern thrown away using an underscore
+out > Warning: subject-scrutinising-fail.act:67:47-61
+out > Sent subject {x=z, y=z} body is not a subject variable
 out >
 err >
 err >

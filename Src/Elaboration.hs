@@ -35,6 +35,35 @@ isSubject :: EScrutinee -> IsSubject
 isSubject (ActorVar _ (isSub, _)) = isSub
 isSubject _ = IsNotSubject
 
+checkSendableSubject :: Raw -> Elab ()
+checkSendableSubject tm = do
+  em <- asks elabMode
+  -- In exec mode we are sending user constructed terms, which
+  -- we do not want to check for subjectness
+  if em == Execution then pure () else do
+    localVars <- asks objVars
+    go (fmap fst localVars) tm
+  where
+  go :: Bwd String -> Raw -> Elab ()
+  go localVars x = case x of
+    Var r v -> resolve v >>= \case
+      Just (Left (ActVar (IsSubject {}) _ _)) -> pure ()
+      _ -> raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
+    Sbst r sg x -> do
+      case isInvertible localVars sg of
+        Nothing -> raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
+        Just localVars -> go localVars x
+    _ -> raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
+  isInvertible :: Bwd String -> Bwd SbstC -> Maybe (Bwd String)
+  isInvertible lvz B0 = pure lvz
+  isInvertible (lvz :< w) (sz :< Keep _ v) | getVariable v == w
+    = (:< w) <$> isInvertible lvz sz
+  isInvertible (lvz :< w) (sz :< Drop _ v) | getVariable v == w
+    = isInvertible lvz sz
+  isInvertible lvz (sz :< Assign _ v (Var _ w)) | Just (lz, x, ls) <- focus (getVariable w) lvz
+    = (:< getVariable v) <$> isInvertible (lz <>< ls) sz
+  isInvertible _ _ = Nothing
+
 escrutinee :: EScrutinee -> SyntaxDesc
 escrutinee = \case
   Nil _ -> Syntax.contract VNil
@@ -482,17 +511,9 @@ sact = \case
       _ -> throwError (InvalidSend r ch tm)
 
     usage <- do
-      em <- asks elabMode
       case m of
         Output -> pure $ SentInOutput r
-        Subject -> SentAsSubject r <$ case tm of
-          -- In exec mode we are sending user constructed terms, which
-          -- we do not want to check for subjectness
-          _ | em == Execution -> pure ()
-          Var r v -> resolve v >>= \case
-            Just (Left (ActVar (IsSubject {}) _ _)) -> pure ()
-            _ -> raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
-          _ -> raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
+        Subject -> SentAsSubject r <$ checkSendableSubject tm
 
     -- Send
     tm <- during (SendTermElaboration ch tm) $ do

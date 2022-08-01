@@ -1,6 +1,4 @@
 ret > ExitSuccess
-out > Warning: stlc2.act:22:47-56
-out > Sent subject {x=y} body is not a subject variable
 out > Warning: stlc2.act:29:5-16
 out > Pattern subject ty did not get scrutinised
 out >

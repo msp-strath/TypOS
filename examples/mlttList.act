@@ -68,10 +68,12 @@ adapt@p = p?sty. p?a. p?tty. case a
     ( sty ~ ['List S]
     | tty ~ ['List T]
     | check@r. r!['Pi S \_. T]. r!f.)
-  ; ['Then a1 mty a2] -> type@q. q!mty. checkEval@r. r!'Ty. r!mty. r?nmty.
-    ( adapt@u. u!sty. u!a1. u!nmty.
-    | adapt@w. w!nmty. w!a2. w!tty.
-    )
+  ; ['Then a1 mty a2] -> ( type@q. q!mty.
+                         | checkEval@r. r!'Ty. r!mty. r?nmty.
+                           ( adapt@u. u!sty. u!a1. u!nmty.
+                           | adapt@w. w!nmty. w!a2. w!tty.
+                           )
+                         )
   }
 
 checkEqual@p = p?ty. p?tm1. p?tm2.
@@ -132,7 +134,7 @@ synthWorker@p = p?tm . case (lookup ctxt tm)
       { ['Pi S \v. T] -> case s
         { ['Arg arg] -> ( check@r. r!S. r!arg.
                         | p!{v=['Rad arg S]}T.)
-        ; _ -> #"Expect Arg; got %i" s
+        ; _ -> #"Expected Arg; got %i" s
         }
       ; ['Sg S \v. T] -> case s
         { 'Fst -> p!S.

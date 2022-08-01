@@ -1,28 +1,27 @@
--- trace { exec, send, recv, move, unify }
 
 ------------------------------------------------------------------------------
 -- Interface
 
 syntax
   { 'Type = ['EnumOrTag  ['Nat]
-                         [['Arr  'Type 'Type]]
+                         [['Arr 'Type 'Type]]
             ]
   }
 
 /type : $'Type.
 
 syntax
-  { 'Check = ['EnumOrTag [] [ ['Lam ['Bind 'Synth 'Check]]
-                              ['Emb 'Synth]
+  { 'Check = ['Tag [ ['Lam ['Bind 'Synth 'Check]]
+                     ['Emb 'Synth]
              ]]
-  ; 'Synth = ['EnumOrTag [] [ ['Ann 'Check 'Type]
-                              ['App 'Synth 'Check]
+  ; 'Synth = ['Tag [ ['Ann 'Check 'Type]
+                     ['App 'Synth 'Check]
              ]]
   }
 
 check : ?'Type. $'Check.
 synth : $'Synth. !'Type.
-ctxt |- 'Synth -> 'Type -- ctxt maps synthesisable variables to types
+myCtxt |- 'Synth -> 'Type -- myCtxt maps synthesisable variables to types
 
 ------------------------------------------------------------------------------
 -- Implementation
@@ -37,15 +36,15 @@ type@p = p?ty. case ty
 
 check@p = p?ty. p?tm. case tm
   { ['Lam \x. body] ->
-      'Type?S. 'Type?T.
+      'Type?S T.
       ( ty ~ ['Arr S T]
-      | \x.
-        ctxt |- x -> S .
-        check@q. q!T. q!body.)
+      | \y.
+        myCtxt |- y -> S .
+        check@q. q!T. q!{x=y}body.)
   ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
   }
 
-synth@p = p?tm . case (lookup ctxt tm)
+synth@p = p?tm . case (lookup myCtxt tm)
   { ['Just S] -> p!S.
   ; 'Nothing -> case tm
     { ['Ann t ty] ->
@@ -53,7 +52,7 @@ synth@p = p?tm . case (lookup ctxt tm)
          | check@r. r!ty. r!t.
          | p!ty.
          )
-    ; ['App f s] -> 'Type?U. 'Type?V. p!V.
+    ; ['App f s] -> 'Type?U V. p!V.
          ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
          | check@r. r!U. r!s.
          )
@@ -63,16 +62,16 @@ synth@p = p?tm . case (lookup ctxt tm)
 ------------------------------------------------------------------------------
 -- Examples
 {-
-exec  check@p. p! ['Arr 'Nat ['Arr 'Nat 'Nat]].
+exec check@p. p! ['Arr 'Nat ['Arr 'Nat 'Nat]].
               p! ['Lam \z. ['Lam \_. ['Emb z]]].
 -}
 {-
-exec  check@p. p! ['Arr 'Nat 'Nat].
+exec check@p. p! ['Arr 'Nat 'Nat].
               p! ['Lam \z. ['Emb z]].
 
 -}
 
-exec  check@p.
+exec check@p.
    p! ['Arr 'Nat 'Nat].
    p! ['Lam \z. ['Emb
          ['App ['Ann ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]]
