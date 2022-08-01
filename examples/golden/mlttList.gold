@@ -1,4 +1,6 @@
 ret > ExitSuccess
+out > Warning: mlttList.act:202:36-37
+out > Sent subject e is not a subject variable
 out > two plus two is ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt]
 out >                                                              ['Sing 'Tt]]]].
 out >

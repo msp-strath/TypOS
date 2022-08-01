@@ -92,7 +92,8 @@ exec p@Process { actor = m@(Match _ s cls), ..}
       _ -> search zf i stk bd
 
   mangleScrutinee :: AScrutinee -> Maybe Term
-  mangleScrutinee (Term _ t) = mangleActors options env t
+  mangleScrutinee (ActorVar _ t) = mangleActors options env t
+  mangleScrutinee (Nil _) = pure (atom "" (length (globalScope env <> localScope env)))
   mangleScrutinee (Pair _ sc1 sc2) = (%) <$> mangleScrutinee sc1 <*> mangleScrutinee sc2
   mangleScrutinee (Lookup _ stk t)
     | Just t' <- mangleActors options env t

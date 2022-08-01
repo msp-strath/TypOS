@@ -1,6 +1,6 @@
 
 syntax
-  { 'Check = ['EnumOrTag ['Ty 'One 'Tt 'Fst 'Snd 'Null]
+  { 'Check = ['EnumOrTag ['Ty 'One 'Tt 'Null]
                          [ ['Lam ['Bind 'Synth 'Check]]
                            ['Pair 'Check 'Check]
                            ['Pi  'Check ['Bind 'Synth 'Check]]
@@ -9,7 +9,6 @@ syntax
                            ['Sing 'Check]
                            ['Plus 'Check 'Check]
                            ['Emb 'Synth 'Adapt]
-                           ['ListRec ['Bind 'Synth 'Check] 'Check ['Bind 'Synth ['Bind 'Synth ['Bind 'Synth 'Check]]]]
                          ]
              ]
   ; 'Adapt = ['EnumOrTag ['Id]
@@ -17,8 +16,14 @@ syntax
                            ['List 'Check]
                          ]
              ]
+  ; 'Elim =  ['EnumOrTag
+               ['Fst 'Snd]
+               [ ['Arg 'Check]
+                 ['ListRec ['Bind 'Synth 'Check] 'Check ['Bind 'Synth ['Bind 'Synth ['Bind 'Synth 'Check]]]]
+               ]
+             ]
   ; 'Synth = ['Tag [ ['Rad 'Check 'Check]
-                     ['App 'Synth 'Check]
+                     ['App 'Synth 'Elim]
              ]]
   }
 
@@ -63,10 +68,12 @@ adapt@p = p?sty. p?a. p?tty. case a
     ( sty ~ ['List S]
     | tty ~ ['List T]
     | check@r. r!['Pi S \_. T]. r!f.)
-  ; ['Then a1 mty a2] -> type@q. q!mty. checkEval@r. r!'Ty. r!mty. r?nmty.
-    ( adapt@u. u!sty. u!a1. u!nmty.
-    | adapt@w. w!nmty. w!a2. w!tty.
-    )
+  ; ['Then a1 mty a2] -> ( type@q. q!mty.
+                         | checkEval@r. r!'Ty. r!mty. r?nmty.
+                           ( adapt@u. u!sty. u!a1. u!nmty.
+                           | adapt@w. w!nmty. w!a2. w!tty.
+                           )
+                         )
   }
 
 checkEqual@p = p?ty. p?tm1. p?tm2.
@@ -104,14 +111,16 @@ checkWorker@p = p?ty. p?tm. case tm
     ; _ -> #"Expected Pi; got %i" ty
     }
   ; ['Emb e a] -> synth@q. q!e. q?ety. adapt@r. r!ety. r!a. r!ty.
-  ; _ -> case ty
-    { ['List T] -> case tm
+  ; tm' -> case ty
+    { ['List T] -> case tm'
       { 'Null ->
       ; ['Sing t] -> check@q. q!T. q!t.
       ; ['Plus s t] ->
         ( check@q. q!ty. q!s.
         | check@r. r!ty. r!t.)
+      ; _ -> #"Expected a list constructor; got %i" tm
       }
+    ; _ -> #"Expected List; got %i" ty
     }
   }
 
@@ -122,8 +131,11 @@ synthWorker@p = p?tm . case (lookup ctxt tm)
                      | check@r. r!ty. r!t.
                      | p!ty.)
     ; ['App f s] -> synth@q. q!f. q?ty. case ty
-      { ['Pi S \v. T] -> ( check@r. r!S. r!s.
-                         | p!{v=['Rad s S]}T.)
+      { ['Pi S \v. T] -> case s
+        { ['Arg arg] -> ( check@r. r!S. r!arg.
+                        | p!{v=['Rad arg S]}T.)
+        ; _ -> #"Expected Arg; got %i" s
+        }
       ; ['Sg S \v. T] -> case s
         { 'Fst -> p!S.
         ; 'Snd -> p!{v=['App f 'Fst]}T.
@@ -138,6 +150,7 @@ synthWorker@p = p?tm . case (lookup ctxt tm)
             \ih. ctxt |- ih -> {xs = ys}T.
             check@u. u!{xs = ['Rad ['Plus ['Sing ['Emb y 'Id]] ['Emb ys 'Id]] ty]}T. u!c.
           | p!{xs = f}T. )
+        ; _ -> #"Expected ListRec; got %i" s
         }
       ; _ -> #"Expected Pi, Sg or List; got %i" ty
       }
@@ -165,7 +178,10 @@ checkEval@p = p?tty. p?tm. case tm
 evalSynth@p = p?tm. case tm
   { ['Rad t ty] -> {-PRINTF "Rad" .-} checkEval@r. r!'Ty. r!ty. r?nty. checkEval@q. q!nty. q!t. q?nt. p!['Rad nt nty].
   ; ['App f s] -> {-PRINTF "App" .-} evalSynth@q. q!f. q?nf. case nf
-    { ['Rad ['Lam \ x. t] ['Pi S \ x. T]] -> !. PRINTF "Beta" . evalSynth@w. w!{x=['Rad s S]}['Rad t T]. w <-> p
+    { ['Rad ['Lam \ x. t] ['Pi S \ x. T]] -> !. case s
+      { ['Arg arg] -> PRINTF "Beta" . evalSynth@w. w!{x=['Rad arg S]}['Rad t T]. w <-> p
+      ; _ -> #"Expected Arg; got %i" s
+      }
     ; ['Rad ['Pair a b] ['Sg S \ x. T]] -> !. case s
       { 'Fst -> PRINTF "Fst" . evalSynth@w. w!['Rad a S]. w <-> p
       ; 'Snd -> PRINTF "Snd" . evalSynth@w. w!['Rad b {x=['Rad a S]}T]. w <-> p
@@ -194,7 +210,9 @@ evalSynth@p = p?tm. case tm
             }
           ; _ -> # "Expected List; got %i" sty
           }
+        ; _ -> #"Expected a value of type List; got %i" t
         }
+      ; _ -> #"Expected a ListRec; got %i" s
       }
     ; ['Rad ['Emb e a] ty] -> p!['App e s]. -- a is 'Id because ty is not a list type
     ; g -> p!['App g s].
@@ -213,17 +231,22 @@ adaptValWorker@p = p?stm. p?sty. p?a. p?tty. case [sty a tty]
   ; [['List S] ['List f] ['List T]] -> case stm
     { 'Null -> p!'Null.
     ; ['Plus xs ys] -> adaptValWorker@q. q!xs. q!sty. q!a. q!tty. q?xs'.p!['Plus xs' ['Emb ['Rad ys sty] a]].
-    ; ['Sing s] -> checkEval@q. q!T. q!['Emb ['App ['Rad f ['Pi S \_. T]] s] 'Id]. q?t. p!['Sing t].
+    ; ['Sing s] -> checkEval@q. q!T. q!['Emb ['App ['Rad f ['Pi S \_. T]] ['Arg s]] 'Id]. q?t. p!['Sing t].
     ; ['Emb xs a'] -> case a'
       { 'Id -> p!['Emb xs a].
       ; _ -> p!['Emb xs ['Then a' sty a]].
       }
+    ; _ -> # "Expected a List value; got %i" stm
     }
   ; _ -> # "Unexpected adaptor %i" a
   }
 
 checkEqualWorker@p = p?ty. p?tm1. p?tm2. {- PRINTF "checkEqual %i\n %i\n %i" ty tm1 tm2. -} case ty
-  { ['Pi S \x. T] -> PRINTF "Eta Pi" . \x. ctxt |- x -> S. checkEqual@q. q!T. q!['Emb ['App ['Rad tm1 ty] ['Emb x 'Id]] 'Id]. q!['Emb ['App ['Rad tm2 ty] ['Emb x 'Id]] 'Id].
+  { ['Pi S \x. T] ->
+     PRINTF "Eta Pi" . \x. ctxt |- x -> S.
+     checkEqual@q. q!T.
+       q!['Emb ['App ['Rad tm1 ty] ['Arg ['Emb x 'Id]]] 'Id].
+       q!['Emb ['App ['Rad tm2 ty] ['Arg ['Emb x 'Id]]] 'Id].
   ; ['Sg S \x. T] -> PRINTF "Eta Sg" . (checkEqual@q. q!S. q!['Emb ['App ['Rad tm1 ty] 'Fst] 'Id]. q!['Emb ['App ['Rad tm2 ty] 'Fst] 'Id].
                                        |checkEqual@q. q!{x=['App ['Rad tm1 ty] 'Fst]}T. q!['Emb ['App ['Rad tm1 ty] 'Snd] 'Id]. q!['Emb ['App ['Rad tm2 ty] 'Snd] 'Id].)
   ; 'One ->
@@ -278,8 +301,11 @@ equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %i\n %i" e1 e2.
        | p!ty1.)
     ; [['App f1 s1] | ['App f2 s2] ] -> {- PRINTF "App" . -}
        equalSynth@q. q!f1. q!f2. q?ty. case ty
-        { ['Pi S \ x. T] -> ( checkEqual@r. r!S. r!s1. r!s2.
-                            | p!{x=['Rad s1 S]}T.)
+        { ['Pi S \ x. T] -> case [s1 s2]
+          { [['Arg arg1] ['Arg arg2]] -> ( checkEqual@r. r!S. r!arg1. r!arg2.
+                                         | p!{x=['Rad arg1 S]}T.)
+          ; _ -> # "Expected Arg; got %i and %i" s1 s2
+          }
         ; ['Sg S \ x. T] -> s1 ~ s2 | case s1
            { 'Fst -> p!S.
            ; 'Snd -> p!{x=['App f1 'Fst]}T.
@@ -298,6 +324,7 @@ equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %i\n %i" e1 e2.
             | p!{xs = f1}T1.)
           ; _ -> #"Expected ListRec's; got %i and %i" s1 s2
           }
+        ; _ -> # "Expected a type with eliminators; got %i" ty
         }
     ; [x|y] -> # "%i not equalSynth to %i" x y
     }
@@ -326,7 +353,8 @@ checkNorm@p = p?ty. checkEval@q. q!'Ty. q!ty. q?nty.
               checkNormWorker@s. s!nty. s!ntm. p <-> s
 
 checkNormWorker@p = p?ty. p?tm. case ty
-  { ['Pi S \x. T] -> \x. ctxt |- x -> S. checkNorm@q. q!T. q!['Emb ['App ['Rad tm ty] ['Emb x 'Id]] 'Id]. q?ntm. p!['Lam \x. ntm].
+  { ['Pi S \x. T] -> \x. ctxt |- x -> S.
+    checkNorm@q. q!T. q!['Emb ['App ['Rad tm ty] ['Arg ['Emb x 'Id]]] 'Id]. q?ntm. p!['Lam \x. ntm].
   ; ['Sg S \x. T] -> checkNorm@q. q!S. q!['Emb ['App ['Rad tm ty] 'Fst] 'Id]. q?ns.
                      checkNorm@r. r!{x=['Rad ns S]}T. r!['Emb ['App ['Rad tm ty] 'Snd] 'Id]. r?nt. p!['Pair ns nt].
   ; 'One -> p!'Tt.
@@ -363,7 +391,10 @@ normSynthWorker@p = p?e.
       }
     ; ['Rad t ty] -> checkNormWorker@q. q!'Ty. q!ty. q?nty. checkNorm@r. r!nty. r!t. r?nt. p!['Rad nt nty]. p!nty.
     ; ['App f s] -> normSynth@q. q!f. q?nf. q?fty. case fty
-      { ['Pi S \ x. T] -> checkNorm@r. r!S. r!s. r?ns. p!['App nf ns]. p!{x=['Rad ns S]}T.
+      { ['Pi S \ x. T] -> case s
+        { ['Arg arg] -> checkNorm@r. r!S. r!arg. r?ns. p!['App nf ['Arg ns]]. p!{x=['Rad ns S]}T.
+        ; _ -> #"Expected Arg; got %i" s
+        }
       ; ['Sg S \ x. T] -> p!['App nf s]. case s
         { 'Fst -> p!S.
         ; 'Snd -> p!{x=['App nf 'Fst]}T.
@@ -381,6 +412,7 @@ normSynthWorker@p = p?e.
              | p!['App nf ['ListRec NT nn nc]]. p!{xs = nf}T.)
         ; _ -> #"Expected ListRec's; got %i" s
         }
+      ; _ -> # "Expected a type with eliminators; got %i" fty
       }
     ; x -> # "Panic! Don't know how to normalise %i" x
     }

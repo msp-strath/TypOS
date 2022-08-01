@@ -1,3 +1,6 @@
 ret > ExitSuccess
+out > Warning: stlc3.act:29:5-16
+out > Pattern subject ty did not get scrutinised
+out >
 err >
 err >

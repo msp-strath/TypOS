@@ -58,6 +58,7 @@ deriving instance
   , Show (CHANNEL ph)
   , Show (BINDER ph)
   , Show (ACTORVAR ph)
+  , Show (SCRUTINEEVAR ph)
   , Show (SYNTAXDESC ph)
   , Show (TERMVAR ph)
   , Show (TERM ph)
@@ -66,7 +67,8 @@ deriving instance
   , Show (STACK ph)
   , Show (STACKDESC ph)
   , Show (SYNTAXCAT ph)
-  , Show (PROTOCOL ph)) =>
+  , Show (PROTOCOL ph)
+  , Show (LOOKEDUP ph)) =>
   Show (COMMAND ph)
 
 type CCommand = COMMAND Concrete
@@ -184,7 +186,7 @@ scommand = \case
     let rp = getRange jd <> getRange ch
     ch <- Channel <$> isFresh ch
     jd <- isJudgement jd
-    a <- withChannel rp Rootwards ch (judgementProtocol jd) $ sact a
+    a <- withChannel rp Rootwards ch (judgementProtocol jd) $ local (setElabMode Definition) (sact a)
     (DefnJudge (judgementName jd, judgementProtocol jd, ch) a,) <$> asks declarations
   DeclSyntax syns -> do
     oldsyndecls <- gets (Map.keys . syntaxCats)
@@ -200,7 +202,7 @@ scommand = \case
     stkTy <- scontextstack stkTy
     local (declare (Used stk) (AStack stkTy)) $ do
       (DeclStack (Stack stk) stkTy,) <$> asks declarations
-  Go a -> during ExecElaboration $ (,) . Go <$> sact a <*> asks declarations
+  Go a -> during ExecElaboration $ (,) . Go <$> local (setElabMode Execution) (sact a) <*> asks declarations
   Trace ts -> (Trace ts,) <$> asks declarations
 
 scommands :: [CCommand] -> Elab [ACommand]

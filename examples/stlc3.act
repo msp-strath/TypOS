@@ -12,7 +12,6 @@ syntax
             ]
   }
 
-
 check : ?'Type. $'Check.
 synth : $'Synth. !'Type.
 ctxt |- 'Synth -> 'Type
@@ -40,4 +39,3 @@ exec check@p.
   ((p! X. p! t.
     | X ~ ['Arr 'Nat 'Nat])
    | t ~ ['Lam \z. ['Emb z]])
-

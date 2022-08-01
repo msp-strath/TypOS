@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wincomplete-patterns #-}
 module Elaboration.Monad where
 
 import Control.Monad.Except
@@ -10,7 +11,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 
-import Actor (AContextStack, AProtocol, Channel)
+import Actor (ActorVar, AContextStack, AProtocol, Channel)
 import Bwd
 import Concrete.Base
 import Location (HasGetRange(..), Range, WithRange (..))
@@ -25,6 +26,7 @@ import Utils
 
 data ElabState = ElabState
   { channelStates :: ChannelStates
+  , actvarStates  :: ActvarStates
   , syntaxCats    :: SyntaxTable
   , warnings      :: Bwd Warning
   }
@@ -32,12 +34,34 @@ data ElabState = ElabState
 type ChannelState = (Direction, [Turn], AProtocol)
 type ChannelStates = Map Channel ChannelState
 
+type ActvarStates = Map ActorVar (Bwd Usage)
+
+data Usage
+  = SentAsSubject Range
+  | SentInOutput Range
+  | LookedUp Range
+  | Scrutinised Range
+  | Compared Range
+  | Constrained Range
+  | LetBound Range
+  | Pushed Range
+  | SuccessfullyLookedUp Range
+  | DontLog
+ deriving Show
+
+wasScrutinised :: Foldable t => t Usage -> Bool
+wasScrutinised = any $ \case
+  Scrutinised _ -> True
+  SentAsSubject _ -> True
+  SuccessfullyLookedUp _ -> True
+  _ -> False
+
 data Direction = Rootwards
                | Leafwards
   deriving (Eq, Show)
 
 initElabState :: ElabState
-initElabState = ElabState Map.empty Map.empty B0
+initElabState = ElabState Map.empty Map.empty Map.empty B0
 
 newtype Elab a = Elab
   { runElab :: StateT ElabState
@@ -116,8 +140,32 @@ compatibleInfos r desc desc' = do
 type ObjVar = (String, Info SyntaxDesc)
 type ObjVars = Bwd ObjVar
 
+data Provenance = Parent | Pattern
+  deriving (Show)
+
+data IsSubject' a = IsSubject a | IsNotSubject
+  deriving (Show, Functor)
+
+type IsSubject = IsSubject' Provenance
+
+type instance SCRUTINEEVAR Elaboration = (IsSubject, SyntaxDesc)
+type instance STACK Elaboration = SyntaxDesc
+type instance TERM Elaboration = ()
+type instance LOOKEDUP Elaboration = String
+
+type EScrutinee = SCRUTINEE Elaboration
+
+isSubjectFree :: EScrutinee -> Bool
+isSubjectFree = \case
+  Nil{} -> True
+  Lookup{} -> True
+  Compare{} -> True
+  Pair _ p q -> isSubjectFree p && isSubjectFree q
+  ActorVar _ (IsSubject{}, _) -> False
+  ActorVar _ (IsNotSubject, _) -> True
+
 data Kind
-  = ActVar (Info SyntaxDesc) ObjVars
+  = ActVar IsSubject (Info SyntaxDesc) ObjVars
   | AChannel ObjVars
   | AJudgement ExtractMode AProtocol
   | AStack AContextStack
@@ -129,12 +177,16 @@ data Context = Context
   , declarations :: Decls
   , location     :: Bwd Turn
   , binderHints  :: Hints
+  , elabMode     :: ElabMode
   } deriving (Show)
 
 type Hints = Map String (Info SyntaxDesc)
 
+data ElabMode = Definition | Execution
+  deriving (Eq, Show)
+
 initContext :: Context
-initContext = Context B0 B0 B0 Map.empty
+initContext = Context B0 B0 B0 Map.empty Definition
 
 declareObjVar :: ObjVar -> Context -> Context
 declareObjVar x ctx = ctx { objVars = objVars ctx :< x }
@@ -191,11 +243,23 @@ getHint str = do
 data Warning
   = UnreachableClause Range RawP
   | MissingClauses Range (NonEmpty RawP)
+  -- Subject tracking
+  | SentSubjectNotASubjectVar Range Raw
+  | RecvSubjectNotScrutinised Range Channel (Binder String)
+  | PatternSubjectNotScrutinised Range String
+  | UnderscoreOnSubject Range
+  | InconsistentScrutinisation Range
 
 instance HasGetRange Warning where
   getRange = \case
     UnreachableClause r _ -> r
     MissingClauses r _ -> r
+    -- Subject analysis
+    SentSubjectNotASubjectVar r _ -> r
+    RecvSubjectNotScrutinised r _ _ -> r
+    PatternSubjectNotScrutinised r _ -> r
+    UnderscoreOnSubject r -> r
+    InconsistentScrutinisation r -> r
 
 raiseWarning :: Warning -> Elab ()
 raiseWarning w = do
@@ -222,6 +286,7 @@ data Complaint
   | NotAValidStack Range Variable (Maybe Kind)
   | NotAValidChannel Range Variable (Maybe Kind)
   | NotAValidBoundVar Range Variable
+  | NotAValidActorVar Range Variable
   -- protocol
   | InvalidSend Range Channel Raw
   | InvalidRecv Range Channel (Binder String)
@@ -261,7 +326,7 @@ data Complaint
   | UnderElaboration Complaint
   | RecvMetaElaboration Channel Complaint
   | PushTermElaboration Raw Complaint
-  | LookupTermElaboration Raw Complaint
+  | LookupVarElaboration Variable Complaint
   | DeclJElaboration Variable Complaint
   | DefnJElaboration Variable Complaint
   | ExecElaboration Complaint
@@ -291,6 +356,7 @@ instance HasGetRange Complaint where
     NotAValidStack r _ _ -> r
     NotAValidChannel r _ _ -> r
     NotAValidBoundVar r _ -> r
+    NotAValidActorVar r _ -> r
   -- protocol
     InvalidSend r _ _ -> r
     InvalidRecv r _ _ -> r
@@ -330,7 +396,7 @@ instance HasGetRange Complaint where
     UnderElaboration c -> getRange c
     RecvMetaElaboration _ c -> getRange c
     PushTermElaboration _ c -> getRange c
-    LookupTermElaboration _ c -> getRange c
+    LookupVarElaboration _ c -> getRange c
     DeclJElaboration _ c -> getRange c
     DefnJElaboration _ c -> getRange c
     ExecElaboration c -> getRange c
@@ -387,3 +453,16 @@ resolve (Variable r x) = do
     _ -> case focusBy (\ (y, desc) -> desc <$ guard (x == y)) ovs of
       Just (xz, desc, xs) -> pure (Just $ Right (desc, DB $ length xs))
       Nothing -> pure Nothing
+
+------------------------------------------------------------------------------
+-- Subject usage logging
+
+logUsage :: ActorVar -> Usage -> Elab ()
+logUsage _ DontLog = pure ()
+logUsage var usage = do
+  em <- asks elabMode
+  when (em == Definition) $
+    modify (\st -> st { actvarStates = Map.alter (Just . (:< usage) . fromMaybe B0) var (actvarStates st) })
+
+setElabMode :: ElabMode -> Context -> Context
+setElabMode em ctx = ctx { elabMode = em }

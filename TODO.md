@@ -64,6 +64,8 @@
 * [ ] More structured type of names
 * [ ] Make sure LaTeX output is valid LaTeX
 * [x] `data Actor (ph :: Phase)`?
+* [ ] Define `ElaborationMonad m =>` & cleanup sclause
+
 
 ### Pretty
 

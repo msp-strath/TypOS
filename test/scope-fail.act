@@ -1,4 +1,4 @@
 test :
 test@p = \tl.
-  case ['list hd tl]
+  case [hd tl]
     {}

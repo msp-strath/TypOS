@@ -7,7 +7,7 @@ import Data.Foldable
 import ANSI hiding (withANSI)
 import Actor (ActorMeta(..), Channel(..), Stack(..))
 import Bwd
-import Concrete.Base (Mode)
+import Concrete.Base (Mode, Binder (..))
 import Concrete.Pretty()
 import Doc
 import Doc.Render.Terminal
@@ -64,6 +64,13 @@ instance Pretty Warning where
         let sIsAre = case pats of { _ :| [] -> " is"; _ -> "s are" } in
           vcat ("Incomplete pattern matching. The following pattern" <> sIsAre <+> "missing:"
              : map (indent 2 . pretty) (toList pats))
+      -- Subject analysis
+      SentSubjectNotASubjectVar r raw -> hsep ["Sent subject", pretty raw, "is not a subject variable"]
+      RecvSubjectNotScrutinised r ch Unused -> hsep ["Ignored received subject on channel", pretty ch]
+      RecvSubjectNotScrutinised r ch (Used x) -> hsep ["Received subject", pretty x,"on channel", pretty ch, "and did not scrutinise it"]
+      PatternSubjectNotScrutinised r x -> hsep ["Pattern subject", pretty x, "did not get scrutinised"]
+      UnderscoreOnSubject r -> hsep ["Subject pattern thrown away using an underscore"]
+      InconsistentScrutinisation r -> hsep ["Inconsistent scrutinisation of subject in match"]
 
 instance Pretty Complaint where
 
@@ -100,6 +107,8 @@ instance Pretty Complaint where
              , "refers to", maybe "a bound variable" pretty mk]
      NotAValidBoundVar r x -> singleton $ (flush $ pretty r) <>
        hsep ["Invalid bound variable", pretty x]
+     NotAValidActorVar r x -> singleton $ (flush $ pretty r) <>
+       hsep ["Invalid actor variable", pretty x]
      -- protocol
      InvalidSend r ch tm -> singleton $ (flush $ pretty r) <> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
      InvalidRecv r ch v -> singleton $ (flush $ pretty r) <> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]
@@ -149,7 +158,7 @@ instance Pretty Complaint where
      UnderElaboration c -> go c :<  "when binding a local variable"
      RecvMetaElaboration ch c -> go c :< hsep ["when receiving a value on channel", pretty ch]
      PushTermElaboration t c -> go c :< hsep ["when pushing the term", pretty t]
-     LookupTermElaboration t c -> go c :< hsep ["when looking up the term", pretty t]
+     LookupVarElaboration t c -> go c :< hsep ["when looking up the actor variable", pretty t]
      DeclJElaboration jd c -> go c :< hsep ["when elaborating the judgement declaration for", pretty jd]
      DefnJElaboration jd c -> go c :< hsep ["when elaborating the judgement definition for", pretty jd]
      ExecElaboration c -> go c :< hsep ["when elaborating an exec statement"]
