@@ -19,12 +19,14 @@ syntax
              ]]
   }
 -- contract:
-{type T} check T t {}
 check : ?'Type. $'Check.
-{} synth t T {type T}
+{type T} check T t {}
+
 synth : $'Synth. !'Type.
-{} myCtxt x = T {synth x T, type T}
+{} synth t T {type T}
+
 myCtxt |- 'Synth -> 'Type -- myCtxt maps synthesisable variables to types
+{} myCtxt x = T {synth x T, type T}
 
 ------------------------------------------------------------------------------
 -- Implementation
