@@ -1,14 +1,11 @@
-
 ------------------------------------------------------------------------------
--- Interface
+-- Datatypes
 
 syntax
   { 'Type = ['EnumOrTag  ['Nat]
                          [['Arr 'Type 'Type]]
             ]
   }
-
-/type : $'Type.
 
 syntax
   { 'Check = ['Tag [ ['Lam ['Bind 'Synth 'Check]]
@@ -19,9 +16,23 @@ syntax
              ]]
   }
 
+------------------------------------------------------------------------------
+-- Interface
+
+/type : $'Type.
 check : ?'Type. $'Check.
 synth : $'Synth. !'Type.
-myCtxt |- 'Synth -> 'Type -- myCtxt maps synthesisable variables to types
+
+-- | myCtxt maps synthesisable variables to types
+myCtxt |- 'Synth -> 'Type
+
+------------------------------------------------------------------------------
+-- Contract
+
+{type T} check T t {}
+{}       synth t T {type T}
+
+{} myCtxt |- x -> T {synth x T}
 
 ------------------------------------------------------------------------------
 -- Implementation
@@ -38,9 +49,9 @@ check@p = p?ty. p?tm. case tm
   { ['Lam \x. body] ->
       'Type?S T.
       ( ty ~ ['Arr S T]
-      | \y.
-        myCtxt |- y -> S .
-        check@q. q!T. q!{x=y}body.)
+      | \x.
+        myCtxt |- x -> S.
+        check@q. q!T. q!body.)
   ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
   }
 

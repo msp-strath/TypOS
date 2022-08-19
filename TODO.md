@@ -30,6 +30,10 @@
 * [x] Coverage checker for `case`
 * [x] Standalone stacks (attached to strings, not judgements)
 * [ ] Unification modulo computation
+* [ ] Guarding execution until validation
+   + [ ] Unique names for subactors
+   + [ ] block terms on names
+   + [ ] Blocking wrapper evaporates when named thing is `Done`
 
 ### Judgement Contracts
 
@@ -38,9 +42,12 @@
    + [ ] Subject should be syntatic
    + [ ] Inputs / outputs should be in the semantics of the given syntax
    + [ ] child subjects are structural components of parent subjects
-   + [ ] if a subject pattern variable is transmitted, it is the subject of some child
-   * [ ] Each syntax has a designated judgement with that syntax as subject (the justifier / gatekeeper)
+   + [x] if a subject pattern variable is transmitted, it is the subject of some child
+   + [ ] Each syntax has a designated judgement with that syntax as subject (the justifier / gatekeeper)
 * [ ] Contracts (constraints on inputs, guarantees on outputs)
+  + [ ] each ? and ! must have a contract how it was/will be a $
+  + [ ] define a standard model that we match against in ? and synthesise in !
+  + [ ] there are other explicit models (e.g. a Kripke one for NBE)
 
 ### CLI
 
@@ -65,6 +72,7 @@
 * [ ] Make sure LaTeX output is valid LaTeX
 * [x] `data Actor (ph :: Phase)`?
 * [ ] Define `ElaborationMonad m =>` & cleanup sclause
+* [ ] Drop run-length encoding subst in favour of relevant subst
 
 
 ### Pretty

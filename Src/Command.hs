@@ -45,11 +45,16 @@ type family PROTOCOL (ph :: Phase) :: *
 type instance PROTOCOL Concrete = ()
 type instance PROTOCOL Abstract = AProtocol
 
+data STATEMENT (ph :: Phase)
+  = Statement (JUDGEMENTFORM ph) [Variable]
+
 data COMMAND (ph :: Phase)
   = DeclJudge ExtractMode (JUDGEMENTFORM ph) (Protocol (SYNTAXDESC ph))
   | DefnJudge (JUDGEMENTFORM ph, PROTOCOL ph, CHANNEL ph) (ACTOR ph)
+  | ContractJudge [STATEMENT ph] (STATEMENT ph) [STATEMENT ph]
   | DeclSyntax [(SYNTAXCAT ph, SYNTAXDESC ph)]
   | DeclStack (STACK ph) (ContextStack (SYNTAXDESC ph))
+  | ContractStack [STATEMENT ph] (STACK ph, Variable, Variable) [STATEMENT ph]
   | Go (ACTOR ph)
   | Trace [MachineStep]
 
@@ -71,8 +76,14 @@ deriving instance
   , Show (LOOKEDUP ph)) =>
   Show (COMMAND ph)
 
+deriving instance
+  (Show (JUDGEMENTFORM ph)) =>
+  Show (STATEMENT ph)
+
 type CCommand = COMMAND Concrete
 type ACommand = COMMAND Abstract
+type CStatement = STATEMENT Concrete
+type AStatement = STATEMENT Abstract
 
 instance Display Mode where
   type DisplayEnv Mode = ()
@@ -88,15 +99,23 @@ instance (Show t, Unelab t, Pretty (Unelabed t)) =>
   type DisplayEnv (Protocol t) = UnelabEnv t
   display = viaPretty
 
+instance Pretty CStatement where
+  pretty (Statement jd vars) = hsep $ pretty jd : (pretty <$> vars)
+
 instance Pretty CCommand where
-  pretty = \case
+  pretty = let prettyCds cds = collapse (BracesList $ pretty <$> cds) in \case
     DeclJudge em jd p -> hsep [pretty em <> pretty jd, colon, pretty p]
     DefnJudge (jd, _, ch) a -> hsep [pretty jd <> "@" <> pretty ch, equal, pretty a]
+    ContractJudge pres stm posts -> hsep [prettyCds pres, pretty stm, prettyCds posts]
     DeclSyntax s -> let docs = fmap (\ (cat, desc) -> pretty (theValue cat) <+> equal <+> pretty desc) s in
                keyword "syntax" <+> collapse (BracesList docs)
     DeclStack stk stkTy -> hsep [pretty stk, "|-", pretty stkTy]
+    ContractStack pres (stk, lhs, rhs) posts -> hsep [prettyCds pres
+                                                     , pretty stk, pretty lhs, "=", pretty rhs
+                                                     , prettyCds posts]
     Go a -> keyword "exec" <+> pretty a
     Trace ts -> keyword "trace" <+> collapse (BracesList $ map pretty ts)
+
 
 instance Unelab ACommand where
   type UnelabEnv ACommand = Naming
@@ -105,9 +124,20 @@ instance Unelab ACommand where
     DeclJudge em jd a -> DeclJudge em <$> subunelab jd <*> unelab a
     DefnJudge (jd, _, ch) a -> DefnJudge <$> ((,,) <$> subunelab jd <*> pure () <*> subunelab ch)
                               <*> withEnv (declareChannel ch initDAEnv) (unelab a)
+    ContractJudge pres stm posts -> ContractJudge <$> traverse subunelab pres <*> subunelab stm
+                                    <*> traverse subunelab posts
     DeclSyntax s -> DeclSyntax . map (first (WithRange unknown)) <$> traverse (traverse unelab) s
+    DeclStack stk stkTy -> DeclStack <$> subunelab stk <*> traverse unelab stkTy
+    ContractStack pres (stk, lhs, rhs) posts -> ContractStack <$> traverse subunelab pres
+                                                <*> fmap (, lhs, rhs) (subunelab stk)
+                                                <*> traverse subunelab posts
     Go a -> Go <$> withEnv initDAEnv (unelab a)
     Trace ts -> pure $ Trace ts
+
+instance Unelab AStatement where
+  type UnelabEnv AStatement = ()
+  type Unelabed AStatement = CStatement
+  unelab (Statement jd vars) = (`Statement` vars) <$> unelab jd
 
 instance Display ACommand where
   type DisplayEnv ACommand = Naming
@@ -128,12 +158,22 @@ pjudgeat = (,,) <$> pvariable <*> punc "@" <*> pvariable
 psyntax :: Parser (WithRange SyntaxCat, Raw)
 psyntax = (,) <$> withRange (WithRange unknown <$> patom) <* punc "=" <*> psyntaxdecl
 
+pstatement :: Parser CStatement
+pstatement = Statement <$> pvariable <*> many (id <$ pspc <*> pvariable)
+
+pconditions :: Parser [CStatement]
+pconditions = pcurlies (psep (punc ",") pstatement)
+
 pcommand :: Parser CCommand
 pcommand
     = DeclJudge <$> pextractmode <*> pvariable <* punc ":" <*> pprotocol
   <|> DefnJudge <$> pjudgeat <* punc "=" <*> pACT
+  <|> ContractJudge <$> pconditions <* pspc <*> pstatement <* pspc <*> pconditions
   <|> DeclSyntax <$ plit "syntax" <*> pcurlies (psep (punc ";") psyntax)
   <|> DeclStack <$> pvariable <* punc "|-" <*> pcontextstack
+  <|> ContractStack <$> pconditions <* pspc
+                    <*> ((,,) <$> pvariable <* punc "|-" <*> pvariable <* punc "->" <*> pvariable)
+                    <* pspc <*> pconditions
   <|> Go <$ plit "exec" <* pspc <*> pACT
   <|> Trace <$ plit "trace" <*> pcurlies (psep (punc ",") pmachinestep)
 
@@ -175,6 +215,12 @@ pmarkdown = concat <$ pmdspc <*> psep pmdspc (id <$> pfile <* pspc <* plit "```"
   pmdspc :: Parser ()
   pmdspc = Parser $ \ (Source str loc) -> here ((), toBlock str loc)
 
+scondition :: CStatement -> Elab AStatement
+scondition (Statement jd vars) = do
+ jd <- judgementName <$> isJudgement jd
+ -- TODO: additional checks for `vars`, maybe?
+ pure $ Statement jd vars
+
 scommand :: CCommand -> Elab (ACommand, Decls)
 scommand = \case
   DeclJudge em jd p -> during (DeclJElaboration jd) $ do
@@ -188,6 +234,12 @@ scommand = \case
     jd <- isJudgement jd
     a <- withChannel rp Rootwards ch (judgementProtocol jd) $ local (setElabMode Definition) (sact a)
     (DefnJudge (judgementName jd, judgementProtocol jd, ch) a,) <$> asks declarations
+  ContractJudge pres stm posts -> do
+    pres  <- traverse scondition pres
+    stm   <- scondition stm
+    posts <- traverse scondition posts
+    -- TODO : additional checks
+    (ContractJudge pres stm posts,) <$> asks declarations
   DeclSyntax syns -> do
     oldsyndecls <- gets (Map.keys . syntaxCats)
     let newsyndecls = map (theValue . fst) syns
@@ -202,6 +254,12 @@ scommand = \case
     stkTy <- scontextstack stkTy
     local (declare (Used stk) (AStack stkTy)) $ do
       (DeclStack (Stack stk) stkTy,) <$> asks declarations
+  ContractStack pres (stk, lhs, rhs) posts -> do
+    pres  <- traverse scondition pres
+    (stk,_) <- isContextStack stk
+    posts <- traverse scondition posts
+    -- TODO : additional checks for `lhs`, `rhs`
+    (ContractStack pres (stk, lhs, rhs) posts,) <$> asks declarations
   Go a -> during ExecElaboration $ (,) . Go <$> local (setElabMode Execution) (sact a) <*> asks declarations
   Trace ts -> (Trace ts,) <$> asks declarations
 
