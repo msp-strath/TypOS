@@ -106,7 +106,7 @@ instance Pretty CCommand where
   pretty = let prettyCds cds = collapse (BracesList $ pretty <$> cds) in \case
     DeclJudge em jd p -> hsep [pretty em <> pretty jd, colon, pretty p]
     DefnJudge (jd, _, ch) a -> hsep [pretty jd <> "@" <> pretty ch, equal, pretty a]
-    ContractJudge pres stm posts -> hsep [prettyCds pres, pretty stm, prettyCds posts] 
+    ContractJudge pres stm posts -> hsep [prettyCds pres, pretty stm, prettyCds posts]
     DeclSyntax s -> let docs = fmap (\ (cat, desc) -> pretty (theValue cat) <+> equal <+> pretty desc) s in
                keyword "syntax" <+> collapse (BracesList docs)
     DeclStack stk stkTy -> hsep [pretty stk, "|-", pretty stkTy]
@@ -115,7 +115,7 @@ instance Pretty CCommand where
                                                      , prettyCds posts]
     Go a -> keyword "exec" <+> pretty a
     Trace ts -> keyword "trace" <+> collapse (BracesList $ map pretty ts)
-    
+
 
 instance Unelab ACommand where
   type UnelabEnv ACommand = Naming
@@ -172,7 +172,7 @@ pcommand
   <|> DeclSyntax <$ plit "syntax" <*> pcurlies (psep (punc ";") psyntax)
   <|> DeclStack <$> pvariable <* punc "|-" <*> pcontextstack
   <|> ContractStack <$> pconditions <* pspc
-                    <*> ((,,) <$> pvariable <* pspc <*> pvariable <* punc "=" <*> pvariable)
+                    <*> ((,,) <$> pvariable <* punc "|-" <*> pvariable <* punc "->" <*> pvariable)
                     <* pspc <*> pconditions
   <|> Go <$ plit "exec" <* pspc <*> pACT
   <|> Trace <$ plit "trace" <*> pcurlies (psep (punc ",") pmachinestep)
@@ -220,7 +220,7 @@ scondition (Statement jd vars) = do
  jd <- judgementName <$> isJudgement jd
  -- TODO: additional checks for `vars`, maybe?
  pure $ Statement jd vars
- 
+
 scommand :: CCommand -> Elab (ACommand, Decls)
 scommand = \case
   DeclJudge em jd p -> during (DeclJElaboration jd) $ do

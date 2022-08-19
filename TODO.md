@@ -30,6 +30,10 @@
 * [x] Coverage checker for `case`
 * [x] Standalone stacks (attached to strings, not judgements)
 * [ ] Unification modulo computation
+* [ ] Guarding execution until validation
+   + [ ] Unique names for subactors
+   + [ ] block terms on names
+   + [ ] Blocking wrapper evaporates when named thing is `Done`
 
 ### Judgement Contracts
 
@@ -68,6 +72,7 @@
 * [ ] Make sure LaTeX output is valid LaTeX
 * [x] `data Actor (ph :: Phase)`?
 * [ ] Define `ElaborationMonad m =>` & cleanup sclause
+* [ ] Drop run-length encoding subst in favour of relevant subst
 
 
 ### Pretty
