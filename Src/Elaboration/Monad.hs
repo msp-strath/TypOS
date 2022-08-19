@@ -15,7 +15,7 @@ import Actor (ActorVar, AContextStack, AProtocol, Channel)
 import Bwd
 import Concrete.Base
 import Location (HasGetRange(..), Range, WithRange (..))
-import Syntax (SyntaxCat, SyntaxDesc, VSyntaxDesc'(..), VSyntaxDesc, SyntaxTable)
+import Syntax (SyntaxCat, SyntaxDesc, VSyntaxDesc'(..), VSyntaxDesc, SyntaxTable, wildcard)
 import qualified Syntax
 import Thin (Selable(..), DB (..), CdB (..))
 import Term.Base (Tm(..), atom)
@@ -175,6 +175,7 @@ type Decls = Bwd (String, Kind)
 data Context = Context
   { objVars      :: ObjVars
   , declarations :: Decls
+  , operators    :: Map String (SyntaxDesc, [SyntaxDesc])
   , location     :: Bwd Turn
   , binderHints  :: Hints
   , elabMode     :: ElabMode
@@ -183,10 +184,17 @@ data Context = Context
 type Hints = Map String (Info SyntaxDesc)
 
 data ElabMode = Definition | Execution
-  deriving (Eq, Show)
+              deriving (Eq, Show)
 
 initContext :: Context
-initContext = Context B0 B0 B0 Map.empty Definition
+initContext = Context
+  { objVars = B0
+  , declarations = B0
+  , operators = Map.fromList [("app", (wildcard,[wildcard]))]
+  , location = B0
+  , binderHints = Map.empty
+  , elabMode = Definition
+  }
 
 declareObjVar :: ObjVar -> Context -> Context
 declareObjVar x ctx = ctx { objVars = objVars ctx :< x }
@@ -287,6 +295,7 @@ data Complaint
   | NotAValidChannel Range Variable (Maybe Kind)
   | NotAValidBoundVar Range Variable
   | NotAValidActorVar Range Variable
+  | NotAValidOperator Range String
   -- protocol
   | InvalidSend Range Channel Raw
   | InvalidRecv Range Channel (Binder String)
@@ -314,6 +323,8 @@ data Complaint
   | ExpectedAConsPGot Range RawP
   | SyntaxError Range SyntaxDesc Raw
   | SyntaxPError Range SyntaxDesc RawP
+  | ExpectedAnOperator Range Raw
+  | ExpectedAnEmptyListGot Range [SyntaxDesc]
   -- contextual info
   -- shouldn't contain ranges because there should be a more precise one
   -- on the decorated complaint
@@ -357,6 +368,7 @@ instance HasGetRange Complaint where
     NotAValidChannel r _ _ -> r
     NotAValidBoundVar r _ -> r
     NotAValidActorVar r _ -> r
+    NotAValidOperator r _ -> r
   -- protocol
     InvalidSend r _ _ -> r
     InvalidRecv r _ _ -> r
@@ -384,6 +396,8 @@ instance HasGetRange Complaint where
     ExpectedAConsPGot r _ -> r
     SyntaxError r _ _ -> r
     SyntaxPError r _ _ -> r
+    ExpectedAnOperator r _ -> r
+    ExpectedAnEmptyListGot r _ -> r
   -- contextual info
   -- shouldn't contain ranges because there should be a more precise one
   -- on the decorated complaint

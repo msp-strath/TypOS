@@ -29,16 +29,17 @@ multiBind xs (Lam _ (Scope x t)) = multiBind (xs :< x) t
 multiBind xs t = backslash <> hsep (pretty <$> xs <>> []) <> dot <+> pretty t
 
 instance Pretty Raw where
-  pretty = \case
+  prettyPrec d = \case
     Var _ v -> pretty v
     At _ [] -> "[]"
     At _ at -> squote <> pretty at
     Cons _ p q -> brackets $ case pretty p : prettyCdr q of
       (d : ds@(_:_)) -> alts [flush d, d <> space] <> sep ds
       ds -> hsep ds
-    Lam _ (Scope x t) -> multiBind (B0 :< x) t
-    Sbst _ B0 t -> pretty t
-    Sbst _ sg t -> hsep [ pretty sg, pretty t ]
+    Lam _ (Scope x t) -> parenthesise (d > 0) $ multiBind (B0 :< x) t
+    Sbst _ B0 t -> prettyPrec d t
+    Sbst _ sg t -> parenthesise (d > 0) $ hsep [ pretty sg, pretty t ]
+    Op _ s t -> parenthesise (d > 0) $ hsep [ pretty s, "-", prettyPrec 1 t ]
 
 instance Pretty (Bwd SbstC) where
   pretty sg = braces (hsepBy "," $ pretty <$> sg <>> [])

@@ -24,6 +24,7 @@ import Utils
 
 import Elaboration.Monad
 import Term.Base
+import qualified Term.Base as Term
 import Term.Substitution
 import Pattern as P
 import Location
@@ -240,6 +241,21 @@ stm usage desc rt = do
           Unused -> do
             sc <- stm usage desc sc
             pure ((Hide "_" := False :.) $^ sc)
+      Op r rs ro -> case ro of
+        -- TODO: usage checking
+        At ra a -> do
+          (sdesc, psdesc) <- isOperator ra a
+          unless (null psdesc) $ throwError (ExpectedAnEmptyListGot r psdesc)
+          o <- stm usage (Syntax.contract VAtom) ro
+          s <- stm usage sdesc rs
+          pure (Term.contract (s :-: o))
+        Cons rp (At ra a) ps -> do
+          (sdesc, psdesc) <- isOperator ra a
+          o <- stms usage (Syntax.contract VAtom : psdesc) ro
+          s <- stm usage sdesc rs
+          pure (Term.contract (s :-: o))
+        _ -> throwError (ExpectedAnOperator (getRange ro) ro)
+
 
 spats :: [EScrutinee] -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
 spats [] (AtP r "") = (Nothing, AP "",,) <$> asks declarations <*> asks binderHints
@@ -363,6 +379,13 @@ isChannel ch = resolve ch >>= \case
   Just (Left (AChannel sc)) -> pure (Channel $ getVariable ch)
   Just mk -> throwError (NotAValidChannel (getRange ch) ch $ either Just (const Nothing) mk)
   Nothing -> throwError (OutOfScope (getRange ch) ch)
+
+isOperator :: Range -> String -> Elab (SyntaxDesc, [SyntaxDesc])
+isOperator r nm = do
+  ops <- asks operators
+  case Map.lookup nm ops of
+    Just res -> pure res
+    Nothing -> throwError (NotAValidOperator r nm)
 
 data IsJudgement = IsJudgement
   { judgementExtract :: ExtractMode

@@ -106,7 +106,8 @@ instance UnelabMeta m => Unelab (Tm m) where
            (B0 :< x, _, _) -> pure (Var unknown (Variable unknown x))
            na              -> throwError (VarOutOfScope na)
     A a -> pure (At unknown a)
-    P (s :<>: t) -> Cons unknown <$> unelab s <*> unelab t
+    P Cell (s :<>: t) -> Cons unknown <$> unelab s <*> unelab t
+    P Oper (s :<>: t) -> Op unknown <$> unelab s <*> unelab t
     (x := b) :. t -> Lam unknown . uncurry (Scope . Hide) <$> case b of
             False -> (Unused,) <$> unelab t
             True -> do

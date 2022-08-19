@@ -28,6 +28,9 @@ data VSyntaxDesc' a
   | VSyntaxCat a
   deriving (Eq, Show)
 
+wildcard :: SyntaxDesc
+wildcard = contract VWildcard
+
 type VSyntaxDesc = VSyntaxDesc' Void
 
 data WithSyntaxCat a where

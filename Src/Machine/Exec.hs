@@ -259,7 +259,7 @@ unify p@Process { stack = zf :<+>: UnificationProblem date s t : fs, ..} =
     (x :.: a, x' :.: a') -> unify (p { stack = zf :<+>: UnificationProblem date a a' : fs })
     (m :$: sg, _) | Just p <- solveMeta m sg t (p { stack = zf :<+>: fs }) -> unify p
     (_, m :$: sg) | Just p <- solveMeta m sg s (p { stack = zf :<+>: fs }) -> unify p
-    (_, _) -> unify (p { stack = zf :< UnificationProblem date s t :<+>: fs })
+    (s, t) -> unify (p { stack = zf :< UnificationProblem date (contract s) (contract t) :<+>: fs })
 unify p = move p
 
 deepCheck :: Th    -- D0 <= D
@@ -273,10 +273,10 @@ deepCheck th tm p =
   if is1s th' then pure (CdB t ph', p) else case t of
     V -> Nothing
     A at -> error "The IMPOSSIBLE happened in deepCheck"
-    P rp -> splirp (CdB rp ph) $ \a b -> do
-              (a, p) <- deepCheck th a p
-              (b, p) <- deepCheck th b p
-              pure (P $^ (a <&> b), p)
+    P k rp -> splirp (CdB rp ph) $ \a b -> do
+      (a, p) <- deepCheck th a p
+      (b, p) <- deepCheck th b p
+      pure (P k $^ (a <&> b), p)
     (nm := b) :. sc -> do (sc, p) <- deepCheck (th -? b) (CdB sc (ph -? b)) p
                           pure (unhide nm \\ sc, p)
     m :$ sg -> do (sg', th', p) <- pure $ strengthenSbst th sg p

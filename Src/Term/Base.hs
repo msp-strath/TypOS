@@ -7,10 +7,13 @@ import Bwd
 import Thin
 import Hide
 
+data Pairing = Cell | Oper
+  deriving (Show, Eq, Ord)
+
 data Tm m
   = V
   | A String
-  | P (RP (Tm m) (Tm m))
+  | P Pairing (RP (Tm m) (Tm m))
   | (:.) (Named Bool) (Tm m)
   | m :$ Sbst m
   deriving (Show, Eq, Ord)
@@ -18,12 +21,13 @@ data Tm m
 instance Traversable Tm where
   traverse f V = pure V
   traverse f (A a) = pure (A a)
-  traverse f (P (CdB s th :<>: CdB t ph)) =
-     P <$> ((:<>:) <$> (CdB <$> traverse f s <*> pure th)
-                   <*> (CdB <$> traverse f t <*> pure ph))
+  traverse f (P p (CdB s th :<>: CdB t ph)) =
+     P p <$> ((:<>:) <$> (CdB <$> traverse f s <*> pure th)
+                     <*> (CdB <$> traverse f t <*> pure ph))
   traverse f (xb :. t) = (xb :.) <$> traverse f t
   traverse f (m :$ (sg :^^ w)) =
     (:$) <$> f m <*> ((:^^ w) <$> traverse f sg)
+
 instance Functor Tm where fmap = fmapDefault
 instance Foldable Tm where foldMap = foldMapDefault
 
@@ -123,6 +127,7 @@ data Xn m
   = VX DB Int    -- which free variable out of how many?
   | AX String Int -- how many free variables?
   | CdB (Tm m) :%: CdB (Tm m)
+  | CdB (Tm m) :-: CdB (Tm m)
   | String :.: CdB (Tm m)
   | m :$: CdB (Sbst m)
   deriving (Eq, Show{-, Functor, Foldable, Traversable-})
@@ -131,7 +136,8 @@ expand :: CdB (Tm m) -> Xn m
 expand (CdB t th) = case t of
   V   -> VX (lsb th) (bigEnd th)
   A a -> AX a (bigEnd th)
-  P (s :<>: t) -> (s *^ th) :%: (t *^ th)
+  P Cell (s :<>: t) -> (s *^ th) :%: (t *^ th)
+  P Oper (s :<>: t) -> (s *^ th) :-: (t *^ th)
   (str := b) :. t -> unhide str :.: CdB t (th -? b)
   f :$ sg -> f :$: CdB sg th
 
@@ -142,7 +148,8 @@ contract :: Xn m -> CdB (Tm m)
 contract t = case t of
   VX x ga -> CdB V (inx (x, ga))
   AX a ga -> CdB (A a) (none ga)
-  s :%: t -> P $^ (s <&> t)
+  s :%: t -> P Cell $^ (s <&> t)
+  s :-: t -> P Oper $^ (s <&> t)
   x :.: CdB t th -> case thun th of
     (th, b) -> CdB ((Hide x := b) :. t) th
   m :$: sg -> (m :$) $^ sg
@@ -164,7 +171,7 @@ s % t = contract (s :%: t)
 
 (#%) :: (String, Int) -> [CdB (Tm m)] -> CdB (Tm m)
 (a, ga) #% ts = uncurry CdB $ case foldr (%) (nil ga) ts of
-  CdB t th -> (P (atom a ga :<>: CdB t (ones (weeEnd th))), th)
+  CdB t th -> (P Cell (atom a ga :<>: CdB t (ones (weeEnd th))), th)
 
 (#%+) :: String -> [CdB (Tm m)] -> CdB (Tm m)
 a #%+ ts = let ga = scope (head ts) in (a, ga) #% ts

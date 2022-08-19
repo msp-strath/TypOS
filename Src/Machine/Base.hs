@@ -40,11 +40,16 @@ updateStore m t st@Store{..} = tick $ st
   { solutions = Map.adjust (Just t <$) m solutions }
 
 headUp :: StoreF i -> Term -> Term
-headUp store term
-  | m :$: sg <- expand term
-  , Just (_, Just t) <- Map.lookup m (solutions store)
-  = headUp store (t //^ sg)
-  | otherwise = term
+headUp store term = case expand term of
+  m :$: sg | Just (_, Just t) <- Map.lookup m (solutions store)
+    -> headUp store (t //^ sg)
+  t :-: o -> case expand o of
+    CdB (A "app") th :%: warg -> case expand (headUp store warg) of
+      arg :%: _ -> case expand (headUp store t) of
+        x :.: b -> headUp store (b //^ topSbst x arg)
+        t -> contract (contract t :-: ("app" #%+ [arg]))
+    o -> contract (t :-: contract o)
+  _ -> term
 
 compareUp :: StoreF i -> Term -> Term -> Maybe Ordering
 compareUp store s t = case (expand (headUp store s), expand (headUp store t)) of
@@ -85,6 +90,7 @@ instance Instantiable Term where
     VX{}     -> term
     AX{}     -> term
     s :%: t  -> instantiate store s % instantiate store t
+    s :-: t  -> contract (instantiate store s :-: instantiate store t)
     x :.: b  -> x \\ instantiate store b
     m :$: sg -> case join $ fmap snd $ Map.lookup m (solutions store) of
       Nothing -> m $: sg -- TODO: instantiate sg
