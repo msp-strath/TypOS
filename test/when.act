@@ -1,5 +1,3 @@
-trace { exec, unify }
-
 test : 
 test@p = 'Wildcard?X.
  ( ('thing - ['when X]) ~ 'thing
