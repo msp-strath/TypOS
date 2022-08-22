@@ -286,5 +286,6 @@ run opts p@Process{..} (c : cs) = case c of
               rbranch = Process opts [] rroot env New a ()
           in run opts (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
   Trace xs -> let trac = guard (not $ quiet opts) >> fromMaybe (xs ++ tracing p) (tracingOption opts)
-              in run opts (p { options = opts { tracingOption = Just trac } }) cs
+                  newOpts = opts { tracingOption = Just trac }
+              in run newOpts (p { options = newOpts }) cs
   _ -> run opts p cs
