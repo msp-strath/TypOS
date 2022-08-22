@@ -1,0 +1,11 @@
+-- TODO: Declare operators before defining them
+
+(\x. t) - ['myApp s] ~> {x=s}t
+
+x - ['myWhen 'True] ~> x
+
+'zero - ['plus n] ~> n
+-- Elaboration fails because plus isn't recognised as an operator on the RHS
+-- ['succ m] - ['plus n] ~> ['succ (m - ['plus n])]
+m - ['plus 'zero] ~> m
+-- m - ['plus n] - ['plus x] ~> m - ['plus (n - ['plus x])]

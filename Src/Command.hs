@@ -45,6 +45,12 @@ type family PROTOCOL (ph :: Phase) :: *
 type instance PROTOCOL Concrete = ()
 type instance PROTOCOL Abstract = AProtocol
 
+type family OPERATOR (ph :: Phase) :: *
+type instance OPERATOR Concrete = (Range, String)
+type instance OPERATOR Abstract = Operator
+
+type OPPATTERN ph = (OPERATOR ph, [PATTERN ph])
+
 data STATEMENT (ph :: Phase)
   = Statement (JUDGEMENTFORM ph) [Variable]
 
@@ -57,6 +63,7 @@ data COMMAND (ph :: Phase)
   | ContractStack [STATEMENT ph] (STACK ph, Variable, Variable) [STATEMENT ph]
   | Go (ACTOR ph)
   | Trace [MachineStep]
+  | DefnOp (PATTERN ph) [OPPATTERN ph] (TERM ph)
 
 deriving instance
   ( Show (JUDGEMENTFORM ph)
@@ -72,6 +79,7 @@ deriving instance
   , Show (STACK ph)
   , Show (STACKDESC ph)
   , Show (SYNTAXCAT ph)
+  , Show (OPERATOR ph)
   , Show (PROTOCOL ph)
   , Show (LOOKEDUP ph)) =>
   Show (COMMAND ph)
@@ -84,6 +92,12 @@ type CCommand = COMMAND Concrete
 type ACommand = COMMAND Abstract
 type CStatement = STATEMENT Concrete
 type AStatement = STATEMENT Abstract
+type COpPattern = OPPATTERN Concrete
+type AOpPattern = OPPATTERN Abstract
+type COperator = OPERATOR Concrete
+type AOperator = OPERATOR Abstract
+type CPattern = PATTERN Concrete
+type APattern = PATTERN Abstract
 
 instance Display Mode where
   type DisplayEnv Mode = ()
@@ -176,6 +190,20 @@ pcommand
                     <* pspc <*> pconditions
   <|> Go <$ plit "exec" <* pspc <*> pACT
   <|> Trace <$ plit "trace" <*> pcurlies (psep (punc ",") pmachinestep)
+  <|> DefnOp <$> ppat <*> pdefnlhs <* punc "~>" <*> pTM
+ where
+  pdefnlhs :: Parser [COpPattern]
+  pdefnlhs = many (punc "-" *> (ppat >>= (pmustwork "Expected operator pattern" . help)))
+
+  help :: RawP -> Parser COpPattern
+  help (AtP r o) = pure ((r,o), [])
+  help (ConsP _ (AtP r o) tail) = ((r,o),) <$> listy tail
+  help _ = Other "Operator has no tag" <!> pfail
+
+  listy :: RawP -> Parser [RawP]
+  listy (AtP _ "") = pure []
+  listy (ConsP _ head tail) = (head:) <$> listy tail
+  listy _ = Other "Operator parameters not list like" <!> pfail
 
 pfile :: Parser [CCommand]
 pfile = id <$ pspc <*> psep pspc pcommand <* pspc
@@ -262,6 +290,31 @@ scommand = \case
     (ContractStack pres (stk, lhs, rhs) posts,) <$> asks declarations
   Go a -> during ExecElaboration $ (,) . Go <$> local (setElabMode Execution) (sact a) <*> asks declarations
   Trace ts -> (Trace ts,) <$> asks declarations
+  DefnOp p opargs rhs -> do
+    (mr1, p, decls, hints) <- spat (ActorVar unknown (IsNotSubject, wildcard)) p
+    (opargs, decls, hints) <- local (setDecls decls . setHints hints) $
+                              sopargs opargs
+    rhs <- local (setDecls decls . setHints hints) $ stm DontLog wildcard rhs
+    (DefnOp p opargs rhs,) <$> asks declarations
+
+sopargs :: [COpPattern] -> Elab ([AOpPattern], Decls, Hints)
+sopargs [] = ([],,) <$> asks declarations <*> asks binderHints
+sopargs ((op, args):xs) = do
+  op <- soperator op
+  (args, decls, hints) <- splat args
+  (rest, decls, hints) <- local (setDecls decls . setHints hints) $ sopargs xs
+  pure ((op, args):rest, decls, hints)
+ where
+  splat :: [CPattern] -> Elab ([APattern], Decls, Hints)
+  splat [] = ([],,) <$> asks declarations <*> asks binderHints
+  splat (p:ps) = do
+    (_, p, decls, hints) <- spat (ActorVar unknown (IsNotSubject, wildcard)) p
+    (ps, decls, hints) <- local (setDecls decls . setHints hints) $ splat ps
+    pure (p:ps, decls, hints)
+
+-- TODO: Scope checking
+soperator :: COperator -> Elab AOperator
+soperator (_, tag) = pure (Operator tag)
 
 scommands :: [CCommand] -> Elab [ACommand]
 scommands [] = pure []
