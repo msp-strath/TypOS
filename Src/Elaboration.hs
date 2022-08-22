@@ -245,7 +245,7 @@ stm usage desc rt = do
         -- TODO: usage checking
         At ra a -> do
           (sdesc, psdesc) <- isOperator ra a
-          unless (null psdesc) $ throwError (ExpectedAnEmptyListGot r psdesc)
+          unless (null psdesc) $ throwError (ExpectedAnEmptyListGot r a psdesc)
           o <- stm usage (Syntax.contract VAtom) ro
           s <- stm usage sdesc rs
           pure (Term.contract (s :-: o))

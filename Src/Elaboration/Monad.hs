@@ -324,7 +324,7 @@ data Complaint
   | SyntaxError Range SyntaxDesc Raw
   | SyntaxPError Range SyntaxDesc RawP
   | ExpectedAnOperator Range Raw
-  | ExpectedAnEmptyListGot Range [SyntaxDesc]
+  | ExpectedAnEmptyListGot Range String [SyntaxDesc]
   -- contextual info
   -- shouldn't contain ranges because there should be a more precise one
   -- on the decorated complaint
@@ -397,7 +397,7 @@ instance HasGetRange Complaint where
     SyntaxError r _ _ -> r
     SyntaxPError r _ _ -> r
     ExpectedAnOperator r _ -> r
-    ExpectedAnEmptyListGot r _ -> r
+    ExpectedAnEmptyListGot r _ _ -> r
   -- contextual info
   -- shouldn't contain ranges because there should be a more precise one
   -- on the decorated complaint
