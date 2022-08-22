@@ -13,6 +13,8 @@ protocol. Actors may spawn other actors: child processes which
 correspond to the premises of typing rules. Actors communicate with
 one another along channels, in accordance with their stated protocol.
 
+More details in this [TYPES talk ](https://www.youtube.com/watch?v=2ZmoexvTw6c).
+
 ## Installation
 
 You will need to have the `GHC` Haskell compiler and the `cabal` tool on your system. To install, clone the repository, and execute
