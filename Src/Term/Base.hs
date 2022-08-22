@@ -126,10 +126,10 @@ sbstSel th (ST (CdB sg phl{- del <= de -} :<>: t) :^^ w) =
 data Xn m
   = VX DB Int    -- which free variable out of how many?
   | AX String Int -- how many free variables?
-  | CdB (Tm m) :%: CdB (Tm m)
-  | CdB (Tm m) :-: CdB (Tm m)
-  | String :.: CdB (Tm m)
-  | m :$: CdB (Sbst m)
+  | CdB (Tm m) :%: CdB (Tm m) -- pairing
+  | CdB (Tm m) :-: CdB (Tm m) -- operator
+  | String :.: CdB (Tm m) -- abstraction
+  | m :$: CdB (Sbst m) -- meta + sbst
   deriving (Eq, Show{-, Functor, Foldable, Traversable-})
 
 expand :: CdB (Tm m) -> Xn m

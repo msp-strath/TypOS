@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, StandaloneDeriving #-}
+{-# LANGUAGE ExistentialQuantification #-}
 
 module Machine.Base where
 
@@ -39,29 +40,53 @@ updateStore :: Meta -> Term -> StoreF i -> StoreF i
 updateStore m t st@Store{..} = tick $ st
   { solutions = Map.adjust (Just t <$) m solutions }
 
-headUp :: StoreF i -> Term -> Term
-headUp store term = case expand term of
-  m :$: sg | Just (_, Just t) <- Map.lookup m (solutions store)
-    -> headUp store (t //^ sg)
+data HeadUpData = forall i. HeadUpData
+  { opTable :: Operator -> Clause
+  , metaStore :: StoreF i
+  }
+
+mkOpTable :: Bwd Frame -> Operator -> Clause
+mkOpTable _ (Operator "app") = appClause
+mkOpTable fs op = flip foldMap fs $ \case
+  Extended op' cl | op == op' -> cl
+  _ -> mempty
+
+-- Expanding the term using the information currently available:
+-- + meta solutions
+-- + operator clauses
+headUp :: HeadUpData -> Term -> Term
+headUp dat@HeadUpData{..} term = case expand term of
+  m :$: sg | Just (_, Just t) <- Map.lookup m (solutions metaStore)
+    -> headUp dat (t //^ sg)
   t :-: o -> case expand o of
-    CdB (A "app") th :%: warg -> case expand (headUp store warg) of
-      arg :%: _ -> case expand (headUp store t) of
-        x :.: b -> headUp store (b //^ topSbst x arg)
-        t -> contract (contract t :-: ("app" #%+ [arg]))
+    AX op i -> operate (Operator op) (t, [])
+    o@(CdB (A op) th :%: wargs) ->
+      case asList (\ ps -> pure $ operate (Operator op) (t, ps)) wargs of
+        Nothing -> contract (t :-: contract o)
+        Just t -> t
     o -> contract (t :-: contract o)
   _ -> term
 
-compareUp :: StoreF i -> Term -> Term -> Maybe Ordering
-compareUp store s t = case (expand (headUp store s), expand (headUp store t)) of
+  where
+
+  operate :: Operator -> (Term, [Term]) -> Term
+  operate op tps = case runClause (opTable op) (headUp dat) tps of
+    Left (t, []) -> contract (t :-: contract (AX (getOperator op) (scope term)))
+    Left (t, ps) -> contract (t :-: (getOperator op #%+ ps))
+    Right t -> headUp dat t
+
+
+compareUp :: HeadUpData -> Term -> Term -> Maybe Ordering
+compareUp dat s t = case (expand (headUp dat s), expand (headUp dat t)) of
   (VX i _, VX j _) -> pure (compare i j)
   (AX a _, AX b _) -> pure (compare a b)
   (p :%: q, a :%:b) -> do
-    c1 <- compareUp store p a
+    c1 <- compareUp dat p a
     case c1 of
-      EQ -> compareUp store q b
+      EQ -> compareUp dat q b
       _ -> pure c1
-  (x :.: b, y :.: c) -> compareUp store b c
-  (m :$: sg, n :$: sg') | m == n, Just EQ <- comparesUp store sg sg' -> pure EQ
+  (x :.: b, y :.: c) -> compareUp dat b c
+  (m :$: sg, n :$: sg') | m == n, Just EQ <- comparesUp dat sg sg' -> pure EQ
   (m :$: sg, _) -> Nothing
   (_, m :$: sg) -> Nothing
   (VX{}, _) -> pure LT
@@ -71,8 +96,8 @@ compareUp store s t = case (expand (headUp store s), expand (headUp store t)) of
   ((:%:){}, _) -> pure LT
   (_, (:%:){}) -> pure GT
 
-comparesUp :: StoreF i -> Subst -> Subst -> Maybe Ordering
-comparesUp store sg sg' = compareUp store (toTerm sg) (toTerm sg') where
+comparesUp :: HeadUpData -> Subst -> Subst -> Maybe Ordering
+comparesUp dat sg sg' = compareUp dat (toTerm sg) (toTerm sg') where
 
   toTerm (CdB sg th) = ("Hack", bigEnd th) #% (Substitution.expand sg th <>> [])
 
@@ -136,6 +161,34 @@ isDone :: Status -> Bool
 isDone Done = True
 isDone _ = False
 
+data Operator = Operator { getOperator :: String }
+  deriving (Show, Eq)
+
+newtype Clause = Clause { runClause
+  :: (Term -> Term) -- head normaliser
+  -> (Term, [Term]) -- object & parameters
+  -> Either (Term, [Term]) Term }
+
+instance Semigroup Clause where
+  (<>) = mappend
+
+instance Monoid Clause where
+  mempty = Clause $ const Left
+  mappend cl1 cl2 = Clause $ \ hd ops -> case runClause cl2 hd ops of
+    Left ops -> runClause cl1 hd ops
+    Right t -> Right t
+
+instance Show Clause where
+  show _ = "<fun>"
+
+appClause :: Clause
+appClause = Clause $ \ hd (t, args) ->
+  case args of
+    [arg] -> case expand (hd t) of
+      x :.: b -> Right (b //^ topSbst x arg)
+      t -> Left (contract t, args)
+    _ -> Left (t, args)
+
 data Frame
   = Rules JudgementForm AProtocol (Channel, AActor)
   | LeftBranch Hole (Process () Status [])
@@ -144,10 +197,12 @@ data Frame
   | Spawner (Interface (Process () Status []) Hole)
   | Sent Channel ([String], Term)
   | Pushed Stack (DB, SyntaxDesc, Term)
+  | Extended Operator Clause
   | Binding String
   | UnificationProblem Date Term Term
   | Noted
   deriving (Show)
+
 status :: [Frame] -> ACTOR ph -> Date -> Status
 status fs a d = minimum (actorStatus a : map frameStatus fs)
 
@@ -175,10 +230,10 @@ data Process l s t
   { options :: Options
   , stack   :: t Frame -- Stack frames ahead of or behind us
   , root    :: Root    -- Name supply
-  , env     :: Env     -- definitions in scope
+  , env     :: Env     -- Definitions in scope
   , store   :: s       -- Definitions we know for metas (or not)
   , actor   :: AActor  -- The thing we are
-  , logs    :: l
+  , logs    :: l       -- The shots of the VM's state we have taken
   }
 
 tracing :: Process log s t -> [MachineStep]
