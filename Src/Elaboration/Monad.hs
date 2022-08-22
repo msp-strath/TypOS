@@ -190,7 +190,9 @@ initContext :: Context
 initContext = Context
   { objVars = B0
   , declarations = B0
-  , operators = Map.fromList [("app", (wildcard,[wildcard]))]
+  , operators = Map.fromList [("app", (wildcard,[wildcard]))
+                             ,("when", (wildcard
+                                       ,[Syntax.contract (VEnumOrTag ["True"] [])]))]
   , location = B0
   , binderHints = Map.empty
   , elabMode = Definition

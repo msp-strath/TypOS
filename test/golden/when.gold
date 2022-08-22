@@ -1,0 +1,12 @@
+ret > ExitSuccess
+out > 'thing - ['when 'True]
+out > test 
+out >
+err >
+err > exec 
+err >   [<test |-@p {}, <> | ([] New [] test@p.)]
+err >   0: []
+err >   
+err >   
+err >
+err >

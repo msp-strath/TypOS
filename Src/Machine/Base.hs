@@ -47,6 +47,7 @@ data HeadUpData = forall i. HeadUpData
 
 mkOpTable :: Bwd Frame -> Operator -> Clause
 mkOpTable _ (Operator "app") = appClause
+mkOpTable _ (Operator "when") = whenClause
 mkOpTable fs op = flip foldMap fs $ \case
   Extended op' cl | op == op' -> cl
   _ -> mempty
@@ -188,6 +189,13 @@ appClause = Clause $ \ hd (t, args) ->
       x :.: b -> Right (b //^ topSbst x arg)
       t -> Left (contract t, args)
     _ -> Left (t, args)
+
+whenClause :: Clause
+whenClause = Clause $ \ hd (t, args) -> case args of
+  [arg] -> case expand (hd arg) of
+    AX "True" _ -> Right t
+    arg -> Left (t, [contract arg])
+  _ ->  Left (t, args)
 
 data Frame
   = Rules JudgementForm AProtocol (Channel, AActor)
