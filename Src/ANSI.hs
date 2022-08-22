@@ -35,6 +35,13 @@ data Annotation
 -- | The "magic" of how to get a terminal to output annotated text is
 -- only known inside this function.  Similarly for the details of the
 -- meaning of 'weight' and 'layer'
+--
+-- TODO: Unfortuntely these don't nest well because at the end of an
+-- annotation span we use a code that resets the whole stack of annotations.
+-- The pretty printer does some extra work to merge nested annotations into
+-- contiguous spans which can then be highlighted using raw ANSI codes.
+-- So this "secret" is not at all respected and this should be deal with
+-- better.
 withANSI :: [Annotation] -> String -> String
 withANSI [] str = str
 withANSI anns str = concat
