@@ -1,6 +1,14 @@
 ret > ExitSuccess
 out > Warning: mlttList.act:202:36-37
 out > Sent subject e is not a subject variable
+out > when elaborating a case branch handling the pattern ['Emb e a]
+out > when elaborating a case branch handling the pattern ['ListRec
+out >                                                      \xs. T
+out >                                                      n
+out >                                                      \y ys ih. c]
+out > when elaborating a case branch handling the pattern ['Rad t ['List S]]
+out > when elaborating a case branch handling the pattern ['App f s]
+out > when elaborating the judgement definition for evalSynth
 out > two plus two is ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt] ['Plus ['Sing 'Tt]
 out >                                                              ['Sing 'Tt]]]].
 out >

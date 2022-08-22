@@ -4,8 +4,13 @@ out > Incomplete pattern matching. The following patterns are missing:
 out >   'Ty
 out >   ['Lam \_. a]
 out >   ['Emb a]
+out > when elaborating a case branch handling the pattern [['App f1 s1] 'App f2 s2]
+out > when elaborating a case branch handling the pattern 'Nothing
+out > when elaborating the judgement definition for equalSynthWorker
 out > Warning: mltt2.act:110:6-11
 out > Unreachable clause [x | y]
+out > when elaborating a case branch handling the pattern 'Nothing
+out > when elaborating the judgement definition for equalSynthWorker
 out > Other 'Ty
 out > Other 'Ty
 out > Other 'Ty

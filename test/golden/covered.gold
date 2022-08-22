@@ -1,28 +1,35 @@
 ret > ExitSuccess
 out > Warning: covered.act:5:4-9
 out > Unreachable clause 'Atom
+out > when elaborating the judgement definition for coveredAtom
 out > Warning: covered.act:2:22-6:3
 out > Incomplete pattern matching. The following pattern is missing:
 out >   _
+out > when elaborating the judgement definition for coveredAtom
 out > Warning: covered.act:22:13-25:3
 out > Incomplete pattern matching. The following pattern is missing:
 out >   ['Succ a]
+out > when elaborating the judgement definition for foo
 out > Warning: covered.act:30:15-33:3
 out > Incomplete pattern matching. The following patterns are missing:
 out >   ['Node ['Node a b c] d ['Leaf e]]
 out >   ['Node ['Leaf a] b ['Node c d e]]
 out >   ['Node ['Leaf a] b ['Leaf c]]
 out >   ['Leaf ['Succ a]]
+out > when elaborating the judgement definition for toNat
 out > Warning: covered.act:41:4-37
 out > Unreachable clause ['Node ['Node _ _ _] _ ['Leaf _]]
+out > when elaborating the judgement definition for separate
 out > Warning: covered.act:42:4-37
 out > Unreachable clause ['Node ['Leaf _] _ ['Node _ _ _]]
+out > when elaborating the judgement definition for separate
 out > Warning: covered.act:36:18-43:3
 out > Incomplete pattern matching. The following patterns are missing:
 out >   ['Node ['Node a b c] ['Succ d] ['Node e f g]]
 out >   ['Node ['Leaf a] ['Succ b] ['Leaf c]]
 out >   ['Leaf 'Zero]
 out >   ['Leaf ['Succ ['Succ a]]]
+out > when elaborating the judgement definition for separate
 out >
 out >
 err >

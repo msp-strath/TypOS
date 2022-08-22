@@ -1,8 +1,17 @@
 ret > ExitSuccess
 out > Warning: mltt.act:47:35-51
 out > Sent subject {v=['Rad ns S]} T is not a subject variable
+out > when elaborating a case branch handling the pattern ['Pi S \v. T]
+out > when elaborating a case branch handling the pattern ['App f s]
+out > when elaborating a case branch handling the pattern 'Nothing
+out > when elaborating the judgement definition for synth
 out > Warning: mltt.act:49:46-65
 out > Sent subject {x=['Rad ns S]} body is not a subject variable
+out > when elaborating a case branch handling the pattern ['Lam \x. body]
+out > when elaborating a case branch handling the pattern ['Pi S \v. T]
+out > when elaborating a case branch handling the pattern ['App f s]
+out > when elaborating a case branch handling the pattern 'Nothing
+out > when elaborating the judgement definition for synth
 out > ['Pi ['Pi 'Ty \x. ['Emb x]] \_. ['Pi 'Ty \x. ['Emb x]]]
 out > ['Lam \a. ['Emb a]]
 out >

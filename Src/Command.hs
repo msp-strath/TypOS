@@ -270,7 +270,7 @@ scommands (c:cs) = do
   cs <- local (setDecls ds) $ scommands cs
   pure (c:cs)
 
-elaborate :: [CCommand] -> Either Complaint ([Warning], [ACommand], SyntaxTable)
+elaborate :: [CCommand] -> Either (WithStackTrace Complaint) ([WithStackTrace Warning], [ACommand], SyntaxTable)
 elaborate ccs = evalElab $ do
   acs <- scommands ccs
   st <- get

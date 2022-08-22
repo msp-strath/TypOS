@@ -1,24 +1,39 @@
 ret > ExitSuccess
 out > Warning: subject-scrutinising-fail.act:4:8-7:3
 out > Received subject b on channel p and did not scrutinise it
+out > when elaborating the judgement definition for not
 out > Warning: subject-scrutinising-fail.act:10:15-16:3
 out > Inconsistent scrutinisation of subject in match
+out > when elaborating a match with case scrutinee compare 'True 'True
+out > when elaborating the judgement definition for silly
 out > Warning: subject-scrutinising-fail.act:21:33-34
 out > Subject pattern thrown away using an underscore
+out > when elaborating the judgement definition for rejectedFake
 out > Warning: subject-scrutinising-fail.act:22:19-24:0
 out > Received subject i on channel p and did not scrutinise it
+out > when elaborating the judgement definition for rerejectedFake
 out > Warning: subject-scrutinising-fail.act:29:20-35:3
 out > Inconsistent scrutinisation of subject in match
+out > when elaborating a match with case scrutinee compare 'True 'True
+out > when elaborating the judgement definition for impossible
 out > Warning: subject-scrutinising-fail.act:47:16-50:3
 out > Inconsistent scrutinisation of subject in match
+out > when elaborating a match with case scrutinee lookup stack tm
+out > when elaborating the judgement definition for isVar
 out > Warning: subject-scrutinising-fail.act:54:4-21
 out > Pattern subject x did not get scrutinised
+out > when elaborating a case branch handling the pattern [['Just b] | x]
+out > when elaborating the judgement definition for strictIsVarCombo
 out > Warning: subject-scrutinising-fail.act:61:11-16
 out > Subject pattern thrown away using an underscore
+out > when elaborating the judgement definition for sillyId
 out > Warning: subject-scrutinising-fail.act:62:12-17
 out > Subject pattern thrown away using an underscore
+out > when elaborating the judgement definition for sillyId
 out > Warning: subject-scrutinising-fail.act:67:47-61
 out > Sent subject {x=z, y=z} body is not a subject variable
+out > when elaborating a case branch handling the pattern \x y. body
+out > when elaborating the judgement definition for renamingSubjects
 out >
 err >
 err >

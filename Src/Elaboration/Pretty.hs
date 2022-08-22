@@ -6,7 +6,6 @@ import Data.Foldable
 
 import ANSI hiding (withANSI)
 import Actor (ActorMeta(..), Channel(..), Stack(..))
-import Bwd
 import Concrete.Base (Mode, Binder (..))
 import Concrete.Pretty()
 import Doc
@@ -72,99 +71,99 @@ instance Pretty Warning where
       UnderscoreOnSubject r -> hsep ["Subject pattern thrown away using an underscore"]
       InconsistentScrutinisation r -> hsep ["Inconsistent scrutinisation of subject in match"]
 
+instance Pretty ContextualInfo where
+  pretty = \case
+    SendTermElaboration ch t -> hsep ["when elaborating", fold [ pretty ch, "!", pretty t ] ]
+    MatchScrutineeElaboration t -> hsep ["when elaborating the case scrutinee", pretty t]
+    MatchElaboration t -> hsep ["when elaborating a match with case scrutinee", pretty t]
+    MatchBranchElaboration p -> hsep ["when elaborating a case branch handling the pattern", pretty p]
+    ConstrainTermElaboration t -> hsep ["when elaborating a constraint involving", pretty t]
+    ConstrainSyntaxCatGuess s t -> hsep ["when guessing syntactic categories for", pretty s, pretty t]
+    CompareTermElaboration t -> hsep ["when elaborating a comparison involving", pretty t]
+    CompareSyntaxCatGuess s t -> hsep ["when guessing syntactic categories for", pretty s, pretty t]
+    FreshMetaElaboration -> "when declaring a fresh metavariable"
+    UnderElaboration -> "when binding a local variable"
+    RecvMetaElaboration ch -> hsep ["when receiving a value on channel", pretty ch]
+    PushTermElaboration t -> hsep ["when pushing the term", pretty t]
+    LookupVarElaboration t -> hsep ["when looking up the actor variable", pretty t]
+    DeclJElaboration jd -> hsep ["when elaborating the judgement declaration for", pretty jd]
+    DefnJElaboration jd -> hsep ["when elaborating the judgement definition for", pretty jd]
+    ExecElaboration -> hsep ["when elaborating an exec statement"]
+    DeclaringSyntaxCat cat -> hsep ["when elaborating the syntax declaration for", pretty cat]
+    SubstitutionElaboration sg -> hsep ["when elaborating the substitution", pretty sg]
+    PatternVariableElaboration v -> hsep ["when elaborating the pattern variable", pretty v]
+    TermVariableElaboration v -> hsep ["when elaborating the term variable", pretty v]
+    ProtocolElaboration p -> hsep ["when elaborating the protocol", pretty p]
+    ConnectElaboration ch1 ch2 -> hsep ["when elaborating the connection", pretty ch1, "<->", pretty ch2]
+
 instance Pretty Complaint where
 
-  pretty = vcat . (<>> []) . go where
-
-    go :: Complaint -> Bwd (Doc Annotations)
-    go = \case
-     -- scope
-     OutOfScope r x -> singleton $ (flush $ pretty r) <> hsep ["Out of scope variable", pretty x]
-     MetaScopeTooBig r x sc1 sc2 -> singleton $ (flush $ pretty r) <>
-         hsep [ "Cannot use", pretty x
-              , "here as it is defined in too big a scope"
-              , parens (hsep [ collapse (pretty <$> sc1)
-                             , "won't fit in"
-                             , collapse (pretty <$> sc2) ])]
-     VariableShadowing r x -> singleton $ (flush $ pretty r) <> hsep [pretty x, "is already defined"]
-     EmptyContext r -> singleton $ (flush $ pretty r) <> "Tried to pop an empty context"
-     NotTopVariable r x y -> singleton $ (flush $ pretty r) <>
-           hsep [ "Expected", pretty x, "to be the top variable"
-                , "but found", pretty y, "instead"]
-     -- kinding
-     NotAValidTermVariable r x k -> singleton $ (flush $ pretty r) <>
-        hsep ["Invalid term variable", pretty x, "refers to", pretty k]
-     NotAValidPatternVariable r x k -> singleton $
-        (flush $ pretty r) <> hsep ["Invalid pattern variable", pretty x, "refers to", pretty k]
-     NotAValidJudgement r x mk -> singleton $ (flush $ pretty r) <>
-        hsep ["Invalid judgement variable", pretty x
-             , "refers to", maybe "a bound variable" pretty mk]
-     NotAValidStack r x mk -> singleton $ (flush $ pretty r) <>
-        hsep ["Invalid context stack variable", pretty x
-             , "refers to", maybe "a bound variable" pretty mk]
-     NotAValidChannel r x mk -> singleton $ (flush $ pretty r) <>
-        hsep ["Invalid channel variable", pretty x
-             , "refers to", maybe "a bound variable" pretty mk]
-     NotAValidBoundVar r x -> singleton $ (flush $ pretty r) <>
-       hsep ["Invalid bound variable", pretty x]
-     NotAValidActorVar r x -> singleton $ (flush $ pretty r) <>
-       hsep ["Invalid actor variable", pretty x]
-     -- protocol
-     InvalidSend r ch tm -> singleton $ (flush $ pretty r) <> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
-     InvalidRecv r ch v -> singleton $ (flush $ pretty r) <> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]
-     NonLinearChannelUse r ch -> singleton $ (flush $ pretty r) <> hsep ["Non linear use of channel", pretty ch]
-     UnfinishedProtocol r ch p -> singleton $ (flush $ pretty r) <>
-       hsep ["Unfinished protocol", parens (pretty p), "on channel", pretty ch]
-     InconsistentCommunication r -> singleton $ (flush $ pretty r) <> hsep ["Inconsistent communication"]
-     DoomedBranchCommunicated r a -> singleton $ (flush $ pretty r) <> hsep ["Doomed branch communicated", pretty a]
-     ProtocolsNotDual r ps qs -> singleton $ (flush $ pretty r) <> hsep ["Protocols", pretty ps, "and", pretty qs, "are not dual"]
-     IncompatibleModes r m1 m2 -> singleton $ (flush $ pretty r) <> hsep ["Modes", pretty m1, "and", pretty m2, "are incompatible"]
-     IncompatibleChannelScopes r sc1 sc2 -> singleton $ (flush $ pretty r) <> hsep ["Channels scopes", collapse (pretty <$> sc1), "and", collapse (pretty <$> sc2), "are incompatible"]
-     -- syntaxes
-     AlreadyDeclaredSyntaxCat r x -> singleton $ (flush $ pretty r) <> hsep ["The syntactic category", pretty x, "is already defined"]
-     WrongDirection r m1 dir m2 -> singleton $ (flush $ pretty r) <> hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]
+  pretty c = flush (pretty (getRange c)) <> case c of
+    -- scope
+    OutOfScope r x -> hsep ["Out of scope variable", pretty x]
+    MetaScopeTooBig r x sc1 sc2 ->
+        hsep [ "Cannot use", pretty x
+             , "here as it is defined in too big a scope"
+             , parens (hsep [ collapse (pretty <$> sc1)
+                            , "won't fit in"
+                            , collapse (pretty <$> sc2) ])]
+    VariableShadowing r x -> hsep [pretty x, "is already defined"]
+    EmptyContext r -> "Tried to pop an empty context"
+    NotTopVariable r x y ->
+          hsep [ "Expected", pretty x, "to be the top variable"
+               , "but found", pretty y, "instead"]
+    -- kinding
+    NotAValidTermVariable r x k -> hsep ["Invalid term variable", pretty x, "refers to", pretty k]
+    NotAValidPatternVariable r x k -> hsep ["Invalid pattern variable", pretty x, "refers to", pretty k]
+    NotAValidJudgement r x mk ->
+       hsep ["Invalid judgement variable", pretty x
+            , "refers to", maybe "a bound variable" pretty mk]
+    NotAValidStack r x mk ->
+       hsep ["Invalid context stack variable", pretty x
+            , "refers to", maybe "a bound variable" pretty mk]
+    NotAValidChannel r x mk ->
+       hsep ["Invalid channel variable", pretty x
+            , "refers to", maybe "a bound variable" pretty mk]
+    NotAValidBoundVar r x -> hsep ["Invalid bound variable", pretty x]
+    NotAValidActorVar r x -> hsep ["Invalid actor variable", pretty x]
+    -- protocol
+    InvalidSend r ch tm -> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
+    InvalidRecv r ch v -> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]
+    NonLinearChannelUse r ch -> hsep ["Non linear use of channel", pretty ch]
+    UnfinishedProtocol r ch p ->
+      hsep ["Unfinished protocol", parens (pretty p), "on channel", pretty ch]
+    InconsistentCommunication r -> hsep ["Inconsistent communication"]
+    DoomedBranchCommunicated r a -> hsep ["Doomed branch communicated", pretty a]
+    ProtocolsNotDual r ps qs -> hsep ["Protocols", pretty ps, "and", pretty qs, "are not dual"]
+    IncompatibleModes r m1 m2 -> hsep ["Modes", pretty m1, "and", pretty m2, "are incompatible"]
+    IncompatibleChannelScopes r sc1 sc2 ->
+      hsep [ "Channels scopes", collapse (pretty <$> sc1)
+           , "and", collapse (pretty <$> sc2), "are incompatible"]
+    -- syntaxes
+    AlreadyDeclaredSyntaxCat r x -> hsep ["The syntactic category", pretty x, "is already defined"]
+    WrongDirection r m1 dir m2 -> hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]
   -- syntaxdesc validation
-     InconsistentSyntaxDesc r -> singleton $ (flush $ pretty r) <> "Inconsistent syntactic descriptions"
-     InvalidSyntaxDesc r d -> singleton $ (flush $ pretty r) <> hsep ["Invalid syntax desc", pretty d]
-     IncompatibleSyntaxDescs r desc desc' -> singleton $ (flush $ pretty r) <>
-       hsep ["Incompatible syntax descriptions", prettyPrec 1 desc, "and", prettyPrec 1 desc']
-     IncompatibleSyntaxInfos r info1 info2 -> singleton $ (flush $ pretty r) <>
-       hsep ["Syntax infos", pretty info1, "and", pretty info2, "are incompatible"]
-     GotBarredAtom r a as -> singleton $ (flush $ pretty r) <> hsep
-       [ squote <> pretty a, "is one of the barred atoms", collapse (map pretty as) ]
-     ExpectedNilGot r at -> singleton $ (flush $ pretty r) <> hsep ["Expected [] and got", squote <> pretty at]
-     ExpectedEnumGot r es e -> singleton $ (flush $ pretty r) <+> "Expected" <+> sep
-       [ hsep ["an atom among", collapse (map pretty es)]
-       , hsep ["and got", pretty e]]
-     ExpectedTagGot r ts t -> singleton $ (flush $ pretty r) <+> "Expected" <+> sep
-       [ hsep ["a tag among", collapse (map pretty ts) ]
-       , hsep ["and got", pretty t]]
-     ExpectedANilGot r t -> singleton $ (flush $ pretty r) <> hsep ["Expected the term [] and got", pretty t]
-     ExpectedANilPGot r p -> singleton $ (flush $ pretty r) <> hsep ["Expected the pattern [] and got", pretty p]
-     ExpectedAConsGot r t -> singleton $ (flush $ pretty r) <> hsep ["Expected a cons cell and got", pretty t]
-     ExpectedAConsPGot r p -> singleton $ (flush $ pretty r) <> hsep ["Expected a patternf for a cons cell and got", pretty p]
-     SyntaxError r d t -> singleton $ (flush $ pretty r) <> hsep ["Term", pretty t, "does not match", pretty d]
-     SyntaxPError r d p -> singleton $ (flush $ pretty r) <> hsep ["Pattern", pretty p, "does not match", pretty d]
-     -- contextual info
-     SendTermElaboration ch t c -> go c :< hsep ["when elaborating", fold [ pretty ch, "!", pretty t ] ]
-     MatchScrutineeElaboration t c -> go c :< hsep ["when elaborating the case scrutinee", pretty t]
-     MatchElaboration t c -> go c :< hsep ["when elaborating a match with case scrutinee", pretty t]
-     MatchBranchElaboration p c -> go c :< hsep ["when elaborating a case branch handling the pattern", pretty p]
-     ConstrainTermElaboration t c -> go c :< hsep ["when elaborating a constraint involving", pretty t]
-     ConstrainSyntaxCatGuess s t c -> go c :< hsep ["when guessing syntactic categories for", pretty s, pretty t]
-     CompareTermElaboration t c -> go c :< hsep ["when elaborating a comparison involving", pretty t]
-     CompareSyntaxCatGuess s t c -> go c :< hsep ["when guessing syntactic categories for", pretty s, pretty t]
-     FreshMetaElaboration c -> go c :< "when declaring a fresh metavariable"
-     UnderElaboration c -> go c :<  "when binding a local variable"
-     RecvMetaElaboration ch c -> go c :< hsep ["when receiving a value on channel", pretty ch]
-     PushTermElaboration t c -> go c :< hsep ["when pushing the term", pretty t]
-     LookupVarElaboration t c -> go c :< hsep ["when looking up the actor variable", pretty t]
-     DeclJElaboration jd c -> go c :< hsep ["when elaborating the judgement declaration for", pretty jd]
-     DefnJElaboration jd c -> go c :< hsep ["when elaborating the judgement definition for", pretty jd]
-     ExecElaboration c -> go c :< hsep ["when elaborating an exec statement"]
-     DeclaringSyntaxCat cat c -> go c :< hsep ["when elaborating the syntax declaration for", pretty cat]
-     SubstitutionElaboration sg c -> go c :< hsep ["when elaborating the substitution", pretty sg]
-     PatternVariableElaboration v c -> go c :< hsep ["when elaborating the pattern variable", pretty v]
-     TermVariableElaboration v c -> go c :< hsep ["when elaborating the term variable", pretty v]
-     ProtocolElaboration p c -> go c :< hsep ["when elaborating the protocol", pretty p]
-     ConnectElaboration ch1 ch2 c -> go c :< hsep ["when elaborating the connection", pretty ch1, "<->", pretty ch2]
+    InconsistentSyntaxDesc r -> "Inconsistent syntactic descriptions"
+    InvalidSyntaxDesc r d -> hsep ["Invalid syntax desc", pretty d]
+    IncompatibleSyntaxDescs r desc desc' ->
+      hsep ["Incompatible syntax descriptions", prettyPrec 1 desc, "and", prettyPrec 1 desc']
+    IncompatibleSyntaxInfos r info1 info2 ->
+      hsep ["Syntax infos", pretty info1, "and", pretty info2, "are incompatible"]
+    GotBarredAtom r a as -> hsep
+      [ squote <> pretty a, "is one of the barred atoms", collapse (map pretty as) ]
+    ExpectedNilGot r at -> hsep ["Expected [] and got", squote <> pretty at]
+    ExpectedEnumGot r es e -> "Expected" <+> sep
+      [ hsep ["an atom among", collapse (map pretty es)]
+      , hsep ["and got", pretty e]]
+    ExpectedTagGot r ts t -> "Expected" <+> sep
+      [ hsep ["a tag among", collapse (map pretty ts) ]
+      , hsep ["and got", pretty t]]
+    ExpectedANilGot r t -> hsep ["Expected the term [] and got", pretty t]
+    ExpectedANilPGot r p -> hsep ["Expected the pattern [] and got", pretty p]
+    ExpectedAConsGot r t -> hsep ["Expected a cons cell and got", pretty t]
+    ExpectedAConsPGot r p -> hsep ["Expected a patternf for a cons cell and got", pretty p]
+    SyntaxError r d t -> hsep ["Term", pretty t, "does not match", pretty d]
+    SyntaxPError r d p -> hsep ["Pattern", pretty p, "does not match", pretty d]
+
+instance Pretty a => Pretty (WithStackTrace a) where
+  pretty (WithStackTrace stk msg) = vcat (pretty msg : map pretty stk)
