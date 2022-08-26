@@ -11,11 +11,14 @@ import Bwd
 import Format
 import Options
 import Term
+import Pattern
 import qualified Term.Substitution as Substitution
 import Thin
 import Concrete.Base (ExtractMode, ACTOR (..), Operator(..))
 import Syntax (SyntaxDesc)
 import Control.Monad (join)
+import Data.Bifunctor (Bifunctor(first))
+import Hide (Hide(..), Named (..))
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
@@ -161,6 +164,67 @@ instance Semigroup Status where
 isDone :: Status -> Bool
 isDone Done = True
 isDone _ = False
+
+toClause :: Pat -> Bwd (Operator, [Pat]) -> Term
+         -> (Term -> Term) -- head normaliser
+         -> (Term, [Term]) -- object & parameters
+         -> Either (Term, [Term]) Term
+toClause p (ops :< op) rhs hnf targs = do
+  (_, sg) <- loop (sbstI (scope (fst targs))) ops op targs
+  pure (rhs //^ sg)
+
+  where
+
+  -- TODO: we're not getting stuck on metas despite a strict pattern
+  match :: Subst -> Pat -> Term -> Either Term (Term, Subst)
+  match sg (AT x p) t = match (sbstT sg ((Hide x :=) $^ t)) p t
+  match sg (MP x ph) t@(CdB _ th)
+    | is1s ph = pure (t, sbstT sg ((Hide x :=) $^ t))
+    | otherwise = do
+      let g = bigEnd th - bigEnd ph
+      -- we can do better: t may not depend on disallowed
+      -- things until definitions are expanded
+      t <- instThicken (ones g <> ph) t
+      pure (t, sbstT sg ((Hide x :=) $^ t))
+  match sg HP t = pure (t, sg)
+  match sg GP t = Left t
+  match sg p t = let tnf = hnf t in case (p, expand tnf) of
+    (VP i, VX j _) | i == j -> pure (tnf, sg)
+    (AP a, AX b _) | a == b -> pure (tnf, sg)
+    (PP p q, left :%: right) -> do
+      (left, sg) <- match sg p left
+      (right, sg) <- match sg q right
+      pure (contract (left :%: right), sg)
+    (BP _ p, x :.: t) -> do
+      (t, sg) <- match sg p t
+      pure (contract (x :.: t), sg)
+    _ -> Left tnf
+
+  matches :: Subst -> [Pat] -> [Term] -> Either [Term] ([Term], Subst)
+  matches = undefined -- TODO
+
+  loop :: Subst
+       -> Bwd (Operator, [Pat]) -> (Operator, [Pat]) -> (Term, [Term])
+       -> Either (Term, [Term]) (Term, Subst)
+  loop sg ops (op, ps) (t, args) = do
+    let tnf = hnf t
+    (t, sg) <- case (ops, expand tnf) of
+      (B0, _) -> first (, args) $ match sg p tnf
+      (ops :< (op, ps), t :-: el) -> do
+        (op', args) <- case expand el of
+          AX op' _ -> pure (op', [])
+          CdB (A op') _ :%: args -> case asList pure args of
+            Just args -> pure (op', args)
+            Nothing -> Left undefined
+        loop sg ops (op, ps) (t, args)
+      _ -> Left (tnf, args)
+    (args, sg) <- first (t,) $ matches sg ps args
+
+    -- TODO: fix view for operators
+    pure (undefined{-contract (t :-: (op, args))-}, sg)
+
+  instThicken :: Th -> Term -> Either Term Term
+  instThicken = undefined -- TODO
 
 newtype Clause = Clause { runClause
   :: (Term -> Term) -- head normaliser
