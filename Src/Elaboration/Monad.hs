@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wincomplete-patterns #-}
 module Elaboration.Monad where
 
@@ -172,10 +173,12 @@ data Kind
   deriving (Show)
 
 type Decls = Bwd (String, Kind)
+type Operators = Map String (SyntaxDesc, [SyntaxDesc], SyntaxDesc)
+
 data Context = Context
   { objVars      :: ObjVars
   , declarations :: Decls
-  , operators    :: Map String (SyntaxDesc, [SyntaxDesc])
+  , operators    :: Operators
   , location     :: Bwd Turn
   , binderHints  :: Hints
   , elabMode     :: ElabMode
@@ -190,9 +193,12 @@ initContext :: Context
 initContext = Context
   { objVars = B0
   , declarations = B0
-  , operators = Map.fromList [("app", (wildcard,[wildcard]))
-                             ,("when", (wildcard
-                                       ,[Syntax.contract (VEnumOrTag ["True"] [])]))]
+  , operators = Map.fromList
+    [ ("app", (wildcard, [wildcard], wildcard))
+    , ("when", ( wildcard
+               , [Syntax.contract (VEnumOrTag ["True"] [])]
+               , wildcard))
+    ]
   , location = B0
   , binderHints = Map.empty
   , elabMode = Definition
@@ -227,6 +233,35 @@ getName = do
 
 turn :: Turn -> Context -> Context
 turn t ds = ds { location = location ds :< t }
+
+------------------------------------------------------------------------------
+-- Operators
+
+type family OPERATOR (ph :: Phase) :: *
+type instance OPERATOR Concrete = WithRange String
+type instance OPERATOR Abstract = Operator
+
+data ANOPERATOR (ph :: Phase) = AnOperator
+  { opName :: OPERATOR ph
+  , objDesc :: SYNTAXDESC ph
+  , paramDescs :: [SYNTAXDESC ph]
+  , retDesc :: SYNTAXDESC ph
+  }
+
+deriving instance
+  ( Show (OPERATOR ph)
+  , Show (SYNTAXDESC ph)
+  ) => Show (ANOPERATOR ph)
+
+type CAnOperator = ANOPERATOR Concrete
+type AAnOperator = ANOPERATOR Abstract
+
+setOperators :: Operators -> Context -> Context
+setOperators ops ctx = ctx { operators = ops }
+
+addOperator :: AAnOperator -> Context -> Context
+addOperator (AnOperator (Operator op) obj params ret) ctx =
+  ctx { operators = Map.insert op (obj, params, ret) (operators ctx) }
 
 ------------------------------------------------------------------------------
 -- Hints
@@ -298,6 +333,9 @@ data Complaint
   | NotAValidBoundVar Range Variable
   | NotAValidActorVar Range Variable
   | NotAValidOperator Range String
+  -- operators
+  | AlreadyDeclaredOperator Range String
+  | InvalidOperatorArity Range [SyntaxDesc] [RawP]
   -- protocol
   | InvalidSend Range Channel Raw
   | InvalidRecv Range Channel (Binder String)
@@ -371,6 +409,9 @@ instance HasGetRange Complaint where
     NotAValidBoundVar r _ -> r
     NotAValidActorVar r _ -> r
     NotAValidOperator r _ -> r
+  -- operators
+    AlreadyDeclaredOperator r _ -> r
+    InvalidOperatorArity r _ _ -> r
   -- protocol
     InvalidSend r _ _ -> r
     InvalidRecv r _ _ -> r

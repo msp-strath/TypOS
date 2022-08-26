@@ -118,8 +118,8 @@ spop r = do
     B0 -> throwError (EmptyContext r)
     (xz :< (x, cat)) -> pure (xz, (Variable r x, cat))
 
-ssyntaxdecl :: [SyntaxCat] -> Raw -> Elab SyntaxDesc
-ssyntaxdecl syndecls syn = do
+ssyntaxdesc :: [SyntaxCat] -> Raw -> Elab SyntaxDesc
+ssyntaxdesc syndecls syn = do
   let desc = catToDesc "Syntax"
   syn <- withSyntax (syntaxDesc syndecls) $ stm DontLog desc syn
   case isMetaFree syn of
@@ -244,15 +244,17 @@ stm usage desc rt = do
       Op r rs ro -> case ro of
         -- TODO: usage checking
         At ra a -> do
-          (sdesc, psdesc) <- isOperator ra a
+          (sdesc, psdesc, rdesc) <- isOperator ra a
           unless (null psdesc) $ throwError (ExpectedAnEmptyListGot r a psdesc)
           o <- stm usage (Syntax.contract VAtom) ro
           s <- stm usage sdesc rs
+          compatibleInfos r (Known rdesc) (Known desc)
           pure (Term.contract (s :-: o))
         Cons rp (At ra a) ps -> do
-          (sdesc, psdesc) <- isOperator ra a
+          (sdesc, psdesc, rdesc) <- isOperator ra a
           o <- stms usage (Syntax.contract VAtom : psdesc) ro
           s <- stm usage sdesc rs
+          compatibleInfos r (Known rdesc) (Known desc)
           pure (Term.contract (s :-: o))
         _ -> throwError (ExpectedAnOperator (getRange ro) ro)
 
@@ -380,7 +382,7 @@ isChannel ch = resolve ch >>= \case
   Just mk -> throwError (NotAValidChannel (getRange ch) ch $ either Just (const Nothing) mk)
   Nothing -> throwError (OutOfScope (getRange ch) ch)
 
-isOperator :: Range -> String -> Elab (SyntaxDesc, [SyntaxDesc])
+isOperator :: Range -> String -> Elab (SyntaxDesc, [SyntaxDesc], SyntaxDesc)
 isOperator r nm = do
   ops <- asks operators
   case Map.lookup nm ops of
@@ -595,7 +597,7 @@ sact = \case
   FreshMeta r desc (av, a) -> do
     (desc, av, ovs) <- during FreshMetaElaboration $ do
       syndecls <- gets (Map.keys . syntaxCats)
-      desc <- ssyntaxdecl syndecls desc
+      desc <- ssyntaxdesc syndecls desc
       av <- isFresh av
       ovs <- asks objVars
       pure (desc, av, ovs)
@@ -605,7 +607,7 @@ sact = \case
   Let r av desc t a -> do
     (desc, av, ovs) <- during FreshMetaElaboration $ do
       syndecls <- gets (Map.keys . syntaxCats)
-      desc <- ssyntaxdecl syndecls desc
+      desc <- ssyntaxdesc syndecls desc
       av <- isFresh av
       ovs <- asks objVars
       pure (desc, av, ovs)
@@ -735,11 +737,11 @@ coverageCheckClause rp p = do
 sprotocol :: CProtocol -> Elab AProtocol
 sprotocol ps = during (ProtocolElaboration ps) $ do
   syndecls <- gets (Map.keys . syntaxCats)
-  traverse (traverse (ssyntaxdecl syndecls)) ps
+  traverse (traverse (ssyntaxdesc syndecls)) ps
 
 scontextstack :: CContextStack -> Elab AContextStack
 scontextstack (ContextStack key val) = do
   syndecls <- gets (Map.keys . syntaxCats)
-  key <- ssyntaxdecl syndecls key
-  val <- ssyntaxdecl syndecls val
+  key <- ssyntaxdesc syndecls key
+  val <- ssyntaxdesc syndecls val
   pure (ContextStack key val)

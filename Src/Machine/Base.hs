@@ -13,7 +13,7 @@ import Options
 import Term
 import qualified Term.Substitution as Substitution
 import Thin
-import Concrete.Base (ExtractMode, ACTOR (..))
+import Concrete.Base (ExtractMode, ACTOR (..), Operator(..))
 import Syntax (SyntaxDesc)
 import Control.Monad (join)
 
@@ -161,9 +161,6 @@ instance Semigroup Status where
 isDone :: Status -> Bool
 isDone Done = True
 isDone _ = False
-
-data Operator = Operator { getOperator :: String }
-  deriving (Show, Eq)
 
 newtype Clause = Clause { runClause
   :: (Term -> Term) -- head normaliser

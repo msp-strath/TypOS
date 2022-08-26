@@ -111,6 +111,11 @@ instance Pretty Complaint where
        hsep ["Invalid actor variable", pretty x]
      NotAValidOperator r x -> singleton $ (flush $ pretty r) <>
        hsep ["Invalid operator name", pretty x]
+       -- operators
+     AlreadyDeclaredOperator r op -> singleton $ (flush $ pretty r) <>
+       hsep ["Not a valid operator name", pretty op]
+     InvalidOperatorArity r ds ops -> singleton $ (flush $ pretty r) <>
+       hsep ["Invalid arity"] -- TODO: better formulation
      -- protocol
      InvalidSend r ch tm -> singleton $ (flush $ pretty r) <> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
      InvalidRecv r ch v -> singleton $ (flush $ pretty r) <> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]

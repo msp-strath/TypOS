@@ -1,11 +1,29 @@
--- TODO: Declare operators before defining them
+syntax { 'Bool = ['Enum ['True 'False]] }
+syntax { 'Nat = ['EnumOrTag ['zero] [['succ 'Nat]]] }
 
+operator
+  { 'Wildcard - 'id ~> 'Wildcard
+  ; 'Wildcard - ['myApp 'Wildcard] ~> 'Wildcard
+  ; 'Wildcard - ['myWhen 'Bool] ~> 'Wildcard
+  ; 'Bool - ['if 'Wildcard 'Wildcard] ~> 'Wildcard
+  ; 'Nat - ['plus 'Nat] ~> 'Nat
+  }
+
+t - 'id ~> t
 (\x. t) - ['myApp s] ~> {x=s}t
 
 x - ['myWhen 'True] ~> x
 
+'True - ['if l r] ~> l
+'False - ['if l r] ~> r
+
 'zero - ['plus n] ~> n
--- Elaboration fails because plus isn't recognised as an operator on the RHS
--- ['succ m] - ['plus n] ~> ['succ (m - ['plus n])]
+['succ m] - ['plus n] ~> ['succ (m - ['plus n])]
 m - ['plus 'zero] ~> m
--- m - ['plus n] - ['plus x] ~> m - ['plus (n - ['plus x])]
+m - ['plus n] - ['plus x] ~> m - ['plus (n - ['plus x])]
+
+exec
+  'Bool?block.
+  ( 'hello - ['myWhen block] ~ 'hello
+  | block ~ 'True
+  )

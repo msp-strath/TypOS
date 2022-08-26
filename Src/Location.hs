@@ -94,5 +94,13 @@ fileContext r
                     (pretty (replicate (snd (end r) - snd (start r)) '^'))
     pure $ horizontally $ vcat $ "" : zipWith (<>) headers context ++ [underline, ""]
 
+-- assuming things that have a valid range are ordered left-to-right
 instance Semigroup Range where
-  left <> right = Range (source left) (start left) (end right)
+  left <> right
+    | left == unknown = right
+    | right == unknown = left
+    | otherwise = Range (source left) (start left) (end right)
+
+instance Monoid Range where
+  mempty = unknown
+  mappend = (<>)

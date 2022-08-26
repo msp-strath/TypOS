@@ -1,0 +1,13 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  1 | syntax { 'Bool = ['Enum ['False 'True]] }
+out >  2 | 
+out >  3 | operator { 'Boo - ['if 'Wildcard 'Wildcard] ~> 'Wildcard }
+out >                 ^^^^
+out > operator-elab-fail-4.act:3:11-15
+out >  Expected an atom among [Nil
+out >                         ,Atom
+out >                         ,Wildcard
+out >                         ,Bool] and got Boo
+out >

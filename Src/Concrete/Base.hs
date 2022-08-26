@@ -7,6 +7,9 @@ import Scope
 import Location
 import Data.Function (on)
 
+data Operator = Operator { getOperator :: String }
+  deriving (Show, Eq)
+
 data Variable = Variable
   { variableLoc :: Range
   , getVariable :: String
