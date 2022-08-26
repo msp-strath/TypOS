@@ -169,6 +169,11 @@ infixr 4 %
 (%) :: CdB (Tm m) -> CdB (Tm m) -> CdB (Tm m)
 s % t = contract (s :%: t)
 
+infixl 4 -%
+(-%) :: CdB (Tm m) -> (String, [CdB (Tm m)]) -> CdB (Tm m)
+t -% (o, []) = contract (t :-: atom o (scope t))
+t -% (o, ps) = contract (t :-: (o #%+ ps))
+
 (#%) :: (String, Int) -> [CdB (Tm m)] -> CdB (Tm m)
 (a, ga) #% ts = uncurry CdB $ case foldr (%) (nil ga) ts of
   CdB t th -> (P Cell (atom a ga :<>: CdB t (ones (weeEnd th))), th)

@@ -1,3 +1,8 @@
 ret > ExitSuccess
+out > 'test - 'id
+out > 'True
+out > 'test - 'id /~ 'test
+out > 'hello - ['myWhen 'True] /~ 'hello
+out >
 err >
 err >

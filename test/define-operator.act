@@ -35,6 +35,9 @@ m - ['plus n] - ['mult p] ~> (m - ['mult p]) - ['plus (n - ['mult p])]
 
 exec
   'Bool?block.
-  ( 'hello - ['myWhen block] ~ 'hello
+  ( PRINTF "%i" 'test - 'id.
+  | 'test - 'id ~ 'test
+  | 'hello - ['myWhen block] ~ 'hello
   | block ~ 'True
+  | PRINTF "%i" block.
   )

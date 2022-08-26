@@ -20,6 +20,8 @@ import Control.Monad (join)
 import Data.Bifunctor (Bifunctor(first))
 import Hide (Hide(..), Named (..))
 
+import Debug.Trace
+
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
 
@@ -75,8 +77,7 @@ headUp dat@HeadUpData{..} term = case expand term of
 
   operate :: Operator -> (Term, [Term]) -> Term
   operate op tps = case runClause (opTable op) (headUp dat) tps of
-    Left (t, []) -> contract (t :-: contract (AX (getOperator op) (scope term)))
-    Left (t, ps) -> contract (t :-: (getOperator op #%+ ps))
+    Left (t, ps) -> t -% (getOperator op, ps)
     Right t -> headUp dat t
 
 
@@ -165,12 +166,15 @@ isDone :: Status -> Bool
 isDone Done = True
 isDone _ = False
 
+-- TODO: the RHS is actually an ACTm and we *do* want to generate an env to
+-- mangle it with! Cf. the tracing in scommand
 toClause :: Pat -> Bwd (Operator, [Pat]) -> Term
          -> (Term -> Term) -- head normaliser
          -> (Term, [Term]) -- object & parameters
          -> Either (Term, [Term]) Term
 toClause p (ops :< op) rhs hnf targs = do
   (_, sg) <- loop (sbstI (scope (fst targs))) ops op targs
+  trace (unwords [show rhs, show sg]) (pure ())
   pure (rhs //^ sg)
 
   where
@@ -201,7 +205,11 @@ toClause p (ops :< op) rhs hnf targs = do
     _ -> Left tnf
 
   matches :: Subst -> [Pat] -> [Term] -> Either [Term] ([Term], Subst)
-  matches = undefined -- TODO
+  matches sg [] [] = pure ([], sg)
+  matches sg (p:ps) (t:ts) = do
+    (t, sg) <- first (:ts) $ match sg p t
+    (ts, sg) <- first (t:) $ matches sg ps ts
+    pure (t:ts, sg)
 
   loop :: Subst
        -> Bwd (Operator, [Pat]) -> (Operator, [Pat]) -> (Term, [Term])
@@ -211,20 +219,33 @@ toClause p (ops :< op) rhs hnf targs = do
     (t, sg) <- case (ops, expand tnf) of
       (B0, _) -> first (, args) $ match sg p tnf
       (ops :< (op, ps), t :-: el) -> do
-        (op', args) <- case expand el of
+        let elnf = hnf el
+        (op', args) <- case expand elnf of
           AX op' _ -> pure (op', [])
           CdB (A op') _ :%: args -> case asList pure args of
             Just args -> pure (op', args)
             Nothing -> Left undefined
-        loop sg ops (op, ps) (t, args)
+        if getOperator op == op'
+          then loop sg ops (op, ps) (t, args)
+          else Left undefined
       _ -> Left (tnf, args)
     (args, sg) <- first (t,) $ matches sg ps args
-
-    -- TODO: fix view for operators
-    pure (undefined{-contract (t :-: (op, args))-}, sg)
+    pure (t -% (getOperator op, args), sg)
 
   instThicken :: Th -> Term -> Either Term Term
-  instThicken = undefined -- TODO
+  instThicken ph t = case hnf t of
+      v@(CdB V _) -> case thickenCdB ph v of
+        Just v -> pure v
+        Nothing -> Left v
+      m@(CdB (_ :$ _) _) -> case thickenCdB ph m of
+        Just m -> pure m
+        Nothing -> Left m
+      x -> case expand x of
+        AX a ga -> pure (atom a (weeEnd ph))
+        s :%: t -> case (instThicken ph s, instThicken ph t) of
+          (Left bs, Left bt) -> Left (contract (bs :%: bt))
+          (s, t) -> (%) <$> s <*> t
+        (x :.: t) -> (x \\) <$> instThicken (ph -? True) t
 
 newtype Clause = Clause { runClause
   :: (Term -> Term) -- head normaliser

@@ -37,6 +37,9 @@ import Unelaboration(Unelab(..), subunelab, withEnv, initDAEnv, Naming, declareC
 import Location
 import Data.Char (isSpace)
 
+
+import Debug.Trace
+
 type family SYNTAXCAT (ph :: Phase) :: *
 type instance SYNTAXCAT Concrete = WithRange SyntaxCat
 type instance SYNTAXCAT Abstract = SyntaxCat
@@ -349,6 +352,8 @@ scommand = \case
     rhs <- local (setDecls decls . setHints hints) $ stm DontLog ret rhs
     -- this is the outer op being extended
     let op = fst (last opargs)
+    -- trace (unwords [getOperator op, "-[", '\'':show p, show opargs, "~>", show rhs]) (pure ())
+    -- let cl = Clause (toClause p (B0 <>< opargs) rhs) -- TODO: rhs is an ACTM!
     let cl = mempty
     (DefnOp (op, cl),) <$> asks globals
 
