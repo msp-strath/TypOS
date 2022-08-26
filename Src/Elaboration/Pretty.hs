@@ -114,8 +114,12 @@ instance Pretty Complaint where
        -- operators
      AlreadyDeclaredOperator r op -> singleton $ (flush $ pretty r) <>
        hsep ["Not a valid operator name", pretty op]
-     InvalidOperatorArity r ds ops -> singleton $ (flush $ pretty r) <>
-       hsep ["Invalid arity"] -- TODO: better formulation
+     InvalidOperatorArity r op [] ops -> singleton $ (flush $ pretty r) <>
+       hsep ["Invalid arity:", pretty (show $ length ops), "extra operator parameters for", pretty op]
+     InvalidOperatorArity r op ds [] -> singleton $ (flush $ pretty r) <>
+       hsep ["Invalid arity:", pretty (show $ length ds), "missing operator parameters for", pretty op]
+     InvalidOperatorArity r op ds ps ->  singleton $ (flush $ pretty r) <>
+       hsep ["Invalid arity (the impossible happened)"]
      -- protocol
      InvalidSend r ch tm -> singleton $ (flush $ pretty r) <> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
      InvalidRecv r ch v -> singleton $ (flush $ pretty r) <> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]

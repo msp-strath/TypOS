@@ -361,7 +361,7 @@ sopargs desc ((rop, args):xs) = do
     r <- pure $ case (ds, ps) of
            ([], (_:_)) -> foldMap getRange ps
            _ -> r
-    throwError (InvalidOperatorArity r ds ps)
+    throwError (InvalidOperatorArity r (theValue rop) ds ps)
 
 soperator :: COperator -> Elab AAnOperator
 soperator (WithRange r tag) = do

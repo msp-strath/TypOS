@@ -335,7 +335,7 @@ data Complaint
   | NotAValidOperator Range String
   -- operators
   | AlreadyDeclaredOperator Range String
-  | InvalidOperatorArity Range [SyntaxDesc] [RawP]
+  | InvalidOperatorArity Range String [SyntaxDesc] [RawP]
   -- protocol
   | InvalidSend Range Channel Raw
   | InvalidRecv Range Channel (Binder String)
@@ -411,7 +411,7 @@ instance HasGetRange Complaint where
     NotAValidOperator r _ -> r
   -- operators
     AlreadyDeclaredOperator r _ -> r
-    InvalidOperatorArity r _ _ -> r
+    InvalidOperatorArity r _ _ _ -> r
   -- protocol
     InvalidSend r _ _ -> r
     InvalidRecv r _ _ -> r
