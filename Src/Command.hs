@@ -50,6 +50,10 @@ type OPPATTERN ph = (OPERATOR ph, [PATTERN ph])
 data STATEMENT (ph :: Phase)
   = Statement (JUDGEMENTFORM ph) [Variable]
 
+type family DEFNOP (ph :: Phase) :: *
+type instance DEFNOP Concrete = (PATTERN Concrete, [OPPATTERN Concrete], TERM Concrete)
+type instance DEFNOP Abstract = (Operator, Clause)
+
 data COMMAND (ph :: Phase)
   = DeclJudge ExtractMode (JUDGEMENTFORM ph) (Protocol (SYNTAXDESC ph))
   | DefnJudge (JUDGEMENTFORM ph, PROTOCOL ph, CHANNEL ph) (ACTOR ph)
@@ -60,7 +64,7 @@ data COMMAND (ph :: Phase)
   | Go (ACTOR ph)
   | Trace [MachineStep]
   | DeclOp [ANOPERATOR ph]
-  | DefnOp (PATTERN ph) [OPPATTERN ph] (TERM ph)
+  | DefnOp (DEFNOP ph)
 
 deriving instance
   ( Show (JUDGEMENTFORM ph)
@@ -78,7 +82,8 @@ deriving instance
   , Show (SYNTAXCAT ph)
   , Show (OPERATOR ph)
   , Show (PROTOCOL ph)
-  , Show (LOOKEDUP ph)) =>
+  , Show (LOOKEDUP ph)
+  , Show (DEFNOP ph)) =>
   Show (COMMAND ph)
 
 deriving instance
@@ -206,7 +211,7 @@ pcommand
   <|> Go <$ plit "exec" <* pspc <*> pACT
   <|> Trace <$ plit "trace" <*> pcurlies (psep (punc ",") pmachinestep)
   <|> DeclOp <$ plit "operator" <*> pcurlies (psep (punc ";") panoperator)
-  <|> DefnOp <$> ppat <*> pdefnlhs <* punc "~>" <*> pTM
+  <|> DefnOp <$> ((,,) <$> ppat <*> pdefnlhs <* punc "~>" <*> pTM)
  where
   pdefnlhs :: Parser [COpPattern]
   -- pdefnlhs = poperator ((,) <$> ptm <* pspc <*> pdefnlhs) ??? TODO: refactor
@@ -332,13 +337,20 @@ scommand = \case
   Go a -> during ExecElaboration $ (,) . Go <$> local (setElabMode Execution) (sact a) <*> asks globals
   Trace ts -> (Trace ts,) <$> asks globals
   DeclOp ops -> first DeclOp <$> sdeclOps ops
-  DefnOp p opargs@((op, _) : _) rhs -> do
-    (AnOperator op obj _ ret) <- soperator op
-    (mr1, p, decls, hints) <- spat (ActorVar unknown (IsNotSubject, obj)) p
-    (opargs, decls, hints) <- local (setDecls decls . setHints hints) $
-                              sopargs obj opargs
+  DefnOp (p, opargs, rhs) -> do
+    ((p, opargs), ret, decls, hints) <- do
+      -- this is the op applied to the object, not the outer op being extended
+      let op = fst (head opargs)
+      (AnOperator op obj _ ret) <- soperator op
+      (mr1, p, decls, hints) <- spat (ActorVar unknown (IsNotSubject, obj)) p
+      (opargs, decls, hints) <- local (setDecls decls . setHints hints) $
+                                sopargs obj opargs
+      pure ((p, opargs), ret, decls, hints)
     rhs <- local (setDecls decls . setHints hints) $ stm DontLog ret rhs
-    (DefnOp p opargs rhs,) <$> asks globals
+    -- this is the outer op being extended
+    let op = fst (last opargs)
+    let cl = mempty
+    (DefnOp (op, cl),) <$> asks globals
 
 -- | sopargs desc cops
 -- | desc: description of the object the cops are applied to
@@ -395,4 +407,5 @@ run opts p@Process{..} (c : cs) = case c of
   Trace xs -> let trac = guard (not $ quiet opts) >> fromMaybe (xs ++ tracing p) (tracingOption opts)
                   newOpts = opts { tracingOption = Just trac }
               in run newOpts (p { options = newOpts }) cs
+  DefnOp (op, cl) -> run opts (p { stack = stack :< Extended op cl }) cs
   _ -> run opts p cs

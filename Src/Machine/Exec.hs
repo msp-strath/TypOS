@@ -140,7 +140,7 @@ exec p@Process { actor = m@(Match _ s cls), ..}
   match env ((zx, MP x ph, tm):xs) | is1s ph = do -- common easy special case
     env <- pure $ newActorVar (ActorMeta x) (zx <>> [], tm) env
     match env xs
-  match env ((zx, MP x ph, tm@(CdB t th)):xs) = do
+  match env ((zx, MP x ph, tm@(CdB _ th)):xs) = do
     let g = bigEnd th - bigEnd ph
     -- we can do better: t may not depend on disallowed things until definitions are expanded
     tm <- instThicken (ones g <> ph) tm
