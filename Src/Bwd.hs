@@ -50,11 +50,6 @@ mapzss f (xz :< x) xs = mapzss f xz (f x : xs)
 mapzs :: (a -> b) -> Bwd a -> [b]
 mapzs f xz = mapzss f xz []
 
--- | Looks equivalent to <! ???
-bwdProj :: Bwd x -> Int -> x
-bwdProj (xz :< x) 0 = x
-bwdProj (xz :< x) n = bwdProj xz (n-1)
-
 -- | Treat a snoc list as a stack and returns the top.
 -- Warning: incomplete pattern match.
 top :: Bwd x -> x
@@ -80,7 +75,7 @@ only (B0 :< x) = x
 
 -- | 'focusBy' takes a predicate p and a snoc list, and returns
 -- a pointed cursor into that snoc for the first item that satisfies p
--- (or Nothing otherwise). 
+-- (or Nothing otherwise).
 focusBy :: (x -> Maybe y) -> Bwd x -> Maybe (Bwd x, y, [x])
 focusBy p xz = go xz [] where
 
@@ -100,7 +95,7 @@ curl n (xz :< x, xs) = curl (n-1) (xz, x : xs)
 
 -- | A 'Cursor' is a location in a list (or a snoc list)
 -- Note that it can point to the head or tail, it does not
--- points to an element location. 
+-- points to an element location.
 data Cursor x
   = Bwd x :<+>: [x]
   deriving (Eq, Foldable, Functor, Show, Traversable)
