@@ -7,20 +7,26 @@ import qualified Data.Map as Map
 import Data.Maybe
 
 import Actor
+import Actor.Display()
+
 import Bwd
 import Format
 import Options
 import Term
-import Pattern
+import Pattern (Pat(..))
 import qualified Term.Substitution as Substitution
 import Thin
 import Concrete.Base (ExtractMode, ACTOR (..), Operator(..))
 import Syntax (SyntaxDesc)
 import Control.Monad (join)
 import Data.Bifunctor (Bifunctor(first))
-import Hide (Hide(..), Named (..))
 
-import Debug.Trace
+import Machine.Matching
+import Debug.Trace (trace)
+import Display (Display, display, unsafeEvalDisplay, DisplayEnv)
+import Doc (Config (..), Orientation (..))
+import Doc.Render.Terminal (render)
+import Unelaboration (Naming, initNaming)
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
@@ -48,6 +54,8 @@ updateStore m t st@Store{..} = tick $ st
 data HeadUpData = forall i. HeadUpData
   { opTable :: Operator -> Clause
   , metaStore :: StoreF i
+  , huOptions :: Options
+  , huEnv :: Env
   }
 
 mkOpTable :: Bwd Frame -> Operator -> Clause
@@ -76,7 +84,7 @@ headUp dat@HeadUpData{..} term = case expand term of
   where
 
   operate :: Operator -> (Term, [Term]) -> Term
-  operate op tps = case runClause (opTable op) (headUp dat) tps of
+  operate op tps = case runClause (opTable op) huOptions (headUp dat) huEnv tps of
     Left (t, ps) -> t -% (getOperator op, ps)
     Right t -> headUp dat t
 
@@ -166,89 +174,83 @@ isDone :: Status -> Bool
 isDone Done = True
 isDone _ = False
 
--- TODO: the RHS is actually an ACTm and we *do* want to generate an env to
--- mangle it with! Cf. the tracing in scommand
-toClause :: Pat -> Bwd (Operator, [Pat]) -> Term
+-- unOp 'id       -> Just ("id", [])
+-- unOp ['if l r] -> Just ("if", [l,r])
+unOp :: CdB (Tm a) -> Maybe (Operator, [CdB (Tm a)])
+unOp t = case expand t of
+  AX op _ -> pure (Operator op, [])
+  CdB (A op) _ :%: args -> do
+    ps <- asList pure args
+    pure (Operator op, ps)
+  _ -> Nothing
+
+unsafeDisplayClosed :: (DisplayEnv a ~ Naming, Display a) => Options -> a -> String
+unsafeDisplayClosed opts t = render (colours opts) (Config (termWidth opts) Vertical)
+  $ unsafeEvalDisplay initNaming
+  $ display t
+
+toClause :: Pat -> Bwd (Operator, [Pat]) -> ACTm
+         -> Options
          -> (Term -> Term) -- head normaliser
+         -> Env
          -> (Term, [Term]) -- object & parameters
          -> Either (Term, [Term]) Term
-toClause p (ops :< op) rhs hnf targs = do
-  (_, sg) <- loop (sbstI (scope (fst targs))) ops op targs
-  trace (unwords [show rhs, show sg]) (pure ())
-  pure (rhs //^ sg)
+toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
+  let msg = \ result -> (unlines
+        [ unwords ("Matching" : unsafeDisplayClosed opts t : "-" : [case args of
+                      [] -> "'" ++ getOperator (fst op)
+                      _ -> "['" ++ unwords (getOperator (fst op) : map (unsafeDisplayClosed opts) args) ++ "]"]
+                  )
+        , unwords ("against"
+                  : unsafeDisplayClosed opts pobj
+                  : flip map (ops <>> [op]) (\ (Operator op, ps) -> " - " ++ case ps of
+                     [] -> "'" ++ op
+                     _ -> "['" ++ unwords (op : map (unsafeDisplayClosed opts) ps) ++ "]")
+                  )
+                  ++ " ~> " ++ unsafeDisplayClosed opts rhs
+        , result ]) in
+  let ((t, ts), res) = loop env ops op targs in case res of
+    Right env | Just val <- mangleActors opts env rhs
+      -> trace (msg "Success!") $ pure val
+      | otherwise -> trace (msg "Failure") $ Left (t, ts)
+    Left err -> trace (msg ("Failure " ++ show err)) $ Left (t, ts)
 
   where
 
-  -- TODO: we're not getting stuck on metas despite a strict pattern
-  match :: Subst -> Pat -> Term -> Either Term (Term, Subst)
-  match sg (AT x p) t = match (sbstT sg ((Hide x :=) $^ t)) p t
-  match sg (MP x ph) t@(CdB _ th)
-    | is1s ph = pure (t, sbstT sg ((Hide x :=) $^ t))
-    | otherwise = do
-      let g = bigEnd th - bigEnd ph
-      -- we can do better: t may not depend on disallowed
-      -- things until definitions are expanded
-      t <- instThicken (ones g <> ph) t
-      pure (t, sbstT sg ((Hide x :=) $^ t))
-  match sg HP t = pure (t, sg)
-  match sg GP t = Left t
-  match sg p t = let tnf = hnf t in case (p, expand tnf) of
-    (VP i, VX j _) | i == j -> pure (tnf, sg)
-    (AP a, AX b _) | a == b -> pure (tnf, sg)
-    (PP p q, left :%: right) -> do
-      (left, sg) <- match sg p left
-      (right, sg) <- match sg q right
-      pure (contract (left :%: right), sg)
-    (BP _ p, x :.: t) -> do
-      (t, sg) <- match sg p t
-      pure (contract (x :.: t), sg)
-    _ -> Left tnf
+  loop :: Env
+       -> Bwd (Operator, [Pat])  -- left nested operators
+       -> (Operator, [Pat])      -- current operator OP in focus
+       -> (Term, [Term])         -- current term (t -['OP | ts]) already taken apart
+       -> ( (Term, [Term])       -- evaluated (t,ts)
+          , Either Failure Env)
+  loop env ops (op, ps) (tops, tps) =
+    -- match tops against the left-nested (pobj -- ops)
+    -- we don't care about the tps yet
+    let leftnested = case ops of
+          B0 -> match hnf env (Problem (localScope env) pobj tops)
+          -- leftops + lop to the left of the op currently in focus
+          (lops :< (lop, lps)) -> let topsnf = hnf tops in case expand topsnf of
+            (ltops :-: loptps) -> let loptpsnf = hnf loptps in case unOp loptpsnf of
+              Just (lop, ltps) | op == lop ->
+                case loop env lops (lop, lps) (ltops, ltps) of
+                  ((ltops, ltps), res) -> (ltops -% (getOperator lop, ltps), res)
+              _ -> (contract (ltops :-: loptpsnf), Left Mismatch) -- Careful: could be a stuck meta
+            _ -> (topsnf, Left Mismatch)
+    in case leftnested of
+      (tops, Left err) -> ((tops, tps), Left err)
+      (tops, Right env) -> first (tops,) $ matches env ps tps
 
-  matches :: Subst -> [Pat] -> [Term] -> Either [Term] ([Term], Subst)
-  matches sg [] [] = pure ([], sg)
-  matches sg (p:ps) (t:ts) = do
-    (t, sg) <- first (:ts) $ match sg p t
-    (ts, sg) <- first (t:) $ matches sg ps ts
-    pure (t:ts, sg)
-
-  loop :: Subst
-       -> Bwd (Operator, [Pat]) -> (Operator, [Pat]) -> (Term, [Term])
-       -> Either (Term, [Term]) (Term, Subst)
-  loop sg ops (op, ps) (t, args) = do
-    let tnf = hnf t
-    (t, sg) <- case (ops, expand tnf) of
-      (B0, _) -> first (, args) $ match sg p tnf
-      (ops :< (op, ps), t :-: el) -> do
-        let elnf = hnf el
-        (op', args) <- case expand elnf of
-          AX op' _ -> pure (op', [])
-          CdB (A op') _ :%: args -> case asList pure args of
-            Just args -> pure (op', args)
-            Nothing -> Left undefined
-        if getOperator op == op'
-          then loop sg ops (op, ps) (t, args)
-          else Left undefined
-      _ -> Left (tnf, args)
-    (args, sg) <- first (t,) $ matches sg ps args
-    pure (t -% (getOperator op, args), sg)
-
-  instThicken :: Th -> Term -> Either Term Term
-  instThicken ph t = case hnf t of
-      v@(CdB V _) -> case thickenCdB ph v of
-        Just v -> pure v
-        Nothing -> Left v
-      m@(CdB (_ :$ _) _) -> case thickenCdB ph m of
-        Just m -> pure m
-        Nothing -> Left m
-      x -> case expand x of
-        AX a ga -> pure (atom a (weeEnd ph))
-        s :%: t -> case (instThicken ph s, instThicken ph t) of
-          (Left bs, Left bt) -> Left (contract (bs :%: bt))
-          (s, t) -> (%) <$> s <*> t
-        (x :.: t) -> (x \\) <$> instThicken (ph -? True) t
+  matches :: Env -> [Pat] -> [Term] -> ([Term], Either Failure Env)
+  matches env [] [] = ([], pure env)
+  matches env (p:ps) (t:ts) = case match hnf env (Problem (localScope env) p t) of
+    (t, Left err) -> (t:ts, Left err)
+    (t, Right env) -> first (t:) $ matches env ps ts
+  matches env _ ts = (ts, Left Mismatch)
 
 newtype Clause = Clause { runClause
-  :: (Term -> Term) -- head normaliser
+  :: Options
+  -> (Term -> Term) -- head normaliser
+  -> Env
   -> (Term, [Term]) -- object & parameters
   -> Either (Term, [Term]) Term }
 
@@ -256,16 +258,16 @@ instance Semigroup Clause where
   (<>) = mappend
 
 instance Monoid Clause where
-  mempty = Clause $ const Left
-  mappend cl1 cl2 = Clause $ \ hd ops -> case runClause cl2 hd ops of
-    Left ops -> runClause cl1 hd ops
+  mempty = Clause $ \ _ _ _ -> Left
+  mappend cl1 cl2 = Clause $ \ opts hd env ops -> case runClause cl2 opts hd env ops of
+    Left ops -> runClause cl1 opts hd env ops
     Right t -> Right t
 
 instance Show Clause where
   show _ = "<fun>"
 
 appClause :: Clause
-appClause = Clause $ \ hd (t, args) ->
+appClause = Clause $ \ opts hd env (t, args) ->
   case args of
     [arg] -> case expand (hd t) of
       x :.: b -> Right (b //^ topSbst x arg)
@@ -273,7 +275,7 @@ appClause = Clause $ \ hd (t, args) ->
     _ -> Left (t, args)
 
 whenClause :: Clause
-whenClause = Clause $ \ hd (t, args) -> case args of
+whenClause = Clause $ \ opts hd env (t, args) -> case args of
   [arg] -> case expand (hd arg) of
     AX "True" _ -> Right t
     arg -> Left (t, [contract arg])
