@@ -3,23 +3,19 @@ out > [43mWarning:[0m Unsolved metas (b1:1, b2:2)
 out >
 out >
 err > 'at not an operator application
-err > Matching  [42m'at[0m - ['if ?[("b1",[1])] - ['if ?[("b2",[2])]]]
+err > Matching 'at - ['if ?[("b1",[1])] - ['if ?[("b2",[2])]]]
 err > against x - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
-err > [41mFailure Mismatch[0m
-err >
+err > Failure Mismatch
 err > 'at not an operator application
-err > Matching  [42m'at[0m - ['if ?[("b1",[1])]]
+err > Matching 'at - ['if ?[("b1",[1])]]
 err > against x - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
-err > [41mFailure Mismatch[0m
-err >
-err > Matching  [42m'at - ['if ?[("b1",[1])]][0m - ['if ?[("b2",[2])]]
+err > Failure Mismatch
+err > Matching 'at - ['if ?[("b1",[1])]] - ['if ?[("b2",[2])]]
 err > against x - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
-err > [42mSuccess![0m
-err >
+err > Success!
 err > 'at not an operator application
-err > Matching  [42m'at[0m - ['if ?[("b1",[1])] - ['if ?[("b2",[2])]]]
+err > Matching 'at - ['if ?[("b1",[1])] - ['if ?[("b2",[2])]]]
 err > against x - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
-err > [41mFailure Mismatch[0m
-err >
+err > Failure Mismatch
 err >
 err >

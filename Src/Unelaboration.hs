@@ -193,16 +193,11 @@ inChannel ch ma = do
 instance Forget DAEnv Naming where
   forget = daActorNaming
 
+
 instance Unelab Meta where
   type UnelabEnv Meta = ()
   type Unelabed Meta = Variable
-  unelab (Meta ms) = pure $ Variable unknown $ go (B0 :< "?[") ms where
-
-    go :: Bwd String -> [(String, Int)] -> String
-    go acc [] = concat (acc :< "]")
-    go acc ((str, n):ms) =
-      let (ns, rest) = span ((str ==) . fst) ms in
-      go (acc :< "(" ++ show str ++ "," ++ show (n : map snd ns) ++ ")") rest
+  unelab m = pure $ Variable unknown $ compressedMeta m
 
 instance Unelab (Binder ActorMeta) where
   type UnelabEnv (Binder ActorMeta) = ()

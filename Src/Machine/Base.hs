@@ -1,4 +1,5 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, StandaloneDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
 module Machine.Base where
@@ -23,8 +24,11 @@ import Data.Bifunctor (Bifunctor(first))
 
 import Machine.Matching
 import Debug.Trace (trace)
-import Display (unsafeDisplayClosed)
-import ANSI
+import Display (unsafeDocDisplayClosed)
+import ANSI hiding (withANSI)
+import Doc.Render.Terminal
+import Doc (hsep, vcat, Doc, Config (..), Orientation(..), (<+>))
+import Pretty (pretty)
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
@@ -189,31 +193,34 @@ toClause :: Pat -> Bwd (Operator, [Pat]) -> ACTm
          -> (Term, [Term]) -- object & parameters
          -> Either (Term, [Term]) Term
 toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
-  let msg = \ result -> (unlines
-        [ unwords ("Matching " : withANSI [SetColour Background Green] (unsafeDisplayClosed opts t) : "-" : [case args of
-                      [] -> "'" ++ getOperator (fst op)
-                      _ -> "['" ++ unwords (getOperator (fst op) : map (unsafeDisplayClosed opts) args) ++ "]"]
-                  )
-        , unwords ("against"
-                  : unsafeDisplayClosed opts pobj
-                  : flip map (ops <>> [op]) (\ (Operator op, ps) -> "- " ++ case ps of
-                     [] -> "'" ++ op
-                     _ -> "['" ++ unwords (op : map (unsafeDisplayClosed opts) ps) ++ "]")
-                  )
-                  ++ " ~> " ++ unsafeDisplayClosed opts rhs
-        , result ]) in
+  let msg = \ result -> vcat
+        [ hsep ( "Matching"
+               : withANSI [SetColour Background Green] (unsafeDocDisplayClosed opts t)
+               : "-"
+               : [let opdoc = pretty (getOperator (fst op)) in case args of
+                      [] -> "'" <> opdoc
+                      _ -> "['" <> hsep (opdoc : map (unsafeDocDisplayClosed opts) args) <> "]"]
+               )
+        , hsep ( "against"
+               : unsafeDocDisplayClosed opts pobj
+               : flip map (ops <>> [op]) (\ (Operator op, ps) -> "- " <> case ps of
+                     [] -> "'" <> pretty op
+                     _ -> "['" <> hsep (pretty op : map (unsafeDocDisplayClosed opts) ps) <> "]")
+               )
+               <> " ~> " <> unsafeDocDisplayClosed opts rhs
+        , result ] in
   let ((t, ts), res) = loop env ops op targs in case res of
     Right env | Just val <- mangleActors opts env rhs
       -> whenClause opts (msg (withANSI [SetColour Background Green] "Success!")) $ pure val
       | otherwise -> whenClause opts (msg (withANSI [SetColour Background Red] "Failure")) $ Left (t, ts)
-    Left err -> whenClause opts (msg (withANSI [SetColour Background Red] $ "Failure " ++ show err)) $ Left (t, ts)
+    Left err -> whenClause opts (msg (withANSI [SetColour Background Red] $ "Failure " <> pretty err)) $ Left (t, ts)
 
   where
 
-  whenClause :: Options -> String -> a -> a
-  whenClause opts str a
+  whenClause :: Options -> Doc Annotations -> a -> a
+  whenClause opts doc a
     | MachineClause `elem` fromMaybe [] (tracingOption opts)
-    = trace str a
+    = trace (render (colours opts) (Config (termWidth opts) Vertical) doc) a
     | otherwise = a
 
   loop :: Env
@@ -234,7 +241,7 @@ toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
                 case loop env lops (lop, lps) (ltops, ltps) of
                   ((ltops, ltps), res) -> (ltops -% (getOperator lop, ltps), res)
               _ -> (contract (ltops :-: loptpsnf), Left Mismatch) -- Careful: could be a stuck meta
-            _ -> (topsnf, Left (whenClause opts (unsafeDisplayClosed unsafeOptions topsnf ++ " not an operator application") Mismatch))
+            _ -> (topsnf, Left (whenClause opts (unsafeDocDisplayClosed unsafeOptions topsnf <+> "not an operator application") Mismatch))
     in case leftnested of
       (tops, Left err) -> ((tops, tps), Left err)
       (tops, Right env) -> first (tops,) $ matches env ps tps

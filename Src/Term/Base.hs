@@ -6,6 +6,7 @@ import Data.Void
 import Bwd
 import Thin
 import Hide
+import Pretty (Pretty(..))
 
 data Pairing = Cell | Oper
   deriving (Show, Eq, Ord)
@@ -39,6 +40,18 @@ newtype Meta = Meta { unMeta :: [(String, Int)] }
 
 instance Show Meta where
   show = foldMap (\(str, n) -> str ++ ":" ++ show n) . unMeta
+
+compressedMeta :: Meta -> String
+compressedMeta (Meta ms) = go (B0 :< "?[") ms where
+
+  go :: Bwd String -> [(String, Int)] -> String
+  go acc [] = concat (acc :< "]")
+  go acc ((str, n):ms) =
+    let (ns, rest) = span ((str ==) . fst) ms in
+    go (acc :< "(" ++ show str ++ "," ++ show (n : map snd ns) ++ ")") rest
+
+instance Pretty Meta where
+  pretty = pretty . compressedMeta
 
 type Term = CdB (Tm Meta)
 type Subst = CdB (Sbst Meta)

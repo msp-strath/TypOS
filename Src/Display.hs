@@ -105,7 +105,12 @@ instance Display Pat where
   type DisplayEnv Pat = Naming
   display = viaPretty
 
-unsafeDisplayClosed :: (DisplayEnv a ~ Naming, Display a) => Options -> a -> String
-unsafeDisplayClosed opts t = render (colours opts) (Config (termWidth opts) Vertical)
-  $ unsafeEvalDisplay Unelaboration.initNaming
+unsafeDocDisplayClosed :: (DisplayEnv a ~ Naming, Display a) => Options -> a -> Doc Annotations
+unsafeDocDisplayClosed opts t
+  = unsafeEvalDisplay Unelaboration.initNaming
   $ display t
+
+unsafeDisplayClosed :: (DisplayEnv a ~ Naming, Display a) => Options -> a -> String
+unsafeDisplayClosed opts t
+  = render (colours opts) (Config (termWidth opts) Vertical)
+  $ unsafeDocDisplayClosed opts t

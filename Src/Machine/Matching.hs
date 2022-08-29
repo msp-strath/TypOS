@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Machine.Matching where
 
 import Data.Bifunctor
@@ -10,6 +12,8 @@ import Term.Base
 import Term.Display()
 import Hide
 import Pattern (Pat(..))
+import Doc((<+>))
+import Pretty (Pretty(..))
 
 {-
 import Display (unsafeDisplayClosed)
@@ -21,6 +25,10 @@ data Failure
   = DontKnow Meta
   | Mismatch
   deriving (Show)
+
+instance Pretty Failure where
+  pretty (DontKnow meta) = "Don't Know" <+> pretty meta
+  pretty Mismatch = "Mismatch"
 
 data Problem = Problem
   { localBinders :: Bwd String -- binders we have gone under
