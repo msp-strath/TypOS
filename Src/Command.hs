@@ -97,7 +97,6 @@ type AStatement = STATEMENT Abstract
 type COpPattern = OPPATTERN Concrete
 type AOpPattern = OPPATTERN Abstract
 type COperator = OPERATOR Concrete
-type EOperator = OPERATOR Elaboration
 type AOperator = OPERATOR Abstract
 type CPattern = PATTERN Concrete
 type APattern = PATTERN Abstract
@@ -180,9 +179,6 @@ pstatement = Statement <$> pvariable <*> many (id <$ pspc <*> pvariable)
 
 pconditions :: Parser [CStatement]
 pconditions = pcurlies (psep (punc ",") pstatement)
-
-pwithRange :: Parser a -> Parser (WithRange a)
-pwithRange p = withRange (WithRange unknown <$> p)
 
 poperator :: Parser a -> Parser (WithRange String, [a])
 poperator ph =

@@ -1,5 +1,5 @@
 ret > ExitSuccess
-out > [43mWarning:[0m Unsolved metas (b1:1, b2:2)
+out > Warning: Unsolved metas (b1:1, b2:2)
 out >
 out >
 err > 'at not an operator application
