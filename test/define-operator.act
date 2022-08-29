@@ -8,6 +8,8 @@ operator
   ; 'Bool - ['if 'Wildcard 'Wildcard] ~> 'Wildcard
   ; 'Nat - ['plus 'Nat] ~> 'Nat
   ; 'Nat - ['mult 'Nat] ~> 'Nat
+  -- TODO:
+  -- ; (p : ['Sg a \x.b]) - 'snd ~> b {x=p - 'fst}
   }
 
 t - 'id ~> t
@@ -27,6 +29,8 @@ m - ['plus n] - ['plus x] ~> m - ['plus (n - ['plus x])]
 
 'zero - ['mult n] ~> 'zero
 m - ['mult 'zero] ~> 'zero
+-- TODO: this should raise a complaint that these are non-confluent
+-- (unless we manage to get plus to be commutative)
 ['succ m] - ['mult n] ~> n - ['plus (m - ['mult n])]
 m - ['mult ['succ n]] ~> m - ['plus (m - ['mult n])]
 m - ['plus n] - ['mult p] ~> (m - ['mult p]) - ['plus (n - ['mult p])]
@@ -40,4 +44,5 @@ exec
   | 'hello - ['myWhen block] ~ 'hello
   | block ~ 'True
   | PRINTF "%i" block.
+  | 'Nat?m n p. m - ['plus n] - ['mult p] ~ (m - ['mult p]) - ['plus (n - ['mult p])]
   )

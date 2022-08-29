@@ -7,8 +7,15 @@ import Vector
 import Actor
 import Thin
 import Term.Base
+import Term.Display()
 import Hide
 import Pattern (Pat(..))
+
+{-
+import Display (unsafeDisplayClosed)
+import Debug.Trace
+import Options (unsafeOptions)
+-}
 
 data Failure
   = DontKnow Meta
@@ -20,6 +27,11 @@ data Problem = Problem
   , problemPat :: Pat          -- pattern to match
   , problemTerm :: Term        -- candidate term
   }
+
+-- Only use this to debug clauses
+mismatch :: Pat -> Term -> Failure
+mismatch _ _ = Mismatch
+--mismatch p t = trace (unsafeDisplayClosed unsafeOptions p ++ " ∌ " ++ unsafeDisplayClosed unsafeOptions t) Mismatch
 
 match :: (Term -> Term) -- head normal former
       -> Env -- environment of matches
@@ -52,7 +64,7 @@ matchN hnf env (Problem zx (MP x ph) tm@(CdB _ th) :* xs)
       (tm, Left err) -> (tm :* fmap problemTerm xs, Left err)
 matchN hnf env (Problem zx pat tm :* xs) = let tmnf = hnf tm in case (pat, expand tmnf) of
   (HP, _) -> first (tmnf:*) $ matchN hnf env xs
-  (GP, _) -> (tmnf :* fmap problemTerm xs, Left Mismatch)
+  (GP, _) -> (tmnf :* fmap problemTerm xs, Left (mismatch pat tmnf))
   (_, (meta :$: _)) -> case matchN hnf env xs of
     (tms, err@(Left Mismatch)) -> (tmnf :* tms, err)
     (tms, _) -> (tmnf:*tms, Left (DontKnow meta))
@@ -64,14 +76,14 @@ matchN hnf env (Problem zx pat tm :* xs) = let tmnf = hnf tm in case (pat, expan
     let env' = declareAlpha (x, Hide y) env in
     case matchN hnf env' (Problem (zx :< x) p t :* xs) of
       (b :* tms, res) -> ((y \\ b) :* tms, res)
-  _ -> (tmnf :* fmap problemTerm xs, Left Mismatch)
+  _ -> (tmnf :* fmap problemTerm xs, Left (mismatch pat tmnf))
 
 instThicken :: (Term -> Term) -> Th -> Term
             -> (Term, Either Failure Term)
 instThicken hnf ph t = let tmnf = hnf t in case tmnf of
   v@(CdB V _) -> case thickenCdB ph v of
     Just v -> (tmnf, pure v)
-    Nothing -> (tmnf, Left Mismatch)
+    Nothing -> (tmnf, Left (mismatch (MP "whatevs" ph) tmnf))
   m@(CdB (meta :$ _) _) -> case thickenCdB ph m of
     Just m -> (tmnf, pure m)
     Nothing -> (tmnf, Left (DontKnow meta))

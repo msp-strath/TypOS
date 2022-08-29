@@ -10,8 +10,9 @@ import Control.Monad.Reader
 import Concrete.Pretty ()
 import Forget
 import Format
+import Options
 import Pattern
-import Doc
+import Doc hiding (render)
 import Doc.Render.Terminal
 import Thin
 
@@ -103,3 +104,8 @@ instance (Show t, Unelab t, Pretty (Unelabed t)) =>
 instance Display Pat where
   type DisplayEnv Pat = Naming
   display = viaPretty
+
+unsafeDisplayClosed :: (DisplayEnv a ~ Naming, Display a) => Options -> a -> String
+unsafeDisplayClosed opts t = render (colours opts) (Config (termWidth opts) Vertical)
+  $ unsafeEvalDisplay Unelaboration.initNaming
+  $ display t

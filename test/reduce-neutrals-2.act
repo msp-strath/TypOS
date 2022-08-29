@@ -1,0 +1,8 @@
+operator
+  { 'Wildcard - ['fst ['Enum ['True]]] ~> 'Wildcard
+  ; 'Wildcard - ['snd ['Enum ['True]]] ~> 'Wildcard
+  }
+
+x - ['fst b1] - ['snd b2] ~> x - ['fst b1 - ['snd b2]]
+
+exec ('Wildcard?b1 b2. 'at - ['fst b1] - ['snd b2] ~ 'at - ['fst b1 - ['snd b2]])

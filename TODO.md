@@ -39,6 +39,7 @@
    + [x] 'Done' status for winning branches
    + [x] 'Fail' status for dead branches
 * [ ] Add "stuckon" tracing option for pattern-matching machinery
+* [ ] Add "match" tracing option
 * [ ] Compile matches to case trees
 
 ### Judgement Contracts

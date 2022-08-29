@@ -23,10 +23,8 @@ import Data.Bifunctor (Bifunctor(first))
 
 import Machine.Matching
 import Debug.Trace (trace)
-import Display (Display, display, unsafeEvalDisplay, DisplayEnv)
-import Doc (Config (..), Orientation (..))
-import Doc.Render.Terminal (render)
-import Unelaboration (Naming, initNaming)
+import Display (unsafeDisplayClosed)
+import ANSI
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
@@ -184,11 +182,6 @@ unOp t = case expand t of
     pure (Operator op, ps)
   _ -> Nothing
 
-unsafeDisplayClosed :: (DisplayEnv a ~ Naming, Display a) => Options -> a -> String
-unsafeDisplayClosed opts t = render (colours opts) (Config (termWidth opts) Vertical)
-  $ unsafeEvalDisplay initNaming
-  $ display t
-
 toClause :: Pat -> Bwd (Operator, [Pat]) -> ACTm
          -> Options
          -> (Term -> Term) -- head normaliser
@@ -197,13 +190,13 @@ toClause :: Pat -> Bwd (Operator, [Pat]) -> ACTm
          -> Either (Term, [Term]) Term
 toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
   let msg = \ result -> (unlines
-        [ unwords ("Matching" : unsafeDisplayClosed opts t : "-" : [case args of
+        [ unwords ("Matching " : withANSI [SetColour Background Green] (unsafeDisplayClosed opts t) : "-" : [case args of
                       [] -> "'" ++ getOperator (fst op)
                       _ -> "['" ++ unwords (getOperator (fst op) : map (unsafeDisplayClosed opts) args) ++ "]"]
                   )
         , unwords ("against"
                   : unsafeDisplayClosed opts pobj
-                  : flip map (ops <>> [op]) (\ (Operator op, ps) -> " - " ++ case ps of
+                  : flip map (ops <>> [op]) (\ (Operator op, ps) -> "- " ++ case ps of
                      [] -> "'" ++ op
                      _ -> "['" ++ unwords (op : map (unsafeDisplayClosed opts) ps) ++ "]")
                   )
@@ -211,11 +204,17 @@ toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
         , result ]) in
   let ((t, ts), res) = loop env ops op targs in case res of
     Right env | Just val <- mangleActors opts env rhs
-      -> trace (msg "Success!") $ pure val
-      | otherwise -> trace (msg "Failure") $ Left (t, ts)
-    Left err -> trace (msg ("Failure " ++ show err)) $ Left (t, ts)
+      -> whenClause opts (msg (withANSI [SetColour Background Green] "Success!")) $ pure val
+      | otherwise -> whenClause opts (msg (withANSI [SetColour Background Red] "Failure")) $ Left (t, ts)
+    Left err -> whenClause opts (msg (withANSI [SetColour Background Red] $ "Failure " ++ show err)) $ Left (t, ts)
 
   where
+
+  whenClause :: Options -> String -> a -> a
+  whenClause opts str a
+    | MachineClause `elem` fromMaybe [] (tracingOption opts)
+    = trace str a
+    | otherwise = a
 
   loop :: Env
        -> Bwd (Operator, [Pat])  -- left nested operators
@@ -231,11 +230,11 @@ toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
           -- leftops + lop to the left of the op currently in focus
           (lops :< (lop, lps)) -> let topsnf = hnf tops in case expand topsnf of
             (ltops :-: loptps) -> let loptpsnf = hnf loptps in case unOp loptpsnf of
-              Just (lop, ltps) | op == lop ->
+              Just (lop', ltps) | lop == lop' ->
                 case loop env lops (lop, lps) (ltops, ltps) of
                   ((ltops, ltps), res) -> (ltops -% (getOperator lop, ltps), res)
               _ -> (contract (ltops :-: loptpsnf), Left Mismatch) -- Careful: could be a stuck meta
-            _ -> (topsnf, Left Mismatch)
+            _ -> (topsnf, Left (whenClause opts (unsafeDisplayClosed unsafeOptions topsnf ++ " not an operator application") Mismatch))
     in case leftnested of
       (tops, Left err) -> ((tops, tps), Left err)
       (tops, Right env) -> first (tops,) $ matches env ps tps

@@ -16,6 +16,7 @@ data MachineStep
   | MachineMove
   | MachineUnify
   | MachineBreak
+  | MachineClause
   deriving (Eq, Show, Enum, Bounded)
 
 instance Pretty MachineStep where
@@ -26,6 +27,7 @@ instance Pretty MachineStep where
     MachineMove -> "move"
     MachineUnify -> "unify"
     MachineBreak -> "break"
+    MachineClause -> "clause"
 
 data Options = Options
   { filename :: String
@@ -38,6 +40,19 @@ data Options = Options
   , termWidth :: Int
   , noContext :: Bool
   } deriving (Show)
+
+unsafeOptions :: Options
+unsafeOptions = Options
+ { filename = ""
+ , wAll = True
+ , quiet = False
+ , colours = True
+ , tracingOption = Nothing
+ , latex = Nothing
+ , latexAnimated = Nothing
+ , termWidth = 80
+ , noContext = False
+ }
 
 poptions :: Parser Options
 poptions = Options
@@ -60,6 +75,7 @@ poptions = Options
      "move" -> pure MachineMove
      "unify" -> pure MachineUnify
      "break" -> pure MachineBreak
+     "clause" -> pure MachineClause
      x -> readerError $ "Unknown tracing level '" ++ x ++ "'. Accepted levels:\n" ++ levels
    tracingHelp = "Override tracing level (combinations of {" ++ levels ++ "} in quotes, separated by spaces, e.g. " ++ exampleLevels ++ ")"
    levels = show $ vcat $ map pretty [(minBound::MachineStep)..]
