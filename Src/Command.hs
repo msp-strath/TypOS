@@ -211,21 +211,7 @@ pcommand
   <|> Go <$ plit "exec" <* pspc <*> pACT
   <|> Trace <$ plit "trace" <*> pcurlies (psep (punc ",") pmachinestep)
   <|> DeclOp <$ plit "operator" <*> pcurlies (psep (punc ";") panoperator)
-  <|> DefnOp <$> ((,,) <$> ppat <*> pdefnlhs <* punc "~>" <*> pTM)
- where
-  pdefnlhs :: Parser [COpPattern]
-  -- pdefnlhs = poperator ((,) <$> ptm <* pspc <*> pdefnlhs) ??? TODO: refactor
-  pdefnlhs = many (punc "-" *> (ppat >>= (pmustwork "Expected operator pattern" . help)))
-
-  help :: RawP -> Parser COpPattern
-  help (AtP r o) = pure (WithRange r o, [])
-  help (ConsP _ (AtP r o) tail) = (WithRange r o,) <$> listy tail
-  help _ = Other "Operator has no tag" <!> pfail
-
-  listy :: RawP -> Parser [RawP]
-  listy (AtP _ "") = pure []
-  listy (ConsP _ head tail) = (head:) <$> listy tail
-  listy _ = Other "Operator parameters not list like" <!> pfail
+  <|> DefnOp <$> ((,,) <$> ppat <*> some (punc "-" *> poperator ppat) <* punc "~>" <*> pTM)
 
 pfile :: Parser [CCommand]
 pfile = id <$ pspc <*> psep pspc pcommand <* pspc
