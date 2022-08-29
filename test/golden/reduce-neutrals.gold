@@ -6,16 +6,20 @@ err > 'at not an operator application
 err > Matching 'at - ['if ?[("b1",[1])] - ['if ?[("b2",[2])]]]
 err > against x - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
 err > Failure Mismatch
+err >
 err > 'at not an operator application
 err > Matching 'at - ['if ?[("b1",[1])]]
 err > against x - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
 err > Failure Mismatch
+err >
 err > Matching 'at - ['if ?[("b1",[1])]] - ['if ?[("b2",[2])]]
 err > against x - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
 err > Success!
+err >
 err > 'at not an operator application
 err > Matching 'at - ['if ?[("b1",[1])] - ['if ?[("b2",[2])]]]
 err > against x - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
 err > Failure Mismatch
+err >
 err >
 err >

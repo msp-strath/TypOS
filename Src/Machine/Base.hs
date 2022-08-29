@@ -27,7 +27,7 @@ import Debug.Trace (trace)
 import Display (unsafeDocDisplayClosed)
 import ANSI hiding (withANSI)
 import Doc.Render.Terminal
-import Doc (hsep, vcat, Doc, Config (..), Orientation(..), (<+>))
+import Doc (hsep, vcat, Doc, Config (..), Orientation(..), (<+>), flush)
 import Pretty (pretty)
 
 newtype Date = Date Int
@@ -193,7 +193,7 @@ toClause :: Pat -> Bwd (Operator, [Pat]) -> ACTm
          -> (Term, [Term]) -- object & parameters
          -> Either (Term, [Term]) Term
 toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
-  let msg = \ result -> vcat
+  let msg = \ result -> flush $ vcat
         [ hsep ( "Matching"
                : withANSI [SetColour Background Green] (unsafeDocDisplayClosed opts t)
                : "-"
