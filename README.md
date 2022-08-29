@@ -502,11 +502,11 @@ creation.
 
 ## Operators
 
-An expression of the form *t* `- ['`*'op* *ps* `]` denotes the operator
+An expression of the form *t* `-` `[`*'op* *ps* `]` denotes the operator
 with name given by the atom *'op*, operating on the object *t* with
 parameters the list *ps*. If the parameter list is empty, then the
 square brackets should be omitted, i.e., the expression is simply
-*t* `-' `*op*.
+*t* `- `*'op*.
 For example, we have the builtin operators
 
 ```typos-ignore
@@ -515,7 +515,7 @@ t - ['when b]
 ```
 for "applications" and "guarded" expressions, respectively. Operators
 are declared with the keyword `operator`, followed by a braces-enclosed,
-semicolon-separated list of declarations of the form *sd0* `- [`*'op* *sds* `] ~>` *sd1*, where
+semicolon-separated list of declarations of the form *sd0* `-` `[`*'op* *sds* `]` `~>` *sd1*, where
 
 * *'op* is the atom for the name of the operator;
 * *sd0* is the syntax description of the object being operated on;
@@ -538,8 +538,8 @@ specified by reduction rules of the form
 ```typos-ignore
 p ~> rhs
 ```
-where *p* is a pattern of the form *t0* `- [` *'op0* *ps0* `] - [`
-*'op1* *ps1* `] - ... [` *'opn* *psn* `]` (to be read as associating to
+where *p* is a pattern of the form *t0* `-` `[` *'op0* *ps0* `]` `-` `[`
+*'op1* *ps1* `]` `-` ... `[` *'opn* *psn* `]` (to be read as associating to
 the left) and *rhs* is a term possibly containing the pattern
 variables introduced in *p*. Of course, *p* and *rhs* must follow the
 syntax descriptions in the declaration of *'op0*, ..., *'opn*. The meaning of the
