@@ -1,6 +1,9 @@
 ret > ExitSuccess
 out > Warning: stlc2.act:29:5-16
 out > Pattern subject ty did not get scrutinised
+out > when elaborating a case branch handling the pattern ['Rad t ty]
+out > when elaborating a case branch handling the pattern 'Nothing
+out > when elaborating the judgement definition for synth
 out >
 err >
 err >

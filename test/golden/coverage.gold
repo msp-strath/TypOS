@@ -1,14 +1,18 @@
 ret > ExitSuccess
 out > Warning: coverage.act:6:4-9
 out > Unreachable clause 'Zero
+out > when elaborating the judgement definition for foo
 out > Warning: coverage.act:4:13-7:3
 out > Incomplete pattern matching. The following pattern is missing:
 out >   ['Succ a]
+out > when elaborating the judgement definition for foo
 out > Warning: coverage.act:12:4-13
 out > Unreachable clause ['Succ k]
+out > when elaborating the judgement definition for foo'
 out > Warning: coverage.act:10:14-13:3
 out > Incomplete pattern matching. The following pattern is missing:
 out >   'Zero
+out > when elaborating the judgement definition for foo'
 out >
 out >
 err >

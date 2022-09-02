@@ -29,7 +29,7 @@ data ElabState = ElabState
   { channelStates :: ChannelStates
   , actvarStates  :: ActvarStates
   , syntaxCats    :: SyntaxTable
-  , warnings      :: Bwd Warning
+  , warnings      :: Bwd (WithStackTrace Warning)
   }
 
 type ChannelState = (Direction, [Turn], AProtocol)
@@ -68,15 +68,21 @@ newtype Elab a = Elab
   { runElab :: StateT ElabState
                (ReaderT Context
                (WriterT All       -- Can we win?
-               (Either Complaint)))
+               (Either (WithStackTrace Complaint))))
                a }
   deriving ( Functor, Applicative, Monad
-           , MonadError Complaint
            , MonadReader Context
            , MonadState ElabState
            , MonadWriter All)
 
-evalElab :: Elab a -> Either Complaint a
+instance MonadError Complaint Elab where
+  throwError err = do
+    stk <- asks stackTrace
+    Elab (throwError (WithStackTrace stk err))
+
+  catchError ma k = Elab (catchError (runElab ma) (runElab . k . theMessage))
+
+evalElab :: Elab a -> Either (WithStackTrace Complaint) a
 evalElab = fmap fst
          . runWriterT
          . (`runReaderT` initContext)
@@ -182,6 +188,7 @@ data Context = Context
   , location     :: Bwd Turn
   , binderHints  :: Hints
   , elabMode     :: ElabMode
+  , stackTrace   :: StackTrace
   } deriving (Show)
 
 type Hints = Map String (Info SyntaxDesc)
@@ -202,6 +209,7 @@ initContext = Context
   , location = B0
   , binderHints = Map.empty
   , elabMode = Definition
+  , stackTrace = []
   }
 
 declareObjVar :: ObjVar -> Context -> Context
@@ -308,13 +316,49 @@ instance HasGetRange Warning where
 
 raiseWarning :: Warning -> Elab ()
 raiseWarning w = do
-  modify (\ r -> r { warnings = warnings r :< w })
+  stk <- asks stackTrace
+  modify (\ r -> r { warnings = warnings r :< WithStackTrace stk w })
 
 ------------------------------------------------------------------------------
 -- Errors
 
-during :: (Complaint -> Complaint) -> Elab a -> Elab a
-during f ma = ma `catchError` (throwError . f)
+during :: ContextualInfo -> Elab a -> Elab a
+during c = local (\ ctx -> ctx { stackTrace = c : stackTrace ctx })
+
+type StackTrace = [ContextualInfo]
+
+instance HasGetRange a => HasGetRange (WithStackTrace a) where
+  getRange = getRange . theMessage
+
+data WithStackTrace a = WithStackTrace
+  { theStackTrace :: StackTrace
+  , theMessage :: a
+  }
+
+data ContextualInfo
+  = SendTermElaboration Channel Raw
+  | MatchElaboration CScrutinee
+  | MatchBranchElaboration RawP
+  | ConstrainTermElaboration Raw
+  | ConstrainSyntaxCatGuess Raw Raw
+  | FreshMetaElaboration
+  | UnderElaboration
+  | RecvMetaElaboration Channel
+  | PushTermElaboration Raw
+  | LookupVarElaboration Variable
+  | DeclJElaboration Variable
+  | DefnJElaboration Variable
+  | ExecElaboration
+  | DeclaringSyntaxCat SyntaxCat
+  | SubstitutionElaboration (Bwd SbstC)
+  | PatternVariableElaboration Variable
+  | TermVariableElaboration Variable
+  | ProtocolElaboration CProtocol
+  | ConnectElaboration Variable Variable
+  | CompareTermElaboration Raw
+  | MatchScrutineeElaboration CScrutinee
+  | CompareSyntaxCatGuess Raw Raw
+  deriving (Show)
 
 data Complaint
   -- scope
@@ -365,31 +409,6 @@ data Complaint
   | SyntaxPError Range SyntaxDesc RawP
   | ExpectedAnOperator Range Raw
   | ExpectedAnEmptyListGot Range String [SyntaxDesc]
-  -- contextual info
-  -- shouldn't contain ranges because there should be a more precise one
-  -- on the decorated complaint
-  | SendTermElaboration Channel Raw Complaint
-  | MatchElaboration CScrutinee Complaint
-  | MatchBranchElaboration RawP Complaint
-  | ConstrainTermElaboration Raw Complaint
-  | ConstrainSyntaxCatGuess Raw Raw Complaint
-  | FreshMetaElaboration Complaint
-  | UnderElaboration Complaint
-  | RecvMetaElaboration Channel Complaint
-  | PushTermElaboration Raw Complaint
-  | LookupVarElaboration Variable Complaint
-  | DeclJElaboration Variable Complaint
-  | DefnJElaboration Variable Complaint
-  | ExecElaboration Complaint
-  | DeclaringSyntaxCat SyntaxCat Complaint
-  | SubstitutionElaboration (Bwd SbstC) Complaint
-  | PatternVariableElaboration Variable Complaint
-  | TermVariableElaboration Variable Complaint
-  | ProtocolElaboration CProtocol Complaint
-  | ConnectElaboration Variable Variable Complaint
-  | CompareTermElaboration Raw Complaint
-  | MatchScrutineeElaboration CScrutinee Complaint
-  | CompareSyntaxCatGuess Raw Raw Complaint
   deriving (Show)
 
 instance HasGetRange Complaint where
@@ -441,31 +460,6 @@ instance HasGetRange Complaint where
     SyntaxPError r _ _ -> r
     ExpectedAnOperator r _ -> r
     ExpectedAnEmptyListGot r _ _ -> r
-  -- contextual info
-  -- shouldn't contain ranges because there should be a more precise one
-  -- on the decorated complaint
-    SendTermElaboration _ _ c -> getRange c
-    MatchElaboration _ c -> getRange c
-    MatchBranchElaboration _ c -> getRange c
-    ConstrainTermElaboration _ c -> getRange c
-    ConstrainSyntaxCatGuess _ _ c -> getRange c
-    FreshMetaElaboration c -> getRange c
-    UnderElaboration c -> getRange c
-    RecvMetaElaboration _ c -> getRange c
-    PushTermElaboration _ c -> getRange c
-    LookupVarElaboration _ c -> getRange c
-    DeclJElaboration _ c -> getRange c
-    DefnJElaboration _ c -> getRange c
-    ExecElaboration c -> getRange c
-    DeclaringSyntaxCat _ c -> getRange c
-    SubstitutionElaboration _ c -> getRange c
-    PatternVariableElaboration _ c -> getRange c
-    TermVariableElaboration _ c -> getRange c
-    ProtocolElaboration _ c -> getRange c
-    ConnectElaboration _ _ c -> getRange c
-    CompareTermElaboration _ c -> getRange c
-    MatchScrutineeElaboration _ c -> getRange c
-    CompareSyntaxCatGuess _ _ c -> getRange c
 
 ------------------------------------------------------------------------------
 -- Syntaxes
