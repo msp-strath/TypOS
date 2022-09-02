@@ -18,12 +18,6 @@
 ### Features
 
 * [ ] Module system
-* [ ] VM performance
-   + [ ] Profiling
-   + [ ] Bookkeep parts of the tree that are not stuck on new metas
-   + [ ] Record more precise "Date" information (e.g. sets of blocking meta)
-   + [x] 'Done' status for winning branches
-   + [x] 'Fail' status for dead branches
 * [ ] Concurrent runtime
 * [ ] Construct error messages from unfinished runs
 * [ ] Deadlock detection
@@ -34,6 +28,19 @@
    + [ ] Unique names for subactors
    + [ ] block terms on names
    + [ ] Blocking wrapper evaporates when named thing is `Done`
++ [ ] PRINTF argument for model-based normalisation
+
+### VM
+
+* [ ] VM performance
+   + [ ] Profiling
+   + [ ] Bookkeep parts of the tree that are not stuck on new metas
+   + [ ] Record more precise "Date" information (e.g. sets of blocking meta)
+   + [x] 'Done' status for winning branches
+   + [x] 'Fail' status for dead branches
+* [ ] Add "stuckon" tracing option for pattern-matching machinery
+* [ ] Add "match" tracing option
+* [ ] Compile matches to case trees
 
 ### Judgement Contracts
 
@@ -73,7 +80,7 @@
 * [x] `data Actor (ph :: Phase)`?
 * [ ] Define `ElaborationMonad m =>` & cleanup sclause
 * [ ] Drop run-length encoding subst in favour of relevant subst
-
+* [ ] Match monad for Matching (Env in a state)
 
 ### Pretty
 

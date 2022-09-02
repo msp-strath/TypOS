@@ -1,0 +1,10 @@
+ret > ExitSuccess
+out > Warning: Unsolved metas (b1:1, b2:2)
+out >
+out >
+err > Matching 'at - ['fst ?[("b1",[1])]] - ['snd ?[("b2",[2])]]
+err > against x - ['fst b1] - ['snd b2] ~> x - ['fst b1 - ['snd b2]]
+err > Success!
+err >
+err >
+err >

@@ -60,7 +60,7 @@ main = do
 
       -- Failed run error
       unless (isWin a) $ do
-         putStrLn $ ANSI.withANSI [SetColour Background Red] "Error:" ++ " Did not win"
+         putStrLn $ anerror opts $ " Did not win"
          putStrLn $ let (_, _, _, a) = unsafeEvalDisplay initDEnv $ displayProcess' res in
                     render (colours $ options p) cfg a
 
@@ -68,9 +68,9 @@ main = do
       let unsolved = Map.mapMaybe (\ (_, msol)  -> () <$ guard (isNothing msol)) $ solutions sto
       case Map.keys unsolved of
         [] -> pure ()
-        ms -> putStrLn $ ANSI.withANSI [SetColour Background Yellow] "Warning:"
-                      ++ " Unsolved meta" ++ (if length ms > 1 then "s" else "")
-                      ++ " (" ++ intercalate ", " (show <$> ms) ++ ")"
+        ms -> putStrLn $ warning opts
+            $ " Unsolved meta" ++ (if length ms > 1 then "s" else "")
+            ++ " (" ++ intercalate ", " (show <$> ms) ++ ")"
 
       -- Resulting derivation
       unless (quiet opts) $ do
@@ -79,10 +79,17 @@ main = do
       -- LaTeX & beamer backends
       whenJust (latex opts) $ \ file -> do
         writeFile file $ ldiagnostic table sto fs
-        putStrLn $ ANSI.withANSI [ SetColour Background Green ] "Success:"
-                ++ " wrote latex derivation to " ++ file
+        putStrLn $ success opts $ " wrote latex derivation to " ++ file
       whenJust (latexAnimated opts) $ \ file -> do
         writeFile file $ adiagnostic table sto fs (logs res)
-        putStrLn $ ANSI.withANSI [ SetColour Background Green ] "Success:"
-                ++ " wrote animated latex derivation to " ++ file
+        putStrLn $ success opts $ " wrote animated latex derivation to " ++ file
       dmesg "" res `seq` pure ()
+
+label :: Colour -> String -> Options -> String -> String
+label col lbl opts str =
+  ANSI.withANSI (SetColour Background Yellow <$ guard (colours opts)) (lbl ++ ":")
+  ++ str
+
+warning = label Yellow "Warning"
+success = label Green "Success"
+anerror = label Red "Error"

@@ -15,7 +15,7 @@ import Format
 import Hide
 import Location (unknown)
 import Options
-import Pattern
+import Pattern (Pat)
 import Pretty
 import Scope
 import Term
@@ -25,6 +25,7 @@ import Utils
 import Actor
 import Machine.Base
 import Machine.Display
+import Machine.Matching
 import Machine.Trace
 
 import System.IO.Unsafe
@@ -83,6 +84,9 @@ exec p@Process { actor = m@(Match _ s cls), ..}
   = switch term cls
  where
 
+  dat :: HeadUpData
+  dat = HeadUpData (mkOpTable stack) store options env
+
   search :: Bwd Frame -> Int -> Stack -> Int -> Maybe Term
   search B0 i stk bd = Nothing
   search (zf :< f) i stk bd = case f of
@@ -97,14 +101,14 @@ exec p@Process { actor = m@(Match _ s cls), ..}
   mangleScrutinee (Pair _ sc1 sc2) = (%) <$> mangleScrutinee sc1 <*> mangleScrutinee sc2
   mangleScrutinee (Lookup _ stk t)
     | Just t' <- mangleActors options env t
-    = case expand (headUp store t') of
+    = case expand (headUp dat t') of
       VX (DB i) _ | Just t' <- search stack i stk 0 -> pure ("Just" #%+ [t'])
       _ :$: _ -> Nothing
       _ -> pure (atom "Nothing" (scope t'))
   mangleScrutinee (Compare _ s t)
     | Just s' <- mangleActors options env s
     , Just t' <- mangleActors options env t
-    , Just cmp <- compareUp store s' t'
+    , Just cmp <- compareUp dat s' t'
     = pure (atom (show cmp) (scope s'))
   mangleScrutinee _ = Nothing
 
@@ -121,54 +125,10 @@ exec p@Process { actor = m@(Match _ s cls), ..}
                 , "in:"
                 , m ]
     in alarm options msg $ move (p { stack = stack :<+>: [] })
-  switch t ((pat, a):cs) = case match env [(localScope env, pat,t)] of
-    Left True -> switch t cs
-    Left False -> move (p { stack = stack :<+>: [] })
-    Right env -> exec (p { env = env, actor = a } )
-
-  match :: Env ->
-           [(Bwd String -- binders we have gone under
-            , Pat
-            , Term)] -> Either Bool Env -- Bool: should we keep trying other clauses?
-  match env [] = pure env
-  match env ((zx, AT x p, tm):xs) = do
-    env <- pure $ newActorVar (ActorMeta x) (zx <>> [], tm) env
-    match env ((zx, p, tm):xs)
-  match env ((zx, MP x ph, tm):xs) | is1s ph = do -- common easy special case
-    env <- pure $ newActorVar (ActorMeta x) (zx <>> [], tm) env
-    match env xs
-  match env ((zx, MP x ph, tm@(CdB t th)):xs) = do
-    let g = bigEnd th - bigEnd ph
-    -- we can do better: t may not depend on disallowed things until definitions are expanded
-    tm <- instThicken (ones g <> ph) tm
-    env <- pure $ newActorVar (ActorMeta x) ((ph ?< zx) <>> [], tm) env
-    match env xs
-  match env ((zx, pat, tm):xs) = case (pat, expand (headUp store tm)) of
-    (HP, _) -> match env xs
-    (GP, _) -> Left True
-    (_, (_ :$: _)) -> Left False
-    (VP i, VX j _) | i == j -> match env xs
-    (AP a, AX b _) | a == b -> match env xs
-    (PP p q, s :%: t) -> match env ((zx,p,s):(zx,q,t):xs)
-    (BP (Hide x) p, y :.: t) -> match (declareAlpha (x, Hide y) env) ((zx :< x,p,t):xs)
-    _ -> Left True
-
-  instThicken :: Th -> Term -> Either Bool Term
-  instThicken ph t = case headUp store t of
-      v@(CdB V _) -> case thickenCdB ph v of
-        Just v -> pure v
-        Nothing -> Left True
-      m@(CdB (_ :$ _) _) -> case thickenCdB ph m of
-        Just m -> pure m
-        Nothing -> Left False
-      x -> case expand x of
-        AX a ga -> pure (atom a (weeEnd ph))
-        s :%: t -> case (instThicken ph s, instThicken ph t) of
-          (Left bs, Left bt) -> Left (bs || bt)
-          (s, t) -> (%) <$> s <*> t
-        (x :.: t) -> (x \\) <$> instThicken (ph -? True) t
-
-
+  switch t ((pat, a):cs) = case match (headUp dat) env (Problem (localScope env) pat t) of
+    (t, Left Mismatch) -> switch t cs
+    (t, Left (DontKnow meta)) -> move (p { stack = stack :<+>: [] })
+    (t, Right env) -> exec (p { env = env, actor = a } )
 
 exec p@Process { actor = FreshMeta _ cat (av@(ActorMeta x), a), ..} =
   let (xm, root') = meta root x
@@ -189,7 +149,8 @@ exec p@Process { actor = Constrain _ s t, ..}
   -- , dmesg (show env) True
   -- , dmesg (show s ++ " ----> " ++ show s') True
   -- , dmesg (show t ++ " ----> " ++ show t') True
-  = unify (p { stack = stack :<+>: [UnificationProblem (today store) s' t'], actor = Win unknown })
+  = let dat = HeadUpData (mkOpTable stack) store options env in
+    unify dat (p { stack = stack :<+>: [UnificationProblem (today store) s' t'], actor = Win unknown })
 exec p@Process { actor = Under _ (Scope (Hide x) a), ..}
   = let scopeSize = length (globalScope env <> localScope env)
         stack' = stack :< Binding (tryAlpha env (getVariable x) ++ "_" ++ show scopeSize)
@@ -247,39 +208,44 @@ format ann p@Process{..} fmt
   $ insertDebug p
   $ instantiate store fmt
 
-unify :: Process Shots Store Cursor -> Process Shots Store []
+unify :: HeadUpData -> Process Shots Store Cursor -> Process Shots Store []
 -- unify p | dmesg ("\nunify\n  " ++ show p) False = undefined
 --unify (Process zf'@(zf :<+>: up@(UnificationProblem s t) : fs) _ _ store a)
 --  | dmesg ("\nunify\n  " ++ show t ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
-unify p | debug MachineUnify "" p = undefined
-unify p@Process { stack = zf :<+>: UnificationProblem date s t : fs, ..} =
-  case (expand (headUp store s), expand (headUp store t)) of
-    (s, t) | s == t      -> unify (p { stack = zf :<+>: fs })
-    (a :%: b, a' :%: b') -> unify (p { stack = zf :<+>: UnificationProblem date a a' : UnificationProblem date b b' : fs })
-    (x :.: a, x' :.: a') -> unify (p { stack = zf :<+>: UnificationProblem date a a' : fs })
-    (m :$: sg, _) | Just p <- solveMeta m sg t (p { stack = zf :<+>: fs }) -> unify p
-    (_, m :$: sg) | Just p <- solveMeta m sg s (p { stack = zf :<+>: fs }) -> unify p
-    (_, _) -> unify (p { stack = zf :< UnificationProblem date s t :<+>: fs })
-unify p = move p
+unify dat p | debug MachineUnify "" p = undefined
+unify dat p@Process { stack = zf :<+>: UnificationProblem date s t : fs, ..} =
+  case (expand (headUp dat s), expand (headUp dat t)) of
+    (s, t) | s == t      -> unify dat (p { stack = zf :<+>: fs })
+    (a :%: b, a' :%: b') -> unify dat (p { stack = zf :<+>: UnificationProblem date a a' : UnificationProblem date b b' : fs })
+    (x :.: a, x' :.: a') -> unify dat (p { stack = zf :<+>: UnificationProblem date a a' : fs })
+    (m :$: sg, _)
+      | Just p <- solveMeta m sg t (p { stack = zf :<+>: fs })
+      -> unify dat p
+    (_, m :$: sg)
+      | Just p <- solveMeta m sg s (p { stack = zf :<+>: fs })
+      -> unify dat p
+    (s, t) -> unify dat (p { stack = zf :< UnificationProblem date (contract s) (contract t) :<+>: fs })
+unify dat p = move p
 
-deepCheck :: Th    -- D0 <= D
+deepCheck :: HeadUpData
+          -> Th    -- D0 <= D
           -> Term  -- D
           -> Process log Store Cursor
           -> Maybe (Term -- D0
                    , Process log Store Cursor)
-deepCheck th tm p =
-  let (CdB t ph) = headUp (store p) tm in
+deepCheck dat th tm p =
+  let (CdB t ph) = headUp dat tm in
   let (ph', _, th') = pullback th ph in
   if is1s th' then pure (CdB t ph', p) else case t of
     V -> Nothing
     A at -> error "The IMPOSSIBLE happened in deepCheck"
-    P rp -> splirp (CdB rp ph) $ \a b -> do
-              (a, p) <- deepCheck th a p
-              (b, p) <- deepCheck th b p
-              pure (P $^ (a <&> b), p)
-    (nm := b) :. sc -> do (sc, p) <- deepCheck (th -? b) (CdB sc (ph -? b)) p
+    P k rp -> splirp (CdB rp ph) $ \a b -> do
+      (a, p) <- deepCheck dat th a p
+      (b, p) <- deepCheck dat th b p
+      pure (P k $^ (a <&> b), p)
+    (nm := b) :. sc -> do (sc, p) <- deepCheck dat (th -? b) (CdB sc (ph -? b)) p
                           pure (unhide nm \\ sc, p)
-    m :$ sg -> do (sg', th', p) <- pure $ strengthenSbst th sg p
+    m :$ sg -> do (sg', th', p) <- pure $ strengthenSbst dat th sg p
                   let (xm, root') = meta (root p) (fst $ last $ unMeta m)
                   let naming = fst $ fromJust $ Map.lookup m (solutions $ store p)
                   let store' = declareMeta xm (nameSel th' naming) (store p)
@@ -287,24 +253,25 @@ deepCheck th tm p =
                   let store'' = updateStore m (xm $: sbstI (weeEnd th') *^ th') store'
                   pure ((xm :$) $^ sg', p' { store = store'' })
 
-strengthenSbst :: Th        -- D0 <= D
+strengthenSbst :: HeadUpData
+               -> Th        -- D0 <= D
                -> Sbst Meta -- G --> D
                -> Process log Store Cursor
                -> ( Subst   -- G0 --> D0
                   , Th      -- G0 <= G
                   , Process log Store Cursor)
-strengthenSbst th sg p | is1s th = (CdB sg th, ones (sbstDom sg), p)
-strengthenSbst th (S0 :^^ 0) p = (CdB (S0 :^^ 0) (none (weeEnd th)), ones 0, p)
-strengthenSbst th (ST (CdB sg ps :<>: CdB (nm := t) xi) :^^ 0) p =
+strengthenSbst dat th sg p | is1s th = (CdB sg th, ones (sbstDom sg), p)
+strengthenSbst dat th (S0 :^^ 0) p = (CdB (S0 :^^ 0) (none (weeEnd th)), ones 0, p)
+strengthenSbst dat th (ST (CdB sg ps :<>: CdB (nm := t) xi) :^^ 0) p =
   let (ps', _, th') = pullback th ps in
-  let (sg', ph, p') = strengthenSbst th' sg p in
+  let (sg', ph, p') = strengthenSbst dat th' sg p in
   let sg'' = sg' *^ ps' in
-  case deepCheck th (CdB t xi) p' of
+  case deepCheck dat th (CdB t xi) p' of
     Nothing -> (sg'', ph -? False, p')
     Just (t', p) -> (sbstT sg'' ((nm :=) $^ t'), ph -? True, p)
-strengthenSbst th (sg :^^ n) p =
+strengthenSbst dat th (sg :^^ n) p =
   let (th', b) = thun th in
-  let (sg', ph, p') = strengthenSbst th' (sg :^^ (n-1)) p in
+  let (sg', ph, p') = strengthenSbst dat th' (sg :^^ (n-1)) p in
   (if b then sbstW sg' (ones 1) else sg', ph -? b, p')
 
 solveMeta :: Meta   -- The meta (m) we're solving
@@ -312,9 +279,10 @@ solveMeta :: Meta   -- The meta (m) we're solving
           -> Term   -- The term (t) that must be equal to m :$ sg and depends on ms
           -> Process log Store Cursor
           -> Maybe (Process log Store Cursor)
-solveMeta m (CdB (S0 :^^ _) th) tm p = do
-  (tm, p) <- deepCheck th tm p
-  return (p { store = updateStore m tm (store p) })
+solveMeta m (CdB (S0 :^^ _) th) tm p@Process{..} = do
+  let dat = HeadUpData (mkOpTable (let (fs :<+>: _) = stack in fs)) store options env
+  (tm, p) <- deepCheck dat th tm p
+  return (p { store = updateStore m tm store })
 
 
 connect :: AConnect
@@ -418,7 +386,8 @@ move p@Process { stack = zf :< Spawner (Interface (childP, q) (rxs, Hole) jd jdp
     in exec (childP { stack = stack', store = st, logs })
 move p@Process { stack = zf :< UnificationProblem date s t :<+>: fs, .. }
   | today store > date
-  = unify (p { stack = zf :<+>: UnificationProblem (today store) s t : fs })
+  = let dat = HeadUpData (mkOpTable zf) store options env in
+    unify dat (p { stack = zf :<+>: UnificationProblem (today store) s t : fs })
 move p@Process { stack = (zf :< f) :<+>: fs }
   = move (p { stack = zf :<+>: (f : fs) })
 

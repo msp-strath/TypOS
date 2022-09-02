@@ -181,6 +181,9 @@ withRange p = do
    end <- ploc
    pure $ addRange start end x
 
+pwithRange :: Parser a -> Parser (WithRange a)
+pwithRange p = withRange (WithRange unknown <$> p)
+
 instance Monad Parser where
   Parser f >>= k = Parser $ \ s ->
     let (loc, as) = f s in

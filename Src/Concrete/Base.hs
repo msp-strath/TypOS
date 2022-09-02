@@ -7,6 +7,9 @@ import Scope
 import Location
 import Data.Function (on)
 
+data Operator = Operator { getOperator :: String }
+  deriving (Show, Eq)
+
 data Variable = Variable
   { variableLoc :: Range
   , getVariable :: String
@@ -36,6 +39,7 @@ data Raw
   | Cons Range Raw Raw
   | Lam Range (Scope (Binder Variable) Raw)
   | Sbst Range (Bwd SbstC) Raw
+  | Op Range Raw Raw
   deriving (Show)
 
 instance HasSetRange Raw where
@@ -45,6 +49,7 @@ instance HasSetRange Raw where
     Cons _ p q -> Cons r p q
     Lam _ sc -> Lam r sc
     Sbst _ sg t -> Sbst r sg t
+    Op _ s t -> Op r s t
 
 instance Eq Raw where
   Var _ v == Var _ w = v == w
@@ -52,15 +57,17 @@ instance Eq Raw where
   Cons _ p q == Cons _ s t = p == s && q == t
   Lam _ sc == Lam _ bd = sc == bd
   Sbst _ cs t == Sbst _ ds u = cs == ds && t == u
+  Op _ s t == Op _ a b = s == a && t == b
   _ == _ = False
 
 instance HasGetRange Raw where
   getRange = \case
-    Var r v -> r
-    At r a -> r
-    Cons r p q -> r
-    Lam r sc -> r
-    Sbst r sg t -> r
+    Var r _ -> r
+    At r _ -> r
+    Cons r _ _ -> r
+    Lam r _ -> r
+    Sbst r _ _ -> r
+    Op r _ _ -> r
 
 data SbstC
   = Keep Range Variable
@@ -189,11 +196,13 @@ type instance LOOKEDUP Concrete = Variable
 type FORMAT (ph :: Phase) = [Format Directive Debug (TERM ph)]
 
 data SCRUTINEE (ph :: Phase)
- = ActorVar Range (SCRUTINEEVAR ph)
- | Nil Range
- | Pair Range (SCRUTINEE ph) (SCRUTINEE ph)
- | Lookup Range (STACK ph) (LOOKEDUP ph)
- | Compare Range (TERM ph) (TERM ph)
+  = ActorVar Range (SCRUTINEEVAR ph)
+  -- should we allow operators?
+  -- arbitrary terms as long as they don't mention subjects
+  | Nil Range
+  | Pair Range (SCRUTINEE ph) (SCRUTINEE ph)
+  | Lookup Range (STACK ph) (LOOKEDUP ph)
+  | Compare Range (TERM ph) (TERM ph)
 
 instance HasSetRange (SCRUTINEE ph) where
   setRange r = \case

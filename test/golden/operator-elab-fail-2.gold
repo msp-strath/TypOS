@@ -1,0 +1,10 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  3 | operator { 'Bool - ['if 'Wildcard 'Wildcard] ~> 'Wildcard }
+out >  4 | 
+out >  5 | 'True - ['if l] ~> l
+out >               ^^^^^
+out > operator-elab-fail-2.act:5:9-14
+out > Invalid arity: 1 missing operator parameters for if
+out >

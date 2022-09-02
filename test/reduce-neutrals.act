@@ -1,0 +1,5 @@
+operator { 'Wildcard - ['if ['Enum ['True]]] ~> 'Wildcard }
+
+x - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
+
+exec ('Wildcard?b1 b2. 'at - ['if b1] - ['if b2] ~ 'at - ['if b1 - ['if b2]])

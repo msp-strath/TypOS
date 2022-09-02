@@ -53,6 +53,7 @@ library
                        Machine.Base,
                        Machine.Display,
                        Machine.Exec,
+                       Machine.Matching,
                        Machine.Trace,
                        Main,
                        Options,
@@ -70,7 +71,8 @@ library
                        Term.Substitution,
                        Thin,
                        Unelaboration,
-                       Utils
+                       Utils,
+                       Vector
 
   build-depends:       base <5
                      , containers

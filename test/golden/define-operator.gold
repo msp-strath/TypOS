@@ -1,0 +1,8 @@
+ret > ExitSuccess
+out > 'test - 'id
+out > 'True
+out > Warning: Unsolved metas (m:7, n:8, p:9)
+out >
+out >
+err >
+err >

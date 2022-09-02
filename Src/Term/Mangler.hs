@@ -77,7 +77,7 @@ instance Manglable a => Manglable (Named a) where
 instance Manglable (Tm Meta) where
   mangle mu V = mangV mu
   mangle mu (A a) = pure (atom a (mangTgt mu))
-  mangle mu (P p) = (P $^) <$> mangle mu p
+  mangle mu (P k p) = (P k $^) <$> mangle mu p
   mangle mu ((Hide x := False) :. t) = (x \\) <$> (weak <$> mangle mu t)
   mangle mu ((Hide x := True) :. t) = (x \\) <$> mangle (mangB mu) t
   mangle mu (m :$ sg) = mangM mu m (mangle mu sg)

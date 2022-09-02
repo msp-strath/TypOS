@@ -1,12 +1,15 @@
 .PHONY: all build install clean install-hasktags TAGS test gif bash-completion
 
+CABAL_OPTIONS= #--ghc-options=-O0
+CABAL=cabal $(CABAL_OPTIONS)
+
 build:
-	cabal build
+	$(CABAL) build
 
 all: install test
 
 install:
-	cabal install --overwrite-policy=always
+	$(CABAL) install --overwrite-policy=always
 
 clean:
 	rm -rf dist dist-newstyle TAGS

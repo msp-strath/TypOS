@@ -109,6 +109,17 @@ instance Pretty Complaint where
        hsep ["Invalid bound variable", pretty x]
      NotAValidActorVar r x -> singleton $ (flush $ pretty r) <>
        hsep ["Invalid actor variable", pretty x]
+     NotAValidOperator r x -> singleton $ (flush $ pretty r) <>
+       hsep ["Invalid operator name", pretty x]
+       -- operators
+     AlreadyDeclaredOperator r op -> singleton $ (flush $ pretty r) <>
+       hsep ["Not a valid operator name", pretty op]
+     InvalidOperatorArity r op [] ops -> singleton $ (flush $ pretty r) <>
+       hsep ["Invalid arity:", pretty (show $ length ops), "extra operator parameters for", pretty op]
+     InvalidOperatorArity r op ds [] -> singleton $ (flush $ pretty r) <>
+       hsep ["Invalid arity:", pretty (show $ length ds), "missing operator parameters for", pretty op]
+     InvalidOperatorArity r op ds ps ->  singleton $ (flush $ pretty r) <>
+       hsep ["Invalid arity (the impossible happened)"]
      -- protocol
      InvalidSend r ch tm -> singleton $ (flush $ pretty r) <> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
      InvalidRecv r ch v -> singleton $ (flush $ pretty r) <> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]
@@ -145,8 +156,13 @@ instance Pretty Complaint where
      ExpectedAConsPGot r p -> singleton $ (flush $ pretty r) <> hsep ["Expected a patternf for a cons cell and got", pretty p]
      SyntaxError r d t -> singleton $ (flush $ pretty r) <> hsep ["Term", pretty t, "does not match", pretty d]
      SyntaxPError r d p -> singleton $ (flush $ pretty r) <> hsep ["Pattern", pretty p, "does not match", pretty d]
+     ExpectedAnOperator r t -> singleton $ (flush $ pretty r) <> hsep ["Expected an operator call but got", pretty t]
+     ExpectedAnEmptyListGot r a ds -> singleton $
+       (flush $ pretty r) <>
+       hsep ["Expected", pretty a, "to be a constant operator"
+            , "but it takes arguments of type:", collapse (pretty <$> ds)]
      -- contextual info
-     SendTermElaboration ch t c -> go c :< hsep ["when elaborating", fold [ pretty ch, "!", pretty t ] ]
+     SendTermElaboration ch t c -> go c :< hsep ["when elaborating", fold [ pretty ch, "!", pretty t <> "." ] ]
      MatchScrutineeElaboration t c -> go c :< hsep ["when elaborating the case scrutinee", pretty t]
      MatchElaboration t c -> go c :< hsep ["when elaborating a match with case scrutinee", pretty t]
      MatchBranchElaboration p c -> go c :< hsep ["when elaborating a case branch handling the pattern", pretty p]

@@ -3,13 +3,13 @@
 ;; based on: http://ergoemacs.org/emacs/elisp_syntax_coloring.html
 
 ;; define several class of keywords
-(setq typos-keywords  '("syntax" "exec" "trace"
+(setq typos-keywords  '("syntax" "operator" "exec" "trace"
                         "break" "unify" "send" "recv" "move"
-                        "case" "if" "let" "in" "else"
+                        "case" "let"
                         "Atom" "AtomBar" "Wildcard" "EnumOrTag" "Enum" "Tag" "Cons" "Nil" "NilOrCons" "Fix" "Bind"
                         "BREAK" "PRINT" "PRINTF"))
 (setq typos-operators '("@" "!" "?" "~" "#"))
-(setq typos-symbols   '("|-" "|" "<->" "->" ";" "=" "{" "}"))
+(setq typos-symbols   '("|-" "|" "<->" "->" "~>" ";" "=" "{" "}"))
 
 ;; create the regex string for each class of keywords
 (setq typos-keywords-regexp  (regexp-opt typos-keywords 'words))
@@ -25,9 +25,9 @@
 ;; each class of keyword is given a particular face
 (setq typos-font-lock-keywords
   `(
-    (,typos-operators-regexp . font-lock-builtin-face)
     (,typos-keywords-regexp  . font-lock-keyword-face)
     (,typos-symbols-regexp   . font-lock-builtin-face)
+    (,typos-operators-regexp . font-lock-builtin-face)
 ))
 
 ;; syntax table
