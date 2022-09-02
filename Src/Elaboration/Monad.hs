@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wincomplete-patterns #-}
 module Elaboration.Monad where
 
@@ -15,7 +16,7 @@ import Actor (ActorVar, AContextStack, AProtocol, Channel)
 import Bwd
 import Concrete.Base
 import Location (HasGetRange(..), Range, WithRange (..))
-import Syntax (SyntaxCat, SyntaxDesc, VSyntaxDesc'(..), VSyntaxDesc, SyntaxTable)
+import Syntax (SyntaxCat, SyntaxDesc, VSyntaxDesc'(..), VSyntaxDesc, SyntaxTable, wildcard)
 import qualified Syntax
 import Thin (Selable(..), DB (..), CdB (..))
 import Term.Base (Tm(..), atom)
@@ -178,9 +179,12 @@ data Kind
   deriving (Show)
 
 type Decls = Bwd (String, Kind)
+type Operators = Map String (SyntaxDesc, [SyntaxDesc], SyntaxDesc)
+
 data Context = Context
   { objVars      :: ObjVars
   , declarations :: Decls
+  , operators    :: Operators
   , location     :: Bwd Turn
   , binderHints  :: Hints
   , elabMode     :: ElabMode
@@ -190,10 +194,23 @@ data Context = Context
 type Hints = Map String (Info SyntaxDesc)
 
 data ElabMode = Definition | Execution
-  deriving (Eq, Show)
+              deriving (Eq, Show)
 
 initContext :: Context
-initContext = Context B0 B0 B0 Map.empty Definition []
+initContext = Context
+  { objVars = B0
+  , declarations = B0
+  , operators = Map.fromList
+    [ ("app", (wildcard, [wildcard], wildcard))
+    , ("when", ( wildcard
+               , [Syntax.contract (VEnumOrTag ["True"] [])]
+               , wildcard))
+    ]
+  , location = B0
+  , binderHints = Map.empty
+  , elabMode = Definition
+  , stackTrace = []
+  }
 
 declareObjVar :: ObjVar -> Context -> Context
 declareObjVar x ctx = ctx { objVars = objVars ctx :< x }
@@ -224,6 +241,35 @@ getName = do
 
 turn :: Turn -> Context -> Context
 turn t ds = ds { location = location ds :< t }
+
+------------------------------------------------------------------------------
+-- Operators
+
+type family OPERATOR (ph :: Phase) :: *
+type instance OPERATOR Concrete = WithRange String
+type instance OPERATOR Abstract = Operator
+
+data ANOPERATOR (ph :: Phase) = AnOperator
+  { opName :: OPERATOR ph
+  , objDesc :: SYNTAXDESC ph
+  , paramDescs :: [SYNTAXDESC ph]
+  , retDesc :: SYNTAXDESC ph
+  }
+
+deriving instance
+  ( Show (OPERATOR ph)
+  , Show (SYNTAXDESC ph)
+  ) => Show (ANOPERATOR ph)
+
+type CAnOperator = ANOPERATOR Concrete
+type AAnOperator = ANOPERATOR Abstract
+
+setOperators :: Operators -> Context -> Context
+setOperators ops ctx = ctx { operators = ops }
+
+addOperator :: AAnOperator -> Context -> Context
+addOperator (AnOperator (Operator op) obj params ret) ctx =
+  ctx { operators = Map.insert op (obj, params, ret) (operators ctx) }
 
 ------------------------------------------------------------------------------
 -- Hints
@@ -330,6 +376,10 @@ data Complaint
   | NotAValidChannel Range Variable (Maybe Kind)
   | NotAValidBoundVar Range Variable
   | NotAValidActorVar Range Variable
+  | NotAValidOperator Range String
+  -- operators
+  | AlreadyDeclaredOperator Range String
+  | InvalidOperatorArity Range String [SyntaxDesc] [RawP]
   -- protocol
   | InvalidSend Range Channel Raw
   | InvalidRecv Range Channel (Binder String)
@@ -357,6 +407,8 @@ data Complaint
   | ExpectedAConsPGot Range RawP
   | SyntaxError Range SyntaxDesc Raw
   | SyntaxPError Range SyntaxDesc RawP
+  | ExpectedAnOperator Range Raw
+  | ExpectedAnEmptyListGot Range String [SyntaxDesc]
   deriving (Show)
 
 instance HasGetRange Complaint where
@@ -375,6 +427,10 @@ instance HasGetRange Complaint where
     NotAValidChannel r _ _ -> r
     NotAValidBoundVar r _ -> r
     NotAValidActorVar r _ -> r
+    NotAValidOperator r _ -> r
+  -- operators
+    AlreadyDeclaredOperator r _ -> r
+    InvalidOperatorArity r _ _ _ -> r
   -- protocol
     InvalidSend r _ _ -> r
     InvalidRecv r _ _ -> r
@@ -402,6 +458,8 @@ instance HasGetRange Complaint where
     ExpectedAConsPGot r _ -> r
     SyntaxError r _ _ -> r
     SyntaxPError r _ _ -> r
+    ExpectedAnOperator r _ -> r
+    ExpectedAnEmptyListGot r _ _ -> r
 
 ------------------------------------------------------------------------------
 -- Syntaxes

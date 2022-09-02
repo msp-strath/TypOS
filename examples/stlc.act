@@ -71,6 +71,16 @@ synth@p = p?tm . case (lookup myCtxt tm)
   }
 
 ------------------------------------------------------------------------------
+-- Reduction rules
+
+operator
+  {
+    'Check - ['myApp 'Synth] ~> 'Check
+  }
+
+['Lam \x. t] - ['myApp s] ~> {x = s} t
+
+------------------------------------------------------------------------------
 -- Examples
 {-
 exec check@p. p! ['Arr 'Nat ['Arr 'Nat 'Nat]].

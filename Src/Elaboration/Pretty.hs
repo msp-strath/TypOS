@@ -97,7 +97,6 @@ instance Pretty ContextualInfo where
     ConnectElaboration ch1 ch2 -> hsep ["when elaborating the connection", pretty ch1, "<->", pretty ch2]
 
 instance Pretty Complaint where
-
   pretty c = flush (pretty (getRange c)) <> case c of
     -- scope
     OutOfScope r x -> hsep ["Out of scope variable", pretty x]
@@ -126,6 +125,15 @@ instance Pretty Complaint where
             , "refers to", maybe "a bound variable" pretty mk]
     NotAValidBoundVar r x -> hsep ["Invalid bound variable", pretty x]
     NotAValidActorVar r x -> hsep ["Invalid actor variable", pretty x]
+    NotAValidOperator r x -> hsep ["Invalid operator name", pretty x]
+      -- operators
+    AlreadyDeclaredOperator r op -> hsep ["Not a valid operator name", pretty op]
+    InvalidOperatorArity r op [] ops ->
+      hsep ["Invalid arity:", pretty (show $ length ops), "extra operator parameters for", pretty op]
+    InvalidOperatorArity r op ds [] ->
+      hsep ["Invalid arity:", pretty (show $ length ds), "missing operator parameters for", pretty op]
+    InvalidOperatorArity r op ds ps ->
+      hsep ["Invalid arity (the impossible happened)"]
     -- protocol
     InvalidSend r ch tm -> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
     InvalidRecv r ch v -> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]
@@ -152,18 +160,24 @@ instance Pretty Complaint where
     GotBarredAtom r a as -> hsep
       [ squote <> pretty a, "is one of the barred atoms", collapse (map pretty as) ]
     ExpectedNilGot r at -> hsep ["Expected [] and got", squote <> pretty at]
-    ExpectedEnumGot r es e -> "Expected" <+> sep
-      [ hsep ["an atom among", collapse (map pretty es)]
+    ExpectedEnumGot r es e -> sep
+      [ "Expected an atom among"
+      , horizontally (collapse $ map pretty es)
       , hsep ["and got", pretty e]]
-    ExpectedTagGot r ts t -> "Expected" <+> sep
-      [ hsep ["a tag among", collapse (map pretty ts) ]
+    ExpectedTagGot r ts t -> sep
+      [ "Expected a tag among"
+      , horizontally (collapse $ map pretty ts)
       , hsep ["and got", pretty t]]
     ExpectedANilGot r t -> hsep ["Expected the term [] and got", pretty t]
     ExpectedANilPGot r p -> hsep ["Expected the pattern [] and got", pretty p]
     ExpectedAConsGot r t -> hsep ["Expected a cons cell and got", pretty t]
-    ExpectedAConsPGot r p -> hsep ["Expected a patternf for a cons cell and got", pretty p]
+    ExpectedAConsPGot r p -> hsep ["Expected a pattern for a cons cell and got", pretty p]
     SyntaxError r d t -> hsep ["Term", pretty t, "does not match", pretty d]
     SyntaxPError r d p -> hsep ["Pattern", pretty p, "does not match", pretty d]
+    ExpectedAnOperator r t -> hsep ["Expected an operator call but got", pretty t]
+    ExpectedAnEmptyListGot r a ds ->
+       hsep ["Expected", pretty a, "to be a constant operator"
+            , "but it takes arguments of type:", collapse (pretty <$> ds)]
 
 instance Pretty a => Pretty (WithStackTrace a) where
   pretty (WithStackTrace stk msg) = vcat (pretty msg : map pretty stk)

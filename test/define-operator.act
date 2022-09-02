@@ -1,0 +1,48 @@
+syntax { 'Bool = ['Enum ['True 'False]] }
+syntax { 'Nat = ['EnumOrTag ['zero] [['succ 'Nat]]] }
+
+operator
+  { 'Wildcard - 'id ~> 'Wildcard
+  ; 'Wildcard - ['myApp 'Wildcard] ~> 'Wildcard
+  ; 'Wildcard - ['myWhen 'Bool] ~> 'Wildcard
+  ; 'Bool - ['if 'Wildcard 'Wildcard] ~> 'Wildcard
+  ; 'Nat - ['plus 'Nat] ~> 'Nat
+  ; 'Nat - ['mult 'Nat] ~> 'Nat
+  -- TODO:
+  -- ; (p : ['Sg a \x.b]) - 'snd ~> b {x=p - 'fst}
+  }
+
+t - 'id ~> t
+(\x. t) - ['myApp s] ~> {x=s}t
+
+x - ['myWhen 'True] ~> x
+
+'True - ['if l r] ~> l
+'False - ['if l r] ~> r
+
+'zero - ['plus n] ~> n
+['succ m] - ['plus n] ~> ['succ (m - ['plus n])]
+m - ['plus 'zero] ~> m
+m - ['plus n] - ['plus x] ~> m - ['plus (n - ['plus x])]
+
+-- parsed as m [(plus, [n]), (plus, [x])]
+
+'zero - ['mult n] ~> 'zero
+m - ['mult 'zero] ~> 'zero
+-- TODO: this should raise a complaint that these are non-confluent
+-- (unless we manage to get plus to be commutative)
+['succ m] - ['mult n] ~> n - ['plus (m - ['mult n])]
+m - ['mult ['succ n]] ~> m - ['plus (m - ['mult n])]
+m - ['plus n] - ['mult p] ~> (m - ['mult p]) - ['plus (n - ['mult p])]
+
+-- parsed as m [(plus, [n]), (mult, [p])]
+
+exec
+  'Bool?block.
+  ( PRINTF "%i" 'test - 'id.
+  | 'test - 'id ~ 'test
+  | 'hello - ['myWhen block] ~ 'hello
+  | block ~ 'True
+  | PRINTF "%i" block.
+  | 'Nat?m n p. m - ['plus n] - ['mult p] ~ (m - ['mult p]) - ['plus (n - ['mult p])]
+  )

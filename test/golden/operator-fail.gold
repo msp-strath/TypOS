@@ -1,0 +1,12 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  3 | 
+out >  4 | failure : ?'Wildcard. ?'Wildcard. !'Wildcard.
+out >  5 | failure@p = p?f. p?t. p!f - 'app.
+out >                              ^^^^^^^^
+out > operator-fail.act:5:24-32
+out > Expected app to be a constant operator but it takes arguments of type: ['Wildcard]
+out > when elaborating p!f - 'app
+out > when elaborating the judgement definition for failure
+out >

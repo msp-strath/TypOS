@@ -36,8 +36,8 @@ tth@(CdB t th) //^ sgph@(CdB sg ph) =
 (//) :: Tm m -> Sbst m -> Tm m
 t // (S0 :^^ _) = t
 V // (ST (_ :<>: CdB (_ := t) _) :^^ 0) = t
-P (CdB tl thl :<>: CdB tr thr) // sg =
-  P (CdB (tl // sgl) phl :<>: CdB (tr // sgr) phr) where
+P p (CdB tl thl :<>: CdB tr thr) // sg =
+  P p (CdB (tl // sgl) phl :<>: CdB (tr // sgr) phr) where
   CdB sgl phl = sbstSel thl sg
   CdB sgr phr = sbstSel thr sg
 ((x := b) :. t) // (sg :^^ w) = (x := b) :. (t // (sg :^^ if b then w+1 else w))
