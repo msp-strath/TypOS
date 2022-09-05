@@ -45,7 +45,8 @@ lookupRules jd zf = do
 
 recordFrame :: Process Shots Store Bwd -> Process Shots Store Bwd
 recordFrame p@Process{..} =
-  p { logs = instantiate store (extract Simple (length logs) (stack <>> [])) : logs }
+  let dat = HeadUpData (mkOpTable stack) store (options { quiet = True }) env in
+  p { logs = normalise dat (extract Simple (length logs) (stack <>> [])) : logs }
 
 -- run an actor
 exec :: Process Shots Store Bwd -> Process Shots Store []
@@ -200,12 +201,13 @@ evalError p@Process{..} fmt
 
 format :: [Annotation] -> Process log Store Bwd -> [Format Directive Debug Term] -> String
 format ann p@Process{..} fmt
-  = render (colours options) (Config (termWidth options) Vertical)
+  = let dat = HeadUpData (mkOpTable stack) store options env
+  in render (colours options) (Config (termWidth options) Vertical)
   $ unsafeEvalDisplay (frDisplayEnv stack)
   $ fmap (withANSI ann)
   $ subdisplay
   $ insertDebug p
-  $ instantiate store fmt
+  $ map (followDirectives dat) fmt
 
 unify :: HeadUpData -> Process Shots Store Cursor -> Process Shots Store []
 -- unify p | dmesg ("\nunify\n  " ++ show p) False = undefined

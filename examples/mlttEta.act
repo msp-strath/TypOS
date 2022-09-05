@@ -56,12 +56,12 @@ checkWorker@p = p?ty. p?tm. case $tm
     )
   ; ['Pair s t] -> case ty
     { ['Sg S \x. T] -> (check@q. q!S. q!s. | check@r. r!{x=['Rad s S]}T. r!t.)
-    ; _ -> #"Expected Sg; got %i" ty
+    ; _ -> #"Expected Sg; got %n" ty
     }
   ; 'Tt -> ty ~ 'One
   ; ['Lam \x. body] -> case ty
     { ['Pi S \x. T] -> \x. ctxt |- x -> S. check@q. q!T. q!body.
-    ; _ -> #"Expected Pi; got %i" ty
+    ; _ -> #"Expected Pi; got %n" ty
     }
   ; ['Emb e] -> synth@q. q!e. q?ety. checkEqual@r. r!'Ty. r!ty. r!ety.
   }
@@ -78,9 +78,9 @@ synthWorker@p = p?tm . case (lookup ctxt tm)
       ; ['Sg S \v. T] -> case $s
         { 'Fst -> p!S.
         ; 'Snd -> p!{v=['App f 'Fst]}T.
-        ; _ -> #"Expected Fst or Snd; got %i" s
+        ; _ -> #"Expected Fst or Snd; got %n" s
         }
-      ; _ -> #"Expected Pi or Sg; got %i" ty
+      ; _ -> #"Expected Pi or Sg; got %n" ty
       }
     }
   }
@@ -90,7 +90,7 @@ checkEval@p = p?tm. case tm
     { ['Rad t ty] -> !. PRINTF "Ups". p!t.
     ; x -> p!['Emb x].
     }
-  ; x -> {- PRINTF "Other %i" x . -} p!x.
+  ; x -> {- PRINTF "Other %n" x . -} p!x.
   }
 
 -- types in radicals are head normal
@@ -101,14 +101,14 @@ evalSynth@p = p?tm. case tm
     ; ['Rad ['Pair a b] ['Sg S \ x. T]] -> !. case s
       { 'Fst -> PRINTF "Fst" . evalSynth@w. w!['Rad a S]. w <-> p
       ; 'Snd -> PRINTF "Snd" . evalSynth@w. w!['Rad b {x=['Rad a S]}T]. w <-> p
-      ; _ -> #"Expected Fst or Snd; got %i" s
+      ; _ -> #"Expected Fst or Snd; got %n" s
       }
     ; g -> p!['App g s].
     }
   ; x -> p!x.
   }
 
-checkEqualWorker@p = p?ty. p?tm1. p?tm2. {- PRINTF "checkEqual %i\n %i\n %i" ty tm1 tm2. -} case ty
+checkEqualWorker@p = p?ty. p?tm1. p?tm2. {- PRINTF "checkEqual %n\n %n\n %n" ty tm1 tm2. -} case ty
   { ['Pi S \x. T] ->
     PRINTF "Eta Pi" . \x. ctxt |- x -> S. checkEqual@q. q!T.
     q!['Emb ['App ['Rad tm1 ty] ['Emb x]]].
@@ -131,11 +131,11 @@ checkEqualWorker@p = p?ty. p?tm1. p?tm2. {- PRINTF "checkEqual %i\n %i\n %i" ty 
       | \ x. ctxt |- x -> S1. checkEqual@u. u!'Ty. u!T1. u!T2.)
     ; ['One|'One] -> {- PRINTF "One" . -}
     ; [['Emb e1] | ['Emb e2] ] -> {- PRINTF "Emb" . -} equalSynth@w. w!e1.w!e2.w?ety.
-    ; [x|y] -> # "%i not checkEqual to %i" x y
+    ; [x|y] -> # "%n not checkEqual to %n" x y
     }
   }
 
-equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %i\n %i" e1 e2.
+equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %n\n %n" e1 e2.
   case (lookup ctxt e1)
   { ['Just S1] -> {- PRINTF "Var" . -}(e1 ~ e2 | p!S1.)
   ; 'Nothing -> case [e1|e2]
@@ -147,10 +147,10 @@ equalSynthWorker@p = p?e1. p?e2. PRINTF "equalSynth\n %i\n %i" e1 e2.
       ; ['Sg S \ x. T] -> s1 ~ s2 | case s1
         { 'Fst -> p!S.
         ; 'Snd -> p!{x=['App f1 'Fst]}T.
-        ; _ -> #"Expected Fst or Snd; got %i" s1
+        ; _ -> #"Expected Fst or Snd; got %n" s1
         }
       }
-    ; [x|y] -> # "%i not equalSynth to %i" x y
+    ; [x|y] -> # "%n not equalSynth to %n" x y
     }
   }
 
@@ -168,16 +168,16 @@ exec  'Synth?Id.'Synth?refl.'Synth?swap.'Synth?swapswap.
                       ['Lam \A. ['Lam \B. ['Lam \x . ['Emb ['App ['App ['App swap ['Emb B]] ['Emb A]] ['Emb ['App ['App ['App swap ['Emb A]] ['Emb B]] ['Emb x]]]]]]]]
                       ['Pi 'Ty \A. ['Pi 'Ty \B. ['Pi ['Sg ['Emb A] \_. ['Emb B] ] \_. ['Sg ['Emb A] \_. ['Emb B] ]]]]]
          |
-         synth@p. p!Id. p?ity. PRINTF "Id : %i" ity.
-         synth@q. q!refl. q?rty. PRINTF "refl : %i" rty.
-         synth@r. r!swap. r?sty. PRINTF "swap : %i" sty.
-         synth@r2. r2!swapswap. r2?sty2. PRINTF "swapswap : %i" sty2.
+         synth@p. p!Id. p?ity. PRINTF "Id : %n" ity.
+         synth@q. q!refl. q?rty. PRINTF "refl : %n" rty.
+         synth@r. r!swap. r?sty. PRINTF "swap : %n" sty.
+         synth@r2. r2!swapswap. r2?sty2. PRINTF "swapswap : %n" sty2.
          synth@e1. e1!['Rad ['Emb ['App ['App refl ['Pi ['Sg 'Ty \_. 'Ty ] \_. ['Sg 'Ty \_. 'Ty]]] ['Lam \x . ['Emb x]]]]
                             ['Emb ['App ['App ['App Id ['Pi ['Sg 'Ty \_. 'Ty ] \_. ['Sg 'Ty \_. 'Ty]]]
                                                        ['Lam \x . ['Emb x]]]
-                                                       ['Emb ['App ['App swapswap 'Ty] 'Ty]]]]]. e1?ety1. PRINTF "refl swapswap : %i" ety1.
+                                                       ['Emb ['App ['App swapswap 'Ty] 'Ty]]]]]. e1?ety1. PRINTF "refl swapswap : %n" ety1.
          synth@e2. e2!['Rad ['Emb ['App ['App refl ['Pi ['Sg 'One \_. 'One ] \_. ['Sg 'One \_. 'One]]] ['Lam \x . ['Emb x]]]]
                             ['Emb ['App ['App ['App Id ['Pi ['Sg 'One \_. 'One ] \_. ['Sg 'One \_. 'One]]]
                                                        ['Lam \x . ['Emb x]]]
-                                                       ['Emb ['App ['App swap 'One] 'One]]]]]. e2?ety2. PRINTF "refl swap One : %i" ety2.
+                                                       ['Emb ['App ['App swap 'One] 'One]]]]]. e2?ety2. PRINTF "refl swap One : %n" ety2.
       )

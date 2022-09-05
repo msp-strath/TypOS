@@ -12,7 +12,6 @@ import Term.Base
 import Term.Display()
 import Hide
 import Pattern (Pat'(..))
-import Doc((<+>))
 import Pretty (Pretty(..))
 
 {-

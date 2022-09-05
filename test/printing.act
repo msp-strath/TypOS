@@ -1,0 +1,16 @@
+syntax { 'Bool = ['Enum ['False 'True]] }
+
+operator { 'Wildcard - ['if 'Bool] ~> 'Wildcard }
+
+t - ['if 'True] ~> t
+
+strict : $'Bool.
+strict@p = p?b. case $b
+  { 'True -> PRINTF "Raw:           %r\nInstantiated:  %i\nNormalised:    %n" b b b.
+  ; 'False -> PRINTF "Raw:           %r\nInstantiated:  %i\nNormalised:    %n" b b b.
+  }
+
+exec 'Bool?b c.
+     ( strict@p. (p!b. | b ~ 'True)
+     | strict@q. (c ~ 'False | q!c - ['if b].)
+     )

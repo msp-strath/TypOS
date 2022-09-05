@@ -1,0 +1,14 @@
+ret > ExitSuccess
+out > Raw:           ?[("b",[1])] - 'tick
+out > Instantiated:  'True - 'tick
+out > Normalised:    'True
+out > Raw:           ?[("c",[2])] - ['if ?[("b",[1])]] - 'tick
+out > Instantiated:  'False - ['if 'True] - 'tick
+out > Normalised:    'False
+out > strict 'True
+out > strict 'False
+out >
+err > Tick
+err > Tick
+err >
+err >

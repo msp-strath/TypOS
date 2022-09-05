@@ -12,7 +12,7 @@ data Format dir dbg t
   | StringPart String
   deriving (Show, Eq, Functor, Foldable, Traversable)
 
-data Directive = Instantiate | Raw | ShowT
+data Directive = Normalise | Instantiate | Raw | ShowT
  deriving (Show, Eq)
 
 data Debug = ShowStack | ShowStore | ShowEnv
@@ -39,6 +39,7 @@ pformat = Parser $ \ (Source str loc) -> case str of
     -- formatting expressions
     '%':'r':end -> go end (ticks loc' "%r") (snoc pref acc :< TermPart Raw ())
     '%':'i':end -> go end (ticks loc' "%i") (snoc pref acc :< TermPart Instantiate ())
+    '%':'n':end -> go end (ticks loc' "%n") (snoc pref acc :< TermPart Normalise ())
     '%':'s':end -> go end (ticks loc' "%s") (snoc pref acc :< TermPart ShowT ())
     '%':'E':end -> go end (ticks loc' "%E") (snoc pref acc :< DebugPart ShowEnv)
     '%':'S':end -> go end (ticks loc' "%S") (snoc pref acc :< DebugPart ShowStack)

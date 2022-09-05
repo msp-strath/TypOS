@@ -145,17 +145,11 @@ instance Instantiable Term where
     x :.: b  -> x \\ normalise dat b
     m :$: sg -> m $: sg -- TODO: instantiate sg
 
-instance (Show t, Instantiable t, Instantiated t ~ t) =>
-  Instantiable (Format Directive dbg t) where
-  type Instantiated (Format Directive dbg t) = Format () dbg t
-  instantiate store = \case
+followDirectives :: (Show t, Instantiable t, Instantiated t ~ t)
+       => HeadUpData -> Format Directive dbg t -> Format () dbg t
+followDirectives dat@(HeadUpData _ store _ _) = \case
     TermPart Instantiate t -> TermPart () (instantiate store t)
-    TermPart Raw t -> TermPart () t
-    TermPart ShowT t -> StringPart (show t)
-    DebugPart dbg  -> DebugPart dbg
-    StringPart str -> StringPart str
-  normalise dat@(HeadUpData _ store _ _) = \case
-    TermPart Instantiate t -> TermPart () (normalise dat t)
+    TermPart Normalise t -> TermPart () (normalise dat t)
     TermPart Raw t -> TermPart () t
     TermPart ShowT t -> StringPart (show t)
     DebugPart dbg  -> DebugPart dbg
