@@ -42,6 +42,7 @@
 * [ ] Add "stuckon" tracing option for pattern-matching machinery
 * [ ] Add "match" tracing option
 * [ ] Compile matches to case trees
+* [ ] Record metas that got us stuck
 
 ### Judgement Contracts
 

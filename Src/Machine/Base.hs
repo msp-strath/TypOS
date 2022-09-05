@@ -62,6 +62,7 @@ data HeadUpData = forall i. HeadUpData
 mkOpTable :: Bwd Frame -> Operator -> Clause
 mkOpTable _ (Operator "app") = appClause
 mkOpTable _ (Operator "when") = whenClause
+mkOpTable _ (Operator "tick") = tickClause
 mkOpTable fs op = flip foldMap fs $ \case
   Extended op' cl | op == op' -> cl
   _ -> mempty
@@ -118,10 +119,12 @@ comparesUp dat sg sg' = compareUp dat (toTerm sg) (toTerm sg') where
 class Instantiable t where
   type Instantiated t
   instantiate :: StoreF i -> t -> Instantiated t
+  normalise :: HeadUpData -> t -> Instantiated t
 
 class Instantiable1 t where
   type Instantiated1 t :: * -> *
   instantiate1 :: StoreF i -> t a -> Instantiated1 t a
+  normalise1 :: HeadUpData -> t a -> Instantiated1 t a
 
 instance Instantiable Term where
   type Instantiated Term = Term
@@ -134,6 +137,13 @@ instance Instantiable Term where
     m :$: sg -> case join $ fmap snd $ Map.lookup m (solutions store) of
       Nothing -> m $: sg -- TODO: instantiate sg
       Just tm -> instantiate store (tm //^ sg)
+  normalise dat term = let tnf = headUp dat term in case expand tnf of
+    VX{}     -> tnf
+    AX{}     -> tnf
+    s :%: t  -> normalise dat s % normalise dat t
+    s :-: t  -> contract (normalise dat s :-: normalise dat t)
+    x :.: b  -> x \\ normalise dat b
+    m :$: sg -> m $: sg -- TODO: instantiate sg
 
 instance (Show t, Instantiable t, Instantiated t ~ t) =>
   Instantiable (Format Directive dbg t) where
@@ -144,10 +154,18 @@ instance (Show t, Instantiable t, Instantiated t ~ t) =>
     TermPart ShowT t -> StringPart (show t)
     DebugPart dbg  -> DebugPart dbg
     StringPart str -> StringPart str
+  normalise dat@(HeadUpData _ store _ _) = \case
+    TermPart Instantiate t -> TermPart () (normalise dat t)
+    TermPart Raw t -> TermPart () t
+    TermPart ShowT t -> StringPart (show t)
+    DebugPart dbg  -> DebugPart dbg
+    StringPart str -> StringPart str
+
 
 instance Instantiable t => Instantiable [t] where
   type Instantiated [t] = [Instantiated t]
   instantiate store = map (instantiate store)
+  normalise dat = map (normalise dat)
 
 data Hole = Hole deriving Show
 
@@ -284,6 +302,11 @@ whenClause = Clause $ \ opts hd env (t, args) -> case args of
   [arg] -> case expand (hd arg) of
     AX "True" _ -> Right t
     arg -> Left (t, [contract arg])
+  _ ->  Left (t, args)
+
+tickClause :: Clause
+tickClause = Clause $ \ opts hd env (t, args) -> case args of
+  []-> (if not (quiet opts) then trace "Tick" else id) $ Right t
   _ ->  Left (t, args)
 
 data Frame

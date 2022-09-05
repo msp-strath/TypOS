@@ -22,12 +22,12 @@ import Options (unsafeOptions)
 -}
 
 data Failure
-  = DontKnow Meta
+  = DontKnow --Meta
   | Mismatch
   deriving (Show)
 
 instance Pretty Failure where
-  pretty (DontKnow meta) = "Don't Know" <+> pretty meta
+  pretty DontKnow = "Don't Know" -- <+> pretty meta
   pretty Mismatch = "Mismatch"
 
 data Problem = Problem
@@ -40,6 +40,11 @@ data Problem = Problem
 mismatch :: Pat -> Term -> Failure
 mismatch _ _ = Mismatch
 --mismatch p t = trace (unsafeDisplayClosed unsafeOptions p ++ " ∌ " ++ unsafeDisplayClosed unsafeOptions t) Mismatch
+
+stuck :: Xn m -> Bool
+stuck (_ :$: _) = True
+stuck (_ :-: _) = True
+stuck _         = False
 
 match :: (Term -> Term) -- head normal former
       -> Env -- environment of matches
@@ -73,9 +78,9 @@ matchN hnf env (Problem zx (MP x ph) tm@(CdB _ th) :* xs)
 matchN hnf env (Problem zx pat tm :* xs) = let tmnf = hnf tm in case (pat, expand tmnf) of
   (HP, _) -> first (tmnf:*) $ matchN hnf env xs
   (GP, _) -> (tmnf :* fmap problemTerm xs, Left (mismatch pat tmnf))
-  (_, (meta :$: _)) -> case matchN hnf env xs of
+  (_, t) | stuck t -> case matchN hnf env xs of
     (tms, err@(Left Mismatch)) -> (tmnf :* tms, err)
-    (tms, _) -> (tmnf:*tms, Left (DontKnow meta))
+    (tms, _) -> (tmnf:*tms, Left DontKnow)
   (VP i, VX j _) | i == j -> first (tmnf:*) $ matchN hnf env xs
   (AP a, AX b _) | a == b -> first (tmnf:*) $ matchN hnf env xs
   (PP p q, s :%: t) -> case matchN hnf env (Problem zx p s :* Problem zx q t :* xs) of
@@ -94,7 +99,7 @@ instThicken hnf ph t = let tmnf = hnf t in case tmnf of
     Nothing -> (tmnf, Left Mismatch)
   m@(CdB (meta :$ _) _) -> case thickenCdB ph m of
     Just m -> (tmnf, pure m)
-    Nothing -> (tmnf, Left (DontKnow meta))
+    Nothing -> (tmnf, Left DontKnow)
   x -> case expand x of
     AX a ga -> (tmnf, pure (atom a (weeEnd ph)))
     s :%: t -> case instThicken hnf ph s of

@@ -126,7 +126,7 @@ exec p@Process { actor = m@(Match _ s cls), ..}
     in alarm options msg $ move (p { stack = stack :<+>: [] })
   switch t ((pat, a):cs) = case match (headUp dat) env (Problem (localScope env) pat t) of
     (t, Left Mismatch) -> switch t cs
-    (t, Left (DontKnow meta)) -> move (p { stack = stack :<+>: [] })
+    (t, Left DontKnow) -> move (p { stack = stack :<+>: [] })
     (t, Right env) -> exec (p { env = env, actor = a } )
 
 exec p@Process { actor = FreshMeta _ cat (av@(ActorMeta _ x), a), ..} =

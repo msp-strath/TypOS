@@ -93,7 +93,7 @@ newActorVar x@(ActorMeta ACitizen _) defn env = env { actorVars = Map.insert x d
 newActorVar x@(ActorMeta ASubject v) defn env =
   env { actorVars = Map.insert (ActorMeta ACitizen v) (interpreted defn) (Map.insert x defn (actorVars env)) }
     where
-      interpreted = id --TODO: this will change
+      interpreted (bs, t) = (bs, t -% ("tick", []))
 
 -- | When we encounter a term with actor variables inside and want to send
 --   or match on it, we need to first substitute all of the terms the actor

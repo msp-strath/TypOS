@@ -58,6 +58,9 @@ main = do
       let p = Process opts B0 initRoot (initEnv B0) initStore (Win unknown) []
       let res@(Process _ fs _ env sto a _) = run opts p acs
 
+      -- TODO: eventually need to be more careful about the operators due to local extensions
+      let dat = HeadUpData (mkOpTable (B0 <>< fs)) sto (opts {quiet = True}) env
+
       -- Failed run error
       unless (isWin a) $ do
          putStrLn $ anerror opts $ " Did not win"
@@ -74,14 +77,14 @@ main = do
 
       -- Resulting derivation
       unless (quiet opts) $ do
-        putStrLn $ diagnostic opts sto fs
+        putStrLn $ diagnostic opts dat fs
 
       -- LaTeX & beamer backends
       whenJust (latex opts) $ \ file -> do
-        writeFile file $ ldiagnostic table sto fs
+        writeFile file $ ldiagnostic table dat fs
         putStrLn $ success opts $ " wrote latex derivation to " ++ file
       whenJust (latexAnimated opts) $ \ file -> do
-        writeFile file $ adiagnostic table sto fs (logs res)
+        writeFile file $ adiagnostic table dat fs (logs res)
         putStrLn $ success opts $ " wrote animated latex derivation to " ++ file
       dmesg "" res `seq` pure ()
 
