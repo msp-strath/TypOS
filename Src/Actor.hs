@@ -15,11 +15,16 @@ import Thin
 
 type ActorVar = String
 
-newtype ActorMeta = ActorMeta ActorVar
+type Pat = Pat' ActorMeta
+
+data Passport = ASubject | Citizen
+  deriving (Show, Eq, Ord)
+
+data ActorMeta = ActorMeta Passport ActorVar
   deriving (Eq, Ord)
 
 instance Show ActorMeta where
-  show (ActorMeta str) = str
+  show (ActorMeta _ str) = str
 
 newtype Stack = Stack { rawStack :: String }
   deriving (Show, Eq)
@@ -84,7 +89,11 @@ childEnv :: Env -> Env
 childEnv parentEnv = initEnv (globalScope parentEnv <> localScope parentEnv)
 
 newActorVar :: ActorMeta -> ([String], Term) -> Env -> Env
-newActorVar x defn env = env { actorVars = Map.insert x defn (actorVars env) }
+newActorVar x@(ActorMeta Citizen _) defn env = env { actorVars = Map.insert x defn (actorVars env) }
+newActorVar x@(ActorMeta ASubject v) defn env =
+  env { actorVars = Map.insert (ActorMeta Citizen v) (interpreted defn) (Map.insert x defn (actorVars env)) }
+    where
+      interpreted = id --TODO: this will change
 
 -- | When we encounter a term with actor variables inside and want to send
 --   or match on it, we need to first substitute all of the terms the actor

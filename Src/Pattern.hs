@@ -11,23 +11,23 @@ import Hide
 import Term.Base
 
 -- patterns are de Bruijn
-data Pat
-  = AT String Pat
+data Pat' s
+  = AT s (Pat' s)
   | VP DB
   | AP String
-  | PP Pat Pat
-  | BP (Hide String) Pat
-  | MP String Th
+  | PP (Pat' s) (Pat' s)
+  | BP (Hide String) (Pat' s)
+  | MP s Th
   | GP -- grumpy pattern
   | HP -- happy pattern
   deriving (Show, Eq)
 
-isCatchall :: Pat -> Bool
+isCatchall :: Pat' s -> Bool
 isCatchall (MP x th) = is1s th
 isCatchall HP = True
 isCatchall _ = False
 
-instance Thable Pat where
+instance Thable (Pat' s) where
   AT v p *^ th = AT v (p *^ th)
   VP v *^ th = VP (v *^ th)
   AP a *^ th = AP a
@@ -37,7 +37,7 @@ instance Thable Pat where
   GP *^ th = GP
   HP *^ th = HP
 
-instance Selable Pat where
+instance Selable (Pat' s) where
   th ^? AT v p = AT v (th ^? p)
   th ^? VP v = maybe GP VP (thickx th v)
   th ^? AP a = AP a
@@ -47,12 +47,12 @@ instance Selable Pat where
   th ^? GP = GP
   th ^? HP = HP
 
-(#?) :: String -> [Pat] -> Pat
+(#?) :: String -> [Pat' s] -> Pat' s
 a #? ts = foldr PP (AP "") (AP a : ts)
 
 -- match assumes that p's vars are the local end of t's
 match :: Root
-      -> Pat
+      -> Pat' String
       -> Term
       -> Maybe (Root, (Map.Map String Meta, Map.Map Meta Term))
 match r (AT x p) t = do

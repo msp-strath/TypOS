@@ -10,7 +10,6 @@ import Actor
 import Concrete.Pretty ()
 import Display
 import Doc
-import Pattern
 import Pretty
 import Term.Display ()
 import Thin

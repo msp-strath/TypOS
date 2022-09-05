@@ -149,10 +149,10 @@ type ObjVar = (String, Info SyntaxDesc)
 type ObjVars = Bwd ObjVar
 
 data Provenance = Parent | Pattern
-  deriving (Show)
+  deriving (Show, Eq)
 
 data IsSubject' a = IsSubject a | IsNotSubject
-  deriving (Show, Functor)
+  deriving (Show, Functor, Eq)
 
 type IsSubject = IsSubject' Provenance
 
@@ -411,6 +411,8 @@ data Complaint
   | SyntaxPError Range SyntaxDesc RawP
   | ExpectedAnOperator Range Raw
   | ExpectedAnEmptyListGot Range String [SyntaxDesc]
+  -- subjects and citizens
+  | AsPatternCannotHaveSubjects Range RawP
   deriving (Show)
 
 instance HasGetRange Complaint where
@@ -462,6 +464,8 @@ instance HasGetRange Complaint where
     SyntaxPError r _ _ -> r
     ExpectedAnOperator r _ -> r
     ExpectedAnEmptyListGot r _ _ -> r
+    -- subjects and citizens
+    AsPatternCannotHaveSubjects r _ -> r
 
 ------------------------------------------------------------------------------
 -- Syntaxes

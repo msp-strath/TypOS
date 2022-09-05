@@ -1,5 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
 -- Module based on Jean-Philippe Bernardy's functional pearl
 -- "A Pretty But Not Greedy Printer"
 -- (or rather my Agda port of it in the stdlib's Text.Pretty)

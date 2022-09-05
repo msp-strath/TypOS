@@ -28,7 +28,7 @@ instance Pretty Stack where
   pretty (Stack ch) = pretty ch
 
 instance Pretty ActorMeta where
-  pretty (ActorMeta m) = pretty m
+  pretty (ActorMeta _ m) = pretty m
 
 instance Pretty a => Pretty (Info a) where
   prettyPrec d = \case
@@ -179,6 +179,7 @@ instance Pretty Complaint where
     ExpectedAnEmptyListGot r a ds ->
        hsep ["Expected", pretty a, "to be a constant operator"
             , "but it takes arguments of type:", collapse (pretty <$> ds)]
+    AsPatternCannotHaveSubjects r p -> hsep ["As pattern", pretty p, "duplicates a subject variable"]
 
 instance Pretty a => Pretty (WithStackTrace a) where
   pretty (WithStackTrace stk msg) = vcat (pretty msg : map pretty stk)

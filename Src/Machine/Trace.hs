@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, UndecidableInstances, ScopedTypeVariables, RankNTypes #-}
+{-# LANGUAGE OverloadedStrings, UndecidableInstances, RankNTypes #-}
 module Machine.Trace where
 
 import Control.Monad.Reader

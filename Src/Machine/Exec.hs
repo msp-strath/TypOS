@@ -15,7 +15,6 @@ import Format
 import Hide
 import Location (unknown)
 import Options
-import Pattern (Pat)
 import Pretty
 import Scope
 import Term
@@ -130,13 +129,13 @@ exec p@Process { actor = m@(Match _ s cls), ..}
     (t, Left (DontKnow meta)) -> move (p { stack = stack :<+>: [] })
     (t, Right env) -> exec (p { env = env, actor = a } )
 
-exec p@Process { actor = FreshMeta _ cat (av@(ActorMeta x), a), ..} =
+exec p@Process { actor = FreshMeta _ cat (av@(ActorMeta _ x), a), ..} =
   let (xm, root') = meta root x
       xt = xm $: sbstI (length (globalScope env) + length (localScope env))
       store' = declareMeta xm (objectNaming $ frDisplayEnv stack) store
       env' = newActorVar av (localScope env <>> [], xt) env
   in exec (p { env = env', store = store', root = root', actor = a })
-exec p@Process { actor = Let _ av@(ActorMeta x) cat tm a, ..}
+exec p@Process { actor = Let _ av@(ActorMeta _ x) cat tm a, ..}
   | Just term <- mangleActors options env tm
   =  let (xm, root') = meta root x
          env' = newActorVar av (localScope env <>> [], term) env

@@ -150,14 +150,14 @@ instance Unelab Pat where
   type UnelabEnv Pat = Naming
   type Unelabed Pat = RawP
   unelab = \case
-    AT x p -> AsP unknown (Variable unknown x) <$> unelab p
+    AT x p -> AsP unknown <$> subunelab x <*> unelab p
     VP n -> VarP unknown <$> unelab n
     AP str -> pure (AtP unknown str)
     PP p q -> ConsP unknown <$> unelab p <*> unelab q
     BP x p -> do
       p <- local (`nameOn` unhide x) (unelab p)
       pure (LamP unknown (Scope (mkBinder . Variable unknown <$> x) p))
-    MP m th -> {- TODO: insert ThP -} pure (VarP unknown (Variable unknown m))
+    MP m th -> {- TODO: insert ThP -} VarP unknown <$> subunelab m
     HP -> pure (UnderscoreP unknown)
 
 instance Unelab (Pat, AActor) where
@@ -208,7 +208,7 @@ instance Unelab (Binder ActorMeta) where
 instance Unelab ActorMeta where
   type UnelabEnv ActorMeta = ()
   type Unelabed ActorMeta = Variable
-  unelab (ActorMeta str) = pure (Variable unknown str)
+  unelab (ActorMeta _ str) = pure (Variable unknown str)
 
 instance Unelab Channel where
   type UnelabEnv Channel = ()

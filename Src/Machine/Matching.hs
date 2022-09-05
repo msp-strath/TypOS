@@ -11,7 +11,7 @@ import Thin
 import Term.Base
 import Term.Display()
 import Hide
-import Pattern (Pat(..))
+import Pattern (Pat'(..))
 import Doc((<+>))
 import Pretty (Pretty(..))
 
@@ -55,11 +55,11 @@ matchN :: (Term -> Term) -- head normal former
           , Either Failure Env)
 matchN hnf env V0 = (V0, pure env)
 matchN hnf env (Problem zx (AT x p) tm :* xs)
-  = let env' = newActorVar (ActorMeta x) (zx <>> [], tm) env in
+  = let env' = newActorVar x (zx <>> [], tm) env in
     matchN hnf env' (Problem zx p tm :* xs)
 matchN hnf env (Problem zx (MP x ph) tm@(CdB _ th) :* xs)
   | is1s ph -- common easy special case, essentially x@_
-  = let env' = newActorVar (ActorMeta x) (zx <>> [], tm) env in
+  = let env' = newActorVar x (zx <>> [], tm) env in
     first (tm:*) $ matchN hnf env' xs
   | otherwise
   = let g = bigEnd th - bigEnd ph in
@@ -67,7 +67,7 @@ matchN hnf env (Problem zx (MP x ph) tm@(CdB _ th) :* xs)
   -- t may not depend on disallowed things until definitions are expanded
     case instThicken hnf (ones g <> ph) tm of
       (tm, Right thickened) ->
-        let env' = newActorVar (ActorMeta x) ((ph ?< zx) <>> [], thickened) env in
+        let env' = newActorVar x ((ph ?< zx) <>> [], thickened) env in
         first (tm:*) $ matchN hnf env' xs
       (tm, Left err) -> (tm :* fmap problemTerm xs, Left err)
 matchN hnf env (Problem zx pat tm :* xs) = let tmnf = hnf tm in case (pat, expand tmnf) of
@@ -91,7 +91,7 @@ instThicken :: (Term -> Term) -> Th -> Term
 instThicken hnf ph t = let tmnf = hnf t in case tmnf of
   v@(CdB V _) -> case thickenCdB ph v of
     Just v -> (tmnf, pure v)
-    Nothing -> (tmnf, Left (mismatch (MP "whatevs" ph) tmnf))
+    Nothing -> (tmnf, Left Mismatch)
   m@(CdB (meta :$ _) _) -> case thickenCdB ph m of
     Just m -> (tmnf, pure m)
     Nothing -> (tmnf, Left (DontKnow meta))

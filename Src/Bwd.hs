@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveTraversable, ScopedTypeVariables #-}
-
 {-|
 Description: snoc lists
 -}

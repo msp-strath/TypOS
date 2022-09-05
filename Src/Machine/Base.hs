@@ -14,7 +14,6 @@ import Bwd
 import Format
 import Options
 import Term
-import Pattern (Pat(..))
 import qualified Term.Substitution as Substitution
 import Thin
 import Concrete.Base (ExtractMode, ACTOR (..), Operator(..))

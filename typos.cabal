@@ -20,6 +20,7 @@ common haskell
                        MultiParamTypeClasses,
                        NamedFieldPuns,
                        RecordWildCards,
+                       ScopedTypeVariables,
                        StandaloneDeriving,
                        TupleSections,
                        TypeFamilies,
