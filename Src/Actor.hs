@@ -17,7 +17,7 @@ type ActorVar = String
 
 type Pat = Pat' ActorMeta
 
-data Passport = ASubject | Citizen
+data Passport = ASubject | ACitizen
   deriving (Show, Eq, Ord)
 
 data ActorMeta = ActorMeta Passport ActorVar
@@ -89,9 +89,9 @@ childEnv :: Env -> Env
 childEnv parentEnv = initEnv (globalScope parentEnv <> localScope parentEnv)
 
 newActorVar :: ActorMeta -> ([String], Term) -> Env -> Env
-newActorVar x@(ActorMeta Citizen _) defn env = env { actorVars = Map.insert x defn (actorVars env) }
+newActorVar x@(ActorMeta ACitizen _) defn env = env { actorVars = Map.insert x defn (actorVars env) }
 newActorVar x@(ActorMeta ASubject v) defn env =
-  env { actorVars = Map.insert (ActorMeta Citizen v) (interpreted defn) (Map.insert x defn (actorVars env)) }
+  env { actorVars = Map.insert (ActorMeta ACitizen v) (interpreted defn) (Map.insert x defn (actorVars env)) }
     where
       interpreted = id --TODO: this will change
 

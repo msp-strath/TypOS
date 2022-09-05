@@ -96,9 +96,9 @@ isFresh x = do
   whenJust res $ \ _ -> throwError (VariableShadowing (getRange x) x)
   pure (getVariable x)
 
-spassport :: IsSubject -> Passport
-spassport IsSubject{} = ASubject
-spassport IsNotSubject = Citizen
+spassport :: Usage -> IsSubject -> Passport
+spassport u IsSubject{} | wasScrutinised [u] = ASubject
+spassport _ _ = ACitizen
 
 svar :: Usage -> Variable -> Elab (IsSubject, Info SyntaxDesc, ACTm)
 svar usage x = do
@@ -109,7 +109,7 @@ svar usage x = do
       ActVar isSub desc sc -> case findSub (fst <$> sc) (fst <$> ovs) of
         Just th -> do
           logUsage (getVariable x) usage
-          pure (isSub, desc, ActorMeta (spassport isSub) (getVariable x) $: sbstW (sbst0 0) th)
+          pure (isSub, desc, ActorMeta (spassport usage isSub) (getVariable x) $: sbstW (sbst0 0) th)
         Nothing -> throwError (MetaScopeTooBig (getRange x) x sc ovs)
       _ -> throwError (NotAValidTermVariable (getRange x) x k)
     Just (Right (desc, i)) -> pure (IsNotSubject, desc, var i (length ovs))
@@ -291,7 +291,7 @@ spat esc rp@(AsP r v p) = do
   ds <- asks declarations
   ovs <- asks objVars
   (mr, p, ds, hs) <- local (setDecls (ds :< (v, ActVar IsNotSubject (Known desc) ovs))) $ spat esc p
-  pure (mr, AT (ActorMeta Citizen v) p, ds, hs)
+  pure (mr, AT (ActorMeta ACitizen v) p, ds, hs)
 spat esc p@VarP{} = spatBase (Pattern <$ isSubject esc) (escrutinee esc) p
 spat esc (ThP r th p) = do
   th <- sth th
@@ -323,7 +323,7 @@ spatBase isSub desc rp@(AsP r v p) = do
   ds <- asks declarations
   ovs <- asks objVars
   (mr, p, ds, hs) <- local (setDecls (ds :< (v, ActVar isSub (Known desc) ovs))) $ spatBase isSub desc p
-  pure (mr, AT (ActorMeta Citizen v) p, ds, hs)
+  pure (mr, AT (ActorMeta ACitizen v) p, ds, hs)
 spatBase isSub desc (ThP r th p) = do
   th <- sth th
   (mr, p, ds, hs) <- local (th ^?) $ spatBase isSub desc p
@@ -341,7 +341,8 @@ spatBase isSub desc (VarP r v) = during (PatternVariableElaboration v) $ do
     Nothing -> do
       ovs <- asks objVars
       v <- pure (getVariable v)
-      pure (Nothing, MP (ActorMeta (spassport isSub) v) (ones (length ovs)), ds :< (v, ActVar isSub (Known desc) ovs), hs)
+      let pat = MP (ActorMeta (spassport (Scrutinised unknown) isSub) v) (ones (length ovs))
+      pure (Nothing, pat, ds :< (v, ActVar isSub (Known desc) ovs), hs)
 spatBase isSub desc (UnderscoreP r) = do
   let mr = case isSub of
              IsSubject{} -> Just r
@@ -608,7 +609,7 @@ sact = \case
       when (m == Subject) $ do
         when canwin $ raiseWarning (RecvSubjectNotScrutinised r ch av)
 
-    pure $ Recv r ch (ActorMeta (spassport isSub) <$> av, a)
+    pure $ Recv r ch (ActorMeta (spassport (Scrutinised unknown) isSub) <$> av, a)
 
   Connect r (CConnect ch1 ch2) -> during (ConnectElaboration ch1 ch2) $ do
     ch1 <- isChannel ch1
@@ -633,7 +634,7 @@ sact = \case
       ovs <- asks objVars
       pure (desc, av, ovs)
     a <- local (declare (Used av) (ActVar IsNotSubject (Known desc) ovs)) $ sact a
-    pure $ FreshMeta r desc (ActorMeta Citizen av, a)
+    pure $ FreshMeta r desc (ActorMeta ACitizen av, a)
 
   Let r av desc t a -> do
     (desc, av, ovs) <- during FreshMetaElaboration $ do
@@ -644,7 +645,7 @@ sact = \case
       pure (desc, av, ovs)
     t <- stm (LetBound (getRange t)) desc t
     a <- local (declare (Used av) (ActVar IsNotSubject (Known desc) ovs)) $ sact a
-    pure (Let r (ActorMeta Citizen av) desc t a)
+    pure (Let r (ActorMeta ACitizen av) desc t a)
 
   Under r (Scope v@(Hide x) a) -> do
     during UnderElaboration $ () <$ isFresh x
