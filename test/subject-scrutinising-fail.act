@@ -56,7 +56,7 @@ strictIsVarCombo@p = p?tm. case ([ lookup stack tm | $tm ])
   ; [ _  | 'True ] -> p!'False.
   }
 
-sillyId : $'Bool. !'Bool. -- should ideally work
+sillyId : $'Bool. !'Bool. -- works just fine
 sillyId@p = p?tm. case [ $tm | tm ]
   { ['True | _ ] -> p!'True.
   ; ['False | _ ] -> p!'False.
