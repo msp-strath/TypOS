@@ -72,6 +72,7 @@ deriving instance
   , Show (BINDER ph)
   , Show (ACTORVAR ph)
   , Show (SCRUTINEEVAR ph)
+  , Show (SCRUTINEETERM ph)
   , Show (SYNTAXDESC ph)
   , Show (TERMVAR ph)
   , Show (TERM ph)
@@ -324,7 +325,7 @@ scommand = \case
       -- this is the op applied to the object, not the outer op being extended
       let op = fst (head opargs)
       (AnOperator op obj _ ret) <- soperator op
-      (mr1, p, decls, hints) <- spat (ActorVar unknown (IsNotSubject, obj)) p
+      (mr1, p, decls, hints) <- spat (Term unknown obj) p
       (opargs, decls, hints) <- local (setDecls decls . setHints hints) $
                                 sopargs obj opargs
       pure ((p, opargs), ret, decls, hints)
@@ -349,7 +350,7 @@ sopargs desc ((rop, args):xs) = do
   splat :: Range -> [SyntaxDesc] -> [CPattern] -> Elab ([APattern], Decls, Hints)
   splat r [] [] = ([],,) <$> asks declarations <*> asks binderHints
   splat r (d:ds) (p:ps) = do
-    (_, p, decls, hints) <- spat (ActorVar unknown (IsNotSubject, d)) p
+    (_, p, decls, hints) <- spat (Term unknown d) p
     (ps, decls, hints) <- local (setDecls decls . setHints hints) $ splat r ds ps
     pure (p:ps, decls, hints)
   splat r ds ps = do

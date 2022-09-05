@@ -257,12 +257,11 @@ instance Unelab AScrutinee where
   type UnelabEnv AScrutinee = Naming
   type Unelabed AScrutinee = CScrutinee
   unelab = \case
-    ActorVar r t -> do
+    SubjectVar r t -> do
       v <- unelab t
       case v of
         -- Sbst _ _ (Var r m) -> pure (ActorVar r m)
-        Var r m -> pure (ActorVar r m)
-    Nil r -> pure (Nil r)
+        Var r m -> pure (SubjectVar r m)
     Pair r s t -> Pair r <$> unelab s <*> unelab t
     Lookup r stk t -> do
       stk <- subunelab stk
@@ -271,6 +270,7 @@ instance Unelab AScrutinee where
         Var r m -> pure m
       pure $ Lookup r stk t
     Compare r s t -> Compare r <$> unelab s <*> unelab t
+    Term r t -> Term r <$> unelab t
 
 instance Unelab AActor where
   type UnelabEnv AActor = DAEnv

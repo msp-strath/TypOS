@@ -136,17 +136,23 @@ pextractmode
   <|> pure AlwaysExtract
 
 instance Lisp CScrutinee where
-  mkNil = Nil unknown
-  mkCons = Pair unknown
+  mkNil = Term unknown (At unknown "")
+  mkCons (Term rs s) (Term rt t) = let r = rs <> rt in Term r (Cons r s t)
+  mkCons s t = Pair (getRange s <> getRange t) s t
   pCar = pscrutinee
 
 pscrutinee :: Parser CScrutinee
 pscrutinee = withRange $ do
-  ActorVar unknown <$> pvariable
+  SubjectVar unknown <$ pch ('$' ==) <* pspc <*> pvariable
   <|> Lookup unknown <$ pkeyword KwLookup <* pspc <*> pvariable <* pspc <*> pvariable
   <|> Compare unknown <$ pkeyword KwCompare <* pspc <*> pTM <* pspc <*> pTM
   <|> pparens pscrutinee
-  <|> id <$ pch (== '[') <* pspc <*> plisp
+  <|> Term unknown <$> pTM
+  <|> (isProper =<< id <$ pch (== '[') <* pspc <*> plisp) where
+
+    isProper :: CScrutinee -> Parser CScrutinee
+    isProper (Term _ _) = pfail
+    isProper c = pure c
 
 pact :: Parser CActor
 pact = withRange $

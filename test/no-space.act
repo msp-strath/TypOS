@@ -1,0 +1,2 @@
+noSpace : ?'Wildcard.
+noSpace@p=p?w.casew{_->}

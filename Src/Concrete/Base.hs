@@ -177,6 +177,7 @@ type family CONNECT (ph :: Phase) :: *
 type family STACK (ph :: Phase) :: *
 type family STACKDESC (ph :: Phase) :: *
 type family SCRUTINEEVAR (ph :: Phase) :: *
+type family SCRUTINEETERM (ph :: Phase) :: *
 type family LOOKEDUP (ph :: Phase) :: *
 
 type instance JUDGEMENTFORM Concrete = Variable
@@ -191,31 +192,30 @@ type instance CONNECT Concrete = CConnect
 type instance STACK Concrete = Variable
 type instance STACKDESC Concrete = ()
 type instance SCRUTINEEVAR Concrete = Variable
+type instance SCRUTINEETERM Concrete = Raw
 type instance LOOKEDUP Concrete = Variable
 
 type FORMAT (ph :: Phase) = [Format Directive Debug (TERM ph)]
 
 data SCRUTINEE (ph :: Phase)
-  = ActorVar Range (SCRUTINEEVAR ph)
-  -- should we allow operators?
-  -- arbitrary terms as long as they don't mention subjects
-  | Nil Range
+  = SubjectVar Range (SCRUTINEEVAR ph)
+  | Term Range (SCRUTINEETERM ph)
   | Pair Range (SCRUTINEE ph) (SCRUTINEE ph)
   | Lookup Range (STACK ph) (LOOKEDUP ph)
   | Compare Range (TERM ph) (TERM ph)
 
-instance HasSetRange (SCRUTINEE ph) where
+instance HasSetRange (SCRUTINEETERM ph) => HasSetRange (SCRUTINEE ph) where
   setRange r = \case
-    ActorVar _ v -> ActorVar r v
-    Nil _ -> Nil r
+    SubjectVar _ v -> SubjectVar r v
+    Term _ t -> Term r (setRange r t)
     Pair _ p q -> Pair r p q
     Lookup _ stk t -> Lookup r stk t
     Compare _ s t -> Compare r s t
 
 instance HasGetRange (SCRUTINEE ph) where
   getRange = \case
-    ActorVar r t -> r
-    Nil r -> r
+    SubjectVar r t -> r
+    Term r t -> r
     Pair r p q -> r
     Lookup r stk t -> r
     Compare r s t -> r
@@ -242,6 +242,7 @@ data ACTOR (ph :: Phase)
 deriving instance
   ( Show (TERM ph)
   , Show (SCRUTINEEVAR ph)
+  , Show (SCRUTINEETERM ph)
   , Show (STACK ph)
   , Show (LOOKEDUP ph)) =>
   Show (SCRUTINEE ph)
@@ -252,6 +253,7 @@ deriving instance
   , Show (BINDER ph)
   , Show (ACTORVAR ph)
   , Show (SCRUTINEEVAR ph)
+  , Show (SCRUTINEETERM ph)
   , Show (SYNTAXDESC ph)
   , Show (TERMVAR ph)
   , Show (TERM ph)

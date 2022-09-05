@@ -37,7 +37,7 @@ myCtxt |- 'Synth -> 'Type
 ------------------------------------------------------------------------------
 -- Implementation
 
-type@p = p?ty. case ty
+type@p = p?ty. case $ty
   { 'Nat ->
   ; ['Arr S T] ->
       ( type@q. q!S.
@@ -45,7 +45,7 @@ type@p = p?ty. case ty
       )
   }
 
-check@p = p?ty. p?tm. case tm
+check@p = p?ty. p?tm. case $tm
   { ['Lam \x. body] ->
       'Type?S T.
       ( ty ~ ['Arr S T]
@@ -57,7 +57,7 @@ check@p = p?ty. p?tm. case tm
 
 synth@p = p?tm . case (lookup myCtxt tm)
   { ['Just S] -> p!S.
-  ; 'Nothing -> case tm
+  ; 'Nothing -> case $tm
     { ['Ann t ty] ->
          ( type@q. q!ty.
          | check@r. r!ty. r!t.

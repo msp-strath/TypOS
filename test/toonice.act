@@ -6,7 +6,7 @@ toonice : $'Input. !'Bool.
 toonice@p = p?i. p!'True.
 
 thorough : $'Input. !'Bool.
-thorough@p = p?i. case i
+thorough@p = p?i. case $i
   { 'Invalid -> p!'False.
   ; 'Valid -> p!'True.
   }

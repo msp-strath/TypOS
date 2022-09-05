@@ -5,6 +5,7 @@
 
 ### Syntax
 
+* [ ] Insists keywords are followed by a space (`casew{}` vs. `case w {}`)
 * [x] Annotating max locations (cf. (<!>) in Parse)
 * [ ] User-friendly syntaxes
 * [ ] Industrial-strength parsing
@@ -50,11 +51,11 @@
    + [ ] Inputs / outputs should be in the semantics of the given syntax
    + [ ] child subjects are structural components of parent subjects
    + [x] if a subject pattern variable is transmitted, it is the subject of some child
-   + [ ] Each syntax has a designated judgement with that syntax as subject (the justifier / gatekeeper / guarantor)  
+   + [ ] Each syntax has a designated judgement with that syntax as subject (the justifier / gatekeeper / guarantor)
 * [ ] Distinction between subjects and citizens (interpreted values of subjects)
    + [ ] make separate environments for subjects and citizens
    + [ ] guarding subjects-as-citizens
-   + [ ] meaning of guarded subjects is given by citizens (silently) 
+   + [ ] meaning of guarded subjects is given by citizens (silently)
 * [ ] Contracts (constraints on inputs, guarantees on outputs)
   + [ ] each ? and ! must have a contract how it was/will be a $
   + [ ] define a standard model that we match against in ? and synthesise in !

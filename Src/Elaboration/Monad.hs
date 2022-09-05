@@ -42,6 +42,7 @@ data Usage
   | SentInOutput Range
   | LookedUp Range
   | Scrutinised Range
+  | MatchedOn Range
   | Compared Range
   | Constrained Range
   | LetBound Range
@@ -155,7 +156,8 @@ data IsSubject' a = IsSubject a | IsNotSubject
 
 type IsSubject = IsSubject' Provenance
 
-type instance SCRUTINEEVAR Elaboration = (IsSubject, SyntaxDesc)
+type instance SCRUTINEEVAR Elaboration = SyntaxDesc
+type instance SCRUTINEETERM Elaboration = SyntaxDesc
 type instance STACK Elaboration = SyntaxDesc
 type instance TERM Elaboration = ()
 type instance LOOKEDUP Elaboration = String
@@ -164,12 +166,11 @@ type EScrutinee = SCRUTINEE Elaboration
 
 isSubjectFree :: EScrutinee -> Bool
 isSubjectFree = \case
-  Nil{} -> True
+  Term{} -> True
   Lookup{} -> True
   Compare{} -> True
   Pair _ p q -> isSubjectFree p && isSubjectFree q
-  ActorVar _ (IsSubject{}, _) -> False
-  ActorVar _ (IsNotSubject, _) -> True
+  SubjectVar{} -> False
 
 data Kind
   = ActVar IsSubject (Info SyntaxDesc) ObjVars
@@ -356,6 +357,7 @@ data ContextualInfo
   | ProtocolElaboration CProtocol
   | ConnectElaboration Variable Variable
   | CompareTermElaboration Raw
+  | ScrutineeTermElaboration Raw
   | MatchScrutineeElaboration CScrutinee
   | CompareSyntaxCatGuess Raw Raw
   deriving (Show)
@@ -375,14 +377,14 @@ data Complaint
   | NotAValidStack Range Variable (Maybe Kind)
   | NotAValidChannel Range Variable (Maybe Kind)
   | NotAValidBoundVar Range Variable
-  | NotAValidActorVar Range Variable
+  | NotAValidSubjectVar Range Variable
   | NotAValidOperator Range String
   -- operators
   | AlreadyDeclaredOperator Range String
   | InvalidOperatorArity Range String [SyntaxDesc] [RawP]
   -- protocol
   | InvalidSend Range Channel Raw
-  | InvalidRecv Range Channel (Binder String)
+  | InvalidRecv Range Channel RawP
   | NonLinearChannelUse Range Channel
   | UnfinishedProtocol Range Channel AProtocol
   | InconsistentCommunication Range
@@ -426,7 +428,7 @@ instance HasGetRange Complaint where
     NotAValidStack r _ _ -> r
     NotAValidChannel r _ _ -> r
     NotAValidBoundVar r _ -> r
-    NotAValidActorVar r _ -> r
+    NotAValidSubjectVar r _ -> r
     NotAValidOperator r _ -> r
   -- operators
     AlreadyDeclaredOperator r _ -> r

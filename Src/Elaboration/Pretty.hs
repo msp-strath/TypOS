@@ -80,6 +80,7 @@ instance Pretty ContextualInfo where
     ConstrainTermElaboration t -> hsep ["when elaborating a constraint involving", pretty t]
     ConstrainSyntaxCatGuess s t -> hsep ["when guessing syntactic categories for", pretty s, pretty t]
     CompareTermElaboration t -> hsep ["when elaborating a comparison involving", pretty t]
+    ScrutineeTermElaboration t -> hsep ["when elaborating a term scrutinee", pretty t]
     CompareSyntaxCatGuess s t -> hsep ["when guessing syntactic categories for", pretty s, pretty t]
     FreshMetaElaboration -> "when declaring a fresh metavariable"
     UnderElaboration -> "when binding a local variable"
@@ -124,7 +125,7 @@ instance Pretty Complaint where
        hsep ["Invalid channel variable", pretty x
             , "refers to", maybe "a bound variable" pretty mk]
     NotAValidBoundVar r x -> hsep ["Invalid bound variable", pretty x]
-    NotAValidActorVar r x -> hsep ["Invalid actor variable", pretty x]
+    NotAValidSubjectVar r x -> hsep ["Invalid subject variable", pretty x]
     NotAValidOperator r x -> hsep ["Invalid operator name", pretty x]
       -- operators
     AlreadyDeclaredOperator r op -> hsep ["Not a valid operator name", pretty op]

@@ -2,10 +2,10 @@ ret > ExitFailure 1
 out > Error
 out >
 out >  1 | test :
-out >  2 | test@p = \fst. case fst { [fst snd trd] -> \snd. }
-out >                          ^^^
-out > not-actorvar-fail.act:2:20-23
-out > Invalid actor variable fst
+out >  2 | test@p = \fst. case $fst { [fst snd trd] -> \snd. }
+out >                          ^^^^
+out > not-actorvar-fail.act:2:20-24
+out > Invalid subject variable fst
 out > when elaborating the case scrutinee fst
 out > when elaborating the judgement definition for test
 out >
