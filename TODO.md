@@ -5,7 +5,7 @@
 
 ### Syntax
 
-* [ ] Insists keywords are followed by a space (`casew{}` vs. `case w {}`)
+* [x] Insist keywords are followed by a space (`casew{}` vs. `case w {}`)
 * [x] Annotating max locations (cf. (<!>) in Parse)
 * [ ] User-friendly syntaxes
 * [ ] Industrial-strength parsing

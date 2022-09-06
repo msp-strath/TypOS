@@ -1,2 +1,20 @@
 noSpace : ?'Wildcard.
-noSpace@p=p?w.casew{_->}
+noSpace@p=p?w.case w{_->}
+
+syntax { 'Unit = ['Enum ['Top]] }
+
+works : $'Unit.
+works2 : $'Unit.
+works3 : ?'Unit.
+fails : ?'Unit.
+
+works@p = p?x. case$ x { 'Top -> }
+
+works2@p = p?x. case$
+
+         x { 'Top -> PRINTF "".}
+
+works3@p = p?x. case{--}x { 'Top -> }
+
+fails@p = p?x. casex { 'Top -> }
+
