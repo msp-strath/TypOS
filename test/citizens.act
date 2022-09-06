@@ -1,0 +1,19 @@
+syntax { 'Bool = ['Enum ['True 'False]] }
+
+
+discard : ?'Bool.
+bool : $'Bool.
+
+discard@p = p?x. case x
+  { 'True -> PRINTF "T".
+  ; 'False -> PRINTF "F".
+  }
+
+
+bool@p = p?x. (case $x
+  { 'True -> discard@q. q!x.
+  ; 'False -> discard@q. q!x.
+  }
+  | discard@q. q!x.)
+
+exec bool@p. p!'False.
