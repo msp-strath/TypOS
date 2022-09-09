@@ -20,7 +20,6 @@ import Concrete.Parse
 import Concrete.Pretty()
 import Bwd
 import Display(Display(..), viaPretty)
-import Doc
 import Elaboration
 import Elaboration.Monad
 import Elaboration.Pretty()
@@ -30,7 +29,7 @@ import Machine.Exec
 import Machine.Trace (Shots)
 import Options
 import Parse
-import Pretty (keyword, Collapse(..), BracesList(..), Pretty(..))
+import Pretty
 import Syntax
 import Term.Base
 import Unelaboration(Unelab(..), subunelab, withEnv, initDAEnv, Naming, declareChannel)
@@ -121,9 +120,9 @@ instance Pretty CStatement where
 instance Pretty CCommand where
   pretty = let prettyCds cds = collapse (BracesList $ pretty <$> cds) in \case
     DeclJudge em jd p -> hsep [pretty em <> pretty jd, colon, pretty p]
-    DefnJudge (jd, _, ch) a -> hsep [pretty jd <> "@" <> pretty ch, equal, pretty a]
+    DefnJudge (jd, _, ch) a -> hsep [pretty jd <> "@" <> pretty ch, equals, pretty a]
     ContractJudge pres stm posts -> hsep [prettyCds pres, pretty stm, prettyCds posts]
-    DeclSyntax s -> let docs = fmap (\ (cat, desc) -> pretty (theValue cat) <+> equal <+> pretty desc) s in
+    DeclSyntax s -> let docs = fmap (\ (cat, desc) -> pretty (theValue cat) <+> equals <+> pretty desc) s in
                keyword "syntax" <+> collapse (BracesList docs)
     DeclStack stk stkTy -> hsep [pretty stk, "|-", pretty stkTy]
     ContractStack pres (stk, lhs, rhs) posts -> hsep [prettyCds pres

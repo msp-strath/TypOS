@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 import Actor
 import Concrete.Pretty ()
 import Display
-import Doc
 import Pattern
 import Pretty
 import Term.Display ()
@@ -23,7 +22,7 @@ instance Display Env where
     fmap collapse $ forM (Map.toList actorVars) $ \ (av, (xs, t)) -> do
       av <- display av
       t <- withEnv (foldl nameOn na xs) $ display t
-      pure $ hsep (av : map pretty xs ++ [equal, t])
+      pure $ hsep (av : map pretty xs ++ [equals, t])
 
 instance Display ActorMeta where
   type DisplayEnv ActorMeta = ()

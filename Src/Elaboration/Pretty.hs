@@ -8,8 +8,6 @@ import ANSI hiding (withANSI)
 import Actor (ActorMeta(..), Channel(..), Stack(..))
 import Concrete.Base (Mode, Binder (..))
 import Concrete.Pretty()
-import Doc
-import Doc.Render.Terminal
 import Elaboration.Monad
 import Location
 import Pretty
@@ -61,8 +59,8 @@ instance Pretty Warning where
         hsep ["Unreachable clause", pretty pat]
       MissingClauses r pats ->
         let sIsAre = case pats of { _ :| [] -> " is"; _ -> "s are" } in
-          vcat ("Incomplete pattern matching. The following pattern" <> sIsAre <+> "missing:"
-             : map (indent 2 . pretty) (toList pats))
+          asBlock 2 ("Incomplete pattern matching. The following pattern" <> sIsAre <+> "missing:")
+          $ map pretty (toList pats)
       -- Subject analysis
       SentSubjectNotASubjectVar r raw -> hsep ["Sent subject", pretty raw, "is not a subject variable"]
       RecvSubjectNotScrutinised r ch Unused -> hsep ["Ignored received subject on channel", pretty ch]
@@ -162,11 +160,11 @@ instance Pretty Complaint where
     ExpectedNilGot r at -> hsep ["Expected [] and got", squote <> pretty at]
     ExpectedEnumGot r es e -> sep
       [ "Expected an atom among"
-      , horizontally (collapse $ map pretty es)
+      , collapse $ map pretty es
       , hsep ["and got", pretty e]]
     ExpectedTagGot r ts t -> sep
       [ "Expected a tag among"
-      , horizontally (collapse $ map pretty ts)
+      , collapse $ map pretty ts
       , hsep ["and got", pretty t]]
     ExpectedANilGot r t -> hsep ["Expected the term [] and got", pretty t]
     ExpectedANilPGot r p -> hsep ["Expected the pattern [] and got", pretty p]

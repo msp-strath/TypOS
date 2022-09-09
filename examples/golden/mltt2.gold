@@ -100,9 +100,9 @@ out > Other ['Pi ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]
 out >            \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]
 out > Other 'Ty
 out > Ups
-out > Eval: ['Rad ['Lam \x. ['Emb x]]
-out >             ['Pi ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]
-out >                  \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]]]
+out > Eval: ['Rad ['Lam \x. ['Emb x]] ['Pi ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]] 'Ty]]
+out >                                      \_. ['Emb ['Rad ['Pi 'Ty \x. ['Emb x]]
+out >                                                      'Ty]]]]
 out >
 err >
 err >

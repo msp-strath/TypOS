@@ -1,12 +1,10 @@
 ret > ExitFailure 1
 out > Error
 out > communication-fail.act:3:9-8:5
-out > Doomed branch communicated p?t. case t
-out >                                   { [] -> #"Got nil"
-out >                                   ; [_ | _] -> #"Got cons"
-out >                                   ; \_. _ -> #"Got binder"
-out >                                   ; _ -> #"Got atom"
-out >                                   }
+out > Doomed branch communicated p?t. case t { [] -> #"Got nil"
+out >                                        ; [_ | _] -> #"Got cons"
+out >                                        ; \_. _ -> #"Got binder"
+out >                                        ; _ -> #"Got atom"}
 out > when elaborating a case branch handling the pattern _
 out > when elaborating the judgement definition for doom
 out >
