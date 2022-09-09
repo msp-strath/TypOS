@@ -1,3 +1,6 @@
 resolver: lts-19.0
 packages:
 - .
+extra-deps:
+- pretty-compact-3.0
+- base-compat-0.10.5
