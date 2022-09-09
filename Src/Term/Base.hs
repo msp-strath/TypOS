@@ -8,7 +8,7 @@ import Thin
 import Hide
 import Pretty (Pretty(..))
 
-import Concrete.Base (Guard)
+import Concrete.Base (Guard, Root)
 
 data Pairing = Cell | Oper
   deriving (Show, Eq, Ord)
@@ -59,8 +59,6 @@ instance Pretty Meta where
 
 type Term = CdB (Tm Meta)
 type Subst = CdB (Sbst Meta)
-type Root = ( Bwd (String, Int) -- name prefix
-            , Int)              -- counter
 
 initRoot :: Root
 initRoot = (B0, 0)

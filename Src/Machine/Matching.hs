@@ -60,11 +60,11 @@ matchN :: (Term -> Term) -- head normal former
           , Either Failure Env)
 matchN hnf env V0 = (V0, pure env)
 matchN hnf env (Problem zx (AT x p) tm :* xs)
-  = let env' = newActorVar x (zx <>> [], tm) env in
+  = let env' = newActorVar x (zx <>> [], tm) _ env in
     matchN hnf env' (Problem zx p tm :* xs)
 matchN hnf env (Problem zx (MP x ph) tm@(CdB _ th) :* xs)
   | is1s ph -- common easy special case, essentially x@_
-  = let env' = newActorVar x (zx <>> [], tm) env in
+  = let env' = newActorVar x (zx <>> [], tm) _ env in
     first (tm:*) $ matchN hnf env' xs
   | otherwise
   = let g = bigEnd th - bigEnd ph in
@@ -72,7 +72,7 @@ matchN hnf env (Problem zx (MP x ph) tm@(CdB _ th) :* xs)
   -- t may not depend on disallowed things until definitions are expanded
     case instThicken hnf (ones g <> ph) tm of
       (tm, Right thickened) ->
-        let env' = newActorVar x ((ph ?< zx) <>> [], thickened) env in
+        let env' = newActorVar x ((ph ?< zx) <>> [], thickened) _ env in
         first (tm:*) $ matchN hnf env' xs
       (tm, Left err) -> (tm :* fmap problemTerm xs, Left err)
 matchN hnf env (Problem zx pat tm :* xs) = let tmnf = hnf tm in case (pat, expand tmnf) of

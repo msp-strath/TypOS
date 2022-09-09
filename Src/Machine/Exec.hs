@@ -155,12 +155,12 @@ exec p@Process { actor = FreshMeta _ cat (av@(ActorMeta _ x), a), ..} =
   let (xm, root') = meta root x
       xt = xm $: sbstI (length (globalScope env) + length (localScope env))
       store' = declareMeta xm (objectNaming $ frDisplayEnv stack) store
-      env' = newActorVar av (localScope env <>> [], xt) env
+      env' = newActorVar av (localScope env <>> [], xt) undefined env
   in exec (p { env = env', store = store', root = root', actor = a })
 exec p@Process { actor = Let _ av@(ActorMeta _ x) cat tm a, ..}
   | Just term <- mangleActors options env tm
   =  let (xm, root') = meta root x
-         env' = newActorVar av (localScope env <>> [], term) env
+         env' = newActorVar av (localScope env <>> [], term) undefined env
      in exec (p { env = env', root = root', actor = a })
 
 exec p@Process { actor = Constrain _ s t, ..}
@@ -371,7 +371,7 @@ recv ch x p@Process { stack = zf :< Sent q y :<+>: fs, ..}
   | ch == q
   = let env' = case x of
                  Unused -> env
-                 Used x -> newActorVar x y env
+                 Used x -> newActorVar x y geas env
     in exec (p { stack = zf <>< fs, env = env' })
 recv ch x
   p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs, parentP) _ _ _ _)) :<+>: fs, ..}

@@ -8,6 +8,7 @@ import Control.Applicative
 import Thin
 import Hide
 
+import Concrete.Base (Root)
 import Term.Base
 
 -- patterns are de Bruijn

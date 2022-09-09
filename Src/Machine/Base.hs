@@ -20,7 +20,7 @@ import Options
 import Term
 import qualified Term.Substitution as Substitution
 import Thin
-import Concrete.Base (Guard, ExtractMode, ACTOR (..), Operator(..))
+import Concrete.Base (Root, Guard, ExtractMode, ACTOR (..), Operator(..))
 import Syntax (SyntaxDesc)
 import Data.Bifunctor (Bifunctor(first))
 
