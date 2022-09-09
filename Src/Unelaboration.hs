@@ -120,6 +120,7 @@ instance UnelabMeta m => Unelab (Tm m) where
       pure $ case sg of
         B0 -> m
         _ -> Sbst unknown sg m
+    G g t -> Guarded g <$> unelab t
 
 instance UnelabMeta m => Unelab (Sbst m) where
   type UnelabEnv (Sbst m) = Naming

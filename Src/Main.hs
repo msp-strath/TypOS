@@ -55,8 +55,8 @@ main = do
       unless ((quiet opts && not (wAll opts)) || null ws) $ do
         putStrLn $ render (colours opts) cfg $ vcat $ map pretty ws
 
-      let p = Process opts B0 initRoot (initEnv B0) initStore (Win unknown) []
-      let res@(Process _ fs _ env sto a _) = run opts p acs
+      let p = Process opts B0 initRoot (initEnv B0) initStore (Win unknown) [] initRoot
+      let res@(Process _ fs _ env sto a _ geas) = run opts p acs
 
       -- TODO: eventually need to be more careful about the operators due to local extensions
       let dat = HeadUpData (mkOpTable (B0 <>< fs)) sto (opts {quiet = True}) env

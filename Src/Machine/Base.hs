@@ -4,8 +4,12 @@
 
 module Machine.Base where
 
+import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Maybe
+import Control.Monad.State
 
 import Actor
 import Actor.Display()
@@ -16,9 +20,8 @@ import Options
 import Term
 import qualified Term.Substitution as Substitution
 import Thin
-import Concrete.Base (ExtractMode, ACTOR (..), Operator(..))
+import Concrete.Base (Guard, ExtractMode, ACTOR (..), Operator(..))
 import Syntax (SyntaxDesc)
-import Control.Monad (join)
 import Data.Bifunctor (Bifunctor(first))
 
 import Machine.Matching
@@ -28,18 +31,20 @@ import ANSI hiding (withANSI)
 import Doc.Render.Terminal
 import Doc (hsep, vcat, Doc, Config (..), Orientation(..), (<+>), flush)
 import Pretty (pretty)
+import Utils()
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
 
 -- | i stores extra information, typically a naming
 data StoreF i = Store
-  { solutions :: Map.Map Meta (i, Maybe Term)
+  { solutions :: Map Meta (i, Maybe Term)
+  , guards :: Map Guard (Set Guard) -- key is conjunction of values; acyclic!
   , today :: Date
   } deriving (Show)
 
 initStore :: StoreF i
-initStore = Store Map.empty 0
+initStore = Store Map.empty Map.empty 0
 
 tick :: StoreF i -> StoreF i
 tick st@Store{..} = st { today = today + 1 }
@@ -51,6 +56,27 @@ declareMeta m i st@Store{..} = st
 updateStore :: Meta -> Term -> StoreF i -> StoreF i
 updateStore m t st@Store{..} = tick $ st
   { solutions = Map.adjust (Just t <$) m solutions }
+
+defineGuard :: Guard -> Set Guard -> StoreF i -> StoreF i
+defineGuard g gs = execState (compressGuards g gs)
+
+compressGuards :: Guard -> Set Guard -> State (StoreF i) (Set Guard)
+compressGuards g gs = do
+  gs <- foldMap (\ g -> fromMaybe (Set.singleton g) <$> dependencySetCompression g) gs
+  modify (\ st -> st { guards = Map.insert g gs (guards st) })
+  pure gs
+
+dependencySetCompression :: Guard -> State (StoreF i) (Maybe (Set Guard))
+dependencySetCompression g = do
+  gtable <- gets guards
+  case Map.lookup g gtable of
+    Nothing -> pure Nothing
+    Just gs -> Just <$> compressGuards g gs
+
+dependencySet :: StoreF i -> Guard -> Set Guard
+dependencySet st@Store{..} g = case Map.lookup g guards of
+  Nothing -> Set.singleton g
+  Just gs -> foldMap (dependencySet st) gs
 
 data HeadUpData = forall i. HeadUpData
   { opTable :: Operator -> Clause
@@ -81,6 +107,7 @@ headUp dat@HeadUpData{..} term = case expand term of
         Nothing -> contract (t :-: contract o)
         Just t -> t
     o -> contract (t :-: contract o)
+  GX g t -> if Set.null (dependencySet metaStore g) then headUp dat t else term
   _ -> term
 
   where
@@ -137,6 +164,7 @@ instance Instantiable Term where
     m :$: sg -> case join $ fmap snd $ Map.lookup m (solutions store) of
       Nothing -> m $: sg -- TODO: instantiate sg
       Just tm -> instantiate store (tm //^ sg)
+    GX g t    -> contract (GX g (instantiate store t))
   normalise dat term = let tnf = headUp dat term in case expand tnf of
     VX{}     -> tnf
     AX{}     -> tnf
@@ -144,6 +172,7 @@ instance Instantiable Term where
     s :-: t  -> contract (normalise dat s :-: normalise dat t)
     x :.: b  -> x \\ normalise dat b
     m :$: sg -> m $: sg -- TODO: instantiate sg
+    GX g t   -> tnf -- don't compute under guards
 
 followDirectives :: (Show t, Instantiable t, Instantiated t ~ t)
        => HeadUpData -> Format Directive dbg t -> Format () dbg t
@@ -348,11 +377,12 @@ data Process l s t
   , store   :: s       -- Definitions we know for metas (or not)
   , actor   :: AActor  -- The thing we are
   , logs    :: l       -- The shots of the VM's state we have taken
+  , geas    :: Guard   -- What we are tasked to discharge
   }
 
 tracing :: Process log s t -> [MachineStep]
 tracing = fromMaybe [] . tracingOption . options
 
 instance (Show s, Show (t Frame)) => Show (Process log s t) where
-  show (Process opts stack root env store actor _) =
-   unwords ["Process ", show opts, show stack, show root, show env, show store, show actor]
+  show (Process opts stack root env store actor _ geas) =
+   unwords ["Process ", show opts, show stack, show root, show env, show store, show actor, show geas]

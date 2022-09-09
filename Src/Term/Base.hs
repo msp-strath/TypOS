@@ -8,6 +8,8 @@ import Thin
 import Hide
 import Pretty (Pretty(..))
 
+import Concrete.Base (Guard)
+
 data Pairing = Cell | Oper
   deriving (Show, Eq, Ord)
 
@@ -17,6 +19,7 @@ data Tm m
   | P Pairing (RP (Tm m) (Tm m))
   | (:.) (Named Bool) (Tm m)
   | m :$ Sbst m
+  | G Guard (Tm m)
   deriving (Show, Eq, Ord)
 
 instance Traversable Tm where
@@ -28,6 +31,7 @@ instance Traversable Tm where
   traverse f (xb :. t) = (xb :.) <$> traverse f t
   traverse f (m :$ (sg :^^ w)) =
     (:$) <$> f m <*> ((:^^ w) <$> traverse f sg)
+  traverse f (G g t) = G g <$> traverse f t
 
 instance Functor Tm where fmap = fmapDefault
 instance Foldable Tm where foldMap = foldMapDefault
@@ -143,6 +147,7 @@ data Xn m
   | CdB (Tm m) :-: CdB (Tm m) -- operator
   | String :.: CdB (Tm m) -- abstraction
   | m :$: CdB (Sbst m) -- meta + sbst
+  | GX Guard (CdB (Tm m))
   deriving (Eq, Show{-, Functor, Foldable, Traversable-})
 
 expand :: CdB (Tm m) -> Xn m
@@ -153,6 +158,7 @@ expand (CdB t th) = case t of
   P Oper (s :<>: t) -> (s *^ th) :-: (t *^ th)
   (str := b) :. t -> unhide str :.: CdB t (th -? b)
   f :$ sg -> f :$: CdB sg th
+  G g t -> GX g (CdB t th)
 
 (?:) :: CdB (Tm m) -> (Xn m -> a) -> a
 t ?: f = f (expand t)
@@ -166,6 +172,7 @@ contract t = case t of
   x :.: CdB t th -> case thun th of
     (th, b) -> CdB ((Hide x := b) :. t) th
   m :$: sg -> (m :$) $^ sg
+  GX g (CdB t th) -> CdB (G g t) th
 
 -- smart constructors for the codeBruijn terms; bigEnds must agree
 

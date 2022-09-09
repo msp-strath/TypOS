@@ -386,7 +386,7 @@ run opts p@Process{..} (c : cs) = case c of
   DefnJudge (jd, jdp, ch) a -> run opts (p { stack = stack :< Rules jd jdp (ch, a) }) cs
   Go a -> -- dmesg (show a) $
           let (lroot, rroot) = splitRoot root ""
-              rbranch = Process opts [] rroot env New a ()
+              rbranch = Process opts [] rroot env New a () rroot
           in run opts (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
   Trace xs -> let trac = guard (not $ quiet opts) >> fromMaybe (xs ++ tracing p) (tracingOption opts)
                   newOpts = opts { tracingOption = Just trac }

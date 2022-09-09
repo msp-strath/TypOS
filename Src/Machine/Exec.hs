@@ -1,6 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Machine.Exec where
 
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import Data.Maybe (fromJust)
+import Unelaboration (nameSel)
+
 import Control.Monad.Reader
 
 import Alarm
@@ -30,9 +35,6 @@ import Machine.Trace
 import System.IO.Unsafe
 
 import Debug.Trace
-import qualified Data.Map as Map
-import Data.Maybe (fromJust)
-import Unelaboration (nameSel)
 
 dmesg = trace
 
@@ -56,13 +58,34 @@ exec :: Process Shots Store Bwd -> Process Shots Store []
 exec p | debug MachineExec "" p = undefined
 exec p@Process { actor = Branch _ a b, ..} =
   let (lroot, rroot) = splitRoot root ""
-      rbranch = Process options [] rroot env New b ()
-  in exec (p { stack = stack :< LeftBranch Hole rbranch, root = lroot, actor = a})
+      rbranch = Process { options
+                        , stack = []
+                        , root = rroot
+                        , env
+                        , store = New
+                        , actor = b
+                        , logs = ()
+                        , geas = rroot
+                        }
+  in exec (p { stack = stack :< LeftBranch Hole rbranch
+             , root = lroot
+             , actor = a
+             , store = defineGuard geas (Set.fromList [lroot, rroot]) store
+             , geas = lroot
+             })
 exec p@Process { actor = Spawn _ em jd spawnerCh actor, ..}
   | Just (jdp, (spawnedCh, spawnedActor)) <- lookupRules jd stack
 --  , dmesg (show spawnedActor) True
   = let (subRoot, newRoot) = splitRoot root jd
-        spawnee = ( Process options [] subRoot (childEnv env) New spawnedActor ()
+        spawnee = ( Process { options
+                            , stack = []
+                            , root = subRoot
+                            , env = childEnv env
+                            , store = New
+                            , actor = spawnedActor
+                            , logs = ()
+                            , geas = subRoot
+                            }
                   , spawnedCh)
         spawner = ((spawnerCh, localScope env <>> []), Hole)
     in exec (p { stack = stack :< Spawner (Interface spawnee spawner jd jdp em B0)
@@ -70,9 +93,7 @@ exec p@Process { actor = Spawn _ em jd spawnerCh actor, ..}
                , actor })
 exec p@Process { actor = Send _ ch tm a, ..}
   | Just term <- mangleActors options env tm
-  = let (subRoot, newRoot) = splitRoot root ""
-    in send ch term (p { stack = stack :<+>: []
-                       , root = newRoot
+  =  send ch term (p { stack = stack :<+>: []
                        , actor = a
                        , store = tick store })
 exec p@Process { actor = Recv _ ch (x, a), ..}
@@ -188,6 +209,9 @@ exec p@Process { actor = Fail r fmt, ..}
 
 exec p@Process { actor = Note _ a, .. }
   = exec (p { stack = stack :< Noted, actor = a})
+
+exec p@Process { actor = Win _, .. } | Nothing <- Map.lookup geas (guards store) =
+  move (p { stack = stack :<+>: [], store = tick (defineGuard geas Set.empty store) })
 
 exec p@Process {..} = move (p { stack = stack :<+>: [] })
 

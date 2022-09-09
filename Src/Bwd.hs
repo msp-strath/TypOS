@@ -9,7 +9,7 @@ import Data.Maybe (fromMaybe)
 import Control.Monad.State
 
 data Bwd x = B0 | Bwd x :< x
-  deriving (Show, Eq, Functor, Foldable, Traversable)
+  deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 infixl 4 :<
 
 instance Semigroup (Bwd x) where

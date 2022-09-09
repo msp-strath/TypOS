@@ -88,12 +88,12 @@ initEnv gamma = Env gamma Map.empty B0 Map.empty
 childEnv :: Env -> Env
 childEnv parentEnv = initEnv (globalScope parentEnv <> localScope parentEnv)
 
-newActorVar :: ActorMeta -> ([String], Term) -> Env -> Env
-newActorVar x@(ActorMeta ACitizen _) defn env = env { actorVars = Map.insert x defn (actorVars env) }
-newActorVar x@(ActorMeta ASubject v) defn env =
+newActorVar :: ActorMeta -> ([String], Term) -> Guard -> Env -> Env
+newActorVar x@(ActorMeta ACitizen _) defn guard env = env { actorVars = Map.insert x defn (actorVars env) }
+newActorVar x@(ActorMeta ASubject v) defn guard env =
   env { actorVars = Map.insert (ActorMeta ACitizen v) (interpreted defn) (Map.insert x defn (actorVars env)) }
     where
-      interpreted (bs, t) = (bs, t -% ("tick", []))
+      interpreted (bs, t) = (bs, contract (GX guard t))
 
 -- | When we encounter a term with actor variables inside and want to send
 --   or match on it, we need to first substitute all of the terms the actor

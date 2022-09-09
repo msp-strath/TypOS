@@ -24,6 +24,12 @@ instance HasGetRange Variable where
 
 type Atom = String
 
+type Root = ( Bwd (String, Int) -- name prefix
+            , Int)              -- counter
+
+-- Identifier for guard which denotes if a term is safe to use
+type Guard = Root
+
 data Binder x
   = Used x
   | Unused
@@ -40,6 +46,7 @@ data Raw
   | Lam Range (Scope (Binder Variable) Raw)
   | Sbst Range (Bwd SbstC) Raw
   | Op Range Raw Raw
+  | Guarded Guard Raw
   deriving (Show)
 
 instance HasSetRange Raw where

@@ -43,6 +43,7 @@ mismatch _ _ = Mismatch
 stuck :: Xn m -> Bool
 stuck (_ :$: _) = True
 stuck (_ :-: _) = True
+stuck (GX _ _)  = True
 stuck _         = False
 
 match :: (Term -> Term) -- head normal former
