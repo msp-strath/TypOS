@@ -69,7 +69,9 @@ instance ( Display c, Forget DEnv (DisplayEnv c)
     cch' <- subdisplay cch
     pch' <- subdisplay pch
     p <- local (declareChannel pch) $ subdisplay p
-    pure $ sep [ c, "@", cch', pipe, pch', collapse (pretty <$> xs), "@", p ]
+    pure $ hang 1 c
+         $ hang 1 (hsep [ "@", cch', pipe, pch', collapse (pretty <$> xs), "@"])
+         $ p
 
 instance Display Frame where
   type DisplayEnv Frame = DEnv
