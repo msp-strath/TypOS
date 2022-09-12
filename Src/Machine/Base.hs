@@ -273,7 +273,7 @@ toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
     -- match tops against the left-nested (pobj -- ops)
     -- we don't care about the tps yet
     let leftnested = case ops of
-          B0 -> match hnf env (Problem (localScope env) pobj tops)
+          B0 -> match hnf (Problem (localScope env) pobj tops)
           -- leftops + lop to the left of the op currently in focus
           (lops :< (lop, lps)) -> let topsnf = hnf tops in case expand topsnf of
             (ltops :-: loptps) -> let loptpsnf = hnf loptps in case unOp loptpsnf of
@@ -288,9 +288,9 @@ toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
 
   matches :: Env -> [Pat] -> [Term] -> ([Term], Either Failure Env)
   matches env [] [] = ([], pure env)
-  matches env (p:ps) (t:ts) = case match hnf env (Problem (localScope env) p t) of
+  matches env (p:ps) (t:ts) = case match hnf (Problem (localScope env) p t) of
     (t, Left err) -> (t:ts, Left err)
-    (t, Right env) -> first (t:) $ matches env ps ts
+    (t, Right mat) -> first (t:) $ matches env ps ts
   matches env _ ts = (ts, Left Mismatch)
 
 newtype Clause = Clause { runClause
@@ -338,7 +338,7 @@ data Frame
   | RightBranch (Process () Status []) Hole
   | Spawnee (Interface Hole (Process () Status []))
   | Spawner (Interface (Process () Status []) Hole)
-  | Sent Channel ([String], Term)
+  | Sent Channel (Maybe Guard) ([String], Term)
   | Pushed Stack (DB, SyntaxDesc, Term)
   | Extended Operator Clause
   | Binding String

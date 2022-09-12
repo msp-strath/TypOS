@@ -84,7 +84,8 @@ deriving instance
   , Show (OPERATOR ph)
   , Show (PROTOCOL ph)
   , Show (LOOKEDUP ph)
-  , Show (DEFNOP ph)) =>
+  , Show (DEFNOP ph)
+  , Show (GUARD ph)) =>
   Show (COMMAND ph)
 
 deriving instance

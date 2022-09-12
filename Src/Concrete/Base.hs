@@ -186,6 +186,7 @@ type family STACKDESC (ph :: Phase) :: *
 type family SCRUTINEEVAR (ph :: Phase) :: *
 type family SCRUTINEETERM (ph :: Phase) :: *
 type family LOOKEDUP (ph :: Phase) :: *
+type family GUARD (ph :: Phase) :: *
 
 type instance JUDGEMENTFORM Concrete = Variable
 type instance CHANNEL Concrete = Variable
@@ -201,6 +202,7 @@ type instance STACKDESC Concrete = ()
 type instance SCRUTINEEVAR Concrete = Variable
 type instance SCRUTINEETERM Concrete = Raw
 type instance LOOKEDUP Concrete = Variable
+type instance GUARD Concrete = ()
 
 type FORMAT (ph :: Phase) = [Format Directive Debug (TERM ph)]
 
@@ -230,7 +232,7 @@ instance HasGetRange (SCRUTINEE ph) where
 data ACTOR (ph :: Phase)
  = Branch Range (ACTOR ph) (ACTOR ph)
  | Spawn Range ExtractMode (JUDGEMENTFORM ph) (CHANNEL ph) (ACTOR ph)
- | Send Range (CHANNEL ph) (TERM ph) (ACTOR ph)
+ | Send Range (CHANNEL ph) (GUARD ph) (TERM ph) (ACTOR ph)
  | Recv Range (CHANNEL ph) (BINDER ph, ACTOR ph)
  | Connect Range (CONNECT ph)
  | Note Range (ACTOR ph)
@@ -268,14 +270,15 @@ deriving instance
   , Show (CONNECT ph)
   , Show (STACK ph)
   , Show (STACKDESC ph)
-  , Show (LOOKEDUP ph)) =>
+  , Show (LOOKEDUP ph)
+  , Show (GUARD ph)) =>
   Show (ACTOR ph)
 
 instance HasSetRange (ACTOR ph) where
   setRange r = \case
     Branch _ a b -> Branch r a b
     Spawn _ em jd ch ac -> Spawn r em jd ch ac
-    Send _ ch tm ac -> Send r ch tm ac
+    Send _ ch gd tm ac -> Send r ch gd tm ac
     Recv _ ch x0 -> Recv r ch x0
     Connect _ cnnct -> Connect r cnnct
     Note _ ac -> Note r ac
@@ -294,7 +297,7 @@ instance HasGetRange (ACTOR ph) where
   getRange = \case
     Branch r a b -> r
     Spawn r em jd ch ac -> r
-    Send r ch tm ac -> r
+    Send r ch gd tm ac -> r
     Recv r ch x0 -> r
     Connect r cnnct -> r
     Note r ac -> r

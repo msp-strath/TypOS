@@ -36,25 +36,22 @@ isSubject :: EScrutinee -> IsSubject' ()
 isSubject SubjectVar{} = IsSubject ()
 isSubject _ = IsNotSubject
 
-checkSendableSubject :: Raw -> Elab ()
+-- must be used in definition mode only
+checkSendableSubject :: Raw -> Elab (Maybe ActorVar)
 checkSendableSubject tm = do
-  em <- asks elabMode
-  -- In exec mode we are sending user constructed terms, which
-  -- we do not want to check for subjectness
-  if em == Execution then pure () else do
-    localVars <- asks objVars
-    go (fmap fst localVars) tm
+  localVars <- asks objVars
+  go (fmap fst localVars) tm
   where
-  go :: Bwd String -> Raw -> Elab ()
+  go :: Bwd String -> Raw -> Elab (Maybe ActorVar)
   go localVars x = case x of
     Var r v -> resolve v >>= \case
-      Just (Left (ActVar (IsSubject {}) _ _)) -> pure ()
-      _ -> raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
+      Just (Left (ActVar (IsSubject {}) _ _)) -> pure . Just $ getVariable v
+      _ -> Nothing <$ raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
     Sbst r sg x -> do
       case isInvertible localVars sg of
-        Nothing -> raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
+        Nothing -> Nothing <$ raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
         Just localVars -> go localVars x
-    _ -> raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
+    _ -> Nothing <$ raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
   isInvertible :: Bwd String -> Bwd SbstC -> Maybe (Bwd String)
   isInvertible lvz B0 = pure lvz
   isInvertible (lvz :< w) (sz :< Keep _ v) | getVariable v == w
@@ -558,17 +555,19 @@ sact = \case
 
     pure $ Spawn r em (judgementName jd) ch a
 
-  Send r ch tm a -> do
+  Send r ch () tm a -> do 
     ch <- isChannel ch
     -- Check the channel is in sending mode, & step it
     (m, desc) <- steppingChannel r ch $ \ dir -> \case
       (m, desc) : p | whatComm m dir == SEND -> pure ((m, desc), p)
       _ -> throwError (InvalidSend r ch tm)
 
-    usage <- do
+    (usage, gd) <- do
       case m of
-        Output -> pure $ SentInOutput r
-        Subject -> SentAsSubject r <$ checkSendableSubject tm
+        Output -> pure (SentInOutput r, Nothing)
+        Subject -> ((SentAsSubject r ,) <$>) $ asks elabMode >>= \case 
+          Execution  -> pure Nothing
+          Definition -> checkSendableSubject tm
 
     -- Send
     tm <- during (SendTermElaboration ch tm) $ do
@@ -578,7 +577,7 @@ sact = \case
       (*^ thx) <$> local (setObjVars xyz) (stm usage desc tm)
 
     a <- sact a
-    pure $ Send r ch tm a
+    pure $ Send r ch gd tm a
 
   Recv r ch (p, a) -> do
     ch <- isChannel ch

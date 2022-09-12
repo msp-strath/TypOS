@@ -91,7 +91,7 @@ instance Display Frame where
       pure $ p <+> "| <>"
     Spawnee intf -> display intf
     Spawner intf -> display intf -- pure $ withANSI [ SetColour Background Yellow ] $ show intf -- display intf
-    Sent ch (xs, t) -> do
+    Sent ch _ (xs, t) -> do
       ch' <- subdisplay ch
       t <- subpdisplay t -- pure $ show t
       pure $ withANSI [SetColour Foreground Blue, SetWeight Bold]

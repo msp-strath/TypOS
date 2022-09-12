@@ -282,7 +282,7 @@ instance Unelab AActor where
         <$> subunelab jd
         <*> subunelab ch
         <*> local (declareChannel ch) (unelab a)
-    Send r ch tm a -> Send r <$> subunelab ch <*> inChannel ch (subunelab tm) <*> unelab a
+    Send r ch gd tm a -> Send r <$> subunelab ch <*> pure () <*> inChannel ch (subunelab tm) <*> unelab a
     Recv r ch (av, a) -> Recv r <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
     FreshMeta r desc (av, a) -> FreshMeta r <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
     Let r av desc t a -> Let r <$> subunelab av <*> subunelab desc <*> subunelab t <*> unelab a

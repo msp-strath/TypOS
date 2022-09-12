@@ -91,11 +91,12 @@ exec p@Process { actor = Spawn _ em jd spawnerCh actor, ..}
     in exec (p { stack = stack :< Spawner (Interface spawnee spawner jd jdp em B0)
                , root = newRoot
                , actor })
-exec p@Process { actor = Send _ ch tm a, ..}
+exec p@Process { actor = Send _ ch mv tm a, ..}
   | Just term <- mangleActors options env tm
-  =  send ch term (p { stack = stack :<+>: []
-                       , actor = a
-                       , store = tick store })
+  =  send ch (mv >>= (`Map.lookup` subjectGuards env)) term
+          (p { stack = stack :<+>: []
+             , actor = a
+             , store = tick store })
 exec p@Process { actor = Recv _ ch (x, a), ..}
   = recv ch x (p { stack = stack :<+>: [], actor = a })
 exec p@Process { actor = Connect _ ac, ..}
@@ -146,21 +147,21 @@ exec p@Process { actor = m@(Match _ s cls), ..}
                 , "in:"
                 , m ]
     in alarm options msg $ move (p { stack = stack :<+>: [] })
-  switch t ((pat, a):cs) = case match (headUp dat) env (Problem (localScope env) pat t) of
+  switch t ((pat, a):cs) = case match (headUp dat) (Problem (localScope env) pat t) of
     (t, Left Mismatch) -> switch t cs
     (t, Left DontKnow) -> move (p { stack = stack :<+>: [] })
-    (t, Right env) -> exec (p { env = env, actor = a } )
+    (t, Right mat) -> exec (p { env = env, actor = a } )
 
 exec p@Process { actor = FreshMeta _ cat (av@(ActorMeta _ x), a), ..} =
   let (xm, root') = meta root x
       xt = xm $: sbstI (length (globalScope env) + length (localScope env))
       store' = declareMeta xm (objectNaming $ frDisplayEnv stack) store
-      env' = newActorVar av (localScope env <>> [], xt) _ env
+      env' = newActorVar av (localScope env <>> [], xt) env
   in exec (p { env = env', store = store', root = root', actor = a })
 exec p@Process { actor = Let _ av@(ActorMeta _ x) cat tm a, ..}
   | Just term <- mangleActors options env tm
   =  let (xm, root') = meta root x
-         env' = newActorVar av (localScope env <>> [], term) _ env
+         env' = newActorVar av (localScope env <>> [], term) env
      in exec (p { env = env', root = root', actor = a })
 
 exec p@Process { actor = Constrain _ s t, ..}
@@ -313,11 +314,11 @@ solveMeta m (CdB (S0 :^^ _) th) tm p@Process{..} = do
 connect :: AConnect
         -> Process Shots Store Cursor
         -> Process Shots Store []
-connect ac@(AConnect ch1 th ch2 n) p@Process { stack = zf :< Sent q tm :<+>: fs, ..}
-  | q == ch1 = send ch2 (snd tm *^ th')
+connect ac@(AConnect ch1 th ch2 n) p@Process { stack = zf :< Sent q gd tm :<+>: fs, ..}
+  | q == ch1 = send ch2 gd (snd tm *^ th')
                (p { stack = zf <>< fs :<+>: []
                   , actor = aconnect unknown ch1 th ch2 (n-1)})
-  | q == ch2 = send ch1 (snd tm *^ th')
+  | q == ch2 = send ch1 gd (snd tm *^ th')
                (p { stack = zf <>< fs :<+>: []
                   , actor = aconnect unknown ch1 th ch2 (n-1)})
   where th' = ones (length (globalScope env)) <> th
@@ -326,7 +327,7 @@ connect ac p@Process { stack = zf'@(zf :< Spawnee intf) :<+>: fs, ..}
 connect ac p@Process { stack = zf :< f :<+>: fs}
   = connect ac (p { stack = zf :<+>: (f:fs) })
 
-send :: Channel -> Term
+send :: Channel -> Maybe Guard -> Term
      -> Process Shots Store Cursor
      -> Process Shots Store []
 --send ch term (Process zfs@(zf :<+>: fs) _ _ _ a)
@@ -335,31 +336,32 @@ send :: Channel -> Term
 --   | debug MachineSend (unwords [ch, show term]) p
 --   = undefined
 
-send ch term p@Process { stack = B0 :<+>: fs, ..}
+send ch gd term p@Process { stack = B0 :<+>: fs, ..}
   -- TODO: use the range of the send?
   = let a = Fail unknown [StringPart ("Couldn't find channel " ++ rawChannel ch)]
     in exec (p { stack = B0 <>< fs, actor = a })
-send ch term
+send ch gd term
   p@Process { stack = zf :< Spawner (Interface (childP, q) (rxs@(r, _), Hole) jd jdp em tr) :<+>: fs, ..}
   | r == ch =
+  -- claim : gd should be Nothing - we do not communicate unvalidated terms to our parents
   let parentP = p { stack = fs, store = New, logs = () }
       stack' = zf :< Spawnee (Interface (Hole, q) (rxs, parentP) jd jdp em (tr :< term))
-                  :< Sent q ([], term) <>< stack childP
+                  :< Sent q gd ([], term) <>< stack childP
       p' = recordFrame (childP { stack = stack', store, logs })
   in debug MachineSend (pretty ch) p' `seq` exec p'
-send ch term
+send ch gd term
   p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs@(r, xs), parentP) jd jdp em tr)) :<+>: fs
             , ..}
   | ch == q =
-  let parentP' = parentP { stack = Sent r (xs, term) : stack parentP, store = New }
+  let parentP' = parentP { stack = Sent r gd (xs, term) : stack parentP, store = New }
       stack'   = zf :< Spawnee (Interface (Hole, q) (rxs, parentP') jd jdp em (tr :< term)) <>< fs
       p' = recordFrame (p { stack = stack' })
   in debug MachineSend (pretty ch) p' `seq` exec p'
   | otherwise
   = let a = Fail unknown [StringPart ("Couldn't find channel " ++ rawChannel ch)]
     in exec (p { stack = zf' <>< fs, actor = a })
-send ch term p@Process { stack = (zf :< f) :<+>: fs }
-  = send ch term (p { stack = zf :<+>: (f:fs) })
+send ch gd term p@Process { stack = (zf :< f) :<+>: fs }
+  = send ch gd term (p { stack = zf :<+>: (f:fs) })
 
 recv :: Channel -> Binder ActorMeta
      -> Process Shots Store Cursor
@@ -367,12 +369,17 @@ recv :: Channel -> Binder ActorMeta
 recv ch v p | debug MachineRecv (hsep [ pretty ch, pretty v ]) p = undefined
 recv ch x p@Process { stack = B0 :<+>: fs, ..}
   = move (p { stack = B0 <>< fs :<+>: [], actor = Recv unknown ch (x, actor) })
-recv ch x p@Process { stack = zf :< Sent q y :<+>: fs, ..}
+recv ch x p@Process { stack = zf :< Sent q gd y :<+>: fs, ..}
   | ch == q
   = let env' = case x of
                  Unused -> env
-                 Used x -> newActorVar x y geas env
-    in exec (p { stack = zf <>< fs, env = env' })
+                 Used x -> case x of
+                   ActorMeta ASubject v -> guardSubject v y geas $ newActorVar x y env
+                   ActorMeta ACitizen v -> newActorVar x y env
+        store' = case gd of
+                   Nothing -> store
+                   Just gd -> defineGuard gd (Set.singleton geas) store 
+    in exec (p { stack = zf <>< fs, env = env', store = store' })
 recv ch x
   p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs, parentP) _ _ _ _)) :<+>: fs, ..}
   = move (p { stack = zf' <>< fs :<+>: [], actor = Recv unknown ch (x, actor) })

@@ -117,8 +117,8 @@ prettyact = go B0 B0 where
         CActor -> [Doc Annotations]
   go ls l = \case
     Spawn r em jd p a -> go (ls :< fold (l `add` [pretty em, pretty jd, "@", pretty p, dot])) B0 a
-    Send r ch t@(Var _ _) a -> go ls (l `add` [pretty ch, "!", pretty t, dot]) a
-    Send r ch t a -> go (ls :< fold (l `add` [pretty ch, "!", pretty t, dot])) B0 a
+    Send r ch _ t@(Var _ _) a -> go ls (l `add` [pretty ch, "!", pretty t, dot]) a
+    Send r ch _ t a -> go (ls :< fold (l `add` [pretty ch, "!", pretty t, dot])) B0 a
     Recv r ch (av, a) -> go ls (l `add` [pretty ch, "?", pretty av, dot]) a
     FreshMeta r syn (av, a) -> freshMetas ls l syn (B0 :< av) a
     Let r av syn t a -> go (ls :< fold (l `add` [hsep ["let", pretty av, ":", pretty syn, "=", pretty t] <> dot])) B0 a
