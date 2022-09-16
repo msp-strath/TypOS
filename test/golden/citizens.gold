@@ -5,7 +5,5 @@ out > bool 'False
 out >  discard 'False
 out >  discard 'False
 out >
-err > Tick
-err > Tick
 err >
 err >

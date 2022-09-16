@@ -7,6 +7,7 @@ import Data.Bifunctor
 import Bwd
 import Vector
 import Actor
+import Concrete.Base
 import Thin
 import Term.Base
 import Term.Display()
@@ -48,11 +49,28 @@ stuck _         = False
 
 type Matching = ([(ActorMeta, ([String], Term))], [(String, Hide String)])
 
+matchingToEnv :: Matching -> Env -> Env
+matchingToEnv (actors, alphas) env =
+  foldr(uncurry newActorVar) (foldr declareAlpha env alphas) actors
+
+matchingCase :: Matching -> (Root, Env) -> (Root, Env)
+matchingCase (actors, alphas) (r, env) = foldr f (r, foldr declareAlpha env alphas) actors  
+  where 
+    f :: (ActorMeta, ([String], Term)) -> (Root, Env) -> (Root, Env)
+    f (a@(ActorMeta pass avar), defn) (r, env) = newActorVar a defn <$> case pass of
+      ACitizen -> (r, env)
+      ASubject -> case splitRoot r avar of
+       (g, r) -> (r, guardSubject avar defn g env)
+    
+initMatching :: Matching
+initMatching = mempty
+
 match :: (Term -> Term) -- head normal former
+      -> Matching
       -> Problem
       -> ( Term -- reduced version of the terms in the input problems
          , Either Failure Matching)
-match hnf p = first hd $ matchN hnf mempty (p :* V0)
+match hnf mat p = first hd $ matchN hnf mat (p :* V0)
 
 matchN :: (Term -> Term) -- head normal former
        -> Matching
@@ -91,6 +109,7 @@ matchN hnf mat (Problem zx pat tm :* xs) = let tmnf = hnf tm in case (pat, expan
     case matchN hnf mat' (Problem (zx :< x) p t :* xs) of
       (b :* tms, res) -> ((y \\ b) :* tms, res)
   _ -> (tmnf :* fmap problemTerm xs, Left (mismatch pat tmnf))
+
 
 instThicken :: (Term -> Term) -> Th -> Term
             -> (Term, Either Failure Term)

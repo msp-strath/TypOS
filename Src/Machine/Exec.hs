@@ -125,7 +125,7 @@ exec p@Process { actor = m@(Match _ s cls), ..}
     | Just t' <- mangleActors options env t
     = case expand (headUp dat t') of
       VX (DB i) _ | Just t' <- search stack i stk 0 -> pure ("Just" #%+ [t'])
-      _ :$: _ -> Nothing
+      x | stuck x -> Nothing
       _ -> pure (atom "Nothing" (scope t'))
   mangleScrutinee (Compare _ s t)
     | Just s' <- mangleActors options env s
@@ -147,10 +147,11 @@ exec p@Process { actor = m@(Match _ s cls), ..}
                 , "in:"
                 , m ]
     in alarm options msg $ move (p { stack = stack :<+>: [] })
-  switch t ((pat, a):cs) = case match (headUp dat) (Problem (localScope env) pat t) of
+  switch t ((pat, a):cs) = case match (headUp dat) initMatching (Problem (localScope env) pat t) of
     (t, Left Mismatch) -> switch t cs
     (t, Left DontKnow) -> move (p { stack = stack :<+>: [] })
-    (t, Right mat) -> exec (p { env = env, actor = a } )
+    (t, Right mat) -> case matchingCase mat (root, env) of
+        (root, env) -> exec (p { env, root, actor = a } )
 
 exec p@Process { actor = FreshMeta _ cat (av@(ActorMeta _ x), a), ..} =
   let (xm, root') = meta root x

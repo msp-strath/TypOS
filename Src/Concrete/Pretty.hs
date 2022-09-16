@@ -182,6 +182,7 @@ instance Pretty Directive where
     Raw -> "%r"
     Instantiate -> "%i"
     ShowT -> "%s"
+    Normalise -> "%n"
 
 instance Pretty t => Pretty [Format Directive Debug t] where
   pretty = go B0 B0 where

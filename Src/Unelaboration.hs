@@ -209,6 +209,8 @@ instance Unelab (Binder ActorMeta) where
 instance Unelab ActorMeta where
   type UnelabEnv ActorMeta = ()
   type Unelabed ActorMeta = Variable
+  -- TODO: fixme
+  unelab (ActorMeta ASubject str) = pure (Variable unknown $ "$" ++ str)
   unelab (ActorMeta _ str) = pure (Variable unknown str)
 
 instance Unelab Channel where

@@ -249,8 +249,8 @@ toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
                )
                <> " ~> " <> unsafeDocDisplayClosed opts rhs
         , result ] in
-  let ((t, ts), res) = loop env ops op targs in case res of
-    Right env | Just val <- mangleActors opts env rhs
+  let ((t, ts), res) = loop initMatching ops op targs in case res of
+    Right mtch | Just val <- mangleActors opts (matchingToEnv mtch env) rhs
       -> whenClause opts (msg (withANSI [SetColour Background Green] "Success!")) $ pure val
       | otherwise -> whenClause opts (msg (withANSI [SetColour Background Red] "Failure")) $ Left (t, ts)
     Left err -> whenClause opts (msg (withANSI [SetColour Background Red] $ "Failure " <> pretty err)) $ Left (t, ts)
@@ -263,35 +263,35 @@ toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
     = trace (render (colours opts) (Config (termWidth opts) Vertical) doc) a
     | otherwise = a
 
-  loop :: Env
+  loop :: Matching
        -> Bwd (Operator, [Pat])  -- left nested operators
        -> (Operator, [Pat])      -- current operator OP in focus
        -> (Term, [Term])         -- current term (t -['OP | ts]) already taken apart
        -> ( (Term, [Term])       -- evaluated (t,ts)
-          , Either Failure Env)
-  loop env ops (op, ps) (tops, tps) =
+          , Either Failure Matching)
+  loop mtch ops (op, ps) (tops, tps) =
     -- match tops against the left-nested (pobj -- ops)
     -- we don't care about the tps yet
     let leftnested = case ops of
-          B0 -> match hnf (Problem (localScope env) pobj tops)
+          B0 -> match hnf mtch (Problem (localScope env) pobj tops)
           -- leftops + lop to the left of the op currently in focus
           (lops :< (lop, lps)) -> let topsnf = hnf tops in case expand topsnf of
             (ltops :-: loptps) -> let loptpsnf = hnf loptps in case unOp loptpsnf of
               Just (lop', ltps) | lop == lop' ->
-                case loop env lops (lop, lps) (ltops, ltps) of
+                case loop mtch lops (lop, lps) (ltops, ltps) of
                   ((ltops, ltps), res) -> (ltops -% (getOperator lop, ltps), res)
               _ -> (contract (ltops :-: loptpsnf), Left Mismatch) -- Careful: could be a stuck meta
             _ -> (topsnf, Left (whenClause opts (unsafeDocDisplayClosed unsafeOptions topsnf <+> "not an operator application") Mismatch))
     in case leftnested of
       (tops, Left err) -> ((tops, tps), Left err)
-      (tops, Right env) -> first (tops,) $ matches env ps tps
+      (tops, Right mtch) -> first (tops,) $ matches mtch ps tps
 
-  matches :: Env -> [Pat] -> [Term] -> ([Term], Either Failure Env)
-  matches env [] [] = ([], pure env)
-  matches env (p:ps) (t:ts) = case match hnf (Problem (localScope env) p t) of
+  matches :: Matching -> [Pat] -> [Term] -> ([Term], Either Failure Matching)
+  matches mtch [] [] = ([], pure mtch)
+  matches mtch (p:ps) (t:ts) = case match hnf mtch (Problem (localScope env) p t) of
     (t, Left err) -> (t:ts, Left err)
-    (t, Right mat) -> first (t:) $ matches env ps ts
-  matches env _ ts = (ts, Left Mismatch)
+    (t, Right mtch) -> first (t:) $ matches mtch ps ts
+  matches mtch  _ ts = (ts, Left Mismatch)
 
 newtype Clause = Clause { runClause
   :: Options

@@ -58,6 +58,14 @@ wasScrutinised = any $ \case
   SuccessfullyLookedUp _ -> True
   _ -> False
 
+isBeingScrutinised :: Usage -> Bool
+isBeingScrutinised = \case
+  LookedUp _ -> True
+  Scrutinised _ -> True
+  SentAsSubject _ -> True
+  Compared _ -> True
+  _ -> False
+
 data Direction = Rootwards
                | Leafwards
   deriving (Eq, Show)

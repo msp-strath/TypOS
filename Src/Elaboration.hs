@@ -94,7 +94,7 @@ isFresh x = do
   pure (getVariable x)
 
 spassport :: Usage -> IsSubject -> Passport
-spassport u IsSubject{} | wasScrutinised [u] = ASubject
+spassport u IsSubject{} | isBeingScrutinised u = ASubject
 spassport _ _ = ACitizen
 
 svar :: Usage -> Variable -> Elab (IsSubject, Info SyntaxDesc, ACTm)
