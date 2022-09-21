@@ -1,0 +1,15 @@
+syntax { 'Nat = ['EnumOrTag ['Z] [['S 'Nat]]] }
+
+isNat : $'Nat.
+isNat@p = p?n. case $n
+  { 'Z ->
+  ; ['S m] ->
+    PRINTF "%r\n%i\n%n" n n n.
+    case m -- this will be stuck because m has not been validated
+      { 'Z -> PRINTF "zero".
+      ; ['S _] -> PRINTF "nonzero".
+      }
+  }
+
+exec isNat@p. p!['S ['S 'Z]].
+  {- PRINTF "%S". -}

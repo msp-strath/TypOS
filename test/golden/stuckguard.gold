@@ -1,0 +1,12 @@
+ret > ExitFailure 1
+out > Warning: stuckguard.act:6:4-10
+out > Pattern subject m did not get scrutinised
+out > when elaborating a case branch handling the pattern ['S m]
+out > when elaborating the judgement definition for isNat
+out > < ['S ['S 'Z]] >
+out > < ['S ['S 'Z]] >
+out > < ['S ['S 'Z]] >
+out > Error: Did not win
+out >
+err >
+err >

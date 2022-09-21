@@ -1,3 +1,5 @@
-ret > ExitSuccess
+ret > ExitFailure 1
+out > Error: Did not win
+out >
 err >
 err >

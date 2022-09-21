@@ -25,7 +25,6 @@ import Options
 import Command
 import Machine.Trace (diagnostic, ldiagnostic, adiagnostic)
 import Utils
-import Display (unsafeEvalDisplay)
 import Location
 import qualified Data.Map as Map
 import Data.Maybe (isNothing)
@@ -61,11 +60,14 @@ main = do
       -- TODO: eventually need to be more careful about the operators due to local extensions
       let dat = HeadUpData (mkOpTable (B0 <>< fs)) sto (opts {quiet = True}) env
 
+      -- run diagnostics
+      let (win, trace) = diagnostic opts dat fs
+
       -- Failed run error
-      unless (isWin a) $ do
+      unless win $ do
          putStrLn $ anerror opts $ " Did not win"
-         putStrLn $ let (_, _, _, a) = unsafeEvalDisplay initDEnv $ displayProcess' res in
-                    render (colours $ options p) cfg a
+         -- putStrLn $ let (_, _, _, a) = unsafeEvalDisplay initDEnv $ displayProcess' res in
+         --            render (colours $ options p) cfg a
 
       -- Unsolved metas warning
       let unsolved = Map.mapMaybe (\ (_, msol)  -> () <$ guard (isNothing msol)) $ solutions sto
@@ -77,7 +79,7 @@ main = do
 
       -- Resulting derivation
       unless (quiet opts) $ do
-        putStrLn $ diagnostic opts dat fs
+        putStrLn trace
 
       -- LaTeX & beamer backends
       whenJust (latex opts) $ \ file -> do
@@ -87,6 +89,8 @@ main = do
         writeFile file $ adiagnostic table dat fs (logs res)
         putStrLn $ success opts $ " wrote animated latex derivation to " ++ file
       dmesg "" res `seq` pure ()
+
+      unless win $ exitFailure
 
 label :: Colour -> String -> Options -> String -> String
 label col lbl opts str =

@@ -1,6 +1,7 @@
-ret > ExitSuccess
+ret > ExitFailure 1
 out > Alarm: left
 out > Alarm: right
+out > Error: Did not win
 out > test 
 out >  left
 out >  right

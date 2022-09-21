@@ -8,7 +8,7 @@
                         "case" "let"
                         "Atom" "AtomBar" "Wildcard" "EnumOrTag" "Enum" "Tag" "Cons" "Nil" "NilOrCons" "Fix" "Bind"
                         "BREAK" "PRINT" "PRINTF"))
-(setq typos-operators '("@" "!" "?" "~" "#"))
+(setq typos-operators '("@" "!" "$" "?" "~" "#"))
 (setq typos-symbols   '("|-" "|" "<->" "->" "~>" ";" "=" "{" "}"))
 
 ;; create the regex string for each class of keywords

@@ -35,6 +35,7 @@ instance Display Status where
     StuckOn d -> display d
     New -> pure "New"
     Done -> pure "Done"
+    Dead -> pure "Dead"
 
 instance Display Hole where
   type DisplayEnv Hole = ()

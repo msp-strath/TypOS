@@ -37,6 +37,12 @@ data Trace e i ann
    = Node ann (i ann) [Trace e i ann]
    | Error ann e
 
+winning :: CTrace Simple ann -> Bool
+winning (Node _ stp ts) = case stp of
+  CallingStep (Simple _ (_, b)) _ _ -> b
+  _ -> all winning ts
+winning _ = False
+
 deriving instance Functor i => Functor (Trace e i)
 deriving instance Foldable i => Foldable (Trace e i)
 
@@ -458,13 +464,15 @@ cleanup = snd . go False [] where
   go supp seen (Error a e : ats) =
     (Error a e :) <$> go supp seen ats
 
-diagnostic :: Options -> HeadUpData -> [Frame] -> String
+diagnostic :: Options -> HeadUpData -> [Frame] -> (Bool, String)
 diagnostic opts dat fs =
   let ats = cleanup $ extract Simple () fs in
   let iats = normalise dat ats in
   let cts = traverse unelab iats in
+  let ts = unsafeEvalUnelab initNaming cts in
+  (all winning ts,) $
   render (colours opts) ((initConfig (termWidth opts)) { orientation = Vertical })
-    $ vcat $ map pretty $ unsafeEvalUnelab initNaming cts
+    $ vcat $ map pretty ts
 
 mkNewCommand :: String -> Int -> String -> String
 mkNewCommand cmd ar body
