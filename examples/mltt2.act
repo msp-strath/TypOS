@@ -11,12 +11,12 @@ syntax
              ]]
   }
 
-type  : $'Check.
+type  : ?'Check.
 
-check : ?'Check. {- Type -} $'Check. {- Term -}
-^checkWorker : ?'Check. {- Type -} $'Check. {- Term -}
-synth : $'Synth. !'Check. {-Type-}
-^synthWorker : $'Synth. !'Check. {-Type-}
+check : ?'Check. {- Type -} ?'Check. {- Term -}
+^checkWorker : ?'Check. {- Type -} ?'Check. {- Term -}
+synth : ?'Synth. !'Check. {-Type-}
+^synthWorker : ?'Synth. !'Check. {-Type-}
 ctxt |- 'Synth -> 'Check {-Type-}
 
 ^checkEval : ?'Check. !'Check.
@@ -39,7 +39,7 @@ checkEqual@p = p?ty. checkEval@q. q!ty. q?nty. checkEqualWorker@r. r!nty. p <-> 
 equalSynth@p = p?tm. p?tm2. evalSynth@q. q!tm. evalSynth@r. r!tm2. q?ntm. r?ntm2. equalSynthWorker@u. u!ntm. u!ntm2.u?ty.checkEval@v. v!ty. v <-> p
 
 -- type assumed to be head normal
-checkWorker@p = p?ty. p?tm. case $tm
+checkWorker@p = p?ty. p?tm. case tm
   { 'Ty -> ty ~ 'Ty
   ; ['Pi S \x. T] ->
     (ty ~ 'Ty
@@ -56,7 +56,7 @@ checkWorker@p = p?ty. p?tm. case $tm
 
 synthWorker@p = p?tm . case (lookup ctxt tm)
   { ['Just S] -> p!S.
-  ; 'Nothing -> case $tm
+  ; 'Nothing -> case tm
     { ['Rad t ty] -> ( type@q. q!ty.
                      | check@r. r!ty. r!t.
                      | p!ty.)
