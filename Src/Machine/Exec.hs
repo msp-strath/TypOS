@@ -8,8 +8,6 @@ import ANSI hiding (withANSI)
 import Bwd
 import Concrete.Base
 import Display
-import Doc hiding (render)
-import Doc.Render.Terminal
 import Elaboration.Pretty ()
 import Format
 import Hide
@@ -114,7 +112,7 @@ exec p@Process { actor = m@(Match _ s cls), ..}
 
   switch :: Term -> [(Pat, AActor)] -> Process Shots Store []
   switch t [] =
-    let msg = render (colours options) (Config (termWidth options) Vertical)
+    let msg = renderWith (renderOptions options)
          $ unsafeEvalDisplay (frDisplayEnv stack) $ do
           it <- subdisplay (instantiate store t)
           t <- subdisplay t
@@ -197,11 +195,11 @@ evalError p@Process{..} fmt
       Just fmt -> format [] p fmt
       Nothing -> case evalDisplay (frDisplayEnv stack) (subdisplay fmt) of
         Left grp -> "Error " ++ show grp ++ " in the error " ++ show fmt
-        Right str -> render (colours options) (Config (termWidth options) Vertical) str
+        Right doc -> renderWith (renderOptions options) doc
 
 format :: [Annotation] -> Process log Store Bwd -> [Format Directive Debug Term] -> String
 format ann p@Process{..} fmt
-  = render (colours options) (Config (termWidth options) Vertical)
+  = renderWith (renderOptions options)
   $ unsafeEvalDisplay (frDisplayEnv stack)
   $ fmap (withANSI ann)
   $ subdisplay
@@ -395,8 +393,8 @@ debug :: (Show (t Frame), Traversable t, Collapse t, Display0 s)
       => MachineStep -> Doc Annotations -> Process log s t -> Bool
 debug step str p | step `elem` tracing p = -- dmesg (show step ++ ": " ++ show p) $
   let (fs', store', env', a') = unsafeEvalDisplay initDEnv $ displayProcess' p
-      p' = indent 2 $ vcat $ [collapse fs', store', env', a']
+      p' = hang 2 (flush "") $ vcat $ [collapse fs', store', env', a']
       step' = keyword (pretty step)
-      msg = render (colours $ options p) (initConfig 0) $ vcat [mempty, step' <+> str, p']
+      msg = renderWith (renderOptions (options p)) $ vcat [mempty, step' <+> str, p']
   in dmesg msg False
 debug step _ p = False

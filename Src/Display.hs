@@ -12,11 +12,9 @@ import Forget
 import Format
 import Options
 import Pattern
-import Doc hiding (render)
-import Doc.Render.Terminal
+import Pretty (Doc, Annotations, Pretty(..), renderWith)
 import Thin
 
-import Pretty (Pretty(..))
 import Unelaboration (Unelab(..), evalUnelab, Naming)
 import qualified Unelaboration
 
@@ -112,5 +110,5 @@ unsafeDocDisplayClosed opts t
 
 unsafeDisplayClosed :: (DisplayEnv a ~ Naming, Display a) => Options -> a -> String
 unsafeDisplayClosed opts t
-  = render (colours opts) (Config (termWidth opts) Vertical)
+  = renderWith (renderOptions opts)
   $ unsafeDocDisplayClosed opts t

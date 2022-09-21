@@ -3,12 +3,9 @@
 module Concrete.Pretty where
 
 import Data.Foldable
-import Data.List
 
 import Bwd
 import Concrete.Base
-import Doc
-import Doc.Render.Terminal
 import Format
 import Hide
 import Scope
@@ -34,7 +31,7 @@ instance Pretty Raw where
     At _ [] -> "[]"
     At _ at -> squote <> pretty at
     Cons _ p q -> brackets $ case pretty p : prettyCdr q of
-      (d : ds@(_:_)) -> alts [flush d, d <> space] <> sep ds
+      (d : ds@(_:_)) -> d </> sep ds
       ds -> hsep ds
     Lam _ (Scope x t) -> parenthesise (d > 0) $ multiBind (B0 :< x) t
     Sbst _ B0 t -> prettyPrec d t
@@ -42,7 +39,7 @@ instance Pretty Raw where
     Op _ s t -> parenthesise (d > 0) $ hsep [ pretty s, "-", prettyPrec 1 t ]
 
 instance Pretty (Bwd SbstC) where
-  pretty sg = braces (hsepBy "," $ pretty <$> sg <>> [])
+  pretty sg = encloseSep lbrace rbrace ", " $ pretty <$> sg <>> []
 
 prettyCdr :: Raw -> [Doc Annotations]
 prettyCdr = \case
@@ -54,7 +51,7 @@ instance Pretty SbstC where
   pretty = \case
     Keep _ x -> pretty x
     Drop _ x -> pretty x <> "*"
-    Assign _ x t -> pretty x <> equal <> pretty t
+    Assign _ x t -> pretty x <> equals <> pretty t
 
 instance Pretty ThDirective where
   pretty = \case
@@ -155,13 +152,8 @@ instance Pretty CActor where
     Match r tm pts ->
       let match = hsep [ keyword "case", pretty tm ]
           cls   = map pretty pts
-      in alts
-      [ fold [ flush match
-             , flush (indent 2 $ vcat $ zipWith (<+>) ("{": repeat ";") cls)
-             , indent 2 "}"
-             ]
-      , hsep [ match , braces (sep $ intersperse ";" cls) ]
-      ]
+      in
+      hang 2 match $ encloseSep "{ " "}" "; " cls
     Connect r cnnct -> pretty cnnct
     -- final actors
     Win r -> ""
@@ -207,8 +199,7 @@ instance Pretty t => Pretty [Format () (Doc Annotations) t] where
 instance Pretty (RawP, CActor) where
   pretty (p, a) =
      let pp = pretty p; pa = sep (prettyact a) in
-     alts [ hsep [pp, "->", pa ]
-          , hsep [pp, "->"] $$ indent 2 pa ]
+     hang 2 (hsep [pp, "->"]) pa
 
 instance Pretty Mode where
   pretty Input   = "?"
