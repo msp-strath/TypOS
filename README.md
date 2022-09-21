@@ -225,7 +225,7 @@ The channel is the actor's link with its parent (so we often call it
 Here is a simple example:
 
 ```
-type@p = p?ty. case ty
+type@p = p?ty. case $ty
   { 'Nat ->
   ; ['Arr S T] ->
       ( type@q. q!S.
@@ -273,7 +273,7 @@ composition, and spawning. There is a little more to come. Let us
 have a further example:
 
 ```
-check@p = p?ty. p?tm. case tm
+check@p = p?ty. p?tm. case $tm
   { ['Emb e] -> synth@q. q!e. q?S. S ~ ty
   ; ['Lam \x. body] -> 'Type?S. 'Type?T.
       ( ty ~ ['Arr S T]
@@ -341,7 +341,7 @@ actor's definition.
 ```
 synth@p = p?tm . case (lookup ctxt tm)
  { ['Just S] -> p!S.
- ; 'Nothing -> case tm
+ ; 'Nothing -> case $tm
    { ['Rad t ty] ->
         ( type@q. q!ty.
         | check@r. r!ty. r!t.

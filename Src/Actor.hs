@@ -1,5 +1,6 @@
 module Actor where
 
+import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Alarm
@@ -15,11 +16,16 @@ import Thin
 
 type ActorVar = String
 
-newtype ActorMeta = ActorMeta ActorVar
+type Pat = Pat' ActorMeta
+
+data Passport = ASubject | ACitizen
+  deriving (Show, Eq, Ord)
+
+data ActorMeta = ActorMeta Passport ActorVar
   deriving (Eq, Ord)
 
 instance Show ActorMeta where
-  show (ActorMeta str) = str
+  show (ActorMeta _ str) = str
 
 newtype Stack = Stack { rawStack :: String }
   deriving (Show, Eq)
@@ -42,7 +48,9 @@ type instance CONNECT Abstract = AConnect
 type instance STACK Abstract = Stack
 type instance STACKDESC Abstract = SyntaxDesc
 type instance SCRUTINEEVAR Abstract = ACTm
+type instance SCRUTINEETERM Abstract = ACTm
 type instance LOOKEDUP Abstract = ACTm
+type instance GUARD Abstract = Maybe ActorVar
 
 data AConnect = AConnect Channel Th Channel Int deriving (Show)
 type AProtocol = Protocol SyntaxDesc
@@ -61,10 +69,11 @@ aconnect r ch1 th ch2 n
 
 data Env = Env
   { globalScope :: Bwd String -- free vars ga actor does *not* know about
-  , actorVars :: Map.Map ActorMeta ([String] -- bound vars xi actorVar does know about
+  , actorVars :: Map ActorMeta ([String] -- bound vars xi actorVar does know about
                                    , Term) -- in scope ga <>< xi
+  , subjectGuards :: Map String Guard                
   , localScope :: Bwd String -- vars de actor has bound
-  , alphaRenamings :: Map.Map String (Hide String)
+  , alphaRenamings :: Map String (Hide String)
   } deriving (Show, Eq)
 
 tryAlpha :: Env -> String -> String
@@ -77,14 +86,27 @@ declareAlpha (x, y) rho =
   rho { alphaRenamings = Map.insert x y (alphaRenamings rho) }
 
 initEnv :: Bwd String -> Env
-initEnv gamma = Env gamma Map.empty B0 Map.empty
-
+initEnv gamma = Env            
+  { globalScope = gamma          
+  , actorVars = Map.empty        
+  , subjectGuards = Map.empty    
+  , localScope = B0              
+  , alphaRenamings = Map.empty   
+  }
+  
 childEnv :: Env -> Env
 childEnv parentEnv = initEnv (globalScope parentEnv <> localScope parentEnv)
 
 newActorVar :: ActorMeta -> ([String], Term) -> Env -> Env
 newActorVar x defn env = env { actorVars = Map.insert x defn (actorVars env) }
 
+guardSubject :: ActorVar -> ([String], Term) -> Guard -> Env -> Env
+guardSubject v defn gd env =
+  env { subjectGuards = Map.insert v gd (subjectGuards env)
+      , actorVars = Map.insert (ActorMeta ACitizen v) (interpreted defn) (actorVars env)}
+    where
+      interpreted (bs, t) = (bs, contract (GX gd t))
+      
 -- | When we encounter a term with actor variables inside and want to send
 --   or match on it, we need to first substitute all of the terms the actor
 --   variables map to.

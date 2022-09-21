@@ -1,4 +1,4 @@
-trace { exec }
+-- trace { exec }
 
 syntax
   { 'Check = ['Tag  [ ['Lam ['Bind 'Synth 'Check]]
@@ -16,7 +16,7 @@ check : ?'Type. $'Check.
 synth : $'Synth. !'Type.
 ctxt |- 'Synth -> 'Type
 
-check@p = p?ty. p?tm. case tm
+check@p = p?ty. p?tm. case $tm
     { ['Lam \x. body] -> 'Type?S. 'Type?T.
          (ty ~ ['Arr S T]
          | \y. ctxt |- y -> S. check@q. q!T. q!{x=y}body.)
@@ -25,7 +25,7 @@ check@p = p?ty. p?tm. case tm
 
 synth@p = p?tm . case (lookup ctxt tm)
  { ['Just S] -> p!S.
- ; 'Nothing -> case tm
+ ; 'Nothing -> case $tm
    { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)
    ; ['App f s] -> 'Type?U. 'Type?V.
         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]

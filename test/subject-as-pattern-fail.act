@@ -1,0 +1,13 @@
+syntax { 'Bool = ['Enum ['True 'False]] }
+
+foo : $'Bool. -- this should work
+foo@p = p?x. case [ $x x]
+  { [ 'True | y@z ] ->
+  ; [ 'False | y@z ] ->
+  }
+
+fooFail : $'Bool. -- this should not work
+fooFail@p = p?x. case [ x $x]
+  { [ 'True | y@z ] ->
+  ; [ 'False | y@z ] ->
+  }

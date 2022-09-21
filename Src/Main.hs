@@ -23,7 +23,6 @@ import Options
 import Command
 import Machine.Trace (diagnostic, ldiagnostic, adiagnostic)
 import Utils
-import Display (unsafeEvalDisplay)
 import Location
 import qualified Data.Map as Map
 import Data.Maybe (isNothing)
@@ -52,14 +51,20 @@ main = do
       unless ((quiet opts && not (wAll opts)) || null ws) $ do
         putStrLn $ renderWith (renderOptions opts) $ vcat $ map pretty ws
 
-      let p = Process opts B0 initRoot (initEnv B0) initStore (Win unknown) []
-      let res@(Process _ fs _ env sto a _) = run opts p acs
+      let p = Process opts B0 initRoot (initEnv B0) initStore (Win unknown) [] initRoot
+      let res@(Process _ fs _ env sto a _ geas) = run opts p acs
+
+      -- TODO: eventually need to be more careful about the operators due to local extensions
+      let dat = HeadUpData (mkOpTable (B0 <>< fs)) sto (opts {quiet = True}) env
+
+      -- run diagnostics
+      let (win, trace) = diagnostic opts dat fs
 
       -- Failed run error
-      unless (isWin a) $ do
+      unless win $ do
          putStrLn $ anerror opts $ " Did not win"
-         putStrLn $ let (_, _, _, a) = unsafeEvalDisplay initDEnv $ displayProcess' res in
-                    renderWith (renderOptions $ options p) a
+         -- putStrLn $ let (_, _, _, a) = unsafeEvalDisplay initDEnv $ displayProcess' res in
+         --   renderWith (renderOptions $ options p) a
 
       -- Unsolved metas warning
       let unsolved = Map.mapMaybe (\ (_, msol)  -> () <$ guard (isNothing msol)) $ solutions sto
@@ -71,16 +76,18 @@ main = do
 
       -- Resulting derivation
       unless (quiet opts) $ do
-        putStrLn $ diagnostic opts sto fs
+        putStrLn trace
 
       -- LaTeX & beamer backends
       whenJust (latex opts) $ \ file -> do
-        writeFile file $ ldiagnostic table sto fs
+        writeFile file $ ldiagnostic table dat fs
         putStrLn $ success opts $ " wrote latex derivation to " ++ file
       whenJust (latexAnimated opts) $ \ file -> do
-        writeFile file $ adiagnostic table sto fs (logs res)
+        writeFile file $ adiagnostic table dat fs (logs res)
         putStrLn $ success opts $ " wrote animated latex derivation to " ++ file
       dmesg "" res `seq` pure ()
+
+      unless win $ exitFailure
 
 label :: Colour -> String -> Options -> String -> String
 label col lbl opts str =

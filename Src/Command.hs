@@ -71,6 +71,7 @@ deriving instance
   , Show (BINDER ph)
   , Show (ACTORVAR ph)
   , Show (SCRUTINEEVAR ph)
+  , Show (SCRUTINEETERM ph)
   , Show (SYNTAXDESC ph)
   , Show (TERMVAR ph)
   , Show (TERM ph)
@@ -82,7 +83,8 @@ deriving instance
   , Show (OPERATOR ph)
   , Show (PROTOCOL ph)
   , Show (LOOKEDUP ph)
-  , Show (DEFNOP ph)) =>
+  , Show (DEFNOP ph)
+  , Show (GUARD ph)) =>
   Show (COMMAND ph)
 
 deriving instance
@@ -323,7 +325,7 @@ scommand = \case
       -- this is the op applied to the object, not the outer op being extended
       let op = fst (head opargs)
       (AnOperator op obj _ ret) <- soperator op
-      (mr1, p, decls, hints) <- spat (ActorVar unknown (IsNotSubject, obj)) p
+      (mr1, p, decls, hints) <- spat (Term unknown obj) p
       (opargs, decls, hints) <- local (setDecls decls . setHints hints) $
                                 sopargs obj opargs
       pure ((p, opargs), ret, decls, hints)
@@ -348,7 +350,7 @@ sopargs desc ((rop, args):xs) = do
   splat :: Range -> [SyntaxDesc] -> [CPattern] -> Elab ([APattern], Decls, Hints)
   splat r [] [] = ([],,) <$> asks declarations <*> asks binderHints
   splat r (d:ds) (p:ps) = do
-    (_, p, decls, hints) <- spat (ActorVar unknown (IsNotSubject, d)) p
+    (_, p, decls, hints) <- spat (Term unknown d) p
     (ps, decls, hints) <- local (setDecls decls . setHints hints) $ splat r ds ps
     pure (p:ps, decls, hints)
   splat r ds ps = do
@@ -384,7 +386,7 @@ run opts p@Process{..} (c : cs) = case c of
   DefnJudge (jd, jdp, ch) a -> run opts (p { stack = stack :< Rules jd jdp (ch, a) }) cs
   Go a -> -- dmesg (show a) $
           let (lroot, rroot) = splitRoot root ""
-              rbranch = Process opts [] rroot env New a ()
+              rbranch = Process opts [] rroot env New a () rroot
           in run opts (p { stack = stack :< LeftBranch Hole rbranch, root = lroot}) cs
   Trace xs -> let trac = guard (not $ quiet opts) >> fromMaybe (xs ++ tracing p) (tracingOption opts)
                   newOpts = opts { tracingOption = Just trac }

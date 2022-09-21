@@ -1,4 +1,4 @@
-trace { exec }
+-- trace { exec }
 
 syntax
   { 'Type = ['EnumOrTag  [ 'Base 'Nat 'Bool]
@@ -7,7 +7,7 @@ syntax
   }
 
 ^type : $'Type.
-type@p = p?ty. case ty
+type@p = p?ty. case $ty
   { 'Base ->
   ; 'Nat ->
   ; 'Bool ->
@@ -26,7 +26,7 @@ check : ?'Type. $'Check.
 synth : $'Synth. !'Type.
 ctxt |- 'Synth -> 'Type
 
-check@p = p?ty. p?tm. case tm
+check@p = p?ty. p?tm. case $tm
     { ['Lam \x. body] -> 'Type?S. 'Type?T.
          (ty ~ ['Arr S T]
          | \x. ctxt |- x -> S. check@q. q!T. q!body.)
@@ -34,7 +34,7 @@ check@p = p?ty. p?tm. case tm
     }
 synth@p = p?tm . case (lookup ctxt tm)
   { ['Just S] -> p!S.
-  ; 'Nothing -> case tm
+  ; 'Nothing -> case $tm
     { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty. | type@q.q!ty.)
     ; ['App f s] -> 'Type?U. 'Type?V.
          ( synth@q. q!f. q?ty. ty ~ ['Arr U V]

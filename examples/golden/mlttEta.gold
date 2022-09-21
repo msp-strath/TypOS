@@ -1,4 +1,4 @@
-ret > ExitSuccess
+ret > ExitFailure 1
 out > Warning: mlttEta.act:44:28-67:3
 out > Incomplete pattern matching. The following patterns are missing:
 out >   'Fst
@@ -674,6 +674,7 @@ out >                                 'One]]
 out >                               ['Emb ['Rad ['Pi ['Sg 'One \_. 'One]
 out >                                                \_. ['Sg 'One \_. 'One]]
 out >                                           'Ty]]]]]]]]
+out > Error: Did not win
 out >
 err >
 err >

@@ -1,11 +1,11 @@
 ret > ExitSuccess
 out > Store:
-out >  27: [?[("check",[1])("S",[0])] := 'Nat
-out >      , ?[("check",[1])("T",[1])] := 'Nat
-out >      , ?[("check",[1,3])("synth",[0])("",[2])("synth",[0])("",[0])("check",[0])("S",[0])] := 'Nat
-out >      , ?[("check",[1,3])("synth",[0])("",[2])("synth",[0])("",[0])("check",[0])("T",[1])] := 'Nat
-out >      , ?[("check",[1,3])("synth",[0])("U",[0])] := 'Nat
-out >      , ?[("check",[1,3])("synth",[0])("V",[1])] := 'Nat]
+out >  43: [?[("check",[1])("S",[1])] := 'Nat
+out >      , ?[("check",[1])("T",[2])] := 'Nat
+out >      , ?[("check",[1,4])("synth",[1])("",[4])("synth",[0])("",[2])("check",[0])("S",[1])] := ?[("check",[1,4])("synth",[1])("",[4])("synth",[0])("",[2])("check",[0])("T",[2])]
+out >      , ?[("check",[1,4])("synth",[1])("",[4])("synth",[0])("",[2])("check",[0])("T",[2])] := 'Nat
+out >      , ?[("check",[1,4])("synth",[1])("U",[2])] := 'Nat
+out >      , ?[("check",[1,4])("synth",[1])("V",[3])] := 'Nat]
 out > Env: []
 out > Stack:
 out >  <type |-@p {}
@@ -14,18 +14,19 @@ out >  , synth |-@p {}
 out >  , ([] Done ) | <>
 out >  , ([([] Done ) | <>
 out >     , \z_0. 
-out >     , ctxt |- z_0 -> {z_0*} ?[("check",[1])("S",[0])] . 
-out >     , ([([([([([([([] Done ) | <>
-out >                  , \w_1. 
-out >                  , ctxt |- w_1 -> {w_1*} ?[("check",[1,3])("synth",[0])("",[2])("synth",[0])("",[0])("check",[0])("S",[0])] . 
-out >                  , ([([] Done ) @ p | q [] @ <>] Done ) @ p | q [w] @ <>]
-out >                  Done
-out >                  )
-out >                  @ p | q [] @ <>]
-out >                Done
-out >                ) | <>
-out >              , ([] Done ) | <>
-out >              , ([([([] Done ) @ p | q [] @ <>] Done ) | <>, ([] Done ) @ p | q [] @ <>]
+out >     , ctxt |- z_0 -> {z_0*} ?[("check",[1])("S",[1])] . 
+out >     , ([([([([<> | ([([] Done ) | <>, ([([([] Done ) @ p | q [] @ <>] Done ) | <>
+out >                                        , ([] Done ) @ p | q [] @ <>]
+out >                                        Done
+out >                                        )
+out >                                        @ p | q [] @ <>]
+out >                     Done
+out >                     )
+out >              , ([<> | ([\w_1. 
+out >                        , ctxt |- w_1 -> {w_1*} ?[("check",[1,4])("synth",[1])("",[4])("synth",[0])("",[2])("check",[0])("S",[1])] . 
+out >                        , ([([] Done ) @ p | q [] @ <>] Done ) @ p | q [w] @ <>]
+out >                        Done
+out >                        )]
 out >                 Done
 out >                 )
 out >                 @ p | q [] @ <>]

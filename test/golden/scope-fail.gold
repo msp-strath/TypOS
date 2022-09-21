@@ -7,6 +7,8 @@ out >  3 |   case [hd tl]
 out >              ^^
 out > scope-fail.act:3:8-10
 out > Out of scope variable hd
+out > when elaborating the term variable hd
+out > when elaborating a term scrutinee [hd tl]
 out > when elaborating the case scrutinee [hd tl]
 out > when elaborating the judgement definition for test
 out >

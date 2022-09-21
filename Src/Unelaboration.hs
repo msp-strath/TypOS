@@ -120,6 +120,7 @@ instance UnelabMeta m => Unelab (Tm m) where
       pure $ case sg of
         B0 -> m
         _ -> Sbst unknown sg m
+    G g t -> Guarded g <$> unelab t
 
 instance UnelabMeta m => Unelab (Sbst m) where
   type UnelabEnv (Sbst m) = Naming
@@ -150,14 +151,14 @@ instance Unelab Pat where
   type UnelabEnv Pat = Naming
   type Unelabed Pat = RawP
   unelab = \case
-    AT x p -> AsP unknown (Variable unknown x) <$> unelab p
+    AT x p -> AsP unknown <$> subunelab x <*> unelab p
     VP n -> VarP unknown <$> unelab n
     AP str -> pure (AtP unknown str)
     PP p q -> ConsP unknown <$> unelab p <*> unelab q
     BP x p -> do
       p <- local (`nameOn` unhide x) (unelab p)
       pure (LamP unknown (Scope (mkBinder . Variable unknown <$> x) p))
-    MP m th -> {- TODO: insert ThP -} pure (VarP unknown (Variable unknown m))
+    MP m th -> {- TODO: insert ThP -} VarP unknown <$> subunelab m
     HP -> pure (UnderscoreP unknown)
 
 instance Unelab (Pat, AActor) where
@@ -208,7 +209,9 @@ instance Unelab (Binder ActorMeta) where
 instance Unelab ActorMeta where
   type UnelabEnv ActorMeta = ()
   type Unelabed ActorMeta = Variable
-  unelab (ActorMeta str) = pure (Variable unknown str)
+  -- TODO: fixme
+  unelab (ActorMeta ASubject str) = pure (Variable unknown $ "$" ++ str)
+  unelab (ActorMeta _ str) = pure (Variable unknown str)
 
 instance Unelab Channel where
   type UnelabEnv Channel = ()
@@ -257,12 +260,11 @@ instance Unelab AScrutinee where
   type UnelabEnv AScrutinee = Naming
   type Unelabed AScrutinee = CScrutinee
   unelab = \case
-    ActorVar r t -> do
+    SubjectVar r t -> do
       v <- unelab t
       case v of
         -- Sbst _ _ (Var r m) -> pure (ActorVar r m)
-        Var r m -> pure (ActorVar r m)
-    Nil r -> pure (Nil r)
+        Var r m -> pure (SubjectVar r m)
     Pair r s t -> Pair r <$> unelab s <*> unelab t
     Lookup r stk t -> do
       stk <- subunelab stk
@@ -271,6 +273,7 @@ instance Unelab AScrutinee where
         Var r m -> pure m
       pure $ Lookup r stk t
     Compare r s t -> Compare r <$> unelab s <*> unelab t
+    Term r t -> Term r <$> unelab t
 
 instance Unelab AActor where
   type UnelabEnv AActor = DAEnv
@@ -281,7 +284,7 @@ instance Unelab AActor where
         <$> subunelab jd
         <*> subunelab ch
         <*> local (declareChannel ch) (unelab a)
-    Send r ch tm a -> Send r <$> subunelab ch <*> inChannel ch (subunelab tm) <*> unelab a
+    Send r ch gd tm a -> Send r <$> subunelab ch <*> pure () <*> inChannel ch (subunelab tm) <*> unelab a
     Recv r ch (av, a) -> Recv r <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
     FreshMeta r desc (av, a) -> FreshMeta r <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
     Let r av desc t a -> Let r <$> subunelab av <*> subunelab desc <*> subunelab t <*> unelab a

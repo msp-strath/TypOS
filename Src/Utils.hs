@@ -1,6 +1,6 @@
 module Utils where
 
-import Control.Monad (when, unless)
+import Control.Monad.State
 
 isAllJustBy :: [a] -> (a -> Maybe b) -> Either a [b]
 isAllJustBy [] f = pure []
@@ -32,3 +32,9 @@ whenM cond m = cond >>= flip when m
 
 unlessM :: Monad m => m Bool -> m () -> m ()
 unlessM cond m = cond >>= flip unless m
+
+instance Semigroup m => Semigroup (State s m) where
+  (<>) = liftM2 (<>)
+
+instance Monoid m => Monoid (State s m) where
+  mempty = pure mempty

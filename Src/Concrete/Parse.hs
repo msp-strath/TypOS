@@ -136,45 +136,56 @@ pextractmode
   <|> pure AlwaysExtract
 
 instance Lisp CScrutinee where
-  mkNil = Nil unknown
-  mkCons = Pair unknown
+  mkNil = Term unknown (At unknown "")
+  mkCons (Term rs s) (Term rt t) = let r = rs <> rt in Term r (Cons r s t)
+  mkCons s t = Pair (getRange s <> getRange t) s t
   pCar = pscrutinee
 
 pscrutinee :: Parser CScrutinee
 pscrutinee = withRange $ do
-  ActorVar unknown <$> pvariable
-  <|> Lookup unknown <$ pkeyword KwLookup <* pspc <*> pvariable <* pspc <*> pvariable
-  <|> Compare unknown <$ pkeyword KwCompare <* pspc <*> pTM <* pspc <*> pTM
+  SubjectVar unknown <$ pch ('$' ==) <* pspc <*> pvariable
+  <|> Lookup unknown <$ pkeyword KwLookup <* pspc1 <*> pvariable <* pspc <*> pvariable
+  <|> Compare unknown <$ pkeyword KwCompare <* pspc1 <*> pTM <* pspc <*> pTM
   <|> pparens pscrutinee
-  <|> id <$ pch (== '[') <* pspc <*> plisp
+  <|> Term unknown <$> pTM
+  <|> (isProper =<< id <$ pch (== '[') <* pspc <*> plisp) where
+
+    isProper :: CScrutinee -> Parser CScrutinee
+    isProper (Term _ _) = pfail
+    isProper c = pure c
 
 pact :: Parser CActor
 pact = withRange $
   pscoped Under pvariable pact
-  <|> Send unknown <$> pvariable <* punc "!" <*> pmustwork "Expected a term" pTM <* punc "." <*> pact
+  <|> Send unknown <$> pvariable <*> pure () <* punc "!" <*> pmustwork "Expected a term" pTM <* punc "." <*> pact
   <|> do tm <- pTM
          punc "?"
          case tm of
            Var _ c -> withVars (`Recv` c) ppat "." pact
            t -> withVars (`FreshMeta` t) pvariable "." pact
-  <|> Let unknown <$ pkeyword KwLet <* pspc <*> pvariable <* punc ":" <*> psyntaxdecl
+  <|> Let unknown <$ pkeyword KwLet <* pspc1 <*> pvariable <* punc ":" <*> psyntaxdecl
                   <* punc "=" <*> pTM <* punc "." <*> pact
   <|> Spawn unknown <$> pextractmode <*> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
   <|> Constrain unknown <$> pTM <* punc "~" <*> pmustwork "Expected a term" pTM
   <|> Connect unknown <$> (CConnect <$> pvariable <* punc "<->" <*> pvariable)
-  <|> Match unknown <$ pkeyword KwCase <* pspc <*> pscrutinee <* punc "{"
+  <|> Match unknown <$> pcase <* punc "{"
        <*> psep (punc ";") ((,) <$> ppat <* punc "->" <*> pACT)
        <* pspc <* pch (== '}')
   <|> pparens pACT
-  <|> Break unknown <$ pkeyword KwBREAK <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
-  <|> Print unknown <$ pkeyword KwPRINT <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
-  <|> Print unknown <$ pkeyword KwPRINTF <* pspc <*> (pformat >>= pargs) <* punc "." <*> pact
+  <|> Break unknown <$ pkeyword KwBREAK <* pspc1 <*> (pformat >>= pargs) <* punc "." <*> pact
+  <|> Print unknown <$ pkeyword KwPRINT <* pspc1 <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
+  <|> Print unknown <$ pkeyword KwPRINTF <* pspc1 <*> (pformat >>= pargs) <* punc "." <*> pact
   <|> Fail unknown <$ pch (== '#') <* pspc <*> (pformat >>= pargs)
   <|> Push unknown <$> pvariable <* punc "|-"
                    <*> ((\ (a, b) -> (a, (), b)) <$> withVar pvariable "->" pTM)
                    <* punc "." <*> pact
   <|> Note unknown <$ plit "!" <* punc "." <*> pact
   <|> pure (Win unknown)
+  where
+    -- allows `case$ x` to stand for `case $ x`
+    pcase :: Parser CScrutinee
+    pcase = pkeyword KwCase <* pspc1 *> pscrutinee
+        <|> SubjectVar unknown <$ pkeyword KwCase <* pch ('$' ==) <* pspc1 <*> pvariable
 
 pargs :: [Format dir dbg ()] -> Parser [Format dir dbg Raw]
 pargs = traverse $ traverse (\ () -> id <$ pspc <*> pmustwork "Expected a term" pTM)

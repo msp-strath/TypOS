@@ -42,6 +42,7 @@ P p (CdB tl thl :<>: CdB tr thr) // sg =
   CdB sgr phr = sbstSel thr sg
 ((x := b) :. t) // (sg :^^ w) = (x := b) :. (t // (sg :^^ if b then w+1 else w))
 (m :$ rh) // sg = m :$ (rh /// sg)
+(G g t) // sg = G g (t // sg)
 
 (///) :: Sbst m -> Sbst m -> Sbst m
 (S0 :^^ _) /// sg = sg

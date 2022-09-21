@@ -4,8 +4,12 @@
 
 module Machine.Base where
 
+import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Maybe
+import Control.Monad.State
 
 import Actor
 import Actor.Display()
@@ -14,12 +18,10 @@ import Bwd
 import Format
 import Options
 import Term
-import Pattern (Pat(..))
 import qualified Term.Substitution as Substitution
 import Thin
-import Concrete.Base (ExtractMode, ACTOR (..), Operator(..))
+import Concrete.Base (Root, Guard, ExtractMode, ACTOR (..), Operator(..))
 import Syntax (SyntaxDesc)
-import Control.Monad (join)
 import Data.Bifunctor (Bifunctor(first))
 
 import Machine.Matching
@@ -33,12 +35,13 @@ newtype Date = Date Int
 
 -- | i stores extra information, typically a naming
 data StoreF i = Store
-  { solutions :: Map.Map Meta (i, Maybe Term)
+  { solutions :: Map Meta (i, Maybe Term)
+  , guards :: Map Guard (Set Guard) -- key is conjunction of values; acyclic!
   , today :: Date
   } deriving (Show)
 
 initStore :: StoreF i
-initStore = Store Map.empty 0
+initStore = Store Map.empty Map.empty 0
 
 tick :: StoreF i -> StoreF i
 tick st@Store{..} = st { today = today + 1 }
@@ -51,6 +54,27 @@ updateStore :: Meta -> Term -> StoreF i -> StoreF i
 updateStore m t st@Store{..} = tick $ st
   { solutions = Map.adjust (Just t <$) m solutions }
 
+defineGuard :: Guard -> Set Guard -> StoreF i -> StoreF i
+defineGuard g gs = execState (compressGuards g gs)
+
+compressGuards :: Guard -> Set Guard -> State (StoreF i) (Set Guard)
+compressGuards g gs = do
+  gs <- foldMap (\ g -> fromMaybe (Set.singleton g) <$> dependencySetCompression g) gs
+  modify (\ st -> st { guards = Map.insert g gs (guards st) })
+  pure gs
+
+dependencySetCompression :: Guard -> State (StoreF i) (Maybe (Set Guard))
+dependencySetCompression g = do
+  gtable <- gets guards
+  case Map.lookup g gtable of
+    Nothing -> pure Nothing
+    Just gs -> Just <$> compressGuards g gs
+
+dependencySet :: StoreF i -> Guard -> Set Guard
+dependencySet st@Store{..} g = case Map.lookup g guards of
+  Nothing -> Set.singleton g
+  Just gs -> foldMap (dependencySet st) gs
+
 data HeadUpData = forall i. HeadUpData
   { opTable :: Operator -> Clause
   , metaStore :: StoreF i
@@ -60,7 +84,7 @@ data HeadUpData = forall i. HeadUpData
 
 mkOpTable :: Bwd Frame -> Operator -> Clause
 mkOpTable _ (Operator "app") = appClause
-mkOpTable _ (Operator "when") = whenClause
+mkOpTable _ (Operator "tick") = tickClause
 mkOpTable fs op = flip foldMap fs $ \case
   Extended op' cl | op == op' -> cl
   _ -> mempty
@@ -79,6 +103,7 @@ headUp dat@HeadUpData{..} term = case expand term of
         Nothing -> contract (t :-: contract o)
         Just t -> t
     o -> contract (t :-: contract o)
+  GX g t -> if Set.null (dependencySet metaStore g) then headUp dat t else term
   _ -> term
 
   where
@@ -117,10 +142,12 @@ comparesUp dat sg sg' = compareUp dat (toTerm sg) (toTerm sg') where
 class Instantiable t where
   type Instantiated t
   instantiate :: StoreF i -> t -> Instantiated t
+  normalise :: HeadUpData -> t -> Instantiated t
 
 class Instantiable1 t where
   type Instantiated1 t :: * -> *
   instantiate1 :: StoreF i -> t a -> Instantiated1 t a
+  normalise1 :: HeadUpData -> t a -> Instantiated1 t a
 
 instance Instantiable Term where
   type Instantiated Term = Term
@@ -133,20 +160,31 @@ instance Instantiable Term where
     m :$: sg -> case join $ fmap snd $ Map.lookup m (solutions store) of
       Nothing -> m $: sg -- TODO: instantiate sg
       Just tm -> instantiate store (tm //^ sg)
+    GX g t    -> contract (GX g (instantiate store t))
+  normalise dat term = let tnf = headUp dat term in case expand tnf of
+    VX{}     -> tnf
+    AX{}     -> tnf
+    s :%: t  -> normalise dat s % normalise dat t
+    s :-: t  -> contract (normalise dat s :-: normalise dat t)
+    x :.: b  -> x \\ normalise dat b
+    m :$: sg -> m $: sg -- TODO: instantiate sg
+    GX g t   -> tnf -- don't compute under guards
 
-instance (Show t, Instantiable t, Instantiated t ~ t) =>
-  Instantiable (Format Directive dbg t) where
-  type Instantiated (Format Directive dbg t) = Format () dbg t
-  instantiate store = \case
+followDirectives :: (Show t, Instantiable t, Instantiated t ~ t)
+       => HeadUpData -> Format Directive dbg t -> Format () dbg t
+followDirectives dat@(HeadUpData _ store _ _) = \case
     TermPart Instantiate t -> TermPart () (instantiate store t)
+    TermPart Normalise t -> TermPart () (normalise dat t)
     TermPart Raw t -> TermPart () t
     TermPart ShowT t -> StringPart (show t)
     DebugPart dbg  -> DebugPart dbg
     StringPart str -> StringPart str
 
+
 instance Instantiable t => Instantiable [t] where
   type Instantiated [t] = [Instantiated t]
   instantiate store = map (instantiate store)
+  normalise dat = map (normalise dat)
 
 data Hole = Hole deriving Show
 
@@ -207,8 +245,8 @@ toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
                )
                <> " ~> " <> unsafeDocDisplayClosed opts rhs
         , result ] in
-  let ((t, ts), res) = loop env ops op targs in case res of
-    Right env | Just val <- mangleActors opts env rhs
+  let ((t, ts), res) = loop initMatching ops op targs in case res of
+    Right mtch | Just val <- mangleActors opts (matchingToEnv mtch env) rhs
       -> whenClause opts (msg (withANSI [SetColour Background Green] "Success!")) $ pure val
       | otherwise -> whenClause opts (msg (withANSI [SetColour Background Red] "Failure")) $ Left (t, ts)
     Left err -> whenClause opts (msg (withANSI [SetColour Background Red] $ "Failure " <> pretty err)) $ Left (t, ts)
@@ -221,35 +259,35 @@ toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
     = trace (renderWith (renderOptions opts) doc) a
     | otherwise = a
 
-  loop :: Env
+  loop :: Matching
        -> Bwd (Operator, [Pat])  -- left nested operators
        -> (Operator, [Pat])      -- current operator OP in focus
        -> (Term, [Term])         -- current term (t -['OP | ts]) already taken apart
        -> ( (Term, [Term])       -- evaluated (t,ts)
-          , Either Failure Env)
-  loop env ops (op, ps) (tops, tps) =
+          , Either Failure Matching)
+  loop mtch ops (op, ps) (tops, tps) =
     -- match tops against the left-nested (pobj -- ops)
     -- we don't care about the tps yet
     let leftnested = case ops of
-          B0 -> match hnf env (Problem (localScope env) pobj tops)
+          B0 -> match hnf mtch (Problem (localScope env) pobj tops)
           -- leftops + lop to the left of the op currently in focus
           (lops :< (lop, lps)) -> let topsnf = hnf tops in case expand topsnf of
             (ltops :-: loptps) -> let loptpsnf = hnf loptps in case unOp loptpsnf of
               Just (lop', ltps) | lop == lop' ->
-                case loop env lops (lop, lps) (ltops, ltps) of
+                case loop mtch lops (lop, lps) (ltops, ltps) of
                   ((ltops, ltps), res) -> (ltops -% (getOperator lop, ltps), res)
               _ -> (contract (ltops :-: loptpsnf), Left Mismatch) -- Careful: could be a stuck meta
             _ -> (topsnf, Left (whenClause opts (unsafeDocDisplayClosed unsafeOptions topsnf <+> "not an operator application") Mismatch))
     in case leftnested of
       (tops, Left err) -> ((tops, tps), Left err)
-      (tops, Right env) -> first (tops,) $ matches env ps tps
+      (tops, Right mtch) -> first (tops,) $ matches mtch ps tps
 
-  matches :: Env -> [Pat] -> [Term] -> ([Term], Either Failure Env)
-  matches env [] [] = ([], pure env)
-  matches env (p:ps) (t:ts) = case match hnf env (Problem (localScope env) p t) of
+  matches :: Matching -> [Pat] -> [Term] -> ([Term], Either Failure Matching)
+  matches mtch [] [] = ([], pure mtch)
+  matches mtch (p:ps) (t:ts) = case match hnf mtch (Problem (localScope env) p t) of
     (t, Left err) -> (t:ts, Left err)
-    (t, Right env) -> first (t:) $ matches env ps ts
-  matches env _ ts = (ts, Left Mismatch)
+    (t, Right mtch) -> first (t:) $ matches mtch ps ts
+  matches mtch  _ ts = (ts, Left Mismatch)
 
 newtype Clause = Clause { runClause
   :: Options
@@ -278,11 +316,9 @@ appClause = Clause $ \ opts hd env (t, args) ->
       t -> Left (contract t, args)
     _ -> Left (t, args)
 
-whenClause :: Clause
-whenClause = Clause $ \ opts hd env (t, args) -> case args of
-  [arg] -> case expand (hd arg) of
-    AX "True" _ -> Right t
-    arg -> Left (t, [contract arg])
+tickClause :: Clause
+tickClause = Clause $ \ opts hd env (t, args) -> case args of
+  []-> (if not (quiet opts) then trace "Tick" else id) $ Right t
   _ ->  Left (t, args)
 
 data Frame
@@ -291,7 +327,7 @@ data Frame
   | RightBranch (Process () Status []) Hole
   | Spawnee (Interface Hole (Process () Status []))
   | Spawner (Interface (Process () Status []) Hole)
-  | Sent Channel ([String], Term)
+  | Sent Channel (Maybe Guard) ([String], Term)
   | Pushed Stack (DB, SyntaxDesc, Term)
   | Extended Operator Clause
   | Binding String
@@ -330,11 +366,12 @@ data Process l s t
   , store   :: s       -- Definitions we know for metas (or not)
   , actor   :: AActor  -- The thing we are
   , logs    :: l       -- The shots of the VM's state we have taken
+  , geas    :: Guard   -- What we are tasked to discharge
   }
 
 tracing :: Process log s t -> [MachineStep]
 tracing = fromMaybe [] . tracingOption . options
 
 instance (Show s, Show (t Frame)) => Show (Process log s t) where
-  show (Process opts stack root env store actor _) =
-   unwords ["Process ", show opts, show stack, show root, show env, show store, show actor]
+  show (Process opts stack root env store actor _ geas) =
+   unwords ["Process ", show opts, show stack, show root, show env, show store, show actor, show geas]

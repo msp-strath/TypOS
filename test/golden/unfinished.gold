@@ -1,4 +1,5 @@
-ret > ExitSuccess
+ret > ExitFailure 1
+out > Error: Did not win
 out > driver 'a 'b
 out >  duplicate 'a ['a 'a]
 out >  stuck ['a 'a] 'b

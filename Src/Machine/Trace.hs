@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, UndecidableInstances, ScopedTypeVariables, RankNTypes #-}
+{-# LANGUAGE OverloadedStrings, UndecidableInstances, RankNTypes #-}
 module Machine.Trace where
 
 import Control.Monad.Reader
@@ -23,7 +23,6 @@ import Format
 import LaTeX
 import Location (unknown)
 import Machine.Base
-import Machine.Display
 import Options
 import Pretty
 import Syntax (SyntaxDesc, SyntaxTable, expand, VSyntaxDesc'(..), contract)
@@ -35,6 +34,12 @@ import Data.Functor ((<&>))
 data Trace e i ann
    = Node ann (i ann) [Trace e i ann]
    | Error ann e
+
+winning :: CTrace Simple ann -> Bool
+winning (Node _ stp ts) = case stp of
+  CallingStep (Simple _ (_, b)) _ _ -> b
+  _ -> all winning ts
+winning _ = False
 
 deriving instance Functor i => Functor (Trace e i)
 deriving instance Foldable i => Foldable (Trace e i)
@@ -74,6 +79,8 @@ instance Bifunctor f => Instantiable (AArgument f ann) where
   type Instantiated (AArgument f ann) = AArgument f ann
   instantiate st (Argument mode desc term)
     = Argument mode desc (first (instantiate st) term)
+  normalise dat (Argument mode desc term)
+    = Argument mode desc (first (normalise dat) term)
 
 data STEP (ph :: Phase) f ann
   = BindingStep Variable
@@ -111,6 +118,13 @@ instance Bifunctor f => Instantiable1 (AStep f) where
     NotedStep -> NotedStep
     PushingStep jd db t -> PushingStep jd db (first (instantiate st) <$> t)
     CallingStep b jd tr -> CallingStep b jd (instantiate st <$> tr)
+  normalise1 dat (AStep em step) = AStep em $ case step of
+    BindingStep x -> BindingStep x
+    NotedStep -> NotedStep
+    PushingStep jd db t -> PushingStep jd db (first (normalise dat) <$> t)
+    CallingStep b jd tr -> CallingStep b jd (normalise dat <$> tr)
+
+
 
 data Error t
   = StuckUnifying t t
@@ -125,6 +139,11 @@ instance Instantiable AError where
   instantiate st = \case
     StuckUnifying s t -> StuckUnifying (instantiate st s) (instantiate st t)
     Failed s -> Failed s
+  normalise dat = \case
+    StuckUnifying s t -> StuckUnifying (normalise dat s) (normalise dat t)
+    Failed s -> Failed s
+
+
 
 type CTrace f ann = Trace CError (CStep f) ann
 type ATrace f ann = Trace AError (AStep f) ann
@@ -221,6 +240,9 @@ instance (Instantiable e, Instantiable1 i) => Instantiable (Trace e i ann) where
   type Instantiated (Trace e i ann) = Trace (Instantiated e) (Instantiated1 i) ann
   instantiate st (Node a i ts) = Node a (instantiate1 st i) (instantiate st <$> ts)
   instantiate st (Error a e)   = Error a (instantiate st e)
+  normalise dat (Node a i ts) = Node a (normalise1 dat i) (normalise dat <$> ts)
+  normalise dat (Error a e)   = Error a (normalise dat e)
+
 
 instance Unelab AError where
   type Unelabed AError = CError
@@ -440,13 +462,15 @@ cleanup = snd . go False [] where
   go supp seen (Error a e : ats) =
     (Error a e :) <$> go supp seen ats
 
-diagnostic :: Options -> StoreF i -> [Frame] -> String
-diagnostic opts st fs =
+diagnostic :: Options -> HeadUpData -> [Frame] -> (Bool, String)
+diagnostic opts dat fs =
   let ats = cleanup $ extract Simple () fs in
-  let iats = instantiate st ats in
+  let iats = normalise dat ats in
   let cts = traverse unelab iats in
+  let ts = unsafeEvalUnelab initNaming cts in
+  (all winning ts,) $
   renderWith (renderOptions opts)
-    $ vcat $ map pretty $ unsafeEvalUnelab initNaming cts
+    $ vcat $ map pretty ts
 
 mkNewCommand :: String -> Int -> String -> String
 mkNewCommand cmd ar body
@@ -484,15 +508,15 @@ judgementPreamble (Rules jd jp _)
     ]
 judgementPreamble _ = []
 
-ldiagnostic :: SyntaxTable -> StoreF i -> [Frame] -> String
-ldiagnostic table st fs =
+ldiagnostic :: SyntaxTable -> HeadUpData -> [Frame] -> String
+ldiagnostic table dat fs =
   let ats = cleanup $ extract Simple () fs in
-  let iats = instantiate st ats in
+  let iats = normalise dat ats in
   ldiagnostic' standalone table fs iats
 
-adiagnostic :: SyntaxTable -> Store -> [Frame] -> Shots -> String
-adiagnostic table st fs trs =
-  let ats = cleanup $ combines (instantiate st $ extract mkSeries (length trs) fs) trs in
+adiagnostic :: SyntaxTable -> HeadUpData -> [Frame] -> Shots -> String
+adiagnostic table dat fs trs =
+  let ats = cleanup $ combines (normalise dat $ extract mkSeries (length trs) fs) trs in
   -- The cleanup will have removed frames that are not notable and so there will be
   -- gaps in the numbered frames.
   -- The parallel top-level derivations also all share the same counter and so later

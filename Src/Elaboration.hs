@@ -32,29 +32,26 @@ import Data.List.NonEmpty (fromList)
 import Pattern.Coverage (Covering'(..), combine, shrinkBy, missing)
 import Control.Applicative ((<|>))
 
-isSubject :: EScrutinee -> IsSubject
-isSubject (ActorVar _ (isSub, _)) = isSub
+isSubject :: EScrutinee -> IsSubject' ()
+isSubject SubjectVar{} = IsSubject ()
 isSubject _ = IsNotSubject
 
-checkSendableSubject :: Raw -> Elab ()
+-- must be used in definition mode only
+checkSendableSubject :: Raw -> Elab (Maybe ActorVar)
 checkSendableSubject tm = do
-  em <- asks elabMode
-  -- In exec mode we are sending user constructed terms, which
-  -- we do not want to check for subjectness
-  if em == Execution then pure () else do
-    localVars <- asks objVars
-    go (fmap fst localVars) tm
+  localVars <- asks objVars
+  go (fmap fst localVars) tm
   where
-  go :: Bwd String -> Raw -> Elab ()
+  go :: Bwd String -> Raw -> Elab (Maybe ActorVar)
   go localVars x = case x of
     Var r v -> resolve v >>= \case
-      Just (Left (ActVar (IsSubject {}) _ _)) -> pure ()
-      _ -> raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
+      Just (Left (ActVar (IsSubject {}) _ _)) -> pure . Just $ getVariable v
+      _ -> Nothing <$ raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
     Sbst r sg x -> do
       case isInvertible localVars sg of
-        Nothing -> raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
+        Nothing -> Nothing <$ raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
         Just localVars -> go localVars x
-    _ -> raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
+    _ -> Nothing <$ raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
   isInvertible :: Bwd String -> Bwd SbstC -> Maybe (Bwd String)
   isInvertible lvz B0 = pure lvz
   isInvertible (lvz :< w) (sz :< Keep _ v) | getVariable v == w
@@ -67,11 +64,11 @@ checkSendableSubject tm = do
 
 escrutinee :: EScrutinee -> SyntaxDesc
 escrutinee = \case
-  Nil _ -> Syntax.contract VNil
   Pair _ p q -> Syntax.contract (VCons (escrutinee p) (escrutinee q))
-  ActorVar _ (_, desc) -> desc
+  SubjectVar _ desc -> desc
   Lookup _ desc _ -> desc
   Compare _ _ _ -> Syntax.contract (VEnumOrTag ["LT", "EQ", "GT"] [])
+  Term _ desc -> desc
 
 dual :: Protocol t -> Protocol t
 dual = map $ \case
@@ -96,6 +93,10 @@ isFresh x = do
   whenJust res $ \ _ -> throwError (VariableShadowing (getRange x) x)
   pure (getVariable x)
 
+spassport :: Usage -> IsSubject -> Passport
+spassport u IsSubject{} | isBeingScrutinised u = ASubject
+spassport _ _ = ACitizen
+
 svar :: Usage -> Variable -> Elab (IsSubject, Info SyntaxDesc, ACTm)
 svar usage x = do
   ovs <- asks objVars
@@ -105,7 +106,7 @@ svar usage x = do
       ActVar isSub desc sc -> case findSub (fst <$> sc) (fst <$> ovs) of
         Just th -> do
           logUsage (getVariable x) usage
-          pure (isSub, desc, ActorMeta (getVariable x) $: sbstW (sbst0 0) th)
+          pure (isSub, desc, ActorMeta (spassport usage isSub) (getVariable x) $: sbstW (sbst0 0) th)
         Nothing -> throwError (MetaScopeTooBig (getRange x) x sc ovs)
       _ -> throwError (NotAValidTermVariable (getRange x) x k)
     Just (Right (desc, i)) -> pure (IsNotSubject, desc, var i (length ovs))
@@ -165,13 +166,12 @@ stms usage (d:ds) (Cons r p q) = (%) <$> stm usage d p <*> stms usage ds q
 stms usage _ t = throwError (ExpectedAConsGot (getRange t) t)
 
 sscrutinee :: CScrutinee -> Elab (EScrutinee, AScrutinee)
-sscrutinee (ActorVar r v) = do
+sscrutinee (SubjectVar r v) = do
   (isSub, info, actm) <- svar (Scrutinised r) v
   desc <- fromInfo r info
-  case actm of
-    CdB (m :$ sg) _ -> pure (ActorVar r (isSub, desc), ActorVar r actm)
-    _ -> throwError (NotAValidActorVar r v)
-sscrutinee (Nil r) = pure (Nil r, Nil r)
+  case (isSub, actm) of
+    (IsSubject{}, CdB (m :$ sg) _) -> pure (SubjectVar r desc, SubjectVar r actm)
+    _ -> throwError (NotAValidSubjectVar r v)
 sscrutinee (Pair r sc1 sc2) = do
   (esc1, asc1) <- sscrutinee sc1
   (esc2, asc2) <- sscrutinee sc2
@@ -192,6 +192,11 @@ sscrutinee (Compare r s t) = do
   s <- during (CompareTermElaboration s) $ stm (Compared (getRange s)) desc s
   t <- during (CompareTermElaboration t) $ stm (Compared (getRange t)) desc t
   pure (Compare r () (), Compare r s t)
+sscrutinee (Term r t) = during (ScrutineeTermElaboration t) $ do
+  desc <- fromInfo r =<< guessDesc False t
+  t <- stm (MatchedOn r) desc t
+  pure (Term r desc, Term r t)
+
 
 stm :: Usage -> SyntaxDesc -> Raw -> Elab ACTm
 stm usage desc (Var r v) = during (TermVariableElaboration v) $ do
@@ -259,15 +264,15 @@ stm usage desc rt = do
         _ -> throwError (ExpectedAnOperator (getRange ro) ro)
 
 
-spats :: [EScrutinee] -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
-spats [] (AtP r "") = (Nothing, AP "",,) <$> asks declarations <*> asks binderHints
-spats [] (AtP r a) = throwError (ExpectedNilGot r a)
-spats [] t = throwError (ExpectedANilPGot (getRange t) t)
-spats (d:ds) (ConsP r p q) = do
-  (mr1, p, decls, hints) <- spat d p
-  (mr2, q, decls, hints) <- local (setDecls decls . setHints hints) $ spats ds q
+spats :: IsSubject -> [SyntaxDesc] -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
+spats _ [] (AtP r "") = (Nothing, AP "",,) <$> asks declarations <*> asks binderHints
+spats _ [] (AtP r a) = throwError (ExpectedNilGot r a)
+spats _ [] t = throwError (ExpectedANilPGot (getRange t) t)
+spats isSub (d:ds) (ConsP r p q) = do
+  (mr1, p, decls, hints) <- spatBase isSub d p
+  (mr2, q, decls, hints) <- local (setDecls decls . setHints hints) $ spats isSub ds q
   pure (mr1 <|> mr2, PP p q, decls, hints)
-spats _ t = throwError (ExpectedAConsPGot (getRange t) t)
+spats _ _ t = throwError (ExpectedAConsPGot (getRange t) t)
 
 -- Returns:
 -- 0. Whether a subject pattern was thrown away
@@ -275,17 +280,52 @@ spats _ t = throwError (ExpectedAConsPGot (getRange t) t)
 -- 2. Bound variables (together with their syntactic categories)
 -- 3. Binder hints introduced by \x. patterns
 spat :: EScrutinee -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
-spat esc (AsP r v p) = do
-  let isSub = isSubject esc
+spat esc rp@(AsP r v p) = do
+  unless (isSubjectFree esc) $
+    throwError (AsPatternCannotHaveSubjects r rp)
   let desc = escrutinee esc
   v <- isFresh v
   ds <- asks declarations
   ovs <- asks objVars
-  (mr, p, ds, hs) <- local (setDecls (ds :< (v, ActVar isSub (Known desc) ovs))) $ spat esc p
-  pure (mr, AT v p, ds, hs)
-spat esc (VarP r v) = during (PatternVariableElaboration v) $ do
-  let isSub = isSubject esc
-  let desc = escrutinee esc
+  (mr, p, ds, hs) <- local (setDecls (ds :< (v, ActVar IsNotSubject (Known desc) ovs))) $ spat esc p
+  pure (mr, AT (ActorMeta ACitizen v) p, ds, hs)
+spat esc p@VarP{} = spatBase (Pattern <$ isSubject esc) (escrutinee esc) p
+spat esc (ThP r th p) = do
+  th <- sth th
+  (mr, p, ds, hs) <- local (th ^?) $ spat esc p
+  pure (mr, p *^ th, ds, hs)
+spat esc p@(UnderscoreP r) = do
+  (_, p, ds, hs) <- spatBase (Pattern <$ isSubject esc) (escrutinee esc) p
+  let mr = r <$ guard (not (isSubjectFree esc))
+  pure (mr, p, ds, hs)
+spat esc@(Pair r esc1 esc2) rp = case rp of
+  ConsP r p q -> do
+    (mr1, p, ds, hs) <- spat esc1 p
+    (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spat esc2 q)
+    pure (mr1 <|> mr2, PP p q, ds, hs)
+  _ -> throwError (SyntaxPError (getRange rp) (escrutinee esc) rp)
+spat (SubjectVar r desc) rp = spatBase (IsSubject Pattern) desc rp
+spat esc@(Lookup _ _ av) rp@(ConsP r (AtP _ "Just") (ConsP _ _ (AtP _ ""))) = do
+  logUsage av (SuccessfullyLookedUp r)
+  spatBase IsNotSubject (escrutinee esc) rp
+spat esc@(Lookup _ _ av) rp = spatBase IsNotSubject (escrutinee esc) rp
+spat esc@(Compare _ _ _) rp = spatBase IsNotSubject (escrutinee esc) rp
+spat esc@(Term _ _) rp = spatBase IsNotSubject (escrutinee esc) rp
+
+spatBase :: IsSubject -> SyntaxDesc -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
+spatBase isSub desc rp@(AsP r v p) = do
+  unless (isSub == IsNotSubject) $
+    throwError (AsPatternCannotHaveSubjects r rp)
+  v <- isFresh v
+  ds <- asks declarations
+  ovs <- asks objVars
+  (mr, p, ds, hs) <- local (setDecls (ds :< (v, ActVar isSub (Known desc) ovs))) $ spatBase isSub desc p
+  pure (mr, AT (ActorMeta ACitizen v) p, ds, hs)
+spatBase isSub desc (ThP r th p) = do
+  th <- sth th
+  (mr, p, ds, hs) <- local (th ^?) $ spatBase isSub desc p
+  pure (mr, p *^ th, ds, hs)
+spatBase isSub desc (VarP r v) = during (PatternVariableElaboration v) $ do
   table <- gets syntaxCats
   ds <- asks declarations
   hs <- asks binderHints
@@ -298,27 +338,14 @@ spat esc (VarP r v) = during (PatternVariableElaboration v) $ do
     Nothing -> do
       ovs <- asks objVars
       v <- pure (getVariable v)
-      pure (Nothing, MP v (ones (length ovs)), ds :< (v, ActVar isSub (Known desc) ovs), hs)
-spat esc (ThP r th p) = do
-  th <- sth th
-  (mr, p, ds, hs) <- local (th ^?) $ spat esc p
-  pure (mr, p *^ th, ds, hs)
-spat esc (UnderscoreP r) = do
-  (r <$ guard (not $ isSubjectFree esc),HP,,) <$> asks declarations <*> asks binderHints
-spat esc@(Nil r) rp = case rp of
-  AtP r a | a == "" ->
-    (Nothing, AP a,,) <$> asks declarations <*> asks binderHints
-  AtP r a -> throwError (ExpectedNilGot (getRange rp) a)
-  _ -> throwError (SyntaxPError (getRange rp) (escrutinee esc) rp)
-spat esc@(Pair r esc1 esc2) rp = case rp of
-  ConsP r p q -> do
-    (mr1, p, ds, hs) <- spat esc1 p
-    (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spat esc2 q)
-    pure (mr1 <|> mr2, PP p q, ds, hs)
-  _ -> throwError (SyntaxPError (getRange rp) (escrutinee esc) rp)
-spat (ActorVar r (isSub, desc)) rp = do
-  let isSub' = Pattern <$ isSub
-  let rewrap = \ d -> ActorVar r (isSub', d)
+      let pat = MP (ActorMeta (spassport (Scrutinised unknown) isSub) v) (ones (length ovs))
+      pure (Nothing, pat, ds :< (v, ActVar isSub (Known desc) ovs), hs)
+spatBase isSub desc (UnderscoreP r) = do
+  let mr = case isSub of
+             IsSubject{} -> Just r
+             IsNotSubject -> Nothing
+  (mr,HP,,) <$> asks declarations <*> asks binderHints
+spatBase isSub desc rp = do
   table <- gets syntaxCats
   case Syntax.expand table desc of
     Nothing -> throwError (InvalidSyntaxDesc (getRange rp) desc)
@@ -336,23 +363,23 @@ spat (ActorVar r (isSub, desc)) rp = do
 
       ConsP r p q -> case vdesc of
         VNilOrCons d1 d2 -> do
-          (mr1, p, ds, hs) <- spat (rewrap d1) p
-          (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spat (rewrap d2) q)
+          (mr1, p, ds, hs) <- spatBase isSub d1 p
+          (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spatBase isSub d2 q)
           pure (mr1 <|> mr2, PP p q, ds, hs)
         VCons d1 d2 -> do
-          (mr1, p, ds, hs) <- spat (rewrap d1) p
-          (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spat (rewrap d2) q)
+          (mr1, p, ds, hs) <- spatBase isSub d1 p
+          (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spatBase isSub d2 q)
           pure (mr1 <|> mr2, PP p q, ds, hs)
         VWildcard -> do
-          (mr1, p, ds, hs) <- spat (rewrap desc) p
-          (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spat (rewrap desc) q)
+          (mr1, p, ds, hs) <- spatBase isSub desc p
+          (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spatBase isSub desc q)
           pure (mr1 <|> mr2, PP p q, ds, hs)
         VEnumOrTag _ ds -> case p of
           AtP r a -> case lookup a ds of
             Nothing -> throwError (ExpectedTagGot r (fst <$> ds) a)
             Just descs ->  do
-              (mr1, p, ds, hs) <- spat (rewrap (atom "Atom" 0)) p
-              (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spats (rewrap <$> descs) q)
+              (mr1, p, ds, hs) <- spatBase isSub (atom "Atom" 0) p
+              (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spats isSub descs q)
               pure (mr1 <|> mr2, PP p q, ds, hs)
           _ -> throwError (SyntaxPError r desc rp)
         _ -> throwError (SyntaxPError r desc rp)
@@ -365,16 +392,12 @@ spat (ActorVar r (isSub, desc)) rp = do
 
         case x of
           Unused -> do
-            (mr, p, ds, hs) <- spat (rewrap desc) p
+            (mr, p, ds, hs) <- spatBase isSub desc p
             pure (mr, BP (Hide "_") p, ds, hs)
           Used x -> do
             x <- isFresh x
-            (mr, p, ds, hs) <- local (declareObjVar (x, s) . addHint x s) $ spat (rewrap desc) p
+            (mr, p, ds, hs) <- local (declareObjVar (x, s) . addHint x s) $ spatBase isSub desc p
             pure (mr, BP (Hide x) p, ds, hs)
-spat esc@(Lookup _ _ av) rp@(ConsP r (AtP _ "Just") (ConsP _ _ (AtP _ ""))) = do
-  logUsage av (SuccessfullyLookedUp r)
-  spat (ActorVar (getRange esc) (IsNotSubject, escrutinee esc)) rp
-spat esc rp = spat (ActorVar (getRange esc) (IsNotSubject, escrutinee esc)) rp
 
 isChannel :: Variable -> Elab Channel
 isChannel ch = resolve ch >>= \case
@@ -477,15 +500,19 @@ compatibleChannels r (dp, p@(m, s) : ps) dir (dq, q@(n, t) : qs) = do
   (+1) <$> compatibleChannels r (dp, ps) dir (dq , qs)
 compatibleChannels r (_,ps) _ (_,qs) = throwError (ProtocolsNotDual r ps qs)
 
-sirrefutable :: String -> RawP -> Elab (Binder String, Maybe (Variable, RawP))
-sirrefutable nm = \case
+sirrefutable :: String -> IsSubject -> RawP -> Elab (Binder String, Maybe (CScrutinee, RawP))
+sirrefutable nm isSub = \case
   VarP _ v -> (, Nothing) . Used <$> isFresh v
   UnderscoreP _ -> pure (Unused, Nothing)
   p -> do ctxt <- ask
           -- this should be a unique name & is not user-writable
           let r = getRange p
-          let av = "$" ++ nm ++ show (length (objVars ctxt) + length (declarations ctxt))
-          pure (Used av, Just (Variable r av, p))
+          let av = "&" ++ nm ++ show (length (objVars ctxt) + length (declarations ctxt))
+          let var = Variable r av
+          let sc = case isSub of
+                     IsSubject{} -> SubjectVar r var
+                     IsNotSubject -> Term r (Var r var)
+          pure (Used av, Just (sc, p))
 
 checkScrutinised :: Binder String -> Elab Bool
 checkScrutinised Unused = pure False
@@ -528,17 +555,19 @@ sact = \case
 
     pure $ Spawn r em (judgementName jd) ch a
 
-  Send r ch tm a -> do
+  Send r ch () tm a -> do 
     ch <- isChannel ch
     -- Check the channel is in sending mode, & step it
     (m, desc) <- steppingChannel r ch $ \ dir -> \case
       (m, desc) : p | whatComm m dir == SEND -> pure ((m, desc), p)
       _ -> throwError (InvalidSend r ch tm)
 
-    usage <- do
+    (usage, gd) <- do
       case m of
-        Output -> pure $ SentInOutput r
-        Subject -> SentAsSubject r <$ checkSendableSubject tm
+        Output -> pure (SentInOutput r, Nothing)
+        Subject -> ((SentAsSubject r ,) <$>) $ asks elabMode >>= \case 
+          Execution  -> pure Nothing
+          Definition -> checkSendableSubject tm
 
     -- Send
     tm <- during (SendTermElaboration ch tm) $ do
@@ -548,36 +577,38 @@ sact = \case
       (*^ thx) <$> local (setObjVars xyz) (stm usage desc tm)
 
     a <- sact a
-    pure $ Send r ch tm a
+    pure $ Send r ch gd tm a
 
   Recv r ch (p, a) -> do
     ch <- isChannel ch
-    (av, pat) <- during (RecvMetaElaboration ch) $ sirrefutable "recv" p
 
     -- Check the channel is in receiving mode & step it
     (m, cat) <- steppingChannel r ch $ \ dir -> \case
       (m, cat) : p | whatComm m dir == RECV -> pure ((m, cat), p)
-      _ -> throwError (InvalidRecv r ch av)
+      _ -> throwError (InvalidRecv r ch p)
 
     let isSub = case m of
            Subject -> IsSubject Parent
            _ -> IsNotSubject
 
-    -- Receive
+    -- elaborate the (potentially pattern-matching) receive
+    (av, pat) <- during (RecvMetaElaboration ch) $ sirrefutable "recv" isSub p
+
+    -- Further actor
     sc <- channelScope ch
     (a, All canwin) <- local (declare av (ActVar isSub (Known cat) sc))
            $ listen
            $ sact
            $ case pat of
                Nothing -> a
-               Just (var, p) -> Match r (ActorVar (getRange var) var) [(p, a)]
+               Just (sc, p) -> Match r sc [(p, a)]
 
     -- Check we properly scrutinised a subject input
     unlessM (checkScrutinised av) $
       when (m == Subject) $ do
         when canwin $ raiseWarning (RecvSubjectNotScrutinised r ch av)
 
-    pure $ Recv r ch (ActorMeta <$> av, a)
+    pure $ Recv r ch (ActorMeta (spassport (Scrutinised unknown) isSub) <$> av, a)
 
   Connect r (CConnect ch1 ch2) -> during (ConnectElaboration ch1 ch2) $ do
     ch1 <- isChannel ch1
@@ -602,7 +633,7 @@ sact = \case
       ovs <- asks objVars
       pure (desc, av, ovs)
     a <- local (declare (Used av) (ActVar IsNotSubject (Known desc) ovs)) $ sact a
-    pure $ FreshMeta r desc (ActorMeta av, a)
+    pure $ FreshMeta r desc (ActorMeta ACitizen av, a)
 
   Let r av desc t a -> do
     (desc, av, ovs) <- during FreshMetaElaboration $ do
@@ -613,7 +644,7 @@ sact = \case
       pure (desc, av, ovs)
     t <- stm (LetBound (getRange t)) desc t
     a <- local (declare (Used av) (ActVar IsNotSubject (Known desc) ovs)) $ sact a
-    pure (Let r (ActorMeta av) desc t a)
+    pure (Let r (ActorMeta ACitizen av) desc t a)
 
   Under r (Scope v@(Hide x) a) -> do
     during UnderElaboration $ () <$ isFresh x

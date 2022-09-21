@@ -18,7 +18,7 @@ import Data.Maybe (fromJust, mapMaybe)
 
 import Concrete.Base (RawP(..), Binder (..), Variable (..))
 import Location (unknown)
-import Pattern (Pat(..))
+import Pattern (Pat'(..))
 import Scope (Scope(..))
 import Syntax ( SyntaxDesc, VSyntaxDesc'(..), WithSyntaxCat(..), SyntaxTable, VSyntaxDesc, SyntaxCat
               , expand', contract, expand)
@@ -139,16 +139,16 @@ combine covs = case partition (isAlreadyCovered . snd) covs of
 -- Postcondition:
 --   If `shrinkBy table desc pat` is `PartiallyCovering ps qs` then
 --   `desc` is morally equivalent to the sum (ps + qs)
-shrinkBy :: SyntaxTable -> SyntaxDesc -> Pat -> Covering
+shrinkBy :: forall s. SyntaxTable -> SyntaxDesc -> Pat' s -> Covering
 shrinkBy table = start where
 
-  start :: SyntaxDesc -> Pat -> Covering
+  start :: SyntaxDesc -> Pat' s -> Covering
   start desc = go (desc, fromJust (expand table desc))
 
-  starts :: [SyntaxDesc] -> Pat -> Covering' [SyntaxDesc]
+  starts :: [SyntaxDesc] -> Pat' s -> Covering' [SyntaxDesc]
   starts descs = gos (map (\ d -> (d, fromJust (expand table d))) descs)
 
-  gos :: [(SyntaxDesc, VSyntaxDesc)] -> Pat -> Covering' [SyntaxDesc]
+  gos :: [(SyntaxDesc, VSyntaxDesc)] -> Pat' s -> Covering' [SyntaxDesc]
   gos [] (AP "") = Covering
   gos (d:ds) (PP p ps) = case (go d p, gos ds ps) of
     (Covering, Covering) -> Covering
@@ -165,7 +165,7 @@ shrinkBy table = start where
       PartiallyCovering (map (fst d :) p2) (map (fst d :) p2s)
   gos _ _ = error "Impossible"
 
-  go :: (SyntaxDesc, VSyntaxDesc) -> Pat -> Covering
+  go :: (SyntaxDesc, VSyntaxDesc) -> Pat' s -> Covering
   go desc (AT s pat) = go desc pat
   go (desc, _) (VP db) = PartiallyCovering [] [desc] -- TODO: handle bound variables too
   go (desc, vdesc) (AP s) = contract <$> case vdesc of

@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 import Actor
 import Concrete.Pretty ()
 import Display
-import Pattern
 import Pretty
 import Term.Display ()
 import Thin

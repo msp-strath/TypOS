@@ -62,7 +62,7 @@ type@p = p?ty. ^check@q. q!'Ty. q!ty.
 check@p = p?ty. checkEval@q. q!'Ty. q!ty. q?nty. checkWorker@r. r!nty. p <-> r
 synth@p = p?tm. synthWorker@r. r!tm. r?ty.checkEval@q. q!'Ty. q!ty. q <-> p
 
-adapt@p = p?sty. p?a. p?tty. case a
+adapt@p = p?sty. p?a. p?tty. case $a
   { 'Id -> checkEqual@q. q!'Ty. q!sty. q!tty.
   ; ['List f] -> 'Check?S. 'Check?T.
     ( sty ~ ['List S]
@@ -85,7 +85,7 @@ checkEqual@p = p?ty. p?tm1. p?tm2.
 equalSynth@p = p?tm1. p?tm2. evalSynth@q. q!tm1. evalSynth@r. r!tm2. q?ntm1. r?ntm2. equalSynthWorker@u. u!ntm1. u!ntm2.u?ty.checkEval@v. v!'Ty. v!ty. v <-> p
 
 -- type assumed to be head normal
-checkWorker@p = p?ty. p?tm. case tm
+checkWorker@p = p?ty. p?tm. case $tm
   { 'Ty -> ty ~ 'Ty
   ; 'One -> ty ~ 'Ty
   ; ['Pi S \x. T] ->
@@ -112,7 +112,7 @@ checkWorker@p = p?ty. p?tm. case tm
     }
   ; ['Emb e a] -> synth@q. q!e. q?ety. adapt@r. r!ety. r!a. r!ty.
   ; tm' -> case ty
-    { ['List T] -> case tm'
+    { ['List T] -> case $tm'
       { 'Null ->
       ; ['Sing t] -> check@q. q!T. q!t.
       ; ['Plus s t] ->
@@ -126,22 +126,22 @@ checkWorker@p = p?ty. p?tm. case tm
 
 synthWorker@p = p?tm . case (lookup ctxt tm)
   { ['Just S] -> p!S.
-  ; 'Nothing -> case tm
+  ; 'Nothing -> case $tm
     { ['Rad t ty] -> ( type@q. q!ty.
                      | check@r. r!ty. r!t.
                      | p!ty.)
     ; ['App f s] -> synth@q. q!f. q?ty. case ty
-      { ['Pi S \v. T] -> case s
+      { ['Pi S \v. T] -> case $s
         { ['Arg arg] -> ( check@r. r!S. r!arg.
                         | p!{v=['Rad arg S]}T.)
         ; _ -> #"Expected Arg; got %i" s
         }
-      ; ['Sg S \v. T] -> case s
+      ; ['Sg S \v. T] -> case $s
         { 'Fst -> p!S.
         ; 'Snd -> p!{v=['App f 'Fst]}T.
         ; _ -> #"Expected Fst or Snd; got %i" s
         }
-      ; ['List S] -> case s
+      ; ['List S] -> case $s
         { ['ListRec (\xs. T) n (\y.\ys.\ih. c)] ->
           ( \xs. ctxt |- xs -> ty. type@v. v!T.
           | check@r. r!{xs = ['Rad 'Null ty]}T. r!n.

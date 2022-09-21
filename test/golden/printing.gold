@@ -1,0 +1,12 @@
+ret > ExitSuccess
+out > Raw:           < ?[("b",[1])] >
+out > Instantiated:  < 'True >
+out > Normalised:    < ?[("b",[1])] >
+out > Raw:           < ?[("c",[2])] - ['if ?[("b",[1])]] >
+out > Instantiated:  < 'False - ['if 'True] >
+out > Normalised:    < ?[("c",[2])] - ['if ?[("b",[1])]] >
+out > strict 'True
+out > strict 'False
+out >
+err >
+err >

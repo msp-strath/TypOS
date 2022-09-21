@@ -7,11 +7,11 @@ import Data.Void
 import Control.Monad.Except
 import Control.Monad.Reader
 
+import Actor
 import Concrete.Pretty ()
 import Forget
 import Format
 import Options
-import Pattern
 import Pretty (Doc, Annotations, Pretty(..), renderWith)
 import Thin
 

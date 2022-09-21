@@ -21,7 +21,7 @@ ctxt |- 'Synth -> 'Check
 
 type@p = check@q. q!'Ty. q <-> p
 
-check@p = p?ty. p?tm. case tm
+check@p = p?ty. p?tm. case $tm
   { 'Ty -> (ty ~ 'Ty | p!'Ty.)
   ; ['Pi S \x. T] ->
     (ty ~ 'Ty
@@ -33,13 +33,13 @@ check@p = p?ty. p?tm. case tm
     { ['Pi S \x. T] -> \x. ctxt |- x -> S.
                        check@q. q!T. q!body. q?vbody.
                        p!['Lam \x. vbody].
-    ; _ -> #"Expected Pi; got %i" ty
+    ; _ -> #"Expected Pi; got %n" ty
     }
   }
 
 synth@p = p?tm . case (lookup ctxt tm)
   { ['Just S] -> p!S. p!['Emb tm].
-  ; 'Nothing -> case tm
+  ; 'Nothing -> case $tm
     { ['Rad t ty] -> type@q. q!ty. q?nty. p!nty.
                      check@r. r!nty. r!t. r <-> p
     ; ['App f s] -> synth@q. q!f. q?ty. q?nf. case ty
@@ -48,9 +48,9 @@ synth@p = p?tm . case (lookup ctxt tm)
                          case nf
         { ['Lam \x. body] -> check@w. w!NT. w!{x=['Rad ns S]}body. w <-> p
         ; ['Emb e] -> p!['Emb ['App e ns]].
-        ; _ -> #"Expected Lam or Emb; got %i" nf
+        ; _ -> #"Expected Lam or Emb; got %n" nf
         }
-      ; _ -> #"Expected Pi; got %i" ty 
+      ; _ -> #"Expected Pi; got %n" ty
       }
     }
   }
@@ -63,14 +63,14 @@ exec  synth@p. p!['Rad
                           ['Pi 'Ty \x. 'Ty]]
                          ['Pi 'Ty \x. ['Emb x]]]]].
       p?nty. p?ntm.
-      PRINTF "%i" nty.
-      PRINTF "%i" ntm.
+      PRINTF "%n" nty.
+      PRINTF "%n" ntm.
 
 {-
 exec  type@p. p!['Emb
                  ['App ['Rad
                         ['Lam \x. ['Pi ['Emb x] \a. ['Emb x]]]
                         ['Pi 'Ty \x. 'Ty]]
-                       ['Pi 'Ty \x. ['Emb x]]]]. p?ty. 
-      PRINTF "%i" ty.
+                       ['Pi 'Ty \x. ['Emb x]]]]. p?ty.
+      PRINTF "%n" ty.
 -}

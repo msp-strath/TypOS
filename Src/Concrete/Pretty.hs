@@ -37,6 +37,7 @@ instance Pretty Raw where
     Sbst _ B0 t -> prettyPrec d t
     Sbst _ sg t -> parenthesise (d > 0) $ hsep [ pretty sg, pretty t ]
     Op _ s t -> parenthesise (d > 0) $ hsep [ pretty s, "-", prettyPrec 1 t ]
+    Guarded g t -> hsep [ "<", pretty t , ">"]
 
 instance Pretty (Bwd SbstC) where
   pretty sg = encloseSep lbrace rbrace ", " $ pretty <$> sg <>> []
@@ -81,15 +82,15 @@ prettyCdrP = \case
 
 instance Pretty CScrutinee where
   prettyPrec d = \case
-    ActorVar _ t -> prettyPrec d t
-    Nil _ -> brackets ""
+    SubjectVar _ t -> prettyPrec d t
+    Term _ t -> prettyPrec d t
     Pair _ s t -> brackets $ sep (pretty s : prettyCdrS t)
     Lookup _ stk t -> hsep ["lookup", pretty stk, pretty t]
     Compare _ s t -> hsep ["compare", pretty s, pretty t]
 
 prettyCdrS :: CScrutinee -> [Doc Annotations]
 prettyCdrS = \case
-  Nil _ -> []
+  Term _ (At _ "") -> []
   Pair _ p q -> pretty p : prettyCdrS q
   p -> [pipe, pretty p]
 
@@ -113,8 +114,8 @@ prettyact = go B0 B0 where
         CActor -> [Doc Annotations]
   go ls l = \case
     Spawn r em jd p a -> go (ls :< fold (l `add` [pretty em, pretty jd, "@", pretty p, dot])) B0 a
-    Send r ch t@(Var _ _) a -> go ls (l `add` [pretty ch, "!", pretty t, dot]) a
-    Send r ch t a -> go (ls :< fold (l `add` [pretty ch, "!", pretty t, dot])) B0 a
+    Send r ch _ t@(Var _ _) a -> go ls (l `add` [pretty ch, "!", pretty t, dot]) a
+    Send r ch _ t a -> go (ls :< fold (l `add` [pretty ch, "!", pretty t, dot])) B0 a
     Recv r ch (av, a) -> go ls (l `add` [pretty ch, "?", pretty av, dot]) a
     FreshMeta r syn (av, a) -> freshMetas ls l syn (B0 :< av) a
     Let r av syn t a -> go (ls :< fold (l `add` [hsep ["let", pretty av, ":", pretty syn, "=", pretty t] <> dot])) B0 a
@@ -173,6 +174,7 @@ instance Pretty Directive where
     Raw -> "%r"
     Instantiate -> "%i"
     ShowT -> "%s"
+    Normalise -> "%n"
 
 instance Pretty t => Pretty [Format Directive Debug t] where
   pretty = go B0 B0 where

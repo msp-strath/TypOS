@@ -1,0 +1,12 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >   9 | fooFail : $'Bool. -- this should not work
+out >  10 | fooFail@p = p?x. case [ x $x]
+out >  11 |   { [ 'True | y@z ] ->
+out >                   ^^^^^^^
+out > subject-as-pattern-fail.act:11:12-19
+out > As pattern y@z duplicates a subject variable
+out > when elaborating a case branch handling the pattern ['True | y@z]
+out > when elaborating the judgement definition for fooFail
+out >

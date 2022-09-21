@@ -104,6 +104,12 @@ pspc = do
   b <- pcom
   when b pspc
 
+pspc1 :: Parser ()
+pspc1 = do
+  b <- pcom
+  when (not b) $ () <$ pch isSpace
+  pspc
+
 pnl :: Parser ()
 pnl = () <$ pch (\c -> c == '\n' || c == '\0')
 
@@ -114,7 +120,7 @@ psep :: Parser () -> Parser a -> Parser [a]
 psep s p = (:) <$> p <*> many (id <$ s <*> p)
  <|> pure []
 
-ppes :: Parser () -> Parser a -> Parser (Bwd a)
+ppes :: Parser () -> Parser{--}a -> Parser (Bwd a)
 ppes s p = (B0 <><) <$> psep s p
 
 data Source = Source

@@ -1,8 +1,0 @@
-test : 
-test@p = 'Wildcard?X.
- ( ('thing - ['when X]) ~ 'thing
- | X ~ 'True
- | PRINTF "%i" 'thing - ['when X].
- )
-
-exec test@p. 

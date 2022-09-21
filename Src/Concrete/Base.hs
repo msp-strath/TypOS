@@ -24,6 +24,12 @@ instance HasGetRange Variable where
 
 type Atom = String
 
+type Root = ( Bwd (String, Int) -- name prefix
+            , Int)              -- counter
+
+-- Identifier for guard which denotes if a term is safe to use
+type Guard = Root
+
 data Binder x
   = Used x
   | Unused
@@ -40,6 +46,7 @@ data Raw
   | Lam Range (Scope (Binder Variable) Raw)
   | Sbst Range (Bwd SbstC) Raw
   | Op Range Raw Raw
+  | Guarded Guard Raw
   deriving (Show)
 
 instance HasSetRange Raw where
@@ -177,7 +184,9 @@ type family CONNECT (ph :: Phase) :: *
 type family STACK (ph :: Phase) :: *
 type family STACKDESC (ph :: Phase) :: *
 type family SCRUTINEEVAR (ph :: Phase) :: *
+type family SCRUTINEETERM (ph :: Phase) :: *
 type family LOOKEDUP (ph :: Phase) :: *
+type family GUARD (ph :: Phase) :: *
 
 type instance JUDGEMENTFORM Concrete = Variable
 type instance CHANNEL Concrete = Variable
@@ -191,31 +200,31 @@ type instance CONNECT Concrete = CConnect
 type instance STACK Concrete = Variable
 type instance STACKDESC Concrete = ()
 type instance SCRUTINEEVAR Concrete = Variable
+type instance SCRUTINEETERM Concrete = Raw
 type instance LOOKEDUP Concrete = Variable
+type instance GUARD Concrete = ()
 
 type FORMAT (ph :: Phase) = [Format Directive Debug (TERM ph)]
 
 data SCRUTINEE (ph :: Phase)
-  = ActorVar Range (SCRUTINEEVAR ph)
-  -- should we allow operators?
-  -- arbitrary terms as long as they don't mention subjects
-  | Nil Range
+  = SubjectVar Range (SCRUTINEEVAR ph)
+  | Term Range (SCRUTINEETERM ph)
   | Pair Range (SCRUTINEE ph) (SCRUTINEE ph)
   | Lookup Range (STACK ph) (LOOKEDUP ph)
   | Compare Range (TERM ph) (TERM ph)
 
-instance HasSetRange (SCRUTINEE ph) where
+instance HasSetRange (SCRUTINEETERM ph) => HasSetRange (SCRUTINEE ph) where
   setRange r = \case
-    ActorVar _ v -> ActorVar r v
-    Nil _ -> Nil r
+    SubjectVar _ v -> SubjectVar r v
+    Term _ t -> Term r (setRange r t)
     Pair _ p q -> Pair r p q
     Lookup _ stk t -> Lookup r stk t
     Compare _ s t -> Compare r s t
 
 instance HasGetRange (SCRUTINEE ph) where
   getRange = \case
-    ActorVar r t -> r
-    Nil r -> r
+    SubjectVar r t -> r
+    Term r t -> r
     Pair r p q -> r
     Lookup r stk t -> r
     Compare r s t -> r
@@ -223,7 +232,7 @@ instance HasGetRange (SCRUTINEE ph) where
 data ACTOR (ph :: Phase)
  = Branch Range (ACTOR ph) (ACTOR ph)
  | Spawn Range ExtractMode (JUDGEMENTFORM ph) (CHANNEL ph) (ACTOR ph)
- | Send Range (CHANNEL ph) (TERM ph) (ACTOR ph)
+ | Send Range (CHANNEL ph) (GUARD ph) (TERM ph) (ACTOR ph)
  | Recv Range (CHANNEL ph) (BINDER ph, ACTOR ph)
  | Connect Range (CONNECT ph)
  | Note Range (ACTOR ph)
@@ -242,6 +251,7 @@ data ACTOR (ph :: Phase)
 deriving instance
   ( Show (TERM ph)
   , Show (SCRUTINEEVAR ph)
+  , Show (SCRUTINEETERM ph)
   , Show (STACK ph)
   , Show (LOOKEDUP ph)) =>
   Show (SCRUTINEE ph)
@@ -252,6 +262,7 @@ deriving instance
   , Show (BINDER ph)
   , Show (ACTORVAR ph)
   , Show (SCRUTINEEVAR ph)
+  , Show (SCRUTINEETERM ph)
   , Show (SYNTAXDESC ph)
   , Show (TERMVAR ph)
   , Show (TERM ph)
@@ -259,14 +270,15 @@ deriving instance
   , Show (CONNECT ph)
   , Show (STACK ph)
   , Show (STACKDESC ph)
-  , Show (LOOKEDUP ph)) =>
+  , Show (LOOKEDUP ph)
+  , Show (GUARD ph)) =>
   Show (ACTOR ph)
 
 instance HasSetRange (ACTOR ph) where
   setRange r = \case
     Branch _ a b -> Branch r a b
     Spawn _ em jd ch ac -> Spawn r em jd ch ac
-    Send _ ch tm ac -> Send r ch tm ac
+    Send _ ch gd tm ac -> Send r ch gd tm ac
     Recv _ ch x0 -> Recv r ch x0
     Connect _ cnnct -> Connect r cnnct
     Note _ ac -> Note r ac
@@ -285,7 +297,7 @@ instance HasGetRange (ACTOR ph) where
   getRange = \case
     Branch r a b -> r
     Spawn r em jd ch ac -> r
-    Send r ch tm ac -> r
+    Send r ch gd tm ac -> r
     Recv r ch x0 -> r
     Connect r cnnct -> r
     Note r ac -> r
