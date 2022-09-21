@@ -39,9 +39,7 @@ library
                        Concrete.Parse,
                        Concrete.Pretty,
                        Display,
-                       Doc,
-                       Doc.Internal,
-                       Doc.Render.Terminal,
+                       Doc.Annotations,
                        Elaboration,
                        Elaboration.Monad,
                        Elaboration.Pretty,
@@ -80,6 +78,7 @@ library
                      , filepath
                      , mtl
                      , optparse-applicative
+                     , pretty-compact
                      , terminal-size
   hs-source-dirs:      Src
   default-language:    Haskell2010
@@ -94,6 +93,7 @@ executable typos
                      , filepath
                      , containers
                      , optparse-applicative
+                     , pretty-compact
                      , terminal-size
                      , typos
   default-language:    Haskell2010

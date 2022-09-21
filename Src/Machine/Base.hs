@@ -28,10 +28,7 @@ import Machine.Matching
 import Debug.Trace (trace)
 import Display (unsafeDocDisplayClosed)
 import ANSI hiding (withANSI)
-import Doc.Render.Terminal
-import Doc (hsep, vcat, Doc, Config (..), Orientation(..), (<+>), flush)
-import Pretty (pretty)
-import Utils()
+import Pretty
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
@@ -259,7 +256,7 @@ toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
   whenClause :: Options -> Doc Annotations -> a -> a
   whenClause opts doc a
     | MachineClause `elem` fromMaybe [] (tracingOption opts)
-    = trace (render (colours opts) (Config (termWidth opts) Vertical) doc) a
+    = trace (renderWith (renderOptions opts) doc) a
     | otherwise = a
 
   loop :: Matching

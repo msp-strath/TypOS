@@ -13,7 +13,7 @@ import Term.Base
 import Term.Display()
 import Hide
 import Pattern (Pat'(..))
-import Pretty (Pretty(..))
+import Pretty
 
 {-
 import Display (unsafeDisplayClosed)
@@ -54,14 +54,14 @@ matchingToEnv (actors, alphas) env =
   foldr(uncurry newActorVar) (foldr declareAlpha env alphas) actors
 
 matchingCase :: Matching -> (Root, Env) -> (Root, Env)
-matchingCase (actors, alphas) (r, env) = foldr f (r, foldr declareAlpha env alphas) actors  
-  where 
+matchingCase (actors, alphas) (r, env) = foldr f (r, foldr declareAlpha env alphas) actors
+  where
     f :: (ActorMeta, ([String], Term)) -> (Root, Env) -> (Root, Env)
     f (a@(ActorMeta pass avar), defn) (r, env) = newActorVar a defn <$> case pass of
       ACitizen -> (r, env)
       ASubject -> case splitRoot r avar of
        (g, r) -> (r, guardSubject avar defn g env)
-    
+
 initMatching :: Matching
 initMatching = mempty
 

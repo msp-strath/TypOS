@@ -6,8 +6,8 @@ module Location where
 import ANSI hiding (withANSI)
 import Data.List (foldl')
 import System.FilePath
-import Doc
-import Doc.Render.Terminal
+import Doc.Annotations
+import Text.PrettyPrint.Compact
 import Pretty (pretty)
 
 data Location = Location
@@ -92,7 +92,7 @@ fileContext r
     let underline = pretty (replicate (sizeHds + 4 + snd (start r)) ' ')
                  <> withANSI [ SetWeight Bold, SetColour Foreground Red ]
                     (pretty (replicate (snd (end r) - snd (start r)) '^'))
-    pure $ horizontally $ vcat $ "" : zipWith (<>) headers context ++ [underline, ""]
+    pure $ vcat $ "" : zipWith (<>) headers context ++ [underline, ""]
 
 -- assuming things that have a valid range are ordered left-to-right
 instance Semigroup Range where

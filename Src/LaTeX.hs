@@ -8,7 +8,7 @@ import qualified Data.Map as Map
 import Control.Monad.Reader
 
 import Concrete.Base
-import Doc
+import Text.PrettyPrint.Compact
 import Hide
 import Syntax
 import Scope
@@ -159,6 +159,6 @@ test =
   , "\\newcommand{\\typosScope}[2]{[\\textbackslash #1. #2]}"
 
   , "\\begin{document}"
-  , show $ evalLaTeXM (toLaTeX syntaxT syntaxR) (Map.singleton "Syntax" syntaxT)
+  , render $ evalLaTeXM (toLaTeX syntaxT syntaxR) (Map.singleton "Syntax" syntaxT)
   , "\\end{document}"
   ]

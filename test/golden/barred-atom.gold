@@ -5,9 +5,7 @@ out >  1 | barred : !['Cons ['AtomBar ['Bye 'SeeYa]] ['AtomBar ['Crash 'Oops 'Fa
 out >  2 | barred@p = p!['Hi | 'Oops].
 out >                        ^^^^^^^^
 out > barred-atom.act:2:18-26
-out > 'Oops is one of the barred atoms [Crash
-out >                                  ,Oops
-out >                                  ,Fail]
+out > 'Oops is one of the barred atoms [Crash, Oops, Fail]
 out > when elaborating p!['Hi | 'Oops]
 out > when elaborating the judgement definition for barred
 out >

@@ -19,8 +19,6 @@ import Actor (JudgementForm)
 import Bwd (Bwd(..), (<>>), (<><))
 import Concrete.Base
 import Concrete.Pretty()
-import Doc hiding (render)
-import Doc.Render.Terminal
 import Format
 import LaTeX
 import Location (unknown)
@@ -309,8 +307,8 @@ instance Pretty CError where
 instance Pretty (CTrace Simple ()) where
   pretty (Node _ i@(BindingStep x) ts) =
     let (prf, suf) = getPushes x ts in
-    vcat ( hsep (pretty <$> i:prf) : map (indent 1 . pretty) suf)
-  pretty (Node _ i ts) = vcat (pretty i : map (indent 1 . pretty) ts)
+    asBlock 1 (hsep (pretty <$> i:prf)) (map pretty suf)
+  pretty (Node _ i ts) = asBlock 1 (pretty i) (map pretty ts)
   pretty (Error _ e) = pretty e
 
 class AnnotateLaTeX ann where
@@ -471,7 +469,7 @@ diagnostic opts dat fs =
   let cts = traverse unelab iats in
   let ts = unsafeEvalUnelab initNaming cts in
   (all winning ts,) $
-  render (colours opts) ((initConfig (termWidth opts)) { orientation = Vertical })
+  renderWith (renderOptions opts)
     $ vcat $ map pretty ts
 
 mkNewCommand :: String -> Int -> String -> String
@@ -570,7 +568,7 @@ ldiagnostic' cfg table fs ats =
   let cts = traverse unelab ats in
   let rts = unsafeEvalUnelab initNaming cts in
   let dts = (`evalLaTeXM` table) (traverse (toLaTeX ()) rts) in
-  show $ vcat $
+  render $ vcat $
    [ fromString (documentClass cfg)
    , ""
    , "%%%%%%%%%%% Packages %%%%%%%%%%%%%%%%%%%"

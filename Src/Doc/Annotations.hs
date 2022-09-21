@@ -1,13 +1,10 @@
-module Doc.Render.Terminal where
+module Doc.Annotations where
 
 import Control.Applicative
-import Data.List
-import Data.Maybe
 
-import Doc (Config(..), initConfig, Doc, test, char)
-import qualified Doc
-import ANSI (Annotation(..), Layer(..), Colour(..), Weight(..), Underlining(..))
-import qualified ANSI
+import ANSI
+import Text.PrettyPrint.Compact
+import Data.Maybe
 
 data Annotations = Annotations
   { foregroundColour :: Maybe Colour
@@ -40,21 +37,5 @@ fromANSIs = foldl (\ acc ann -> acc <> fromANSI ann) mempty where
   fromANSI (SetWeight w) = mempty { fontWeight = Just w }
   fromANSI (SetUnderlining u) = mempty { fontUnderlining = Just u }
 
-render :: Bool -> Config -> Doc Annotations -> String
-render colours cfg d
-  = intercalate "\n"
-  $ map (concatMap $ \ (ann, str) -> if colours then ANSI.withANSI (toANSIs ann) str else str)
-  $ Doc.render cfg d
-
 withANSI :: [Annotation] -> Doc Annotations -> Doc Annotations
-withANSI = Doc.annotate . fromANSIs
-
-testT = test (render True (initConfig 80) . withANSI [ SetColour Background Blue ])
-  (fancyChar Green '1')
-  (fancyChar Red '0')
-
-  where fancyChar col c
-          = withANSI [ SetColour Foreground col
-                     , SetColour Background Magenta
-                     , SetWeight Bold
-                     ] (char c)
+withANSI = annotate . fromANSIs

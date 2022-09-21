@@ -6,8 +6,9 @@ import Options.Applicative
 import System.Console.Terminal.Size (size, width)
 import System.Environment (getEnv)
 
-import Doc
+import qualified ANSI
 import Pretty
+import qualified Text.PrettyPrint.Compact as Compact
 
 data MachineStep
   = MachineRecv
@@ -78,8 +79,8 @@ poptions = Options
      "clause" -> pure MachineClause
      x -> readerError $ "Unknown tracing level '" ++ x ++ "'. Accepted levels:\n" ++ levels
    tracingHelp = "Override tracing level (combinations of {" ++ levels ++ "} in quotes, separated by spaces, e.g. " ++ exampleLevels ++ ")"
-   levels = show $ vcat $ map pretty [(minBound::MachineStep)..]
-   exampleLevels = "\"" ++ show (hsep $ map pretty [minBound::MachineStep, maxBound]) ++ "\""
+   levels = render $ vcat $ map pretty [(minBound::MachineStep)..]
+   exampleLevels = "\"" ++ render (hsep $ map pretty [minBound::MachineStep, maxBound]) ++ "\""
 
 getOptions :: IO Options
 getOptions = do
@@ -92,3 +93,10 @@ getOptions = do
 
 isTermDumb :: IO Bool
 isTermDumb = ("dumb"==) <$> getEnv "TERM"
+
+renderOptions :: Options -> Compact.Options Annotations String
+renderOptions opts = Compact.Options
+  { optsPageWidth = termWidth opts
+  , optsAnnotate = \ ann str ->
+      if colours opts then ANSI.withANSI (toANSIs ann) str else str
+  }
