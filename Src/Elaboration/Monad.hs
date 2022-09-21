@@ -211,9 +211,6 @@ initContext = Context
   , declarations = B0
   , operators = Map.fromList
     [ ("app", (wildcard, [wildcard], wildcard))
-    , ("when", ( wildcard
-               , [Syntax.contract (VEnumOrTag ["True"] [])]
-               , wildcard))
     ]
   , location = B0
   , binderHints = Map.empty

@@ -87,7 +87,6 @@ data HeadUpData = forall i. HeadUpData
 
 mkOpTable :: Bwd Frame -> Operator -> Clause
 mkOpTable _ (Operator "app") = appClause
-mkOpTable _ (Operator "when") = whenClause
 mkOpTable _ (Operator "tick") = tickClause
 mkOpTable fs op = flip foldMap fs $ \case
   Extended op' cl | op == op' -> cl
@@ -319,13 +318,6 @@ appClause = Clause $ \ opts hd env (t, args) ->
       x :.: b -> Right (b //^ topSbst x arg)
       t -> Left (contract t, args)
     _ -> Left (t, args)
-
-whenClause :: Clause
-whenClause = Clause $ \ opts hd env (t, args) -> case args of
-  [arg] -> case expand (hd arg) of
-    AX "True" _ -> Right t
-    arg -> Left (t, [contract arg])
-  _ ->  Left (t, args)
 
 tickClause :: Clause
 tickClause = Clause $ \ opts hd env (t, args) -> case args of

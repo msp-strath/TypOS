@@ -4,7 +4,7 @@ syntax { 'Nat = ['EnumOrTag ['zero] [['succ 'Nat]]] }
 operator
   { 'Wildcard - 'id ~> 'Wildcard
   ; 'Wildcard - ['myApp 'Wildcard] ~> 'Wildcard
-  ; 'Wildcard - ['myWhen 'Bool] ~> 'Wildcard
+  ; 'Wildcard - ['when 'Bool] ~> 'Wildcard
   ; 'Bool - ['if 'Wildcard 'Wildcard] ~> 'Wildcard
   ; 'Nat - ['plus 'Nat] ~> 'Nat
   ; 'Nat - ['mult 'Nat] ~> 'Nat
@@ -15,7 +15,7 @@ operator
 t - 'id ~> t
 (\x. t) - ['myApp s] ~> {x=s}t
 
-x - ['myWhen 'True] ~> x
+x - ['when 'True] ~> x
 
 'True - ['if l r] ~> l
 'False - ['if l r] ~> r
@@ -41,7 +41,7 @@ exec
   'Bool?block.
   ( PRINTF "%i" 'test - 'id.
   | 'test - 'id ~ 'test
-  | 'hello - ['myWhen block] ~ 'hello
+  | 'hello - ['when block] ~ 'hello
   | block ~ 'True
   | PRINTF "%i" block.
   | 'Nat?m n p. m - ['plus n] - ['mult p] ~ (m - ['mult p]) - ['plus (n - ['mult p])]
