@@ -1,0 +1,95 @@
+------------------------------------------------------------------------------
+-- Datatypes
+
+syntax
+  { 'Type = ['EnumOrTag  ['Nat]
+                         [['Arr 'Type 'Type]]
+            ]
+  }
+
+syntax
+  { 'Check = ['Tag [ ['Lam ['Bind 'Synth 'Check]]
+                     ['Emb 'Synth]
+             ]]
+  ; 'Synth = ['Tag [ ['Ann 'Check 'Type]
+                     ['App 'Synth 'Check]
+             ]]
+  }
+
+{-
+------------------------------------------------------------------------------
+-- Judgement forms
+
+/type : $'Type.
+check : ?'Type. $'Check.
+synth : $'Synth. !'Type.
+
+{-
+-- | myCtxt maps synthesisable variables to types
+myCtxt |- 'Synth -> 'Type
+-}
+-}
+
+------------------------------------------------------------------------------
+-- Judgement forms and their contracts
+
+{}       type (T : 'Type => 'Type) {}  -- no pre- or post conditions,
+                                       -- subject T is a 'Type, with citizen version a 'Type
+{type T} check T (t : 'Check) {}
+{}       synth (t : 'Synth) T {type T}
+
+-- {} myCtxt |- x -> T {synth x T}
+
+------------------------------------------------------------------------------
+-- Rules
+
+type 'Nat {}
+
+type ['Arr S T]
+  { type S
+  | type T
+  }
+
+-- ~['Arr S T] means to not match, but to constrain instead
+check ~['Arr S T] ['Lam \x. body]
+  -- hypothetical judgement with fresh x, assuming `synth x S`
+  -- (note hypothetical judgements have patterns in input and subject
+  --  positions, and expressions in output positions)
+  { \ x . synth x S |- check T body }
+-- Could equivalently be written without deliberate capture of x:
+--  { \ y . synth y S |- check T {x=y}body }
+
+check T ['Emb e]
+  { synth e S
+  | S ~ T
+  }
+
+synth ['Ann t T] T
+  { type T
+  | check T t
+  }
+
+synth ['App f s] T
+  { synth f ~['Arr S T]
+  | check S s
+  }
+
+
+------------------------------------------------------------------------------
+-- Examples
+{-
+exec check@p. p! ['Arr 'Nat ['Arr 'Nat 'Nat]].
+              p! ['Lam \z. ['Lam \_. ['Emb z]]].
+-}
+{-
+exec check@p. p! ['Arr 'Nat 'Nat].
+              p! ['Lam \z. ['Emb z]].
+
+-}
+
+exec check@p.
+   p! ['Arr 'Nat 'Nat].
+   p! ['Lam \z. ['Emb
+         ['App ['Ann ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]]
+         ['Emb z]]]].
+   PRINTF "Victory!".
