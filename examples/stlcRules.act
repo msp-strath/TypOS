@@ -16,6 +16,12 @@ syntax
              ]]
   }
 
+-- this is in 'Universe, or so we declare
+syntax -- we're calling in not-'Nat on purpose
+  { 'Natural = ['EnumOrTag ['Zero]
+                           [['Succ 'Natural]]
+               ]
+  }
 {-
 ------------------------------------------------------------------------------
 -- Judgement forms
@@ -33,25 +39,38 @@ myCtxt |- 'Synth -> 'Type
 ------------------------------------------------------------------------------
 -- Judgement forms and their contracts
 
-{}       type (T : 'Type => 'Type) {}  -- no pre- or post conditions,
-                                       -- subject T is a 'Type, with citizen version a 'Type
-{type T} check T (t : 'Check) {}
-{}       synth (t : 'Synth) T {type T}
+-- Something that looks like "Z : A => B" says
+-- Z is an A when it's a subject, and a B when it becomes a citizen
+
+{}       type (T : 'Type => 'Type)          {}         {T - 'Value : 'Universe }
+{type T} check T (t : 'Check => T - 'Value) {}         {}
+{}       synth (t : 'Synth => T - 'Value) T {type T}   {}
+
+-- Open question in the above: will it always be the subject that's fed to an operator?
+-- Note: the "T - 'Value" is in 'Universe and that T is the citizen, not the subject
 
 -- {} myCtxt |- x -> T {synth x T}
 
 ------------------------------------------------------------------------------
 -- Rules
+-- We're giving semantic objects as annotations on derivations
+--   Proposal: => for citizenship
 
-type 'Nat {}
+type 'Nat => 'Nat {} 
+  { 'Nat - 'Value = 'Natural }
 
-type ['Arr S T]
+type ['Arr S T] => ['Arr S T]
   { type S
   | type T
   }
+    -- Global assumption: 'Universe comes with Pi builtin
+  { ['Arr S T] - 'Value = ['Pi (S - 'Value) \_. (T - 'Value)] }
+
+-- Invariant: the subject in a premiss is always something with a name
+-- payoff - the name BECOMES the name of the citizen
 
 -- ~['Arr S T] means to not match, but to constrain instead
-check ~['Arr S T] ['Lam \x. body]
+check ~['Arr S T] ['Lam \x. body] => \x. body
   -- hypothetical judgement with fresh x, assuming `synth x S`
   -- (note hypothetical judgements have patterns in input and subject
   --  positions, and expressions in output positions)
@@ -59,20 +78,28 @@ check ~['Arr S T] ['Lam \x. body]
 -- Could equivalently be written without deliberate capture of x:
 --  { \ y . synth y S |- check T {x=y}body }
 
-check T ['Emb e]
+check T ['Emb e] => e
   { synth e S
+  -- by the magic of STLC, things are first-order, this is just unification
   | S ~ T
   }
 
-synth ['Ann t T] T
+-- first arg is a (subject) pattern position
+-- 2nd argument is in output position & we give the citizen T
+--   Note to selves: holy readability issues!
+synth (['Ann t T] => t) T
   { type T
   | check T t
   }
 
-synth ['App f s] T
+synth (['App f s] => f -['app s]) T     -- assuming citizen 'f' is meta-level function
+  -- irrefutable because of no overloading of application (in STLC)
   { synth f ~['Arr S T]
   | check S s
   }
+
+
+------------------------------------------------------------------------------
 
 
 ------------------------------------------------------------------------------
@@ -80,12 +107,9 @@ synth ['App f s] T
 {-
 exec check@p. p! ['Arr 'Nat ['Arr 'Nat 'Nat]].
               p! ['Lam \z. ['Lam \_. ['Emb z]]].
--}
-{-
 exec check@p. p! ['Arr 'Nat 'Nat].
               p! ['Lam \z. ['Emb z]].
 
--}
 
 exec check@p.
    p! ['Arr 'Nat 'Nat].
@@ -93,3 +117,4 @@ exec check@p.
          ['App ['Ann ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]]
          ['Emb z]]]].
    PRINTF "Victory!".
+-}
