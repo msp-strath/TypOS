@@ -70,13 +70,16 @@ type ['Arr S T] => ['Arr S T]
 -- payoff - the name BECOMES the name of the citizen
 
 -- ~['Arr S T] means to not match, but to constrain instead
-check ~['Arr S T] ['Lam \x. body] => \x. body
+check ~['Arr S T] ['Lam \x. body] => \x. body -- x is a hypothetical inhabitant of S - 'Value
   -- hypothetical judgement with fresh x, assuming `synth x S`
   -- (note hypothetical judgements have patterns in input and subject
   --  positions, and expressions in output positions)
   { \ x . synth x S |- check T body }
 -- Could equivalently be written without deliberate capture of x:
 --  { \ y . synth y S |- check T {x=y}body }
+       -- note that if we use the above, then we'd expect to capture a y in S - 'Value in body the citizen
+       -- the elaborator-check that body is used fully generally in the premiss subject
+       -- needs to return the variables that are in scope for body the citizen
 
 check T ['Emb e] => e
   { synth e S
