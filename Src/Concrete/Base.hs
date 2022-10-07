@@ -320,3 +320,21 @@ type CProtocol = Protocol Raw
 type CContextStack = ContextStack Raw
 type CActor = ACTOR Concrete
 type CScrutinee = SCRUTINEE Concrete
+
+{-
+type family FORMULA (ph :: Phase) :: *
+type instance FORMULA Concrete = Raw
+type instance FORMULA Abstract = Term
+
+-- _=>_ should be a constructor of FORMULA?
+-- a raw formula is an expression (and we might make it into a pattern later)
+data JUDGEMENT (ph :: Phase)
+= Judgement (JUDGEMENTFORM ph) [FORMULA ph]
+
+
+type RULE (ph :: Phase) = RULE
+  { premises :: [JUDGEMENT ph]
+  , conclusion :: JUDGEMENT ph
+  , 
+  }
+-}
