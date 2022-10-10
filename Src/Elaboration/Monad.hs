@@ -252,21 +252,6 @@ turn t ds = ds { location = location ds :< t }
 ------------------------------------------------------------------------------
 -- Operators
 
-data ANOPERATOR (ph :: Phase) = AnOperator
-  { opName :: OPERATOR ph
-  , objDesc :: SYNTAXDESC ph
-  , paramDescs :: [SYNTAXDESC ph]
-  , retDesc :: SYNTAXDESC ph
-  }
-
-deriving instance
-  ( Show (OPERATOR ph)
-  , Show (SYNTAXDESC ph)
-  ) => Show (ANOPERATOR ph)
-
-type CAnOperator = ANOPERATOR Concrete
-type AAnOperator = ANOPERATOR Abstract
-
 setOperators :: Operators -> Context -> Context
 setOperators ops ctx = ctx { operators = ops }
 

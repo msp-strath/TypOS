@@ -22,7 +22,7 @@ syntax -- we're calling in not-'Nat on purpose
                            [['Succ 'Natural]]
                ]
   }
-{-
+
 ------------------------------------------------------------------------------
 -- Judgement forms
 
@@ -30,12 +30,11 @@ syntax -- we're calling in not-'Nat on purpose
 check : ?'Type. $'Check.
 synth : $'Synth. !'Type.
 
-{-
+
 -- | myCtxt maps synthesisable variables to types
 myCtxt |- 'Synth -> 'Type
--}
--}
 
+{-
 ------------------------------------------------------------------------------
 -- Judgement forms and their contracts
 
@@ -62,6 +61,7 @@ judgment
 -- Note: the "T - 'Value" is in 'Universe and that T is the citizen, not the subject
 
 -- {} myCtxt |- x -> T {synth x T}
+-}
 
 ------------------------------------------------------------------------------
 -- Rules
@@ -69,17 +69,19 @@ judgment
 --   Proposal: => for citizenship
 
 -- should it be 'derivation'?
+
 rule
   {}
   type 'Nat => 'Nat
-  {'Nat - 'Value = 'Natural}
+  {'Nat - 'Value ~> 'Natural}
+
 
 rule
-  {type S, type T} 
+  {type S; type T} 
   ------------------------
   type ['Arr S T] => ['Arr S T]
 -- Global assumption: 'Universe comes with Pi builtin
-  {['Arr S T] - 'Value = ['Pi (S - 'Value) \_. (T - 'Value)]}
+  {['Arr S T] - 'Value ~> ['Pi (S - 'Value) \_. (T - 'Value)]}
 
 -- Invariant: the subject in a premiss is always something with a name
 -- payoff - the name BECOMES the name of the citizen
@@ -90,7 +92,7 @@ rule
   -- hypothetical judgement with fresh x, assuming `synth x S`
   -- (note hypothetical judgements have patterns in input and subject
   --  positions, and expressions in output positions)
-  check ~['Arr S T] ['Lam \x. body] => \x. body  
+  check ~['Arr S T] ['Lam \x. body] => (\x. body)  
   -- ~['Arr S T] means to not match, but to constrain instead
   {}
 -- Could equivalently be written without deliberate capture of x:
@@ -101,7 +103,7 @@ rule
 
 rule
   { synth e S
-  ; S ~ T -- by the magic of STLC, things are first-order, this is just unification
+  ; S = T -- by the magic of STLC, things are first-order, this is just unification
   }
   check T ['Emb e] => e
   {}
@@ -109,6 +111,7 @@ rule
 -- first arg is a (subject) pattern position
 -- 2nd argument is in output position & we give the citizen T
 --   Note to selves: holy readability issues!
+
 rule
   { type T
   ; check T t
@@ -120,7 +123,7 @@ rule
   { synth f ~['Arr S T]
   ; check S s
   }
-  synth (['App f s] => f -['app s]) T     -- assuming citizen 'f' is meta-level function
+  synth (['App f s] => (f -['app s])) T     -- assuming citizen 'f' is meta-level function
   -- irrefutable because of no overloading of application (in STLC)
   {}
 

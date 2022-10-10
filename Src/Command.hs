@@ -30,6 +30,7 @@ import Machine.Trace (Shots)
 import Options
 import Parse
 import Pretty
+import Rules
 import Syntax
 import Term.Base
 import Unelaboration(Unelab(..), subunelab, withEnv, initDAEnv, Naming, declareChannel)
@@ -58,6 +59,8 @@ data COMMAND (ph :: Phase)
   | Trace [MachineStep]
   | DeclOp [ANOPERATOR ph]
   | DefnOp (DEFNOP ph)
+  | DeclRule (RULE ph)
+  
 
 deriving instance
   ( Show (JUDGEMENTFORM ph)
@@ -78,6 +81,7 @@ deriving instance
   , Show (PROTOCOL ph)
   , Show (LOOKEDUP ph)
   , Show (DEFNOP ph)
+  , Show (RULE ph)
   , Show (GUARD ph)) =>
   Show (COMMAND ph)
 
@@ -89,10 +93,6 @@ type CCommand = COMMAND Concrete
 type ACommand = COMMAND Abstract
 type CStatement = STATEMENT Concrete
 type AStatement = STATEMENT Abstract
-type COpPattern = OPPATTERN Concrete
-type AOpPattern = OPPATTERN Abstract
-type COperator = OPERATOR Concrete
-type AOperator = OPERATOR Abstract
 type CPattern = PATTERN Concrete
 type APattern = PATTERN Abstract
 
@@ -175,20 +175,6 @@ pstatement = Statement <$> pvariable <*> many (id <$ pspc <*> pvariable)
 pconditions :: Parser [CStatement]
 pconditions = pcurlies (psep (punc ",") pstatement)
 
-poperator :: Parser a -> Parser (WithRange String, [a])
-poperator ph =
-  (,[]) <$> pwithRange patom
-  <|> (,) <$ pch (== '[') <* pspc <*> pwithRange patom <*> many (id <$ pspc <*> ph) <* pspc <* pch (== ']')
-
-panoperator :: Parser CAnOperator
-panoperator = do
-  obj <- psyntaxdecl
-  punc "-"
-  (opname, params) <- poperator psyntaxdecl
-  punc "~>"
-  ret <- psyntaxdecl
-  pure (AnOperator opname obj params ret)
-
 pcommand :: Parser CCommand
 pcommand
     = DeclJudge <$> pextractmode <*> pvariable <* punc ":" <*> pprotocol
@@ -202,8 +188,9 @@ pcommand
   <|> Go <$ plit "exec" <* pspc <*> pACT
   <|> Trace <$ plit "trace" <*> pcurlies (psep (punc ",") pmachinestep)
   <|> DeclOp <$ plit "operator" <*> pcurlies (psep (punc ";") panoperator)
-  <|> DefnOp <$> ((,,) <$> ppat <*> some (punc "-" *> poperator ppat) <* punc "~>" <*> pTM)
-
+  <|> DefnOp <$> pdefnop
+  <|> DeclRule <$> prule
+  
 pfile :: Parser [CCommand]
 pfile = id <$ pspc <*> psep pspc pcommand <* pspc
 

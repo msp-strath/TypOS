@@ -10,6 +10,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe
 import Control.Monad.State
+import Control.Applicative
 
 import Actor
 import Actor.Display()
@@ -21,7 +22,7 @@ import Location (WithRange)
 import Term
 import qualified Term.Substitution as Substitution
 import Thin
-import Concrete.Base (Phase(..), Root, Guard, ExtractMode, TERM, PATTERN, ACTOR (..))
+import Concrete.Base (Phase(..), Root, Guard, ExtractMode, TERM, PATTERN, ACTOR (..), SYNTAXDESC)
 import Syntax (SyntaxDesc)
 
 import Data.Bifunctor (Bifunctor(first))
@@ -30,7 +31,10 @@ import Machine.Matching
 import Debug.Trace (trace)
 import Display (unsafeDocDisplayClosed)
 import ANSI hiding (withANSI)
+import Parse
+import Concrete.Parse
 import Pretty
+
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
@@ -360,6 +364,24 @@ instance (Show s, Show (t Frame)) => Show (Process log s t) where
   show (Process opts stack root env store actor _ geas) =
    unwords ["Process ", show opts, show stack, show root, show env, show store, show actor, show geas]
 
+------------------------------------------------------------------------------
+-- Operators
+
+data ANOPERATOR (ph :: Phase) = AnOperator
+  { opName :: OPERATOR ph
+  , objDesc :: SYNTAXDESC ph
+  , paramDescs :: [SYNTAXDESC ph]
+  , retDesc :: SYNTAXDESC ph
+  }
+
+deriving instance
+  ( Show (OPERATOR ph)
+  , Show (SYNTAXDESC ph)
+  ) => Show (ANOPERATOR ph)
+
+type CAnOperator = ANOPERATOR Concrete
+type AAnOperator = ANOPERATOR Abstract
+
 data Operator = Operator { getOperator :: String }
   deriving (Show, Eq)
 
@@ -391,3 +413,25 @@ type OPPATTERN ph = (OPERATOR ph, [PATTERN ph])
 type family DEFNOP (ph :: Phase) :: *
 type instance DEFNOP Concrete = (PATTERN Concrete, [OPPATTERN Concrete], TERM Concrete)
 type instance DEFNOP Abstract = (Operator, Clause)
+
+pdefnop :: Parser (DEFNOP Concrete)
+pdefnop =  (,,) <$> ppat <*> some (punc "-" *> poperator ppat) <* punc "~>" <*> pTM
+
+type COpPattern = OPPATTERN Concrete
+type AOpPattern = OPPATTERN Abstract
+type COperator = OPERATOR Concrete
+type AOperator = OPERATOR Abstract
+
+poperator :: Parser a -> Parser (WithRange String, [a])
+poperator ph =
+  (,[]) <$> pwithRange patom
+  <|> (,) <$ pch (== '[') <* pspc <*> pwithRange patom <*> many (id <$ pspc <*> ph) <* pspc <* pch (== ']')
+
+panoperator :: Parser CAnOperator
+panoperator = do
+  obj <- psyntaxdecl
+  punc "-"
+  (opname, params) <- poperator psyntaxdecl
+  punc "~>"
+  ret <- psyntaxdecl
+  pure (AnOperator opname obj params ret)
