@@ -21,6 +21,7 @@ import qualified Syntax
 import Thin (Selable(..), DB (..), CdB (..))
 import Term.Base (Tm(..), atom)
 import Utils
+import Machine.Base
 
 ------------------------------------------------------------------------------
 -- Elaboration Monad
@@ -250,10 +251,6 @@ turn t ds = ds { location = location ds :< t }
 
 ------------------------------------------------------------------------------
 -- Operators
-
-type family OPERATOR (ph :: Phase) :: *
-type instance OPERATOR Concrete = WithRange String
-type instance OPERATOR Abstract = Operator
 
 data ANOPERATOR (ph :: Phase) = AnOperator
   { opName :: OPERATOR ph

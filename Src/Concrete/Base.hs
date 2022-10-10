@@ -1,14 +1,12 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Concrete.Base where
 
+import Data.Function (on)
+
 import Bwd
 import Format
 import Scope
 import Location
-import Data.Function (on)
-
-data Operator = Operator { getOperator :: String }
-  deriving (Show, Eq)
 
 data Variable = Variable
   { variableLoc :: Range
@@ -108,6 +106,7 @@ data RawP
   | LamP Range (Scope (Binder Variable) RawP)
   | ThP Range (Bwd Variable, ThDirective) RawP
   | UnderscoreP Range
+  | Irrefutable Range RawP
   deriving (Show)
 
 instance HasSetRange RawP where
@@ -119,6 +118,7 @@ instance HasSetRange RawP where
     LamP _ sc -> LamP r sc
     ThP _ sg t -> ThP r sg t
     UnderscoreP _ -> UnderscoreP r
+    Irrefutable _ p -> Irrefutable r p
 
 instance HasGetRange RawP where
   getRange = \case
@@ -129,6 +129,7 @@ instance HasGetRange RawP where
     LamP r sc -> r
     ThP r sg t -> r
     UnderscoreP r -> r
+    Irrefutable r p -> r
 
 data ThDirective = ThKeep | ThDrop
   deriving (Show)
@@ -320,21 +321,3 @@ type CProtocol = Protocol Raw
 type CContextStack = ContextStack Raw
 type CActor = ACTOR Concrete
 type CScrutinee = SCRUTINEE Concrete
-
-{-
-type family FORMULA (ph :: Phase) :: *
-type instance FORMULA Concrete = Raw
-type instance FORMULA Abstract = Term
-
--- _=>_ should be a constructor of FORMULA?
--- a raw formula is an expression (and we might make it into a pattern later)
-data JUDGEMENT (ph :: Phase)
-= Judgement (JUDGEMENTFORM ph) [FORMULA ph]
-
-
-type RULE (ph :: Phase) = RULE
-  { premises :: [JUDGEMENT ph]
-  , conclusion :: JUDGEMENT ph
-  , 
-  }
--}

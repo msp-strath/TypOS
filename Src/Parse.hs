@@ -5,6 +5,7 @@ import Control.Monad
 
 import Data.Bifunctor
 import Data.Char
+import Data.These
 import Data.Function
 
 import Bwd
@@ -251,3 +252,11 @@ plisp = withRange $
   mkNil <$ plit "]"
   <|> id <$ plit "|" <* pspc <*> pCar <* pspc <* plit "]"
   <|> mkCons <$> pCar <* pspc <*> plisp
+
+pthese :: Parser a -> Parser b -> Parser (These a b)
+pthese pa pb = Parser $ \ i -> case (parser pa i, parser pb i) of
+  ((c, [(a, rest)]), (_, [])) -> (c, [(This a, rest)])
+  ((_, []), (c, [(b, rest)])) -> (c, [(That b, rest)])
+  ((c1, [(a, rest1)]), (c2, [(b, rest2)])) | location rest1 == location rest2 ->
+    (c1 <> c2, [(These a b, rest1)])
+  ((c1, as), (c2, bs)) -> (c1 <> c2, [ (This a, rs) | (a, rs) <- as] ++ [ (That b, rs) | (b, rs) <- bs])

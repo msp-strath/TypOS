@@ -85,6 +85,7 @@ ppat = withRange $
   <|> pscoped LamP pbinder ppat
   <|> ThP unknown <$ pch (== '{') <* pspc <*> pth <* punc "}" <*> ppat
   <|> UnderscoreP unknown <$ pch (== '_')
+  <|> Irrefutable unknown <$ pch (== '~') <* pspc <*> ppat
 
 pth :: Parser (Bwd Variable, ThDirective)
 pth = (,) <$> ppes pspc pvariable

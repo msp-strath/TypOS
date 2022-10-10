@@ -44,14 +44,8 @@ type family PROTOCOL (ph :: Phase) :: *
 type instance PROTOCOL Concrete = ()
 type instance PROTOCOL Abstract = AProtocol
 
-type OPPATTERN ph = (OPERATOR ph, [PATTERN ph])
-
 data STATEMENT (ph :: Phase)
   = Statement (JUDGEMENTFORM ph) [Variable]
-
-type family DEFNOP (ph :: Phase) :: *
-type instance DEFNOP Concrete = (PATTERN Concrete, [OPPATTERN Concrete], TERM Concrete)
-type instance DEFNOP Abstract = (Operator, Clause)
 
 data COMMAND (ph :: Phase)
   = DeclJudge ExtractMode (JUDGEMENTFORM ph) (Protocol (SYNTAXDESC ph))
