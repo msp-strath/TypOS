@@ -46,11 +46,11 @@ type instance PROTOCOL Concrete = ()
 type instance PROTOCOL Abstract = AProtocol
 
 data STATEMENT (ph :: Phase)
-  = Statement (JUDGEMENTFORM ph) [Variable]
+  = Statement (JUDGEMENTNAME ph) [Variable]
 
 data COMMAND (ph :: Phase)
-  = DeclJudge ExtractMode (JUDGEMENTFORM ph) (Protocol (SYNTAXDESC ph))
-  | DefnJudge (JUDGEMENTFORM ph, PROTOCOL ph, CHANNEL ph) (ACTOR ph)
+  = DeclJudge ExtractMode (JUDGEMENTNAME ph) (Protocol (SYNTAXDESC ph))
+  | DefnJudge (JUDGEMENTNAME ph, PROTOCOL ph, CHANNEL ph) (ACTOR ph)
   | ContractJudge [STATEMENT ph] (STATEMENT ph) [STATEMENT ph]
   | DeclSyntax [(SYNTAXCAT ph, SYNTAXDESC ph)]
   | DeclStack (STACK ph) (ContextStack (SYNTAXDESC ph))
@@ -59,11 +59,12 @@ data COMMAND (ph :: Phase)
   | Trace [MachineStep]
   | DeclOp [ANOPERATOR ph]
   | DefnOp (DEFNOP ph)
+  | DeclJudgementForm (JUDGEMENTFORM ph)
   | DeclRule (RULE ph)
-  
+
 
 deriving instance
-  ( Show (JUDGEMENTFORM ph)
+  ( Show (JUDGEMENTNAME ph)
   , Show (CHANNEL ph)
   , Show (BINDER ph)
   , Show (ACTORVAR ph)
@@ -81,12 +82,13 @@ deriving instance
   , Show (PROTOCOL ph)
   , Show (LOOKEDUP ph)
   , Show (DEFNOP ph)
+  , Show (JUDGEMENTFORM ph)
   , Show (RULE ph)
   , Show (GUARD ph)) =>
   Show (COMMAND ph)
 
 deriving instance
-  (Show (JUDGEMENTFORM ph)) =>
+  (Show (JUDGEMENTNAME ph)) =>
   Show (STATEMENT ph)
 
 type CCommand = COMMAND Concrete
@@ -112,6 +114,12 @@ instance (Show t, Unelab t, Pretty (Unelabed t)) =>
 
 instance Pretty CStatement where
   pretty (Statement jd vars) = hsep $ pretty jd : (pretty <$> vars)
+  
+instance Pretty (PLACE Concrete) where
+  pretty (CitizenPlace v) = pretty v
+  pretty (SubjectPlace v syntaxdesc semanticsdesc) =
+    parens (hsep $ [pretty v, ":", pretty syntaxdesc]
+                 ++ foldMap (("=>":) . (:[]) . pretty) semanticsdesc)
 
 instance Pretty CCommand where
   pretty = let prettyCds cds = collapse (BracesList $ pretty <$> cds) in \case
@@ -126,7 +134,9 @@ instance Pretty CCommand where
                                                      , prettyCds posts]
     Go a -> keyword "exec" <+> pretty a
     Trace ts -> keyword "trace" <+> collapse (BracesList $ map pretty ts)
-
+    -- DeclJudgementForm j -> keyword "judgementform" <+> collapse (BracesList $ pretty <$> jpreconds j)
+    --                    <+> hsep (pretty (jname j) : map pretty (jplaces j))
+    --                    <+> collapse (BracesList $ either pretty pretty <$> jpostconds j)
 
 instance Unelab ACommand where
   type UnelabEnv ACommand = Naming
@@ -180,15 +190,16 @@ pcommand
     = DeclJudge <$> pextractmode <*> pvariable <* punc ":" <*> pprotocol
   <|> DefnJudge <$> pjudgeat <* punc "=" <*> pACT
   <|> ContractJudge <$> pconditions <* pspc <*> pstatement <* pspc <*> pconditions
-  <|> DeclSyntax <$ plit "syntax" <*> pcurlies (psep (punc ";") psyntax)
+  <|> DeclSyntax <$ plit "syntax" <* pspc <*> pcurlies (psep (punc ";") psyntax)
   <|> DeclStack <$> pvariable <* punc "|-" <*> pcontextstack
   <|> ContractStack <$> pconditions <* pspc
                     <*> ((,,) <$> pvariable <* punc "|-" <*> pvariable <* punc "->" <*> pvariable)
                     <* pspc <*> pconditions
   <|> Go <$ plit "exec" <* pspc <*> pACT
-  <|> Trace <$ plit "trace" <*> pcurlies (psep (punc ",") pmachinestep)
-  <|> DeclOp <$ plit "operator" <*> pcurlies (psep (punc ";") panoperator)
+  <|> Trace <$ plit "trace" <* pspc <*> pcurlies (psep (punc ",") pmachinestep)
+  <|> DeclOp <$ plit "operator" <* pspc <*> pcurlies (psep (punc ";") (panoperator "~>"))
   <|> DefnOp <$> pdefnop
+  <|> DeclJudgementForm <$> pjudgementform
   <|> DeclRule <$> prule
   
 pfile :: Parser [CCommand]

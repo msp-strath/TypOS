@@ -28,7 +28,7 @@ pparens :: Parser a -> Parser a
 pparens p = id <$ pch (== '(') <* pspc <*> p <* pspc <* plit ")"
 
 pcurlies :: Parser a -> Parser a
-pcurlies p = id <$ punc "{" <*> p <* pspc <* plit "}"
+pcurlies p = id <$ plit "{" <* pspc <*> p <* pspc <* plit "}"
 
 pstring :: Parser String
 pstring = Parser $ \ (Source str loc) -> case str of

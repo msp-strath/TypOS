@@ -34,25 +34,24 @@ synth : $'Synth. !'Type.
 -- | myCtxt maps synthesisable variables to types
 myCtxt |- 'Synth -> 'Type
 
-{-
+
 ------------------------------------------------------------------------------
 -- Judgement forms and their contracts
 
 -- Something that looks like "Z : A => B" says
 -- Z is an A when it's a subject, and a B when it becomes a citizen
 
--- should it be 'judgementform'?
-judgment
+judgementform
   {}
   type (T : 'Type => 'Type)
   {T - 'Value : 'Universe}
 
-judgment
+judgementform
   {type T}
   check T (t : 'Check => T - 'Value)
   {}
 
-judgment
+judgementform
   {}
   synth (t : 'Synth => T - 'Value) T 
   {type T}
@@ -61,14 +60,6 @@ judgment
 -- Note: the "T - 'Value" is in 'Universe and that T is the citizen, not the subject
 
 -- {} myCtxt |- x -> T {synth x T}
--}
-
-------------------------------------------------------------------------------
--- Rules
--- We're giving semantic objects as annotations on derivations
---   Proposal: => for citizenship
-
--- should it be 'derivation'?
 
 rule
   {}

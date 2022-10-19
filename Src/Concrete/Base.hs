@@ -154,7 +154,7 @@ data ExtractMode
   deriving (Show, Eq)
 
 data Keyword
-  = KwSyntax |KwRule | KwExec | KwTrace
+  = KwSyntax | KwRule | KwJudgementForm | KwExec | KwTrace
   | KwLet | KwCase | KwLookup | KwCompare
   | KwBREAK | KwPRINT | KwPRINTF
   deriving (Enum, Bounded)
@@ -162,6 +162,7 @@ data Keyword
 instance Show Keyword where
   show KwSyntax = "syntax"
   show KwRule = "rule"
+  show KwJudgementForm = "judgementform"
   show KwExec = "exec"
   show KwTrace = "trace"
   show KwLet = "let"
@@ -174,7 +175,7 @@ instance Show Keyword where
 
 data Phase = Concrete | Elaboration | Abstract
 
-type family JUDGEMENTFORM (ph :: Phase) :: *
+type family JUDGEMENTNAME (ph :: Phase) :: *
 type family CHANNEL (ph :: Phase) :: *
 type family BINDER (ph :: Phase) :: *
 type family ACTORVAR (ph :: Phase) :: *
@@ -190,7 +191,7 @@ type family SCRUTINEETERM (ph :: Phase) :: *
 type family LOOKEDUP (ph :: Phase) :: *
 type family GUARD (ph :: Phase) :: *
 
-type instance JUDGEMENTFORM Concrete = Variable
+type instance JUDGEMENTNAME Concrete = Variable
 type instance CHANNEL Concrete = Variable
 type instance BINDER Concrete = RawP
 type instance ACTORVAR Concrete = Variable
@@ -233,7 +234,7 @@ instance HasGetRange (SCRUTINEE ph) where
 
 data ACTOR (ph :: Phase)
  = Branch Range (ACTOR ph) (ACTOR ph)
- | Spawn Range ExtractMode (JUDGEMENTFORM ph) (CHANNEL ph) (ACTOR ph)
+ | Spawn Range ExtractMode (JUDGEMENTNAME ph) (CHANNEL ph) (ACTOR ph)
  | Send Range (CHANNEL ph) (GUARD ph) (TERM ph) (ACTOR ph)
  | Recv Range (CHANNEL ph) (BINDER ph, ACTOR ph)
  | Connect Range (CONNECT ph)
@@ -259,7 +260,7 @@ deriving instance
   Show (SCRUTINEE ph)
 
 deriving instance
-  ( Show (JUDGEMENTFORM ph)
+  ( Show (JUDGEMENTNAME ph)
   , Show (CHANNEL ph)
   , Show (BINDER ph)
   , Show (ACTORVAR ph)

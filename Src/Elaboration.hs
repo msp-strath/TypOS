@@ -414,7 +414,7 @@ isOperator r nm = do
 
 data IsJudgement = IsJudgement
   { judgementExtract :: ExtractMode
-  , judgementName :: JudgementForm
+  , judgementName :: JudgementName
   , judgementProtocol :: AProtocol
   }
 

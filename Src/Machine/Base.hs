@@ -197,7 +197,7 @@ data Hole = Hole deriving Show
 data Interface c p = Interface
   { spawnee :: (c, Channel)
   , spawner :: ((Channel, [String]), p)
-  , judgeName :: JudgementForm
+  , judgeName :: JudgementName
   , judgeProtocol :: AProtocol
   , extractionMode :: ExtractMode
   , traffic :: Bwd Term
@@ -310,7 +310,7 @@ tickClause = Clause $ \ opts hd env (t, args) -> case args of
   _ ->  Left (t, args)
 
 data Frame
-  = Rules JudgementForm AProtocol (Channel, AActor)
+  = Rules JudgementName AProtocol (Channel, AActor)
   | LeftBranch Hole (Process () Status [])
   | RightBranch (Process () Status []) Hole
   | Spawnee (Interface Hole (Process () Status []))
@@ -427,11 +427,11 @@ poperator ph =
   (,[]) <$> pwithRange patom
   <|> (,) <$ pch (== '[') <* pspc <*> pwithRange patom <*> many (id <$ pspc <*> ph) <* pspc <* pch (== ']')
 
-panoperator :: Parser CAnOperator
-panoperator = do
+panoperator :: String -> Parser CAnOperator
+panoperator copula = do
   obj <- psyntaxdecl
   punc "-"
   (opname, params) <- poperator psyntaxdecl
-  punc "~>"
+  punc copula
   ret <- psyntaxdecl
   pure (AnOperator opname obj params ret)

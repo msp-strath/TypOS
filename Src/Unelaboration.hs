@@ -223,9 +223,9 @@ instance Unelab Stack where
   type Unelabed Stack = Variable
   unelab (Stack str) = pure (Variable unknown str)
 
-instance Unelab JudgementForm where
-  type UnelabEnv JudgementForm = ()
-  type Unelabed JudgementForm = Variable
+instance Unelab JudgementName where
+  type UnelabEnv JudgementName = ()
+  type Unelabed JudgementName = Variable
   unelab str = pure (Variable unknown str)
 
 instance Unelab Debug where

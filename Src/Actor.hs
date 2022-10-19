@@ -33,10 +33,10 @@ newtype Stack = Stack { rawStack :: String }
 newtype Channel = Channel { rawChannel :: String }
   deriving (Show, Eq, Ord)
 
-type JudgementForm = String
+type JudgementName = String
 type Gripe = String
 
-type instance JUDGEMENTFORM Abstract = JudgementForm
+type instance JUDGEMENTNAME Abstract = JudgementName
 type instance CHANNEL Abstract = Channel
 type instance BINDER Abstract = (Binder ActorMeta)
 type instance ACTORVAR Abstract = ActorMeta

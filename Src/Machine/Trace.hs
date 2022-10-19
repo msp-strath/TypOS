@@ -15,7 +15,7 @@ import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
 
 import ANSI (Colour(..), Layer(..), Annotation(..))
-import Actor (JudgementForm)
+import Actor (JudgementName)
 import Bwd (Bwd(..), (<>>), (<><))
 import Concrete.Base
 import Concrete.Pretty()
@@ -86,7 +86,7 @@ data STEP (ph :: Phase) f ann
   = BindingStep Variable
   | NotedStep
   | PushingStep (STACK ph) (TERMVAR ph) (SyntaxDesc, f (ITERM ph) ann)
-  | CallingStep (f () (ann, Bool)) (JUDGEMENTFORM ph) [ARGUMENT ph f ann]
+  | CallingStep (f () (ann, Bool)) (JUDGEMENTNAME ph) [ARGUMENT ph f ann]
 
 deriving instance
   ( Functor (f (ITERM ph))
@@ -440,7 +440,7 @@ cleanup :: [ATrace f ann] -> [ATrace f ann]
 cleanup = snd . go False [] where
 
   go :: Bool            -- ^ is the parent suppressable?
-     -> [JudgementForm] -- ^ list of toplevel judgements already seen
+     -> [JudgementName] -- ^ list of toplevel judgements already seen
      -> [ATrace f ann] -> (Any, [ATrace f ann])
   go supp seen [] = pure []
   go supp seen (Node a (AStep em i@(CallingStep b jd tr)) ts : ats)
@@ -640,7 +640,7 @@ combineArg (Argument mode0 desc0 term0) (Argument mode1 desc1 term1)
   | otherwise = error "Impossible"
 
 combineStep :: Eq (STACK ph)
-            => Eq (JUDGEMENTFORM ph)
+            => Eq (JUDGEMENTNAME ph)
             => Eq (TERMVAR ph)
             => STEP ph Simple ann
             -> STEP ph Series ann

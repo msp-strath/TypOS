@@ -36,7 +36,7 @@ import Debug.Trace
 
 dmesg = trace
 
-lookupRules :: JudgementForm -> Bwd Frame -> Maybe (AProtocol, (Channel, AActor))
+lookupRules :: JudgementName -> Bwd Frame -> Maybe (AProtocol, (Channel, AActor))
 lookupRules jd zf = do
   (_, cha, _) <- (`focusBy` zf) $ \case
     Rules jd' p cha | jd == jd' -> Just (p, cha)

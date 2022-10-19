@@ -8,7 +8,7 @@ import Data.These
 import Actor
 import Scope
 import Concrete.Base
-import Machine.Base (DEFNOP, pdefnop)
+import Machine.Base (DEFNOP, ANOPERATOR, pdefnop, panoperator)
 import Term.Base
 
 import Parse
@@ -33,7 +33,7 @@ data AFormula
 -- _=>_ should be a constructor of FORMULA?
 -- a raw formula is an expression (and we might make it into a pattern later)
 data JUDGEMENT (ph :: Phase)
-  = Judgement (JUDGEMENTFORM ph) [FORMULA ph]
+  = Judgement (JUDGEMENTNAME ph) [FORMULA ph]
 
 data PREMISE (ph :: Phase)
   = Premise (JUDGEMENT ph)
@@ -47,8 +47,21 @@ data RULE (ph :: Phase) = RULE
   , operatorDefs :: [DEFNOP ph]
   }
 
+type SEMANTICSDESC (ph :: Phase) = TERM ph
+
+data PLACE (ph :: Phase)
+  = CitizenPlace Variable
+  | SubjectPlace Variable (SYNTAXDESC ph) (Maybe (SEMANTICSDESC ph))
+
+data JUDGEMENTFORM (ph :: Phase) = JudgementForm
+  { jpreconds :: [JUDGEMENT ph]
+  , jname :: JUDGEMENTNAME ph
+  , jplaces :: [PLACE ph]
+  , jpostconds :: [Either (JUDGEMENT ph) (ANOPERATOR ph)] 
+  }
+ 
 deriving instance
-  ( Show (JUDGEMENTFORM ph)
+  ( Show (JUDGEMENTNAME ph)
   , Show (FORMULA ph)) =>
   Show (JUDGEMENT ph)
 
@@ -62,6 +75,18 @@ deriving instance
   , Show (JUDGEMENT ph)
   , Show (DEFNOP ph)) =>
   Show (RULE ph)
+
+deriving instance
+  ( Show (SYNTAXDESC ph)
+  , Show (SEMANTICSDESC ph)) =>
+  Show (PLACE ph)
+
+deriving instance
+  ( Show (JUDGEMENT ph)
+  , Show (JUDGEMENTNAME ph)
+  , Show (PLACE ph)
+  , Show (ANOPERATOR ph)) =>
+  Show (JUDGEMENTFORM ph)
 
 pformula :: Parser CFormula
 pformula = pcitizen
@@ -82,3 +107,13 @@ ppremise = pscoped Binding pbinder ppremise
 prule :: Parser (RULE Concrete)
 prule = RULE <$ pkeyword KwRule <* pspc <*> pcurlies (psep (punc ";") ppremise)
       <* pspc <*> pjudgement <* pspc <*> pcurlies (psep (punc ";") pdefnop)  
+
+pplace :: Parser (PLACE Concrete)
+pplace = CitizenPlace <$> pvariable
+       <|> pparens (SubjectPlace <$> pvariable <* punc ":" <*> psyntaxdecl <*> optional (id <$ punc "=>" <*> pTM))
+
+pjudgementform :: Parser (JUDGEMENTFORM Concrete)
+pjudgementform = JudgementForm <$ pkeyword KwJudgementForm <* pspc <*> pcurlies (psep (punc ";") pjudgement)
+                <* pspc <*> pvariable
+                <* pspc <*> psep pspc pplace
+                <* pspc <*> pcurlies (psep (punc ";") (Left <$> pjudgement <|> Right <$> panoperator ":"))
