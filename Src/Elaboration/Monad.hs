@@ -12,7 +12,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 
-import Actor (ActorVar, AContextStack, AProtocol, Channel)
+import Actor (ActorVar, AContextStack, AProtocol, Channel, JudgementName)
 import Bwd
 import Concrete.Base
 import Location (HasGetRange(..), Range, WithRange (..))
@@ -22,6 +22,7 @@ import Thin (Selable(..), DB (..), CdB (..))
 import Term.Base (Tm(..), atom)
 import Utils
 import Machine.Base
+import Rules
 
 ------------------------------------------------------------------------------
 -- Elaboration Monad
@@ -379,6 +380,9 @@ data Complaint
   | ProtocolsNotDual Range AProtocol AProtocol
   | IncompatibleModes Range (Mode, SyntaxDesc) (Mode, SyntaxDesc)
   | WrongDirection Range (Mode, SyntaxDesc) Ordering (Mode, SyntaxDesc)
+  | JudgementWrongArity Range JudgementName AProtocol [CFormula]
+  | UnexpectedNonSubject Range CFormula
+  | DuplicatedPlace Range Variable
   -- syntaxes
   | AlreadyDeclaredSyntaxCat Range SyntaxCat
   -- syntaxdesc validation
@@ -432,6 +436,9 @@ instance HasGetRange Complaint where
     ProtocolsNotDual r _ _ -> r
     IncompatibleModes r _ _ -> r
     WrongDirection r _ _ _ -> r
+    JudgementWrongArity r _ _ _ -> r
+    UnexpectedNonSubject r _ -> r
+
   -- syntaxes
     AlreadyDeclaredSyntaxCat r _ -> r
   -- syntaxdesc validation

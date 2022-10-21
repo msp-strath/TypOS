@@ -181,7 +181,7 @@ notHere loc = (Candidate B0 loc, [])
 ploc :: Parser Location
 ploc = Parser $ \ i@(Source str loc) -> here (loc, i)
 
-withRange :: HasRange t => Parser t -> Parser t
+withRange :: HasSetRange t => Parser t -> Parser t
 withRange p = do
    start <- ploc
    x <- p

@@ -21,7 +21,7 @@ type instance FORMULA Abstract = AFormula
 
 data CFormula
   = CFormula (These RawP Raw) -- we don't know if we need a pattern or term yet
-  | CCitizen RawP Raw  -- pat => term
+  | CCitizen RawP Raw  -- (pat => term)
   deriving (Show)
 
 data AFormula
@@ -33,7 +33,10 @@ data AFormula
 -- _=>_ should be a constructor of FORMULA?
 -- a raw formula is an expression (and we might make it into a pattern later)
 data JUDGEMENT (ph :: Phase)
-  = Judgement (JUDGEMENTNAME ph) [FORMULA ph]
+  = Judgement Range (JUDGEMENTNAME ph) [FORMULA ph]
+
+instance HasSetRange (JUDGEMENT ph) where
+  setRange r (Judgement _ n fms) = Judgement r n fms
 
 data PREMISE (ph :: Phase)
   = Premise (JUDGEMENT ph)
@@ -49,17 +52,23 @@ data RULE (ph :: Phase) = RULE
 
 type SEMANTICSDESC (ph :: Phase) = TERM ph
 
-data PLACE (ph :: Phase)
-  = CitizenPlace Variable
-  | SubjectPlace Variable (SYNTAXDESC ph) (Maybe (SEMANTICSDESC ph))
+type PLACE (ph :: Phase) = (Variable, PLACEKIND ph)
+
+data PLACEKIND (ph :: Phase)
+  = CitizenPlace
+  | SubjectPlace (SYNTAXDESC ph) (Maybe (SEMANTICSDESC ph))
 
 data JUDGEMENTFORM (ph :: Phase) = JudgementForm
-  { jpreconds :: [JUDGEMENT ph]
+  { jrange :: Range
+  , jpreconds :: [JUDGEMENT ph]
   , jname :: JUDGEMENTNAME ph
   , jplaces :: [PLACE ph]
-  , jpostconds :: [Either (JUDGEMENT ph) (ANOPERATOR ph)] 
+  , jpostconds :: [Either (JUDGEMENT ph) (ANOPERATOR ph)]
   }
- 
+
+instance HasSetRange (JUDGEMENTFORM ph) where
+  setRange r (JudgementForm _ a b c d) = JudgementForm r a b c d
+
 deriving instance
   ( Show (JUDGEMENTNAME ph)
   , Show (FORMULA ph)) =>
@@ -79,7 +88,7 @@ deriving instance
 deriving instance
   ( Show (SYNTAXDESC ph)
   , Show (SEMANTICSDESC ph)) =>
-  Show (PLACE ph)
+  Show (PLACEKIND ph)
 
 deriving instance
   ( Show (JUDGEMENT ph)
@@ -96,7 +105,7 @@ pformula = pcitizen
              <|> CCitizen <$> ppat <* punc "=>" <*> ptm
 
 pjudgement :: Parser (JUDGEMENT Concrete)
-pjudgement = Judgement <$> pvariable <*> many (id <$ pspc <*> pformula)
+pjudgement = withRange $ Judgement unknown <$> pvariable <*> many (id <$ pspc <*> pformula)
 
 ppremise :: Parser (PREMISE Concrete)
 ppremise = pscoped Binding pbinder ppremise
@@ -106,14 +115,14 @@ ppremise = pscoped Binding pbinder ppremise
 
 prule :: Parser (RULE Concrete)
 prule = RULE <$ pkeyword KwRule <* pspc <*> pcurlies (psep (punc ";") ppremise)
-      <* pspc <*> pjudgement <* pspc <*> pcurlies (psep (punc ";") pdefnop)  
+      <* pspc <*> pjudgement <* pspc <*> pcurlies (psep (punc ";") pdefnop)
 
 pplace :: Parser (PLACE Concrete)
-pplace = CitizenPlace <$> pvariable
-       <|> pparens (SubjectPlace <$> pvariable <* punc ":" <*> psyntaxdecl <*> optional (id <$ punc "=>" <*> pTM))
+pplace = (,CitizenPlace) <$> pvariable
+       <|> pparens ((,) <$> pvariable <* punc ":" <*> (SubjectPlace <$> psyntaxdecl <*> optional (id <$ punc "=>" <*> pTM)))
 
 pjudgementform :: Parser (JUDGEMENTFORM Concrete)
-pjudgementform = JudgementForm <$ pkeyword KwJudgementForm <* pspc <*> pcurlies (psep (punc ";") pjudgement)
+pjudgementform = withRange $ JudgementForm unknown <$ pkeyword KwJudgementForm <* pspc <*> pcurlies (psep (punc ";") pjudgement)
                 <* pspc <*> pvariable
                 <* pspc <*> psep pspc pplace
                 <* pspc <*> pcurlies (psep (punc ";") (Left <$> pjudgement <|> Right <$> panoperator ":"))

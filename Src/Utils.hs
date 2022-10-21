@@ -1,5 +1,8 @@
 module Utils where
 
+import Data.Set (Set)
+import qualified Data.Set as Set
+
 import Control.Monad.State
 
 isAllJustBy :: [a] -> (a -> Maybe b) -> Either a [b]
@@ -38,3 +41,17 @@ instance Semigroup m => Semigroup (State s m) where
 
 instance Monoid m => Monoid (State s m) where
   mempty = pure mempty
+
+class HalfZip f where
+  halfZip :: f x -> f y -> Maybe (f (x, y))
+
+instance HalfZip [] where
+  halfZip [] [] = Just []
+  halfZip (x:xs) (y:ys) = ((x,y):) <$> halfZip xs ys
+  halfZip _ _ = Nothing
+
+allUnique :: (Ord a, Foldable f) => f a -> Either a (Set a)
+allUnique = flip foldr (pure Set.empty) $ \ a acc -> do
+  s <- acc
+  if a `Set.member` s then Left a else Right (Set.insert a s)
+

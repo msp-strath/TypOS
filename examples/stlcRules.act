@@ -43,7 +43,7 @@ myCtxt |- 'Synth -> 'Type
 
 judgementform
   {}
-  type (T : 'Type => 'Type)
+  type (T : 'Type) -- no '=> B' means the citizen version is the same
   {T - 'Value : 'Universe}
 
 judgementform
@@ -53,7 +53,7 @@ judgementform
 
 judgementform
   {}
-  synth (t : 'Synth => T - 'Value) T 
+  synth (t : 'Synth => T - 'Value) T
   {type T}
 
 -- Open question in the above: will it always be the subject that's fed to an operator?
@@ -68,7 +68,7 @@ rule
 
 
 rule
-  {type S; type T} 
+  {type S; type T}
   ------------------------
   type ['Arr S T] => ['Arr S T]
 -- Global assumption: 'Universe comes with Pi builtin
@@ -83,7 +83,7 @@ rule
   -- hypothetical judgement with fresh x, assuming `synth x S`
   -- (note hypothetical judgements have patterns in input and subject
   --  positions, and expressions in output positions)
-  check ~['Arr S T] ['Lam \x. body] => (\x. body)  
+  check ~['Arr S T] ['Lam \x. body] => (\x. body)
   -- ~['Arr S T] means to not match, but to constrain instead
   {}
 -- Could equivalently be written without deliberate capture of x:

@@ -3,7 +3,7 @@
 ;; based on: http://ergoemacs.org/emacs/elisp_syntax_coloring.html
 
 ;; define several class of keywords
-(setq typos-keywords  '("syntax" "operator" "exec" "trace"
+(setq typos-keywords  '("syntax" "operator" "exec" "trace" "rule" "judgementform"
                         "break" "unify" "send" "recv" "move"
                         "case" "let"
                         "Atom" "AtomBar" "Wildcard" "EnumOrTag" "Enum" "Tag" "Cons" "Nil" "NilOrCons" "Fix" "Bind"

@@ -63,7 +63,7 @@ type HasRange t = (HasSetRange t, HasGetRange t)
 fromLocations :: Location -> Location -> Range
 fromLocations s e = Range (file s) (row s, col s) (row e, col e)
 
-addRange :: HasRange t => Location -> Location -> t -> t
+addRange :: HasSetRange t => Location -> Location -> t -> t
 addRange s e = setRange (fromLocations s e)
 
 unknown :: Range

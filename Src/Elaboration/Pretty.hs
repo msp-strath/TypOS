@@ -3,6 +3,7 @@
 module Elaboration.Pretty where
 
 import Data.Foldable
+import Data.These
 
 import ANSI hiding (withANSI)
 import Actor (ActorMeta(..), Channel(..), Stack(..))
@@ -14,6 +15,7 @@ import Pretty
 import Syntax
 import Unelaboration (unsafeEvalUnelab, unelab, initNaming)
 import Data.List.NonEmpty (NonEmpty((:|)))
+import Rules
 
 instance Pretty Range where
   pretty r | r == unknown = ""
@@ -49,6 +51,10 @@ instance Pretty ObjVar where
 
 instance Pretty (Mode, SyntaxDesc) where
   pretty (m, desc) = hsep [ pretty m, prettyPrec 1 desc ]
+
+instance Pretty CFormula where
+  pretty (CFormula a) = these pretty pretty (const pretty) a
+  pretty (CCitizen p t) = hsep [pretty p, "=>", pretty t]
 
 instance Pretty Warning where
   pretty w = (withANSI [ SetColour Background Yellow ] "Warning:" <+> pretty (getRange w)) $$ go w where
@@ -146,9 +152,15 @@ instance Pretty Complaint where
     IncompatibleChannelScopes r sc1 sc2 ->
       hsep [ "Channels scopes", collapse (pretty <$> sc1)
            , "and", collapse (pretty <$> sc2), "are incompatible"]
+    WrongDirection r m1 dir m2 -> hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]
+    JudgementWrongArity r name protocol fms ->
+        let applied = (if length protocol > length fms then "under" else "over") <> "-applied" in
+        hsep ["Judgement", pretty name, applied]
+    UnexpectedNonSubject r fm -> hsep ["Unexpected non-subject", pretty fm]
+    DuplicatedPlace r v -> hsep ["Duplicated place", pretty v]
     -- syntaxes
     AlreadyDeclaredSyntaxCat r x -> hsep ["The syntactic category", pretty x, "is already defined"]
-    WrongDirection r m1 dir m2 -> hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]
+
   -- syntaxdesc validation
     InconsistentSyntaxDesc r -> "Inconsistent syntactic descriptions"
     InvalidSyntaxDesc r d -> hsep ["Invalid syntax desc", pretty d]

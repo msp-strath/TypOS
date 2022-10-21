@@ -14,6 +14,7 @@ data Variable = Variable
   }
 instance Show Variable where show = show . getVariable
 instance Eq Variable where (==) = (==) `on` getVariable
+instance Ord Variable where compare = compare `on` getVariable
 
 instance HasSetRange Variable where
   setRange r (Variable _ v) = Variable r v

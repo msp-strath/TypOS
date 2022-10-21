@@ -11,6 +11,7 @@ import Data.Bifunctor (first)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
+import Data.These
 
 import Actor
 import Actor.Display ()
@@ -35,6 +36,8 @@ import Syntax
 import Term.Base
 import Unelaboration(Unelab(..), subunelab, withEnv, initDAEnv, Naming, declareChannel)
 import Location
+import Utils
+
 import Data.Char (isSpace)
 
 type family SYNTAXCAT (ph :: Phase) :: *
@@ -114,10 +117,10 @@ instance (Show t, Unelab t, Pretty (Unelabed t)) =>
 
 instance Pretty CStatement where
   pretty (Statement jd vars) = hsep $ pretty jd : (pretty <$> vars)
-  
+
 instance Pretty (PLACE Concrete) where
-  pretty (CitizenPlace v) = pretty v
-  pretty (SubjectPlace v syntaxdesc semanticsdesc) =
+  pretty (v, CitizenPlace) = pretty v
+  pretty (v, SubjectPlace syntaxdesc semanticsdesc) =
     parens (hsep $ [pretty v, ":", pretty syntaxdesc]
                  ++ foldMap (("=>":) . (:[]) . pretty) semanticsdesc)
 
@@ -201,7 +204,7 @@ pcommand
   <|> DefnOp <$> pdefnop
   <|> DeclJudgementForm <$> pjudgementform
   <|> DeclRule <$> prule
-  
+
 pfile :: Parser [CCommand]
 pfile = id <$ pspc <*> psep pspc pcommand <* pspc
 
@@ -327,6 +330,31 @@ scommand = \case
 --    trace (unwords [getOperator op, "-[", '\'':show p, show opargs, "~>", show rhs]) (pure ())
     let cl = Clause (toClause p (B0 <>< opargs) rhs)
     (DefnOp (op, cl),) <$> asks globals
+  DeclJudgementForm j -> do
+    (j , gs) <- sjudgementform j
+    pure (DeclJudgementForm j, gs)
+
+sjudgementform :: JUDGEMENTFORM Concrete -> Elab (JUDGEMENTFORM Abstract, Globals)
+sjudgementform JudgementForm{..} = do
+  inputs <- concat <$> traverse subjects jpreconds  -- TODO: should really be the closure of this info
+  outputs <- concat <$> traverse subjects [ x | Left x <- jpostconds ]
+  let names = map fst jplaces
+  whenLeft (allUnique names) $ \ a -> throwError $ DuplicatedPlace (getRange a) a
+  undefined -- TODO
+  -- judgementDecls <- fst <$> asks globals
+  where
+    subjects :: JUDGEMENT Concrete -> Elab [Variable]
+    subjects (Judgement r name fms) = do
+      IsJudgement{..} <- isJudgement name
+      xs <- case halfZip judgementProtocol fms of
+        Just xs -> pure xs
+        Nothing -> throwError $ JudgementWrongArity r judgementName judgementProtocol fms
+      let ys = [ fm | ((Subject, _), fm) <- xs ]
+      forM ys $ \case
+        -- TODO: should use something like `isSendableSubject`
+        CFormula (These _ (Var r x)) -> pure x
+        x -> throwError $ UnexpectedNonSubject r x
+
 
 -- | sopargs desc cops
 -- | desc: description of the object the cops are applied to
