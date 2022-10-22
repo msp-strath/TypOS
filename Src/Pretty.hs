@@ -43,7 +43,7 @@ asBlock :: Int -> Doc Annotations -> [Doc Annotations] -> Doc Annotations
 asBlock n header [] = header
 asBlock n header lines = header $$ vcat (map (indent n) lines)
 
--- | maybe 'parenthesize' a document 
+-- | maybe 'parenthesize' a document
 parenthesise :: Bool -> Doc Annotations -> Doc Annotations
 parenthesise True = parens
 parenthesise False = id
@@ -77,18 +77,16 @@ instance Pretty Void where
   pretty = absurd
 
 ------------------------------------------------------------------
--- | a 't's worth of |Doc| can be 'Collapse'd if it can be flattened to a 'Doc' 
+-- | a 't's worth of |Doc| can be 'Collapse'd if it can be flattened to a 'Doc'
 class Collapse t where
   collapse :: t (Doc Annotations) -> Doc Annotations
 
--- | print snoc lists as "< a , b , c ]", and the empty one as "[<]"
+-- | print snoc lists as "[< a , b , c ]", and the empty one as "[<]"
 instance Collapse Bwd where
-  collapse B0 = "[<]"
-  collapse ds =  encloseSep "<" "]" ", " (ds <>> [])
+  collapse ds =  encloseSep "[<" "]" ", " (ds <>> [])
 
 -- | print lists as usual
 instance Collapse [] where
-  collapse [] = "[]"
   collapse ds = encloseSep lbracket rbracket ", " ds
 
 -- | print 'Cursor' with a Bold Red ":<+>:" in the middle
@@ -105,7 +103,6 @@ newtype BracesList t = BracesList { unBracesList :: [t] }
 
 -- | print 'BracesList' as lists with braces...
 instance Collapse BracesList where
-  collapse (BracesList []) = "{}"
   collapse (BracesList ds) = encloseSep "{" "}" "; " ds
 
 -- | Can 'show' a 'Doc' via 'render'
