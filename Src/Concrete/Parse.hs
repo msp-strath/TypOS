@@ -91,16 +91,19 @@ pth :: Parser (Bwd Variable, ThDirective)
 pth = (,) <$> ppes pspc pvariable
           <*> (ThDrop <$ pspc <* pch ('*' ==) <|> pure ThKeep)
 
-pmode :: Parser Mode
+pmode :: Parser (Mode ()) 
 pmode = Input <$ pch (== '?')
-    <|> Subject <$ pch (== '$')
+    <|> Subject () <$ pch (== '$')
     <|> Output <$ pch (== '!')
 
-pprotocol :: Parser (Protocol Raw)
-pprotocol = psep pspc
-  ((,) <$> pmode <* pspc
+pprotocol :: Parser CProtocol
+pprotocol = Protocol <$> psep pspc
+  (mkp <$> pmode <* pspc
        <*> pmustwork "Expected a syntax declaration" psyntaxdecl
        <* pspc <* plit ".")
+  where
+    mkp :: Mode () -> Raw -> PROTOCOLENTRY Concrete
+    mkp m s = (s <$ m, s)
 
 psyntaxdecl :: Parser Raw
 psyntaxdecl = pTM

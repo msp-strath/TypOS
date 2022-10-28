@@ -299,10 +299,10 @@ instance Unelab AActor where
     Connect r cnnct -> Connect r <$> subunelab cnnct
     Note r a -> Note r <$> unelab a
 
-instance Unelab Mode where
-  type UnelabEnv Mode = ()
-  type Unelabed Mode = Mode
-  unelab = pure
+instance Unelab t => Unelab (Mode t) where
+  type UnelabEnv (Mode t) = UnelabEnv t
+  type Unelabed (Mode t) = Mode (Unelabed t)
+  unelab = traverse unelab
 
 instance Unelab () where
   type UnelabEnv () = ()
@@ -314,7 +314,9 @@ instance Unelab t => Unelab (ContextStack t) where
   type Unelabed (ContextStack t) = ContextStack (Unelabed t)
   unelab = traverse unelab
 
-instance Unelab t => Unelab (Protocol t) where
-  type UnelabEnv (Protocol t) = UnelabEnv t
-  type Unelabed (Protocol t) = Protocol (Unelabed t)
-  unelab = traverse (traverse unelab)
+instance Unelab AProtocol where
+  type UnelabEnv AProtocol = Naming
+  type Unelabed AProtocol = CProtocol
+  unelab (Protocol ps) = Protocol <$> traverse f ps
+    where
+      f (m, s) = (,) <$> unelab m <*> unelab s

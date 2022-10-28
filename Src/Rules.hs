@@ -4,6 +4,7 @@ module Rules where
 import Control.Applicative
 
 import Data.These
+import Data.Maybe
 
 import Actor
 import Scope
@@ -50,13 +51,17 @@ data RULE (ph :: Phase) = RULE
   , operatorDefs :: [DEFNOP ph]
   }
 
-type SEMANTICSDESC (ph :: Phase) = TERM ph
-
 type PLACE (ph :: Phase) = (Variable, PLACEKIND ph)
+type CPlace = PLACE Concrete
+
 
 data PLACEKIND (ph :: Phase)
   = CitizenPlace
-  | SubjectPlace (SYNTAXDESC ph) (Maybe (SEMANTICSDESC ph))
+  | SubjectPlace (SYNTAXDESC ph) (SEMANTICSDESC ph)
+
+mkSubjectPlace :: SYNTAXDESC Concrete -> Maybe (SEMANTICSDESC Concrete)
+               -> PLACEKIND Concrete
+mkSubjectPlace syn = SubjectPlace syn . fromMaybe syn  
 
 data JUDGEMENTFORM (ph :: Phase) = JudgementForm
   { jrange :: Range
@@ -119,7 +124,7 @@ prule = RULE <$ pkeyword KwRule <* pspc <*> pcurlies (psep (punc ";") ppremise)
 
 pplace :: Parser (PLACE Concrete)
 pplace = (,CitizenPlace) <$> pvariable
-       <|> pparens ((,) <$> pvariable <* punc ":" <*> (SubjectPlace <$> psyntaxdecl <*> optional (id <$ punc "=>" <*> pTM)))
+       <|> pparens ((,) <$> pvariable <* punc ":" <*> (mkSubjectPlace <$> psyntaxdecl <*> optional (id <$ punc "=>" <*> pTM)))
 
 pjudgementform :: Parser (JUDGEMENTFORM Concrete)
 pjudgementform = withRange $ JudgementForm unknown <$ pkeyword KwJudgementForm <* pspc <*> pcurlies (psep (punc ";") pjudgement)

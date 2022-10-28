@@ -339,21 +339,39 @@ sjudgementform JudgementForm{..} = do
   inputs <- concat <$> traverse subjects jpreconds  -- TODO: should really be the closure of this info
   outputs <- concat <$> traverse subjects [ x | Left x <- jpostconds ]
   let names = map fst jplaces
+  let citizenNames = [x | (x, CitizenPlace) <- jplaces]
   whenLeft (allUnique names) $ \ a -> throwError $ DuplicatedPlace (getRange a) a
+  -- TODO : report with a proper error on the mismatch between the subject and citizen positions
+  unless (sort citizenNames == sort (map fst $ inputs ++ outputs)) $ throwError $ undefined
+  protocol <- traverse (citizenJudgement inputs ouputs) jplaces
   undefined -- TODO
-  -- judgementDecls <- fst <$> asks globals
+  
   where
-    subjects :: JUDGEMENT Concrete -> Elab [Variable]
+    subjects :: JUDGEMENT Concrete -> Elab [(Variable, ASemanticsDesc)]
     subjects (Judgement r name fms) = do
       IsJudgement{..} <- isJudgement name
       xs <- case halfZip judgementProtocol fms of
         Just xs -> pure xs
         Nothing -> throwError $ JudgementWrongArity r judgementName judgementProtocol fms
-      let ys = [ fm | ((Subject, _), fm) <- xs ]
+      let ys = [ (fm, sem) | ((Subject _, sem), fm) <- xs ]
       forM ys $ \case
         -- TODO: should use something like `isSendableSubject`
-        CFormula (These _ (Var r x)) -> pure x
-        x -> throwError $ UnexpectedNonSubject r x
+        (CFormula (These _ (Var r x)), sem) -> pure (x, sem)
+        (x, _) -> throwError $ UnexpectedNonSubject r x
+
+    citizenJudgement :: [(Variable, ASemanticsDesc)] -> [(Variable, ASemanticsDesc)]
+                     -> CPlace -> Elab (PROTOCOLENTRY Abstract)
+    citizenJudgement inputs outputs (name, CitizenPlace) = do
+      case (lookup name inputs, lookup name outputs) of
+        (Just isem, Nothing) -> pure (Input, isem)
+        (Nothing, Just osem) -> pure (Output, osem)
+        _  -> error "Impossible in citizenJudgement"
+          
+    citizenJudgement (name, SubjectPlace syn sem) = do
+      syndecls <- gets (Map.keys . syntaxCats)
+      syn <- ssyntaxdesc syndecls syn
+      sem <- ssemanticsdesc sem
+      pure (Subject syn, sem)
 
 
 -- | sopargs desc cops

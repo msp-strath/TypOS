@@ -7,7 +7,7 @@ import Data.These
 
 import ANSI hiding (withANSI)
 import Actor (ActorMeta(..), Channel(..), Stack(..))
-import Concrete.Base (Mode, Binder (..))
+import Concrete.Base (Mode, Binder (..), PROTOCOL(Protocol))
 import Concrete.Pretty()
 import Elaboration.Monad
 import Location
@@ -49,7 +49,7 @@ instance Pretty SyntaxDesc where
 instance Pretty ObjVar where
   pretty (x, info) = hsep [ pretty x, colon, pretty info ]
 
-instance Pretty (Mode, SyntaxDesc) where
+instance Pretty (Mode a, SyntaxDesc) where
   pretty (m, desc) = hsep [ pretty m, prettyPrec 1 desc ]
 
 instance Pretty CFormula where
@@ -153,7 +153,7 @@ instance Pretty Complaint where
       hsep [ "Channels scopes", collapse (pretty <$> sc1)
            , "and", collapse (pretty <$> sc2), "are incompatible"]
     WrongDirection r m1 dir m2 -> hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]
-    JudgementWrongArity r name protocol fms ->
+    JudgementWrongArity r name (Protocol protocol) fms ->
         let applied = (if length protocol > length fms then "under" else "over") <> "-applied" in
         hsep ["Judgement", pretty name, applied]
     UnexpectedNonSubject r fm -> hsep ["Unexpected non-subject", pretty fm]

@@ -378,8 +378,8 @@ data Complaint
   | InconsistentCommunication Range
   | DoomedBranchCommunicated Range CActor
   | ProtocolsNotDual Range AProtocol AProtocol
-  | IncompatibleModes Range (Mode, SyntaxDesc) (Mode, SyntaxDesc)
-  | WrongDirection Range (Mode, SyntaxDesc) Ordering (Mode, SyntaxDesc)
+  | IncompatibleModes Range AProtocolEntry AProtocolEntry
+  | WrongDirection Range AProtocolEntry Ordering AProtocolEntry
   | JudgementWrongArity Range JudgementName AProtocol [CFormula]
   | UnexpectedNonSubject Range CFormula
   | DuplicatedPlace Range Variable

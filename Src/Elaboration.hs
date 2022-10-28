@@ -11,6 +11,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
+import Data.Bitraversable
 
 import Actor
 import Bwd
@@ -70,19 +71,19 @@ escrutinee = \case
   Compare _ _ _ -> Syntax.contract (VEnumOrTag ["LT", "EQ", "GT"] [])
   Term _ desc -> desc
 
-dual :: Protocol t -> Protocol t
-dual = map $ \case
+dual :: PROTOCOL ph -> PROTOCOL ph
+dual (Protocol ps) = Protocol $ flip map ps $ \case
   (Input, c) -> (Output, c)
-  (Subject, c) -> (Subject, c)
+  (Subject x, c) -> (Subject x, c)
   (Output, c) -> (Input, c)
 
 data Comm = SEND | RECV
   deriving (Eq, Show)
 
-whatComm :: Mode -> Direction -> Comm
+whatComm :: Mode a -> Direction -> Comm
 whatComm m d = case m of
   Input -> RECV
-  Subject -> case d of
+  Subject _ -> case d of
     Rootwards -> RECV
     Leafwards -> SEND
   Output -> SEND
@@ -126,6 +127,9 @@ ssyntaxdesc syndecls syn = do
   case isMetaFree syn of
     Nothing -> throwError undefined -- this should be impossible, since parsed in empty context
     Just syn0 -> pure syn0
+
+ssemanticsdesc :: CSemanticsDesc -> Elab ASemanticsDesc
+ssemanticsdesc = stm DontLog $ catToDesc "Semantics"
 
 ssbst :: Usage -> Bwd SbstC -> Elab (ACTSbst, ObjVars)
 ssbst usage B0 = do
@@ -456,7 +460,7 @@ close :: Bool -> Range -> Channel -> Elab ()
 close b r ch = do
   -- make sure the protocol was run all the way
   gets (channelLookup ch) >>= \case
-    Just (_,_,p) -> case p of
+    Just (_,_,p) -> case getProtocol p of
       [] -> pure ()
       _ -> when b $
             -- if we cannot win, we don't care
@@ -487,7 +491,7 @@ guessDesc b (Cons _ p q) = do
 guessDesc True (At _ "") = pure (Known $ Syntax.contract VNil)
 guessDesc _ _ = pure Unknown
 
-compatibleChannels :: Range -> (Direction, AProtocol) -> Ordering -> (Direction, AProtocol) -> Elab Int
+compatibleChannels :: Range -> (Direction, [AProtocolEntry]) -> Ordering -> (Direction, [AProtocolEntry]) -> Elab Int
 compatibleChannels r (dp, []) dir (dq, []) = pure 0
 compatibleChannels r (dp, p@(m, s) : ps) dir (dq, q@(n, t) : qs) = do
   unless (s == t) $ throwError (IncompatibleSyntaxDescs r s t)
@@ -498,7 +502,7 @@ compatibleChannels r (dp, p@(m, s) : ps) dir (dq, q@(n, t) : qs) = do
     (SEND, GT) -> throwError (WrongDirection r p dir q)
     _ -> pure ()
   (+1) <$> compatibleChannels r (dp, ps) dir (dq , qs)
-compatibleChannels r (_,ps) _ (_,qs) = throwError (ProtocolsNotDual r ps qs)
+compatibleChannels r (_,ps) _ (_,qs) = throwError (ProtocolsNotDual r (Protocol ps) (Protocol qs))
 
 sirrefutable :: String -> IsSubject -> RawP -> Elab (Binder String, Maybe (CScrutinee, RawP))
 sirrefutable nm isSub = \case
@@ -565,7 +569,7 @@ sact = \case
     (usage, gd) <- do
       case m of
         Output -> pure (SentInOutput r, Nothing)
-        Subject -> ((SentAsSubject r ,) <$>) $ asks elabMode >>= \case 
+        Subject _ -> ((SentAsSubject r ,) <$>) $ asks elabMode >>= \case 
           Execution  -> pure Nothing
           Definition -> checkSendableSubject tm
 
@@ -766,9 +770,9 @@ coverageCheckClause rp p = do
 
 
 sprotocol :: CProtocol -> Elab AProtocol
-sprotocol ps = during (ProtocolElaboration ps) $ do
+sprotocol (Protocol ps) = during (ProtocolElaboration ps) $ do
   syndecls <- gets (Map.keys . syntaxCats)
-  traverse (traverse (ssyntaxdesc syndecls)) ps
+  Protocol <$> traverse (bitraverse (traverse $ ssyntaxdesc syndecls) ssemanticsdesc) ps
 
 scontextstack :: CContextStack -> Elab AContextStack
 scontextstack (ContextStack key val) = do

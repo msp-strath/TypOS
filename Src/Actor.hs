@@ -53,7 +53,7 @@ type instance LOOKEDUP Abstract = ACTm
 type instance GUARD Abstract = Maybe ActorVar
 
 data AConnect = AConnect Channel Th Channel Int deriving (Show)
-type AProtocol = Protocol SyntaxDesc
+type AProtocol = PROTOCOL Abstract
 type AContextStack = ContextStack SyntaxDesc
 type AActor = ACTOR Abstract
 type ACTm = CdB (Tm ActorMeta)

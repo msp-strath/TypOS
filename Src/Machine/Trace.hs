@@ -55,7 +55,7 @@ type instance ITERM Abstract = Term
 type instance ITERM Concrete = Raw
 
 data ARGUMENT (ph :: Phase) f ann = Argument
-  { argMode :: Mode
+  { argMode :: Mode () -- 
   , argDesc :: SyntaxDesc
   , argTerm :: f (ITERM ph) ann
   }
@@ -284,10 +284,10 @@ instance Bitraversable f => Unelab (ATrace f ann) where
 instance Pretty (CArgument Simple ()) where
   pretty (Argument m _ t) = withANSI [ SetColour Background bg, SetColour Foreground fg ] (pretty t) where
     (bg, fg) = pick m
-    pick :: Mode -> (Colour, Colour) -- background, foreground
-    pick Input   = (Blue, White)
-    pick Subject = (White, Blue)
-    pick Output  = (Red, White)
+    pick :: Mode a -> (Colour, Colour) -- background, foreground
+    pick Input       = (Blue, White)
+    pick (Subject _) = (White, Blue)
+    pick Output      = (Red, White)
 
 instance Pretty (CStep Simple ()) where
   pretty = \case
@@ -406,14 +406,14 @@ extract mkF a = go where
       Node a (AStep extractionMode
              $ CallingStep  (mkF () (a, isDone (store p)))
                  judgeName
-                 (zipWith toArgument judgeProtocol (traffic <>> [])))
+                 (zipWith toArgument (getProtocol judgeProtocol) (traffic <>> [])))
                  (go fs)
       : go (stack p) ++ findFailures p
     Spawner Interface{..} -> let p = fst spawnee in
       Node a (AStep extractionMode
              $ CallingStep (mkF () (a, isDone (store p)))
                   judgeName
-                  (zipWith toArgument judgeProtocol (traffic <>> [])))
+                  (zipWith toArgument (getProtocol judgeProtocol) (traffic <>> [])))
                   (go (stack p)
                   ++ findFailures p)
       : go fs
@@ -422,9 +422,11 @@ extract mkF a = go where
     UnificationProblem date s t -> Error a (StuckUnifying s t) : go fs
     Noted -> Node a (AStep AlwaysExtract NotedStep) [] : go fs
     _ -> go fs
-
-  toArgument :: (Mode, SyntaxDesc) -> Term -> AArgument f ann
-  toArgument (mode, desc) term = Argument mode desc (mkF term a)
+    
+  toArgument :: AProtocolEntry -> Term -> AArgument f ann
+  toArgument (Subject desc, _) term = Argument (Subject ()) desc (mkF term a)
+  toArgument (Input, desc) term = Argument Input desc (mkF term a)
+  toArgument (Output, desc) term = Argument Output desc (mkF term a)
 
   findFailures :: Process log Status [] -> [ATrace f ann]
   findFailures p@Process{..}
@@ -502,7 +504,7 @@ syntaxPreamble table = concatMap (pure . render)
 
 
 judgementPreamble :: Frame -> [Doc ()]
-judgementPreamble (Rules jd jp _)
+judgementPreamble (Rules jd (Protocol jp) _)
   = [text $ mkNewCommand ("calling" ++ jd) (length jp)
           $ "\\textsc{" ++ jd ++ "}" ++ unwords (nArgs (length jp))
     ]

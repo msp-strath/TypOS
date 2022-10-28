@@ -167,7 +167,11 @@ syntaxDesc syns = "EnumOrTag" #%+ [
 
 validateDesc :: [SyntaxCat] -> SyntaxDesc -> Bool
 validateDesc syns =
-    validate (Map.singleton "Syntax" (syntaxDesc syns)) B0
+    validate (Map.fromList known) B0
      (rec "Syntax")
+  where
+     known = [ ("Syntax", syntaxDesc syns)
+             , ("Semantics", wildcard)] -- TODO : change
 
+     
 validateIt = validateDesc ["Syntax"] (syntaxDesc ["Syntax"])

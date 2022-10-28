@@ -203,13 +203,13 @@ instance Pretty (RawP, CActor) where
      let pp = pretty p; pa = sep (prettyact a) in
      hang 2 (hsep [pp, "->"]) pa
 
-instance Pretty Mode where
+instance Pretty (Mode a) where
   pretty Input   = "?"
-  pretty Subject = "$"
+  pretty (Subject _) = "$"
   pretty Output  = "!"
 
-instance Pretty t => Pretty (Protocol t) where
-  pretty = foldMap $ \ (m, d) -> fold [pretty m, pretty d, ". "]
+instance Pretty CProtocol where
+  pretty (Protocol ps) = foldMap (\ (m, d) -> fold [pretty m, pretty d, ". "]) ps
 
 instance Pretty t => Pretty (ContextStack t) where
   pretty stk = hsep [pretty (keyDesc stk), "->", pretty (valueDesc stk)]

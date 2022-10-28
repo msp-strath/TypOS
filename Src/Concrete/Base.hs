@@ -135,10 +135,22 @@ instance HasGetRange RawP where
 data ThDirective = ThKeep | ThDrop
   deriving (Show)
 
-data Mode = Input | Subject | Output
-  deriving (Show, Eq)
+data Mode a = Input | Subject a | Output
+  deriving (Show, Eq, Functor, Foldable, Traversable)
 
-type Protocol t = [(Mode, t)]
+type SEMANTICSDESC (ph :: Phase) = TERM ph
+type CSemanticsDesc = SEMANTICSDESC Concrete
+type ASemanticsDesc = SEMANTICSDESC Abstract
+
+type PROTOCOLENTRY (ph :: Phase) = (Mode (SYNTAXDESC ph), SEMANTICSDESC ph)
+type CProtocolEntry = PROTOCOLENTRY Concrete
+type AProtocolEntry = PROTOCOLENTRY Abstract
+
+newtype PROTOCOL (ph :: Phase) = Protocol {getProtocol :: [PROTOCOLENTRY ph]}
+
+deriving instance
+  ( Show (SYNTAXDESC ph)
+  , Show (SEMANTICSDESC ph)) => Show (PROTOCOL ph)
 
 data ContextStack t = ContextStack
   { keyDesc :: t
@@ -320,7 +332,7 @@ isWin :: ACTOR ph -> Bool
 isWin (Win _) = True
 isWin _ = False
 
-type CProtocol = Protocol Raw
+type CProtocol = PROTOCOL Concrete
 type CContextStack = ContextStack Raw
 type CActor = ACTOR Concrete
 type CScrutinee = SCRUTINEE Concrete
