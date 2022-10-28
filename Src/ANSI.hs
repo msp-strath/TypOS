@@ -11,22 +11,27 @@ module ANSI where
 
 import Data.List (intercalate)
 
+-- | The colours we know about
 data Colour
   = Black | Red | Green | Yellow | Blue
   | Magenta | Cyan | White
   deriving (Eq, Show, Enum)
 
+-- | Two layers, 'Foreground' and 'Background'
 data Layer
   = Foreground | Background
 
+-- | Three 'Weight's, 'Bold', 'Faint' or 'Normal'
 data Weight
   = Bold | Faint | Normal
   deriving (Eq, Show)
 
+-- | 'Underlining', Single or Double
 data Underlining
   = Single | Double
   deriving (Eq, Show)
 
+-- | 'Annotation', in this case colour, weight and/or underlining
 data Annotation
   = SetColour Layer Colour
   | SetWeight Weight
@@ -34,7 +39,7 @@ data Annotation
 
 -- | The "magic" of how to get a terminal to output annotated text is
 -- only known inside this function.  Similarly for the details of the
--- meaning of 'weight' and 'layer'
+-- meaning of 'Weight' and 'Layer'
 --
 -- TODO: Unfortuntely these don't nest well because at the end of an
 -- annotation span we use a code that resets the whole stack of annotations.

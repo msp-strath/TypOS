@@ -8,7 +8,7 @@ out >      , ?[("check",[1,4])("synth",[1])("U",[2])] := 'Nat
 out >      , ?[("check",[1,4])("synth",[1])("V",[3])] := 'Nat]
 out > Env: []
 out > Stack:
-out >  <type |-@p {}
+out >  [<type |-@p {}
 out >  , check |-@p {}
 out >  , synth |-@p {}
 out >  , ([] Done ) | <>
