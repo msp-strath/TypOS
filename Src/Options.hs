@@ -15,19 +15,21 @@ import Machine.Steps (MachineStep(..))
 import Pretty (Pretty(pretty),Annotations,render,vcat,hsep,toANSIs)
 import qualified Text.PrettyPrint.Compact as Compact
 
-{- -}
+-- | The Options that can be specified
 data Options = Options
-  { filename :: String
-  , wAll :: Bool
-  , quiet :: Bool
-  , colours :: Bool
-  , tracingOption :: Maybe [MachineStep]
-  , latex :: Maybe FilePath
-  , latexAnimated :: Maybe FilePath
-  , termWidth :: Int
-  , noContext :: Bool
+  { filename :: String                   -- Actor file
+  , wAll :: Bool                         -- turn on (All) warnings
+  , quiet :: Bool                        -- be quiet when working
+  , colours :: Bool                      -- colour output?
+  , tracingOption :: Maybe [MachineStep] -- which machine steps to trace?
+  , latex :: Maybe FilePath              -- where to put the latex output
+  , latexAnimated :: Maybe FilePath      -- where to put the animated latex output
+  , termWidth :: Int                     -- width of terminal to assume
+  , noContext :: Bool                    -- Do not print file context of errors
   } deriving (Show)
 
+-- | A partially-filled 'Options' that is not actually safe to use 'raw'.
+-- In theory, shouldn't be exported from here, but it is used...
 unsafeOptions :: Options
 unsafeOptions = Options
  { filename = ""
