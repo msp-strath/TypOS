@@ -125,7 +125,7 @@ ssyntaxdesc syndecls syn = do
   let desc = catToDesc "Syntax"
   syn <- withSyntax (syntaxDesc syndecls) $ stm DontLog desc syn
   case isMetaFree syn of
-    Nothing -> throwError undefined -- this should be impossible, since parsed in empty context
+    Nothing -> error "Impossible in ssyntaxdesc" -- this should be impossible, since parsed in empty context
     Just syn0 -> pure syn0
 
 ssemanticsdesc :: CSemanticsDesc -> Elab ASemanticsDesc
