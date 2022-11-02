@@ -1,19 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
-{- | Description: 
+{- | Description: The various options that can be given on the command line
 
 -}
 module Options where
 
 -- from the optparse-applicative package
-import Options.Applicative 
+import Options.Applicative -- needs lots from here
+
 import System.Console.Terminal.Size (size, width)
 import System.Environment (getEnv)
 
 import qualified ANSI
-import Machine.Steps
+import Machine.Steps (MachineStep(..))
 import Pretty (Pretty(pretty),Annotations,render,vcat,hsep,toANSIs)
 import qualified Text.PrettyPrint.Compact as Compact
 
+{- -}
 data Options = Options
   { filename :: String
   , wAll :: Bool
