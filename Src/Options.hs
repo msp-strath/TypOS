@@ -1,34 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
+{- | Description: 
 
+-}
 module Options where
 
-import Options.Applicative
+-- from the optparse-applicative package
+import Options.Applicative 
 import System.Console.Terminal.Size (size, width)
 import System.Environment (getEnv)
 
 import qualified ANSI
-import Pretty
+import Machine.Steps
+import Pretty (Pretty(pretty),Annotations,render,vcat,hsep,toANSIs)
 import qualified Text.PrettyPrint.Compact as Compact
-
-data MachineStep
-  = MachineRecv
-  | MachineSend
-  | MachineExec
-  | MachineMove
-  | MachineUnify
-  | MachineBreak
-  | MachineClause
-  deriving (Eq, Show, Enum, Bounded)
-
-instance Pretty MachineStep where
-  pretty = \case
-    MachineRecv -> "recv"
-    MachineSend -> "send"
-    MachineExec -> "exec"
-    MachineMove -> "move"
-    MachineUnify -> "unify"
-    MachineBreak -> "break"
-    MachineClause -> "clause"
 
 data Options = Options
   { filename :: String

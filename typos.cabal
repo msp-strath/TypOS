@@ -53,6 +53,7 @@ library
                        Machine.Display,
                        Machine.Exec,
                        Machine.Matching,
+                       Machine.Steps,
                        Machine.Trace,
                        Main,
                        Options,

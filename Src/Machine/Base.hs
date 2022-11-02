@@ -24,6 +24,7 @@ import Concrete.Base (Root, Guard, ExtractMode, ACTOR (..), Operator(..))
 import Syntax (SyntaxDesc)
 import Data.Bifunctor (Bifunctor(first))
 
+import Machine.Steps
 import Machine.Matching
 import Debug.Trace (trace)
 import Display (unsafeDocDisplayClosed)

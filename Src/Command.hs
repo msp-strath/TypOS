@@ -26,6 +26,7 @@ import Elaboration.Pretty()
 import Machine.Base
 import Machine.Display (Store)
 import Machine.Exec
+import Machine.Steps
 import Machine.Trace (Shots)
 import Options
 import Parse
