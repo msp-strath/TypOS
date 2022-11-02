@@ -34,7 +34,7 @@ data ElabState = ElabState
   , warnings      :: Bwd (WithStackTrace Warning)
   }
 
-type ChannelState = (Direction, [Turn], AProtocol)
+type ChannelState = (Direction, [Turn], [AProtocolEntry])
 type ChannelStates = Map Channel ChannelState
 
 type ActvarStates = Map ActorVar (Bwd Usage)
@@ -155,7 +155,7 @@ compatibleInfos r desc desc' = do
 ------------------------------------------------------------------------------
 -- Context
 
-type ObjVar = (String, Info SyntaxDesc)
+type ObjVar = (String, Info ASemanticsDesc)
 type ObjVars = Bwd ObjVar
 
 data Provenance = Parent | Pattern
@@ -183,7 +183,7 @@ isSubjectFree = \case
   SubjectVar{} -> False
 
 data Kind
-  = ActVar IsSubject (Info SyntaxDesc) ObjVars
+  = ActVar IsSubject (Info ASemanticsDesc) ObjVars
   | AChannel ObjVars
   | AJudgement ExtractMode AProtocol
   | AStack AContextStack

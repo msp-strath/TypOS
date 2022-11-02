@@ -138,6 +138,10 @@ data ThDirective = ThKeep | ThDrop
 data Mode a = Input | Subject a | Output
   deriving (Show, Eq, Functor, Foldable, Traversable)
 
+isSubjectMode :: Mode a -> Bool
+isSubjectMode (Subject _) = True
+isSubjectMode _           = False
+
 type SEMANTICSDESC (ph :: Phase) = TERM ph
 type CSemanticsDesc = SEMANTICSDESC Concrete
 type ASemanticsDesc = SEMANTICSDESC Abstract

@@ -207,9 +207,12 @@ instance Pretty (Mode a) where
   pretty Input   = "?"
   pretty (Subject _) = "$"
   pretty Output  = "!"
+    
+instance (Pretty t) => Pretty (Mode a, t) where
+  pretty (m, desc) = hsep [ pretty m, prettyPrec 1 desc ]
 
 instance Pretty CProtocol where
-  pretty (Protocol ps) = foldMap (\ (m, d) -> fold [pretty m, pretty d, ". "]) ps
+  pretty (Protocol ps) = foldMap (\ x -> pretty x <> ". ") ps
 
 instance Pretty t => Pretty (ContextStack t) where
   pretty stk = hsep [pretty (keyDesc stk), "->", pretty (valueDesc stk)]

@@ -98,7 +98,7 @@ spassport :: Usage -> IsSubject -> Passport
 spassport u IsSubject{} | isBeingScrutinised u = ASubject
 spassport _ _ = ACitizen
 
-svar :: Usage -> Variable -> Elab (IsSubject, Info SyntaxDesc, ACTm)
+svar :: Usage -> Variable -> Elab (IsSubject, Info ASemanticsDesc, ACTm)
 svar usage x = do
   ovs <- asks objVars
   res <- resolve x
@@ -202,7 +202,7 @@ sscrutinee (Term r t) = during (ScrutineeTermElaboration t) $ do
   pure (Term r desc, Term r t)
 
 
-stm :: Usage -> SyntaxDesc -> Raw -> Elab ACTm
+stm :: Usage -> ASemanticsDesc -> Raw -> Elab ACTm
 stm usage desc (Var r v) = during (TermVariableElaboration v) $ do
   table <- gets syntaxCats
   (_, desc', t) <- svar usage v
@@ -441,8 +441,9 @@ channelScope (Channel ch) = do
   case fromJust (focusBy (\ (y, k) -> k <$ guard (ch == y)) ds) of
     (_, AChannel sc, _) -> pure sc
 
-steppingChannel :: Range -> Channel -> (Direction -> AProtocol -> Elab (a, AProtocol)) ->
-                   Elab a
+steppingChannel :: Range -> Channel
+                -> (Direction -> [AProtocolEntry] -> Elab (a, [AProtocolEntry]))
+                -> Elab a
 steppingChannel r ch step = do
   nm <- getName
   (dir, pnm, p) <- gets (fromJust . channelLookup ch)
@@ -452,7 +453,7 @@ steppingChannel r ch step = do
   pure cat
 
 open :: Direction -> Channel -> AProtocol -> Elab ()
-open dir ch p = do
+open dir ch (Protocol p) = do
   nm <- getName
   modify (channelInsert ch (dir, nm, p))
 
@@ -460,11 +461,11 @@ close :: Bool -> Range -> Channel -> Elab ()
 close b r ch = do
   -- make sure the protocol was run all the way
   gets (channelLookup ch) >>= \case
-    Just (_,_,p) -> case getProtocol p of
+    Just (_, _, ps) -> case ps of
       [] -> pure ()
       _ -> when b $
             -- if we cannot win, we don't care
-            throwError (UnfinishedProtocol r ch p)
+            throwError (UnfinishedProtocol r ch (Protocol ps))
   modify (channelDelete ch)
 
 withChannel :: Range -> Direction -> Channel -> AProtocol -> Elab a -> Elab a
@@ -592,7 +593,7 @@ sact = \case
       _ -> throwError (InvalidRecv r ch p)
 
     let isSub = case m of
-           Subject -> IsSubject Parent
+           Subject _ -> IsSubject Parent
            _ -> IsNotSubject
 
     -- elaborate the (potentially pattern-matching) receive
@@ -609,7 +610,7 @@ sact = \case
 
     -- Check we properly scrutinised a subject input
     unlessM (checkScrutinised av) $
-      when (m == Subject) $ do
+      when (isSubjectMode m) $ do
         when canwin $ raiseWarning (RecvSubjectNotScrutinised r ch av)
 
     pure $ Recv r ch (ActorMeta (spassport (Scrutinised unknown) isSub) <$> av, a)
@@ -770,9 +771,9 @@ coverageCheckClause rp p = do
 
 
 sprotocol :: CProtocol -> Elab AProtocol
-sprotocol (Protocol ps) = during (ProtocolElaboration ps) $ do
+sprotocol p = during (ProtocolElaboration p) $ do
   syndecls <- gets (Map.keys . syntaxCats)
-  Protocol <$> traverse (bitraverse (traverse $ ssyntaxdesc syndecls) ssemanticsdesc) ps
+  Protocol <$> traverse (bitraverse (traverse $ ssyntaxdesc syndecls) ssemanticsdesc) (getProtocol p)
 
 scontextstack :: CContextStack -> Elab AContextStack
 scontextstack (ContextStack key val) = do

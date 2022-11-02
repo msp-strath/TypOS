@@ -74,6 +74,9 @@ expand' w table = go True where
 expand :: SyntaxTable -> SyntaxDesc -> Maybe VSyntaxDesc
 expand = expand' No
 
+embed :: SyntaxDesc -> ASemanticsDesc
+embed = fmap absurd
+
 contract' :: WithSyntaxCat a -> VSyntaxDesc' a -> SyntaxDesc
 contract' w = \case
   VAtom -> atom "Atom" 0

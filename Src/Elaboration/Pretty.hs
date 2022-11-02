@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, UndecidableInstances #-}
 {-# OPTIONS_GHC -Wincomplete-patterns #-}
 module Elaboration.Pretty where
 
@@ -6,16 +6,16 @@ import Data.Foldable
 import Data.These
 
 import ANSI hiding (withANSI)
-import Actor (ActorMeta(..), Channel(..), Stack(..))
-import Concrete.Base (Mode, Binder (..), PROTOCOL(Protocol))
+import Actor (ActorMeta(..), Channel(..), Stack(..), AProtocol)
+import Concrete.Base (Binder (..), PROTOCOL(Protocol))
 import Concrete.Pretty()
 import Elaboration.Monad
 import Location
 import Pretty
-import Syntax
-import Unelaboration (unsafeEvalUnelab, unelab, initNaming)
+import Unelaboration (unsafeEvalUnelab, unelab, initNaming, Unelab, Unelabed, UnelabEnv, Naming)
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Rules
+import Thin
 
 instance Pretty Range where
   pretty r | r == unknown = ""
@@ -43,14 +43,17 @@ instance Pretty Kind where
     AJudgement{} -> "a judgement"
     AStack{} -> "a context stack"
 
-instance Pretty SyntaxDesc where
-  pretty t = pretty $ unsafeEvalUnelab initNaming (unelab t)
+instance (Unelab a, Pretty (Unelabed a), UnelabEnv a ~ Naming)
+         => Pretty (CdB a) where
+  pretty (CdB a th)
+    | is0s th = pretty $ unsafeEvalUnelab initNaming (unelab a)
+    | otherwise = "_"
 
+instance Pretty AProtocol where
+  pretty (Protocol ps) = foldMap (\ x -> pretty x <> ". ") ps
+      
 instance Pretty ObjVar where
   pretty (x, info) = hsep [ pretty x, colon, pretty info ]
-
-instance Pretty (Mode a, SyntaxDesc) where
-  pretty (m, desc) = hsep [ pretty m, prettyPrec 1 desc ]
 
 instance Pretty CFormula where
   pretty (CFormula a) = these pretty pretty (const pretty) a
