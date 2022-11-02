@@ -1,0 +1,83 @@
+------------------------------------------------------------------------------
+-- Syntax declarations
+
+syntax
+  { 'Type = ['EnumOrTag  ['Nat]
+                         [['Arr 'Type 'Type]]
+            ]
+  }
+
+syntax
+  { 'Check = ['Tag [ ['Lam ['Bind 'Synth 'Check]]
+                     ['Emb 'Synth]
+             ]]
+  ; 'Synth = ['Tag [ ['Ann 'Check 'Type]
+                     ['App 'Synth 'Check]
+             ]]
+  }
+
+------------------------------------------------------------------------------
+-- Interface
+
+type : $'Type.
+check : ?'Type. $'Check.
+synth : $'Synth. !'Type.
+
+-- | myCtxt maps synthesisable variables to types
+myCtxt |- 'Synth -> 'Type
+
+------------------------------------------------------------------------------
+-- Contract
+
+{type T} check T t {}
+{}       synth t T {type T}
+
+{} myCtxt |- x -> T {synth x T}
+
+------------------------------------------------------------------------------
+-- Implementation
+
+type@p = p?ty. case $ty
+  { 'Nat ->
+  ; ['Arr S T] ->
+      ( type@q. q!S.
+      | type@r. r!T.
+      )
+  }
+
+check@p = p?ty. p?tm. case $tm
+  { ['Lam \x. body] ->
+      'Type?S T.
+      ( ty ~ ['Arr S T]
+      | \x.
+        myCtxt |- x -> S.
+        check@q. q!T. q!body.)
+  ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty
+  }
+
+synth@p = p?tm . case (lookup myCtxt tm)
+  { ['Just S] -> p!S.
+  ; 'Nothing -> case $tm
+    { ['Ann t ty] ->
+         ( type@q. q!ty.
+         | check@r. r!ty. r!t.
+         | p!ty.
+         )
+    ; ['App f s] -> 'Type?U V. p!V.
+         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
+         | check@r. r!U. r!s.
+         )
+    }
+  }
+
+
+------------------------------------------------------------------------------
+-- Examples
+
+exec check@p.
+   p! ['Arr 'Nat ['Arr 'Nat 'Nat]]. -- type error, should be ['Arr 'Nat 'Nat].
+   p! ['Lam \z. ['Emb
+         ['App ['Ann ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]]
+         ['Emb z]]]].
+   PRINTF "Done?".
+

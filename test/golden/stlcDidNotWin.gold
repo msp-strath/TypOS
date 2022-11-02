@@ -1,0 +1,24 @@
+ret > ExitFailure 1
+out > Done?
+out > Error: Did not win
+out > check ['Arr 'Nat ['Arr 'Nat 'Nat]]
+out >       ['Lam \z. ['Emb ['App ['Ann ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]]
+out >                             ['Emb z]]]]
+out >  \z_0. myCtxt |- z_0 -> 'Nat.
+out >   check ['Arr 'Nat 'Nat]
+out >         ['Emb ['App ['Ann ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]] ['Emb z_0]]]
+out >    synth ['App ['Ann ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]] ['Emb z_0]] 'Nat
+out >     synth ['Ann ['Lam \w. ['Emb w]] ['Arr 'Nat 'Nat]] ['Arr 'Nat 'Nat]
+out >      type ['Arr 'Nat 'Nat]
+out >       type 'Nat
+out >       type 'Nat
+out >      check ['Arr 'Nat 'Nat] ['Lam \w. ['Emb w]]
+out >       \w_1. myCtxt |- w_1 -> 'Nat.
+out >        check 'Nat ['Emb w_1]
+out >         synth w_1 'Nat
+out >     check 'Nat ['Emb z_0]
+out >      synth z_0 'Nat
+out >    'Nat /~ ['Arr 'Nat 'Nat]
+out >
+err >
+err >
