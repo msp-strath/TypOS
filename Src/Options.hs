@@ -11,7 +11,7 @@ import System.Environment (getEnv)
 
 import qualified ANSI
 import Machine.Steps
-import Pretty (Pretty(pretty),Annotations,render,vcat,hsep,toANSIs)
+import Pretty (Annotations,toANSIs)
 import qualified Text.PrettyPrint.Compact as Compact
 
 data Options = Options
@@ -51,20 +51,6 @@ poptions = Options
   <*> optional (option str (metavar "FILE" <> long "latex-animated" <> completer (bashCompleter "file") <> help "Output animated LaTeX derivation to FILE"))
   <*> pure 80 -- dummy value
   <*> flag False True (long "no-context" <> help "Do not print file context of errors")
- where
-   readSteps :: [String] -> ReadM [MachineStep]
-   readSteps = mapM $ \case
-     "recv" -> pure MachineRecv
-     "send" -> pure MachineSend
-     "exec" -> pure MachineExec
-     "move" -> pure MachineMove
-     "unify" -> pure MachineUnify
-     "break" -> pure MachineBreak
-     "clause" -> pure MachineClause
-     x -> readerError $ "Unknown tracing level '" ++ x ++ "'. Accepted levels:\n" ++ levels
-   tracingHelp = "Override tracing level (combinations of {" ++ levels ++ "} in quotes, separated by spaces, e.g. " ++ exampleLevels ++ ")"
-   levels = render $ vcat $ map pretty [(minBound::MachineStep)..]
-   exampleLevels = "\"" ++ render (hsep $ map pretty [minBound::MachineStep, maxBound]) ++ "\""
 
 getOptions :: IO Options
 getOptions = do
