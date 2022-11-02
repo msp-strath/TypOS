@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-{- | Description: 
+{- | Description:
 
 -}
 module Machine.Steps (
@@ -23,23 +23,23 @@ data MachineStep
   | MachineClause
   deriving (Eq, Show, Enum, Bounded)
 
+stepName :: MachineStep -> String
+stepName = \case
+  MachineRecv -> "recv"
+  MachineSend -> "send"
+  MachineExec -> "exec"
+  MachineMove -> "move"
+  MachineUnify -> "unify"
+  MachineBreak -> "break"
+  MachineClause -> "clause"
+
 -- | Pair up 'MachineStep' with its 'String'
 namesOfSteps :: [(MachineStep, String)]
-namesOfSteps =
-  [ ( MachineRecv , "recv")
-  , ( MachineSend , "send")
-  , ( MachineExec , "exec")
-  , ( MachineMove , "move")
-  , ( MachineUnify , "unify")
-  , ( MachineBreak , "break")
-  , ( MachineClause , "clause")
-  ]
+namesOfSteps = map (\ x -> (x, stepName x)) [minBound..maxBound]
 
 -- | Output 'MachineStep' in a way that's nicer for humans
 instance Pretty MachineStep where
-  pretty m = case (lookup m namesOfSteps) of
-    Just n -> text n
-    Nothing -> error "impossible: a MachineStep has no name?"
+  pretty = text . stepName
 
 -- | What are the steps that the machine can take?
 theSteps :: [Doc Annotations]
