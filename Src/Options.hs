@@ -1,34 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
+{- | Description: 
 
+-}
 module Options where
 
-import Options.Applicative
+-- from the optparse-applicative package
+import Options.Applicative 
 import System.Console.Terminal.Size (size, width)
 import System.Environment (getEnv)
 
 import qualified ANSI
-import Pretty
+import Machine.Steps
+import Pretty (Annotations,toANSIs)
 import qualified Text.PrettyPrint.Compact as Compact
-
-data MachineStep
-  = MachineRecv
-  | MachineSend
-  | MachineExec
-  | MachineMove
-  | MachineUnify
-  | MachineBreak
-  | MachineClause
-  deriving (Eq, Show, Enum, Bounded)
-
-instance Pretty MachineStep where
-  pretty = \case
-    MachineRecv -> "recv"
-    MachineSend -> "send"
-    MachineExec -> "exec"
-    MachineMove -> "move"
-    MachineUnify -> "unify"
-    MachineBreak -> "break"
-    MachineClause -> "clause"
 
 data Options = Options
   { filename :: String
@@ -67,20 +51,6 @@ poptions = Options
   <*> optional (option str (metavar "FILE" <> long "latex-animated" <> completer (bashCompleter "file") <> help "Output animated LaTeX derivation to FILE"))
   <*> pure 80 -- dummy value
   <*> flag False True (long "no-context" <> help "Do not print file context of errors")
- where
-   readSteps :: [String] -> ReadM [MachineStep]
-   readSteps = mapM $ \case
-     "recv" -> pure MachineRecv
-     "send" -> pure MachineSend
-     "exec" -> pure MachineExec
-     "move" -> pure MachineMove
-     "unify" -> pure MachineUnify
-     "break" -> pure MachineBreak
-     "clause" -> pure MachineClause
-     x -> readerError $ "Unknown tracing level '" ++ x ++ "'. Accepted levels:\n" ++ levels
-   tracingHelp = "Override tracing level (combinations of {" ++ levels ++ "} in quotes, separated by spaces, e.g. " ++ exampleLevels ++ ")"
-   levels = render $ vcat $ map pretty [(minBound::MachineStep)..]
-   exampleLevels = "\"" ++ render (hsep $ map pretty [minBound::MachineStep, maxBound]) ++ "\""
 
 getOptions :: IO Options
 getOptions = do
