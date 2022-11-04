@@ -104,6 +104,7 @@ instance Pretty ContextualInfo where
     TermVariableElaboration v -> hsep ["when elaborating the term variable", pretty v]
     ProtocolElaboration p -> hsep ["when elaborating the protocol", pretty p]
     ConnectElaboration ch1 ch2 -> hsep ["when elaborating the connection", pretty ch1, "<->", pretty ch2]
+    JudgementFormElaboration v -> hsep ["when elaborting the judgement form", pretty v]
 
 instance Pretty Complaint where
   pretty c = flush (pretty (getRange c)) <> case c of

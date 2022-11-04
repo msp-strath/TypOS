@@ -338,7 +338,7 @@ scommand = \case
     pure (DeclJudgementForm j, gs)
 
 sjudgementform :: JUDGEMENTFORM Concrete -> Elab (JUDGEMENTFORM Abstract, Globals)
-sjudgementform JudgementForm{..} = do
+sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
   inputs <- concat <$> traverse subjects jpreconds  -- TODO: should really be the closure of this info
   outputs <- concat <$> traverse subjects [ x | Left x <- jpostconds ]
   let names = map fst jplaces

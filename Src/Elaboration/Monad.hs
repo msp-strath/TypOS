@@ -352,6 +352,7 @@ data ContextualInfo
   | ScrutineeTermElaboration Raw
   | MatchScrutineeElaboration CScrutinee
   | CompareSyntaxCatGuess Raw Raw
+  | JudgementFormElaboration Variable
   deriving (Show)
 
 data Complaint
