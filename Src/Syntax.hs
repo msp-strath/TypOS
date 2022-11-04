@@ -8,27 +8,29 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Bwd
-import Thin (CdB(..), DB(..), weak, scope, lsb)
+import Concrete.Base (SYNTAXDESC, Phase(..), ASyntaxDesc, ASemanticsDesc)
+import Thin (CdB(..), DB(..), weak, scope, lsb, ($^))
 import Term hiding (contract, expand)
 
 type SyntaxCat = String
 type SyntaxDesc = CdB (Tm Void)
-
 type SyntaxTable = Map SyntaxCat SyntaxDesc
+
+type instance SYNTAXDESC Abstract = SyntaxDesc
 
 data VSyntaxDesc' a
   = VAtom
   | VAtomBar [String]
   | VNil
-  | VCons SyntaxDesc SyntaxDesc
-  | VNilOrCons SyntaxDesc SyntaxDesc
-  | VBind SyntaxCat SyntaxDesc
-  | VEnumOrTag [String] [(String, [SyntaxDesc])]
+  | VCons ASyntaxDesc ASyntaxDesc
+  | VNilOrCons ASyntaxDesc ASyntaxDesc
+  | VBind SyntaxCat ASyntaxDesc
+  | VEnumOrTag [String] [(String, [ASyntaxDesc])]
   | VWildcard
   | VSyntaxCat a
   deriving (Eq, Show)
 
-wildcard :: SyntaxDesc
+wildcard :: ASyntaxDesc
 wildcard = contract VWildcard
 
 type VSyntaxDesc = VSyntaxDesc' Void
@@ -37,10 +39,10 @@ data WithSyntaxCat a where
   Yes :: WithSyntaxCat SyntaxCat
   No :: WithSyntaxCat Void
 
-asRec :: OrBust x => (SyntaxCat -> x) -> SyntaxDesc -> x
+asRec :: OrBust x => (SyntaxCat -> x) -> ASyntaxDesc -> x
 asRec f = asAtom $ \ (at, _) -> f at
 
-expand' :: WithSyntaxCat a -> SyntaxTable -> SyntaxDesc -> Maybe (VSyntaxDesc' a)
+expand' :: WithSyntaxCat a -> SyntaxTable -> ASyntaxDesc -> Maybe (VSyntaxDesc' a)
 expand' w table = go True where
 
   go b s = ($ s) $ asAtomOrTagged (goAtoms b) (goTagged b s)
@@ -71,13 +73,13 @@ expand' w table = go True where
     "Fix" -> asPair $ asBind $ \ x s' _ -> go False (s' //^ topSbst x s)
     _ -> bust
 
-expand :: SyntaxTable -> SyntaxDesc -> Maybe VSyntaxDesc
+expand :: SyntaxTable -> ASyntaxDesc -> Maybe VSyntaxDesc
 expand = expand' No
 
-embed :: SyntaxDesc -> ASemanticsDesc
-embed = fmap absurd
+embed :: ASyntaxDesc -> ASemanticsDesc
+embed = (fmap absurd $^)
 
-contract' :: WithSyntaxCat a -> VSyntaxDesc' a -> SyntaxDesc
+contract' :: WithSyntaxCat a -> VSyntaxDesc' a -> ASyntaxDesc
 contract' w = \case
   VAtom -> atom "Atom" 0
   VAtomBar xs -> "AtomBar" #%+ [enums (\ s -> atom s 0) xs]
@@ -94,16 +96,16 @@ contract' w = \case
   where
     enums f = foldr (%) (nil 0) . map f
 
-contract :: VSyntaxDesc -> SyntaxDesc
+contract :: VSyntaxDesc -> ASyntaxDesc
 contract = contract' No
 
-catToDesc :: SyntaxCat -> SyntaxDesc
+catToDesc :: SyntaxCat -> ASyntaxDesc
 catToDesc c = atom c 0
 
-validate :: Show m => SyntaxTable -> Bwd SyntaxCat -> SyntaxDesc -> CdB (Tm m) -> Bool
+validate :: Show m => SyntaxTable -> Bwd SyntaxCat -> ASyntaxDesc -> CdB (Tm m) -> Bool
 validate table = go where
 
-  go :: Show m => Bwd SyntaxCat -> SyntaxDesc -> CdB (Tm m) -> Bool
+  go :: Show m => Bwd SyntaxCat -> ASyntaxDesc -> CdB (Tm m) -> Bool
   go env s t@(CdB V th) = reportError s t $ ($ s) $ asRec $ \ a -> a == env <! (dbIndex $ lsb th)
   go env s t = reportError s t $ ($ t) $ flip (maybe bust) (Syntax.expand table s) $ \case
     VAtom -> asAtom $ \ (a,_) -> not (null a)
@@ -118,22 +120,22 @@ validate table = go where
                                            Just ss -> gos env ss t)
     VWildcard -> \ _ -> True
 
-  reportError :: Show m => SyntaxDesc -> CdB (Tm m) -> Bool -> Bool
+  reportError :: Show m => ASyntaxDesc -> CdB (Tm m) -> Bool -> Bool
   reportError d t True = True
   reportError d t False = False -- error $ "Validation error\nDesc: " ++ show d ++ "\nTerm: " ++ show t
 
-  gos :: Show m => Bwd SyntaxCat -> [SyntaxDesc] -> CdB (Tm m) -> Bool
+  gos :: Show m => Bwd SyntaxCat -> [ASyntaxDesc] -> CdB (Tm m) -> Bool
   gos env [] = asNil True
   gos env (s:ss) = asPair $ \ t0 t1 -> go env s t0 && gos env ss t1
 
-listOf :: String -> SyntaxDesc -> SyntaxDesc
+listOf :: String -> ASyntaxDesc -> ASyntaxDesc
 listOf x d = let ga = scope d + 1 in
   "Fix" #%+ [x \\ (atom "NilOrCons" ga % (weak d % var (DB 0) ga % nil ga))]
 
-rec :: String -> SyntaxDesc
+rec :: String -> ASyntaxDesc
 rec a = atom a 0
 
-syntaxDesc :: [SyntaxCat] -> SyntaxDesc
+syntaxDesc :: [SyntaxCat] -> ASyntaxDesc
 syntaxDesc syns = "EnumOrTag" #%+ [
   enums (atoms ++ syns),
   (atom "AtomBar" 0 % (listOf "at" atom0 % nil 0)) %
@@ -168,7 +170,7 @@ syntaxDesc syns = "EnumOrTag" #%+ [
 
 -}
 
-validateDesc :: [SyntaxCat] -> SyntaxDesc -> Bool
+validateDesc :: [SyntaxCat] -> ASyntaxDesc -> Bool
 validateDesc syns =
     validate (Map.fromList known) B0
      (rec "Syntax")
@@ -176,5 +178,5 @@ validateDesc syns =
      known = [ ("Syntax", syntaxDesc syns)
              , ("Semantics", wildcard)] -- TODO : change
 
-     
+
 validateIt = validateDesc ["Syntax"] (syntaxDesc ["Syntax"])

@@ -41,7 +41,7 @@ isSubject _ = IsNotSubject
 checkSendableSubject :: Raw -> Elab (Maybe ActorVar)
 checkSendableSubject tm = do
   localVars <- asks objVars
-  go (fmap fst localVars) tm
+  go (fmap objVarName localVars) tm
   where
   go :: Bwd String -> Raw -> Elab (Maybe ActorVar)
   go localVars x = case x of
@@ -104,7 +104,7 @@ svar usage x = do
   res <- resolve x
   case res of
     Just (Left k) -> case k of -- TODO: come back and remove fst <$>
-      ActVar isSub desc sc -> case findSub (fst <$> sc) (fst <$> ovs) of
+      ActVar isSub desc sc -> case findSub (objVarName <$> sc) (objVarName <$> ovs) of
         Just th -> do
           logUsage (getVariable x) usage
           pure (isSub, desc, ActorMeta (spassport usage isSub) (getVariable x) $: sbstW (sbst0 0) th)
@@ -118,7 +118,7 @@ spop r = do
   ovs <- asks objVars
   case ovs of
     B0 -> throwError (EmptyContext r)
-    (xz :< (x, cat)) -> pure (xz, (Variable r x, cat))
+    (xz :< ObjVar x cat) -> pure (xz, (Variable r x, cat))
 
 ssyntaxdesc :: [SyntaxCat] -> Raw -> Elab SyntaxDesc
 ssyntaxdesc syndecls syn = do
@@ -129,7 +129,11 @@ ssyntaxdesc syndecls syn = do
     Just syn0 -> pure syn0
 
 ssemanticsdesc :: CSemanticsDesc -> Elab ASemanticsDesc
-ssemanticsdesc = stm DontLog $ catToDesc "Semantics"
+ssemanticsdesc sem = do
+  syndecls <- gets (Map.keys . syntaxCats)
+  ssyntaxdesc syndecls sem
+  -- TOOD: use stm to actually be able to use operators & actor vars
+  -- DontLog (catToDesc "Semantics")
 
 ssbst :: Usage -> Bwd SbstC -> Elab (ACTSbst, ObjVars)
 ssbst usage B0 = do
@@ -140,7 +144,7 @@ ssbst usage (sg :< sgc) = case sgc of
       (xz, (w, cat)) <- spop r
       when (v /= w) $ throwError (NotTopVariable r v w)
       (sg, ovs) <- local (setObjVars xz) (ssbst usage sg)
-      pure (sbstW sg (ones 1), ovs :< (getVariable w, cat))
+      pure (sbstW sg (ones 1), ovs :< ObjVar (getVariable w) cat)
     Drop r v -> do
       (xz, (w, cat)) <- spop r
       when (v /= w) $ throwError (NotTopVariable r v w)
@@ -152,12 +156,12 @@ ssbst usage (sg :< sgc) = case sgc of
       t <- stm usage desc t
       (sg, ovs) <- ssbst usage sg
       v <- local (setObjVars ovs) $ isFresh v
-      pure (sbstT sg ((Hide v :=) $^ t), ovs :< (v, info))
+      pure (sbstT sg ((Hide v :=) $^ t), ovs :< ObjVar v info)
 
 sth :: (Bwd Variable, ThDirective) -> Elab Th
 sth (xz, b) = do
   ovs <- asks objVars
-  let th = which (`elem` (getVariable <$> xz)) (fst <$> ovs)
+  let th = which (`elem` (getVariable <$> xz)) (objVarName <$> ovs)
   pure $ case b of
     ThKeep -> th
     ThDrop -> comp th
@@ -560,7 +564,7 @@ sact = \case
 
     pure $ Spawn r em (judgementName jd) ch a
 
-  Send r ch () tm a -> do 
+  Send r ch () tm a -> do
     ch <- isChannel ch
     -- Check the channel is in sending mode, & step it
     (m, desc) <- steppingChannel r ch $ \ dir -> \case
@@ -570,7 +574,7 @@ sact = \case
     (usage, gd) <- do
       case m of
         Output -> pure (SentInOutput r, Nothing)
-        Subject _ -> ((SentAsSubject r ,) <$>) $ asks elabMode >>= \case 
+        Subject _ -> ((SentAsSubject r ,) <$>) $ asks elabMode >>= \case
           Execution  -> pure Nothing
           Definition -> checkSendableSubject tm
 
@@ -578,6 +582,8 @@ sact = \case
     tm <- during (SendTermElaboration ch tm) $ do
       sc <- channelScope ch
       ovs <- asks objVars
+      -- NB: the lintersection takes the (Info ASemanticsDesc) into account
+      -- Should it?
       let (thx, xyz, thy) = lintersection sc ovs
       (*^ thx) <$> local (setObjVars xyz) (stm usage desc tm)
 

@@ -142,7 +142,13 @@ isSubjectMode :: Mode a -> Bool
 isSubjectMode (Subject _) = True
 isSubjectMode _           = False
 
-type SEMANTICSDESC (ph :: Phase) = TERM ph
+type family SYNTAXDESC (ph :: Phase) :: *
+type instance SYNTAXDESC Concrete = Raw
+type CSyntaxDesc = SYNTAXDESC Concrete
+type ASyntaxDesc = SYNTAXDESC Abstract
+
+type SEMANTICSDESC (ph :: Phase)
+  = SYNTAXDESC ph -- for now, actually: TERM ph
 type CSemanticsDesc = SEMANTICSDESC Concrete
 type ASemanticsDesc = SEMANTICSDESC Abstract
 
@@ -196,7 +202,6 @@ type family JUDGEMENTNAME (ph :: Phase) :: *
 type family CHANNEL (ph :: Phase) :: *
 type family BINDER (ph :: Phase) :: *
 type family ACTORVAR (ph :: Phase) :: *
-type family SYNTAXDESC (ph :: Phase) :: *
 type family TERMVAR (ph :: Phase) :: *
 type family TERM (ph :: Phase) :: *
 type family PATTERN (ph :: Phase) :: *
@@ -212,7 +217,6 @@ type instance JUDGEMENTNAME Concrete = Variable
 type instance CHANNEL Concrete = Variable
 type instance BINDER Concrete = RawP
 type instance ACTORVAR Concrete = Variable
-type instance SYNTAXDESC Concrete = Raw
 type instance TERMVAR Concrete = Variable
 type instance TERM Concrete = Raw
 type instance PATTERN Concrete = RawP

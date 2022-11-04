@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module LaTeX where
 
@@ -84,7 +85,7 @@ asList p = [p]
 latexspace :: Doc ()
 latexspace = "\\ "
 
-toLaTeXCdr :: SyntaxDesc -> Raw -> LaTeXM (Doc ())
+toLaTeXCdr :: ASyntaxDesc -> Raw -> LaTeXM (Doc ())
 toLaTeXCdr _ (At _ "") = pure $ call False "typosListEnd" []
 toLaTeXCdr d (Cons _ p q) = do
   (dp, dq) <- ask >>= \ table -> pure $ case expand table d of
@@ -99,7 +100,7 @@ toLaTeXCdr d p = do
   pure $ call False "typosListTail" [p]
 
 instance LaTeX Raw where
-  type Format Raw = SyntaxDesc
+  type Format Raw = ASyntaxDesc
   toLaTeX d = \case
     Var _ v -> do
       v <- toLaTeX () v

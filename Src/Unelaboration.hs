@@ -19,6 +19,7 @@ import Format
 import Hide
 import Pattern
 import Scope
+import Syntax()
 import Term.Base
 import Thin
 import Location (unknown)

@@ -15,6 +15,7 @@ import Pretty
 import Unelaboration (unsafeEvalUnelab, unelab, initNaming, Unelab, Unelabed, UnelabEnv, Naming)
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Rules
+import Syntax ()
 import Thin
 
 instance Pretty Range where
@@ -51,9 +52,9 @@ instance (Unelab a, Pretty (Unelabed a), UnelabEnv a ~ Naming)
 
 instance Pretty AProtocol where
   pretty (Protocol ps) = foldMap (\ x -> pretty x <> ". ") ps
-      
+
 instance Pretty ObjVar where
-  pretty (x, info) = hsep [ pretty x, colon, pretty info ]
+  pretty (ObjVar x info) = hsep [ pretty x, colon, pretty info ]
 
 instance Pretty CFormula where
   pretty (CFormula a) = these pretty pretty (const pretty) a

@@ -8,6 +8,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Bifunctor (first)
+import Data.List (sort)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
@@ -44,16 +45,16 @@ type family SYNTAXCAT (ph :: Phase) :: *
 type instance SYNTAXCAT Concrete = WithRange SyntaxCat
 type instance SYNTAXCAT Abstract = SyntaxCat
 
-type family PROTOCOL (ph :: Phase) :: *
-type instance PROTOCOL Concrete = ()
-type instance PROTOCOL Abstract = AProtocol
+type family DEFNPROTOCOL (ph :: Phase) :: *
+type instance DEFNPROTOCOL Concrete = ()
+type instance DEFNPROTOCOL Abstract = AProtocol
 
 data STATEMENT (ph :: Phase)
   = Statement (JUDGEMENTNAME ph) [Variable]
 
 data COMMAND (ph :: Phase)
-  = DeclJudge ExtractMode (JUDGEMENTNAME ph) (Protocol (SYNTAXDESC ph))
-  | DefnJudge (JUDGEMENTNAME ph, PROTOCOL ph, CHANNEL ph) (ACTOR ph)
+  = DeclJudge ExtractMode (JUDGEMENTNAME ph) (PROTOCOL ph)
+  | DefnJudge (JUDGEMENTNAME ph, DEFNPROTOCOL ph, CHANNEL ph) (ACTOR ph)
   | ContractJudge [STATEMENT ph] (STATEMENT ph) [STATEMENT ph]
   | DeclSyntax [(SYNTAXCAT ph, SYNTAXDESC ph)]
   | DeclStack (STACK ph) (ContextStack (SYNTAXDESC ph))
@@ -83,6 +84,7 @@ deriving instance
   , Show (SYNTAXCAT ph)
   , Show (OPERATOR ph)
   , Show (PROTOCOL ph)
+  , Show (DEFNPROTOCOL ph)
   , Show (LOOKEDUP ph)
   , Show (DEFNOP ph)
   , Show (JUDGEMENTFORM ph)
@@ -101,8 +103,8 @@ type AStatement = STATEMENT Abstract
 type CPattern = PATTERN Concrete
 type APattern = PATTERN Abstract
 
-instance Display Mode where
-  type DisplayEnv Mode = ()
+instance (Show a, Unelab a, Pretty (Unelabed a)) => Display (Mode a) where
+  type DisplayEnv (Mode a) = UnelabEnv a
   display = viaPretty
 
 instance (Show t, Unelab t, Pretty (Unelabed t)) =>
@@ -110,9 +112,8 @@ instance (Show t, Unelab t, Pretty (Unelabed t)) =>
   type DisplayEnv (ContextStack t) = UnelabEnv t
   display = viaPretty
 
-instance (Show t, Unelab t, Pretty (Unelabed t)) =>
-  Display (Protocol t) where
-  type DisplayEnv (Protocol t) = UnelabEnv t
+instance Display AProtocol where
+  type DisplayEnv AProtocol = Naming
   display = viaPretty
 
 instance Pretty CStatement where
@@ -121,8 +122,10 @@ instance Pretty CStatement where
 instance Pretty (PLACE Concrete) where
   pretty (v, CitizenPlace) = pretty v
   pretty (v, SubjectPlace syntaxdesc semanticsdesc) =
-    parens (hsep $ [pretty v, ":", pretty syntaxdesc]
-                 ++ foldMap (("=>":) . (:[]) . pretty) semanticsdesc)
+    parens $ hsep $ [ pretty v, ":", pretty syntaxdesc ]
+      ++ (("=>" <+> pretty semanticsdesc) <$ guard (syntaxdesc /= semanticsdesc))
+
+
 
 instance Pretty CCommand where
   pretty = let prettyCds cds = collapse (BracesList $ pretty <$> cds) in \case
@@ -343,14 +346,14 @@ sjudgementform JudgementForm{..} = do
   whenLeft (allUnique names) $ \ a -> throwError $ DuplicatedPlace (getRange a) a
   -- TODO : report with a proper error on the mismatch between the subject and citizen positions
   unless (sort citizenNames == sort (map fst $ inputs ++ outputs)) $ throwError $ undefined
-  protocol <- traverse (citizenJudgement inputs ouputs) jplaces
+  protocol <- traverse (citizenJudgement inputs outputs) jplaces
   undefined -- TODO
-  
+
   where
     subjects :: JUDGEMENT Concrete -> Elab [(Variable, ASemanticsDesc)]
     subjects (Judgement r name fms) = do
       IsJudgement{..} <- isJudgement name
-      xs <- case halfZip judgementProtocol fms of
+      xs <- case halfZip (getProtocol judgementProtocol) fms of
         Just xs -> pure xs
         Nothing -> throwError $ JudgementWrongArity r judgementName judgementProtocol fms
       let ys = [ (fm, sem) | ((Subject _, sem), fm) <- xs ]
@@ -361,17 +364,18 @@ sjudgementform JudgementForm{..} = do
 
     citizenJudgement :: [(Variable, ASemanticsDesc)] -> [(Variable, ASemanticsDesc)]
                      -> CPlace -> Elab (PROTOCOLENTRY Abstract)
-    citizenJudgement inputs outputs (name, CitizenPlace) = do
-      case (lookup name inputs, lookup name outputs) of
-        (Just isem, Nothing) -> pure (Input, isem)
-        (Nothing, Just osem) -> pure (Output, osem)
-        _  -> error "Impossible in citizenJudgement"
-          
-    citizenJudgement (name, SubjectPlace syn sem) = do
-      syndecls <- gets (Map.keys . syntaxCats)
-      syn <- ssyntaxdesc syndecls syn
-      sem <- ssemanticsdesc sem
-      pure (Subject syn, sem)
+    citizenJudgement inputs outputs (name, place) = case place of
+      CitizenPlace ->
+        case (lookup name inputs, lookup name outputs) of
+          (Just isem, Nothing) -> pure (Input, isem)
+          (Nothing, Just osem) -> pure (Output, osem)
+          _  -> error "Impossible in citizenJudgement"
+
+      SubjectPlace syn sem -> do
+        syndecls <- gets (Map.keys . syntaxCats)
+        syn <- ssyntaxdesc syndecls syn
+        sem <- ssemanticsdesc sem
+        pure (Subject syn, sem)
 
 
 -- | sopargs desc cops

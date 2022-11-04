@@ -88,6 +88,8 @@
 * [ ] Drop run-length encoding subst in favour of relevant subst
 * [ ] Match monad for Matching (Env in a state)
 * [ ] `keyword` pretty printing should use the data type of keywords
+* [ ] `class Declarable a where { declare :: a -> Context -> Context }`
+      instead of declareObjVar, declareChannel, declareXXX
 
 ### Pretty
 

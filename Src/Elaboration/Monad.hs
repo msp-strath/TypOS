@@ -155,7 +155,11 @@ compatibleInfos r desc desc' = do
 ------------------------------------------------------------------------------
 -- Context
 
-type ObjVar = (String, Info ASemanticsDesc)
+data ObjVar = ObjVar
+  { objVarName :: String
+  , objVarDesc :: Info ASemanticsDesc
+  } deriving (Show, Eq)
+
 type ObjVars = Bwd ObjVar
 
 data Provenance = Parent | Pattern
@@ -220,8 +224,8 @@ initContext = Context
   , stackTrace = []
   }
 
-declareObjVar :: ObjVar -> Context -> Context
-declareObjVar x ctx = ctx { objVars = objVars ctx :< x }
+declareObjVar :: (String, Info ASemanticsDesc) -> Context -> Context
+declareObjVar (x, info) ctx = ctx { objVars = objVars ctx :< ObjVar x info }
 
 setObjVars :: ObjVars -> Context -> Context
 setObjVars ovs ctx = ctx { objVars = ovs }
@@ -438,7 +442,7 @@ instance HasGetRange Complaint where
     WrongDirection r _ _ _ -> r
     JudgementWrongArity r _ _ _ -> r
     UnexpectedNonSubject r _ -> r
-
+    DuplicatedPlace r _ -> r
   -- syntaxes
     AlreadyDeclaredSyntaxCat r _ -> r
   -- syntaxdesc validation
@@ -501,7 +505,7 @@ resolve (Variable r x) = do
   let ovs = objVars ctx
   case focusBy (\ (y, k) -> k <$ guard (x == y)) ds of
     Just (_, k, _) -> pure (Just $ Left k)
-    _ -> case focusBy (\ (y, desc) -> desc <$ guard (x == y)) ovs of
+    _ -> case focusBy (\ (ObjVar y desc) -> desc <$ guard (x == y)) ovs of
       Just (xz, desc, xs) -> pure (Just $ Right (desc, DB $ length xs))
       Nothing -> pure Nothing
 

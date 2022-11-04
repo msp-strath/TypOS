@@ -16,11 +16,11 @@ import Data.List (partition)
 import Data.List.NonEmpty (NonEmpty ((:|)), fromList, toList)
 import Data.Maybe (fromJust, mapMaybe)
 
-import Concrete.Base (RawP(..), Binder (..), Variable (..))
+import Concrete.Base (RawP(..), Binder (..), Variable (..), ASyntaxDesc)
 import Location (unknown)
 import Pattern (Pat'(..))
 import Scope (Scope(..))
-import Syntax ( SyntaxDesc, VSyntaxDesc'(..), WithSyntaxCat(..), SyntaxTable, VSyntaxDesc, SyntaxCat
+import Syntax ( VSyntaxDesc'(..), WithSyntaxCat(..), SyntaxTable, VSyntaxDesc, SyntaxCat
               , expand', contract, expand)
 import Thin (is1s)
 import Hide (Hide(Hide))
@@ -69,7 +69,7 @@ data Covering' sd
       [sd] -- what is left to cover
   deriving (Functor)
 
-type Covering = Covering' SyntaxDesc
+type Covering = Covering' ASyntaxDesc
 
 ------------------------------------------------------------------------------
 -- Views
@@ -139,16 +139,16 @@ combine covs = case partition (isAlreadyCovered . snd) covs of
 -- Postcondition:
 --   If `shrinkBy table desc pat` is `PartiallyCovering ps qs` then
 --   `desc` is morally equivalent to the sum (ps + qs)
-shrinkBy :: forall s. SyntaxTable -> SyntaxDesc -> Pat' s -> Covering
+shrinkBy :: forall s. SyntaxTable -> ASyntaxDesc -> Pat' s -> Covering
 shrinkBy table = start where
 
-  start :: SyntaxDesc -> Pat' s -> Covering
+  start :: ASyntaxDesc -> Pat' s -> Covering
   start desc = go (desc, fromJust (expand table desc))
 
-  starts :: [SyntaxDesc] -> Pat' s -> Covering' [SyntaxDesc]
+  starts :: [ASyntaxDesc] -> Pat' s -> Covering' [ASyntaxDesc]
   starts descs = gos (map (\ d -> (d, fromJust (expand table d))) descs)
 
-  gos :: [(SyntaxDesc, VSyntaxDesc)] -> Pat' s -> Covering' [SyntaxDesc]
+  gos :: [(ASyntaxDesc, VSyntaxDesc)] -> Pat' s -> Covering' [ASyntaxDesc]
   gos [] (AP "") = Covering
   gos (d:ds) (PP p ps) = case (go d p, gos ds ps) of
     (Covering, Covering) -> Covering
@@ -165,7 +165,7 @@ shrinkBy table = start where
       PartiallyCovering (map (fst d :) p2) (map (fst d :) p2s)
   gos _ _ = error "Impossible"
 
-  go :: (SyntaxDesc, VSyntaxDesc) -> Pat' s -> Covering
+  go :: (ASyntaxDesc, VSyntaxDesc) -> Pat' s -> Covering
   go desc (AT s pat) = go desc pat
   go (desc, _) (VP db) = PartiallyCovering [] [desc] -- TODO: handle bound variables too
   go (desc, vdesc) (AP s) = contract <$> case vdesc of
@@ -263,13 +263,13 @@ shrinkBy table = start where
   go (desc, vdesc) GP = PartiallyCovering [] [desc]
   go _ HP = Covering
 
-missing :: SyntaxTable -> SyntaxDesc -> NonEmpty RawP
+missing :: SyntaxTable -> ASyntaxDesc -> NonEmpty RawP
 missing table desc = fmap (`evalState` names) (start desc) where
 
   -- Each solution is a computation using its own name supply because
   -- there is no reason for us not to reuse the same name in independent
   -- patterns e.g. ['Leaf a] and ['Node a b c].
-  start :: SyntaxDesc -> NonEmpty (State [String] RawP)
+  start :: ASyntaxDesc -> NonEmpty (State [String] RawP)
   start = go . fromJust . expand' Yes table
 
   -- "a", "b", ..., "z", "a1", "b1", ...
