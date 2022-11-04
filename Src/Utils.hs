@@ -2,6 +2,7 @@ module Utils where
 
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.These (These(..))
 
 import Control.Monad.State
 
@@ -17,6 +18,10 @@ isAll p [] = pure ()
 isAll p (x:xs) = do
   if p x then pure () else Left x
   isAll p xs
+
+whenCons :: Applicative m => [a] -> (a -> [a] -> m ()) -> m ()
+whenCons [] k = pure ()
+whenCons (a:as) k = k a as
 
 whenLeft :: Applicative m => Either a b -> (a -> m ()) -> m ()
 whenLeft (Left a) k = k a
@@ -55,3 +60,7 @@ allUnique = flip foldr (pure Set.empty) $ \ a acc -> do
   s <- acc
   if a `Set.member` s then Left a else Right (Set.insert a s)
 
+alignWith :: (These a b -> c) -> [a] -> [b] -> [c]
+alignWith f [] bs = map (f . That) bs
+alignWith f as [] = map (f . This) as
+alignWith f (a:as) (b:bs) = f (These a b) : alignWith f as bs

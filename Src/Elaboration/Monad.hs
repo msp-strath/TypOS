@@ -388,6 +388,9 @@ data Complaint
   | JudgementWrongArity Range JudgementName AProtocol [CFormula]
   | UnexpectedNonSubject Range CFormula
   | DuplicatedPlace Range Variable
+  | DuplicatedInput Range Variable
+  | DuplicatedOutput Range Variable
+  | ProtocolCitizenSubjectMismatch Range Variable (Mode ())
   -- syntaxes
   | AlreadyDeclaredSyntaxCat Range SyntaxCat
   -- syntaxdesc validation
@@ -444,6 +447,9 @@ instance HasGetRange Complaint where
     JudgementWrongArity r _ _ _ -> r
     UnexpectedNonSubject r _ -> r
     DuplicatedPlace r _ -> r
+    DuplicatedInput r _ -> r
+    DuplicatedOutput r _ -> r
+    ProtocolCitizenSubjectMismatch r _ _ -> r
   -- syntaxes
     AlreadyDeclaredSyntaxCat r _ -> r
   -- syntaxdesc validation

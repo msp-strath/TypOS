@@ -8,9 +8,10 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Bifunctor (first)
-import Data.List (sort)
+import Data.Function (on)
+import Data.List (sort, sortBy)
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, catMaybes)
 import Data.Traversable (for)
 import Data.These
 
@@ -343,13 +344,30 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
   outputs <- concat <$> traverse subjects [ x | Left x <- jpostconds ]
   let names = map fst jplaces
   let citizenNames = [x | (x, CitizenPlace) <- jplaces]
+  let inputNames = map fst inputs
+  let outputNames = map fst outputs
   whenLeft (allUnique names) $ \ a -> throwError $ DuplicatedPlace (getRange a) a
-  -- TODO : report with a proper error on the mismatch between the subject and citizen positions
-  unless (sort citizenNames == sort (map fst $ inputs ++ outputs)) $ throwError $ undefined
+  whenLeft (allUnique inputNames) $ \ a -> throwError $ DuplicatedInput (getRange a) a
+  whenLeft (allUnique outputNames) $ \ a -> throwError $ DuplicatedOutput (getRange a) a
+  whenCons (mismatch citizenNames inputNames outputNames) $ \ (v, m) _ ->
+    throwError (ProtocolCitizenSubjectMismatch (getRange v) v m)
   protocol <- traverse (citizenJudgement inputs outputs) jplaces
   undefined -- TODO
 
   where
+    mismatch :: [Variable]
+             -> [Variable]
+             -> [Variable]
+             -> [(Variable, Mode ())]
+    mismatch cs is os =
+      catMaybes $ alignWith check (sort cs)
+                $ sortBy (compare `on` fst)
+                $ map (, Input) is ++ map (, Output) os
+
+    check :: These Variable (Variable, Mode ()) -> Maybe (Variable, Mode ())
+    check (These a b) = (a, Subject ()) <$ guard (a /= fst b)
+    check t = Just (mergeThese const (first (, Subject ()) t))
+
     subjects :: JUDGEMENT Concrete -> Elab [(Variable, ASemanticsDesc)]
     subjects (Judgement r name fms) = do
       IsJudgement{..} <- isJudgement name

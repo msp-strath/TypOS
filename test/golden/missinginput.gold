@@ -1,0 +1,11 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  19 | judgementform
+out >  20 |   {}
+out >  21 |   check T (t : 'Check => T - 'Value)
+out >               ^
+out > missinginput.act:21:8-9
+out > Found T as a subject but neither as an input nor an output
+out > when elaborting the judgement form check
+out >

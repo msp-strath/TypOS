@@ -7,7 +7,7 @@ import Data.These
 
 import ANSI hiding (withANSI)
 import Actor (ActorMeta(..), Channel(..), Stack(..), AProtocol)
-import Concrete.Base (Binder (..), PROTOCOL(Protocol))
+import Concrete.Base (Binder (..), PROTOCOL(Protocol), Mode (..))
 import Concrete.Pretty()
 import Elaboration.Monad
 import Location
@@ -163,6 +163,15 @@ instance Pretty Complaint where
         hsep ["Judgement", pretty name, applied]
     UnexpectedNonSubject r fm -> hsep ["Unexpected non-subject", pretty fm]
     DuplicatedPlace r v -> hsep ["Duplicated place", pretty v]
+    DuplicatedInput r v -> hsep ["Duplicated input", pretty v]
+    DuplicatedOutput r v -> hsep ["Duplicated output", pretty v]
+    ProtocolCitizenSubjectMismatch r v m ->
+      let (seen, unseen) = case m of
+            Input -> ("an input", "not as a subject")
+            Subject{} -> ("a subject", "neither as an input nor an output")
+            Output -> ("an output", "not as a subject")
+      in hsep ["Found", pretty v, "as", seen, "but", unseen ]
+
     -- syntaxes
     AlreadyDeclaredSyntaxCat r x -> hsep ["The syntactic category", pretty x, "is already defined"]
 
