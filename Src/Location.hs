@@ -4,6 +4,9 @@
 {- | Description: The concept of a location within a file.
    Also defines the concept of a Range (within a file) and what
    amounts to a lens for it.
+
+   Shouldn't export the constructor for either 'Location' nor
+   'Range' to allow invariants to be kept via the constructors.
 -}
 module Location (
     Location, initLocation
@@ -51,14 +54,24 @@ tick l@Location{..} c =
 ticks :: Location -> [Char] -> Location
 ticks = foldl' tick
 
+-- Check the invariant of a pair of (row,col)
+isProperLocPair :: (Int,Int) -> (Int,Int) -> Bool
+isProperLocPair (sr, sc) (er, ec) = (sr < er) || ((sr == er) && (sc <= ec))
+
 -- A 'Range' in a file is equivalent to a pair of 'Location' into the same
 -- file. But that representation would too easily violate the "same file"
 -- invariant, and so this representation is more foolproof.
+-- This does have an invariant that 'end' is supposed to point to somewhere
+-- later in the file.
 data Range = Range
   { source :: FilePath
   , start  :: !(Int, Int)
   , end    :: !(Int, Int)
   } deriving (Eq, Ord)
+
+-- Check the invariant of a range
+isProperRange :: Range -> Bool
+isProperRange (Range _ s e) = isProperLocPair s e
 
 -- This is really an attributed value, i.e. a value decorated with a 'Range'
 data WithRange t = WithRange
@@ -82,7 +95,7 @@ class HasGetRange t where
 instance HasSetRange (WithRange t) where
   setRange r (WithRange _ t) = WithRange r t
 
--- 'WithRange' and a getter
+-- 'WithRange' has a getter
 instance HasGetRange (WithRange t) where
   getRange = theRange
 
@@ -93,8 +106,12 @@ type HasRange t = (HasSetRange t, HasGetRange t)
 -- is for the same file. Hard error if this is not correct.
 fromLocations :: Location -> Location -> Range
 fromLocations s e = 
-  if not (file s == file e) then error "Trying to make a Range from incompatible locations"
-  else Range (file s) (row s, col s) (row e, col e)
+  if not (file s == file e) then error "Trying to make a Range from locations in different files"
+  else if not (isProperLocPair ss ee) then error "Trying to make a Range from inverted locations"
+  else Range (file s) ss ee
+  where
+    ss = (row s, col s)
+    ee = (row e, col e)
 
 -- Set the range of an attributed value from one created from 2 locations (fragile)
 addRange :: HasRange t => Location -> Location -> t -> t
