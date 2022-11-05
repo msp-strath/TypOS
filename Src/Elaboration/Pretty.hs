@@ -162,9 +162,10 @@ instance Pretty Complaint where
         let applied = (if length protocol > length fms then "under" else "over") <> "-applied" in
         hsep ["Judgement", pretty name, applied]
     UnexpectedNonSubject r fm -> hsep ["Unexpected non-subject", pretty fm]
-    DuplicatedPlace r v -> hsep ["Duplicated place", pretty v]
-    DuplicatedInput r v -> hsep ["Duplicated input", pretty v]
-    DuplicatedOutput r v -> hsep ["Duplicated output", pretty v]
+    DuplicatedPlace r v -> hsep [pretty v, "is a duplicated place" ]
+    DuplicatedInput r v -> hsep [pretty v, "is a duplicated input"]
+    DuplicatedOutput r v -> hsep [pretty v, "is a duplicated output"]
+    BothInputOutput r v -> hsep [pretty v, "is both an input and an output"]
     ProtocolCitizenSubjectMismatch r v m ->
       let (seen, unseen) = case m of
             Input -> ("an input", "not as a subject")

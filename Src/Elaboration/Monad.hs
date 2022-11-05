@@ -390,6 +390,7 @@ data Complaint
   | DuplicatedPlace Range Variable
   | DuplicatedInput Range Variable
   | DuplicatedOutput Range Variable
+  | BothInputOutput Range Variable
   | ProtocolCitizenSubjectMismatch Range Variable (Mode ())
   -- syntaxes
   | AlreadyDeclaredSyntaxCat Range SyntaxCat
@@ -449,6 +450,7 @@ instance HasGetRange Complaint where
     DuplicatedPlace r _ -> r
     DuplicatedInput r _ -> r
     DuplicatedOutput r _ -> r
+    BothInputOutput r _ -> r
     ProtocolCitizenSubjectMismatch r _ _ -> r
   -- syntaxes
     AlreadyDeclaredSyntaxCat r _ -> r

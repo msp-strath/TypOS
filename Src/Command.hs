@@ -41,6 +41,7 @@ import Location
 import Utils
 
 import Data.Char (isSpace)
+import qualified Data.Set as Set
 
 type family SYNTAXCAT (ph :: Phase) :: *
 type instance SYNTAXCAT Concrete = WithRange SyntaxCat
@@ -347,8 +348,14 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
   let inputNames = map fst inputs
   let outputNames = map fst outputs
   whenLeft (allUnique names) $ \ a -> throwError $ DuplicatedPlace (getRange a) a
-  whenLeft (allUnique inputNames) $ \ a -> throwError $ DuplicatedInput (getRange a) a
-  whenLeft (allUnique outputNames) $ \ a -> throwError $ DuplicatedOutput (getRange a) a
+  inputNamesSet <- case allUnique inputNames of
+    Left a -> throwError $ DuplicatedInput (getRange a) a
+    Right as -> pure as
+  outputNamesSet <- case allUnique outputNames of
+    Left a -> throwError $ DuplicatedOutput (getRange a) a
+    Right as -> pure as
+  whenCons (Set.toList (Set.intersection inputNamesSet outputNamesSet)) $ \ a _ ->
+    throwError $ BothInputOutput (getRange a) a
   whenCons (mismatch citizenNames inputNames outputNames) $ \ (v, m) _ ->
     throwError (ProtocolCitizenSubjectMismatch (getRange v) v m)
   protocol <- traverse (citizenJudgement inputs outputs) jplaces
