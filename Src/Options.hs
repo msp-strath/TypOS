@@ -58,7 +58,7 @@ poptions = Options
   <*> pure 80 -- dummy value
   <*> flag False True (long "no-context" <> help "Do not print file context of errors")
 
--- | Actually get the actions
+-- | Actually get the options
 getOptions :: IO Options
 getOptions = do
   opts <- execParser (info (poptions <**> helper)
