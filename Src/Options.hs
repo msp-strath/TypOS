@@ -1,31 +1,36 @@
 {-# LANGUAGE OverloadedStrings #-}
-{- | Description: 
+{- | Description: The various options that can be given on the command line
 
+  Also stores whether the terminal is dumb, which is an "environment option"
 -}
 module Options where
 
 -- from the optparse-applicative package
-import Options.Applicative 
+import Options.Applicative -- needs lots from here
+
 import System.Console.Terminal.Size (size, width)
 import System.Environment (getEnv)
 
 import qualified ANSI
-import Machine.Steps
+import Machine.Steps (MachineStep(..), readSteps, tracingHelp)
 import Pretty (Annotations,toANSIs)
 import qualified Text.PrettyPrint.Compact as Compact
 
+-- | The Options that can be specified
 data Options = Options
-  { filename :: String
-  , wAll :: Bool
-  , quiet :: Bool
-  , colours :: Bool
-  , tracingOption :: Maybe [MachineStep]
-  , latex :: Maybe FilePath
-  , latexAnimated :: Maybe FilePath
-  , termWidth :: Int
-  , noContext :: Bool
+  { filename :: String                   -- Actor file
+  , wAll :: Bool                         -- turn on (All) warnings
+  , quiet :: Bool                        -- be quiet when working
+  , colours :: Bool                      -- colour output?
+  , tracingOption :: Maybe [MachineStep] -- which machine steps to trace?
+  , latex :: Maybe FilePath              -- where to put the latex output
+  , latexAnimated :: Maybe FilePath      -- where to put the animated latex output
+  , termWidth :: Int                     -- width of terminal to assume
+  , noContext :: Bool                    -- Do not print file context of errors
   } deriving (Show)
 
+-- | A partially-filled 'Options' that is not actually safe to use 'raw'.
+-- In theory, shouldn't be exported from here, but it is used...
 unsafeOptions :: Options
 unsafeOptions = Options
  { filename = ""
@@ -39,6 +44,7 @@ unsafeOptions = Options
  , noContext = False
  }
 
+-- | Parse our options.
 poptions :: Parser Options
 poptions = Options
   <$> argument str (metavar "FILE" <> completer (bashCompleter "file") <> help "Actor file")
@@ -52,6 +58,7 @@ poptions = Options
   <*> pure 80 -- dummy value
   <*> flag False True (long "no-context" <> help "Do not print file context of errors")
 
+-- | Actually get the options
 getOptions :: IO Options
 getOptions = do
   opts <- execParser (info (poptions <**> helper)
@@ -61,9 +68,11 @@ getOptions = do
   let w = maybe 80 width termSize
   pure $ opts { termWidth = w }
 
+-- | Is the terminal in which we're currently running "dumb" ?
 isTermDumb :: IO Bool
 isTermDumb = ("dumb"==) <$> getEnv "TERM"
 
+-- | for creating the first argument to 'renderWith'
 renderOptions :: Options -> Compact.Options Annotations String
 renderOptions opts = Compact.Options
   { optsPageWidth = termWidth opts

@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-{- | Description:
+{- | Description: 
 
 -}
 module Machine.Steps (
@@ -23,6 +23,7 @@ data MachineStep
   | MachineClause
   deriving (Eq, Show, Enum, Bounded)
 
+-- | Pair up 'MachineStep' with its 'String'
 stepName :: MachineStep -> String
 stepName = \case
   MachineRecv -> "recv"
