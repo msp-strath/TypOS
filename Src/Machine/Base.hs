@@ -10,7 +10,6 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
 import Control.Monad.State
-import Control.Applicative
 
 import Actor
 import Actor.Display()
@@ -18,7 +17,6 @@ import Actor.Display()
 import Bwd
 import Format
 import Options
-import Location (WithRange)
 import Term
 import qualified Term.Substitution as Substitution
 import Thin
@@ -31,62 +29,27 @@ import Machine.Matching
 import Debug.Trace (trace)
 import Display (unsafeDocDisplayClosed)
 import ANSI hiding (withANSI)
-import Parse
-import Concrete.Parse
 import Pretty
+import Operator
+import Operator.Eval
 
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
 
--- | i stores extra information, typically a naming
-data StoreF i = Store
-  { solutions :: Map Meta (i, Maybe Term)
-  , guards :: Map Guard (Set Guard) -- key is conjunction of values; acyclic!
-  , today :: Date
-  } deriving (Show)
-
-initStore :: StoreF i
+initStore :: StoreF i Date
 initStore = Store Map.empty Map.empty 0
 
-tick :: StoreF i -> StoreF i
+tick :: StoreF i Date -> StoreF i Date
 tick st@Store{..} = st { today = today + 1 }
 
-declareMeta :: Meta -> i -> StoreF i -> StoreF i
+declareMeta :: Meta -> i -> StoreF i d -> StoreF i d
 declareMeta m i st@Store{..} = st
   { solutions = Map.insert m (i, Nothing) solutions }
 
-updateStore :: Meta -> Term -> StoreF i -> StoreF i
+updateStore :: Meta -> Term -> StoreF i Date -> StoreF i Date
 updateStore m t st@Store{..} = tick $ st
   { solutions = Map.adjust (Just t <$) m solutions }
-
-defineGuard :: Guard -> Set Guard -> StoreF i -> StoreF i
-defineGuard g gs = execState (compressGuards g gs)
-
-compressGuards :: Guard -> Set Guard -> State (StoreF i) (Set Guard)
-compressGuards g gs = do
-  gs <- foldMap (\ g -> fromMaybe (Set.singleton g) <$> dependencySetCompression g) gs
-  modify (\ st -> st { guards = Map.insert g gs (guards st) })
-  pure gs
-
-dependencySetCompression :: Guard -> State (StoreF i) (Maybe (Set Guard))
-dependencySetCompression g = do
-  gtable <- gets guards
-  case Map.lookup g gtable of
-    Nothing -> pure Nothing
-    Just gs -> Just <$> compressGuards g gs
-
-dependencySet :: StoreF i -> Guard -> Set Guard
-dependencySet st@Store{..} g = case Map.lookup g guards of
-  Nothing -> Set.singleton g
-  Just gs -> foldMap (dependencySet st) gs
-
-data HeadUpData = forall i. HeadUpData
-  { opTable :: Operator -> Clause
-  , metaStore :: StoreF i
-  , huOptions :: Options
-  , huEnv :: Env
-  }
 
 mkOpTable :: Bwd Frame -> Operator -> Clause
 mkOpTable _ (Operator "app") = appClause
@@ -95,30 +58,21 @@ mkOpTable fs op = flip foldMap fs $ \case
   Extended op' cl | op == op' -> cl
   _ -> mempty
 
--- Expanding the term using the information currently available:
--- + meta solutions
--- + operator clauses
-headUp :: HeadUpData -> Term -> Term
-headUp dat@HeadUpData{..} term = case expand term of
-  m :$: sg | Just (_, Just t) <- Map.lookup m (solutions metaStore)
-    -> headUp dat (t //^ sg)
-  t :-: o -> case expand o of
-    AX op i -> operate (Operator op) (t, [])
-    o@(CdB (A op) th :%: wargs) ->
-      case asList (\ ps -> pure $ operate (Operator op) (t, ps)) wargs of
-        Nothing -> contract (t :-: contract o)
-        Just t -> t
-    o -> contract (t :-: contract o)
-  GX g t -> if Set.null (dependencySet metaStore g) then headUp dat t else term
-  _ -> term
+defineGuard :: Guard -> Set Guard -> StoreF i d -> StoreF i d
+defineGuard g gs = execState (compressGuards g gs)
 
-  where
+compressGuards :: Guard -> Set Guard -> State (StoreF i d) (Set Guard)
+compressGuards g gs = do
+  gs <- foldMap (\ g -> fromMaybe (Set.singleton g) <$> dependencySetCompression g) gs
+  modify (\ st -> st { guards = Map.insert g gs (guards st) })
+  pure gs
 
-  operate :: Operator -> (Term, [Term]) -> Term
-  operate op tps = case runClause (opTable op) huOptions (headUp dat) huEnv tps of
-    Left (t, ps) -> t -% (getOperator op, ps)
-    Right t -> headUp dat t
-
+dependencySetCompression :: Guard -> State (StoreF i d) (Maybe (Set Guard))
+dependencySetCompression g = do
+  gtable <- gets guards
+  case Map.lookup g gtable of
+    Nothing -> pure Nothing
+    Just gs -> Just <$> compressGuards g gs
 
 compareUp :: HeadUpData -> Term -> Term -> Maybe Ordering
 compareUp dat s t = case (expand (headUp dat s), expand (headUp dat t)) of
@@ -147,12 +101,12 @@ comparesUp dat sg sg' = compareUp dat (toTerm sg) (toTerm sg') where
 
 class Instantiable t where
   type Instantiated t
-  instantiate :: StoreF i -> t -> Instantiated t
+  instantiate :: StoreF i d -> t -> Instantiated t
   normalise :: HeadUpData -> t -> Instantiated t
 
 class Instantiable1 t where
   type Instantiated1 t :: * -> *
-  instantiate1 :: StoreF i -> t a -> Instantiated1 t a
+  instantiate1 :: StoreF i d -> t a -> Instantiated1 t a
   normalise1 :: HeadUpData -> t a -> Instantiated1 t a
 
 instance Instantiable Term where
@@ -364,74 +318,3 @@ instance (Show s, Show (t Frame)) => Show (Process log s t) where
   show (Process opts stack root env store actor _ geas) =
    unwords ["Process ", show opts, show stack, show root, show env, show store, show actor, show geas]
 
-------------------------------------------------------------------------------
--- Operators
-
-data ANOPERATOR (ph :: Phase) = AnOperator
-  { opName :: OPERATOR ph
-  , objDesc :: SYNTAXDESC ph
-  , paramDescs :: [SYNTAXDESC ph]
-  , retDesc :: SEMANTICSDESC ph
-  }
-
-deriving instance
-  ( Show (OPERATOR ph)
-  , Show (SYNTAXDESC ph)
-  ) => Show (ANOPERATOR ph)
-
-type CAnOperator = ANOPERATOR Concrete
-type AAnOperator = ANOPERATOR Abstract
-
-data Operator = Operator { getOperator :: String }
-  deriving (Show, Eq)
-
-type family OPERATOR (ph :: Phase) :: *
-type instance OPERATOR Concrete = WithRange String
-type instance OPERATOR Abstract = Operator
-
-newtype Clause = Clause { runClause
-  :: Options
-  -> (Term -> Term) -- head normaliser
-  -> Env
-  -> (Term, [Term]) -- object & parameters
-  -> Either (Term, [Term]) Term }
-
-instance Semigroup Clause where
-  (<>) = mappend
-
-instance Monoid Clause where
-  mempty = Clause $ \ _ _ _ -> Left
-  mappend cl1 cl2 = Clause $ \ opts hd env ops -> case runClause cl2 opts hd env ops of
-    Left ops -> runClause cl1 opts hd env ops
-    Right t -> Right t
-
-instance Show Clause where
-  show _ = "<fun>"
-
-type OPPATTERN ph = (OPERATOR ph, [PATTERN ph])
-
-type family DEFNOP (ph :: Phase) :: *
-type instance DEFNOP Concrete = (PATTERN Concrete, [OPPATTERN Concrete], TERM Concrete)
-type instance DEFNOP Abstract = (Operator, Clause)
-
-pdefnop :: Parser (DEFNOP Concrete)
-pdefnop =  (,,) <$> ppat <*> some (punc "-" *> poperator ppat) <* punc "~>" <*> pTM
-
-type COpPattern = OPPATTERN Concrete
-type AOpPattern = OPPATTERN Abstract
-type COperator = OPERATOR Concrete
-type AOperator = OPERATOR Abstract
-
-poperator :: Parser a -> Parser (WithRange String, [a])
-poperator ph =
-  (,[]) <$> pwithRange patom
-  <|> (,) <$ pch (== '[') <* pspc <*> pwithRange patom <*> many (id <$ pspc <*> ph) <* pspc <* pch (== ']')
-
-panoperator :: String -> Parser CAnOperator
-panoperator copula = do
-  obj <- psyntaxdecl
-  punc "-"
-  (opname, params) <- poperator psyntaxdecl
-  punc copula
-  ret <- psemanticsdecl
-  pure (AnOperator opname obj params ret)

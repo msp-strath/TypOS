@@ -23,6 +23,7 @@ import Format
 import LaTeX
 import Location (unknown)
 import Machine.Base
+import Operator.Eval
 import Options
 import Pretty
 import Syntax (SyntaxDesc, SyntaxTable, expand, VSyntaxDesc'(..), contract)

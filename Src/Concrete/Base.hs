@@ -147,8 +147,9 @@ type instance SYNTAXDESC Concrete = Raw
 type CSyntaxDesc = SYNTAXDESC Concrete
 type ASyntaxDesc = SYNTAXDESC Abstract
 
-type SEMANTICSDESC (ph :: Phase)
-  = SYNTAXDESC ph -- for now, actually: TERM ph
+type family SEMANTICSDESC (ph :: Phase)
+type instance SEMANTICSDESC Concrete = Raw
+
 type CSemanticsDesc = SEMANTICSDESC Concrete
 type ASemanticsDesc = SEMANTICSDESC Abstract
 

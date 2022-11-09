@@ -20,6 +20,7 @@ import Hide
 import Pattern
 import Scope
 import Syntax()
+import Semantics()
 import Term.Base
 import Thin
 import Location (unknown)

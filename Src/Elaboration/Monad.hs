@@ -17,11 +17,13 @@ import Bwd
 import Concrete.Base
 import Location (HasGetRange(..), Range, WithRange (..))
 import Syntax (SyntaxCat, SyntaxDesc, VSyntaxDesc'(..), VSyntaxDesc, SyntaxTable, wildcard)
+import Semantics (embed)
 import qualified Syntax
 import Thin (Selable(..), DB (..), CdB (..))
 import Term.Base (Tm(..), atom)
 import Utils
 import Machine.Base
+import Operator
 import Rules
 
 ------------------------------------------------------------------------------
@@ -216,7 +218,7 @@ initContext = Context
   { objVars = B0
   , declarations = B0
   , operators = Map.fromList
-    [ ("app", (wildcard, [wildcard], wildcard))
+    [ ("app", (wildcard, [wildcard], embed wildcard))
     ]
   , location = B0
   , binderHints = Map.empty

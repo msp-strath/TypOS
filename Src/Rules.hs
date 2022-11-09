@@ -9,7 +9,7 @@ import Data.Maybe
 import Actor
 import Scope
 import Concrete.Base
-import Machine.Base (DEFNOP, ANOPERATOR, pdefnop, panoperator)
+import Operator (DEFNOP, ANOPERATOR, pdefnop, panoperator)
 import Term.Base
 
 import Parse
