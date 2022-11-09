@@ -174,7 +174,10 @@ instance Pretty Complaint where
             Subject{} -> ("a subject", "neither as an input nor an output")
             Output -> ("an output", "not as a subject")
       in hsep ["Found", pretty v, "as", seen, "but", unseen ]
-    MalformedPostOperator r op -> hsep ["Malformed operator", pretty op]
+    MalformedPostOperator r op cands ->
+      let message = case cands of [x] -> "the subject"
+                                  _   -> "a subject among" in
+      hsep $ ["Malformed operator", pretty op <> "; expected it to act on", message] ++ punctuate ", " (map pretty cands)
 
     -- syntaxes
     AlreadyDeclaredSyntaxCat r x -> hsep ["The syntactic category", pretty x, "is already defined"]

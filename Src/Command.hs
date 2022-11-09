@@ -424,7 +424,7 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
     kindify m op
       | Var _ x <- objDesc op
       , Just syn <- Map.lookup x m = pure (op { objDesc = syn})
-      | otherwise = throwError (MalformedPostOperator (getRange (objDesc op)) (theValue (opName op)))
+      | otherwise = throwError (MalformedPostOperator (getRange (objDesc op)) (theValue (opName op)) (Map.keys m))
 
 
 -- | sopargs desc cops

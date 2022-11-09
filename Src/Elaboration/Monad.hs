@@ -393,7 +393,7 @@ data Complaint
   | DuplicatedOutput Range Variable
   | BothInputOutput Range Variable
   | ProtocolCitizenSubjectMismatch Range Variable (Mode ())
-  | MalformedPostOperator Range String
+  | MalformedPostOperator Range String [Variable]
   -- syntaxes
   | AlreadyDeclaredSyntaxCat Range SyntaxCat
   -- syntaxdesc validation
@@ -454,7 +454,7 @@ instance HasGetRange Complaint where
     DuplicatedOutput r _ -> r
     BothInputOutput r _ -> r
     ProtocolCitizenSubjectMismatch r _ _ -> r
-    MalformedPostOperator r _ -> r
+    MalformedPostOperator r _ _ -> r
   -- syntaxes
     AlreadyDeclaredSyntaxCat r _ -> r
   -- syntaxdesc validation

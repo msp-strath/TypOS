@@ -1,0 +1,13 @@
+------------------------------------------------------------------------------
+-- Datatypes
+
+syntax
+  { 'Type = ['EnumOrTag  ['Nat]
+                         [['Arr 'Type 'Type]]
+            ]
+  }
+
+judgementform
+  {}
+  type (T : 'Type)
+  {['a 'a] - 'Value : 'Universe}
