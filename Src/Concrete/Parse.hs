@@ -108,6 +108,9 @@ pprotocol = Protocol <$> psep pspc
 psyntaxdecl :: Parser Raw
 psyntaxdecl = pTM
 
+psemanticsdecl :: Parser Raw
+psemanticsdecl = pTM
+
 pcontextstack :: Parser (ContextStack Raw)
 pcontextstack = ContextStack
   <$> psyntaxdecl
@@ -133,6 +136,7 @@ withVars con px str pa = do
     pure (xs, a)
   pure $ foldr (curry (con r)) a xs
 
+-- Warning: breaks convention and consumes trailing space
 pextractmode :: Parser ExtractMode
 pextractmode
     = TopLevelExtract <$ pch (== '/') <* pspc

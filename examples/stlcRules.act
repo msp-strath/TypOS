@@ -23,7 +23,8 @@ syntax -- we're calling in not-'Nat on purpose
                ]
   }
 
-------------------------------------------------------------------------------
+{-
+-----------------------------------------------------------------------------
 -- Judgement forms
 
 /type : $'Type.
@@ -33,7 +34,7 @@ synth : $'Synth. !'Type.
 
 -- | myCtxt maps synthesisable variables to types
 myCtxt |- 'Synth -> 'Type
-
+-}
 
 ------------------------------------------------------------------------------
 -- Judgement forms and their contracts
@@ -49,7 +50,7 @@ judgementform
 judgementform
   {type T}
   check T (t : 'Check => T - 'Value)
-  {}
+  {t - 'Bla : 'Universe}
 
 judgementform
   {}

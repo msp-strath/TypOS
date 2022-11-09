@@ -7,13 +7,16 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 
-import Data.Bifunctor (first)
+import Data.Bifunctor (bimap, first)
 import Data.Function (on)
 import Data.List (sort, sortBy)
+import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe, catMaybes)
 import Data.Traversable (for)
 import Data.These
+import Data.Either
+import Data.Foldable (fold)
 
 import Actor
 import Actor.Display ()
@@ -273,7 +276,7 @@ sdeclOps ((AnOperator (WithRange r opname) objDesc paramDescs retDesc) : ops) = 
   syndecls <- gets (Map.keys . syntaxCats)
   objDesc <- ssyntaxdesc syndecls objDesc
   paramDescs <- traverse (ssyntaxdesc syndecls) paramDescs
-  retDesc <- ssyntaxdesc syndecls retDesc
+  retDesc <- ssemanticsdesc retDesc
   let op = AnOperator opname objDesc paramDescs retDesc
   (ops, decls) <- local (addOperator op) $ sdeclOps ops
   pure (op : ops, decls)
@@ -339,12 +342,14 @@ scommand = \case
     (j , gs) <- sjudgementform j
     pure (DeclJudgementForm j, gs)
 
-sjudgementform :: JUDGEMENTFORM Concrete -> Elab (JUDGEMENTFORM Abstract, Globals)
-sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
-  inputs <- concat <$> traverse subjects jpreconds  -- TODO: should really be the closure of this info
-  outputs <- concat <$> traverse subjects [ x | Left x <- jpostconds ]
-  let names = map fst jplaces
-  let citizenNames = [x | (x, CitizenPlace) <- jplaces]
+checkCompatiblePlaces :: [PLACE Concrete] ->
+                    [(Variable, ASemanticsDesc)] ->
+                    [(Variable, ASemanticsDesc)] ->
+                    Elab ()
+checkCompatiblePlaces places inputs outputs = do
+  -- Make sure subject protocol can be found unambiguously
+  let names = map fst places
+  let citizenNames = [x | (x, CitizenPlace) <- places]
   let inputNames = map fst inputs
   let outputNames = map fst outputs
   whenLeft (allUnique names) $ \ a -> throwError $ DuplicatedPlace (getRange a) a
@@ -358,9 +363,6 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
     throwError $ BothInputOutput (getRange a) a
   whenCons (mismatch citizenNames inputNames outputNames) $ \ (v, m) _ ->
     throwError (ProtocolCitizenSubjectMismatch (getRange v) v m)
-  protocol <- traverse (citizenJudgement inputs outputs) jplaces
-  undefined -- TODO
-
   where
     mismatch :: [Variable]
              -> [Variable]
@@ -375,6 +377,22 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
     check (These a b) = (a, Subject ()) <$ guard (a /= fst b)
     check t = Just (mergeThese const (first (, Subject ()) t))
 
+
+sjudgementform :: JUDGEMENTFORM Concrete -> Elab (JUDGEMENTFORM Abstract, Globals)
+sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
+  inputs <- concat <$> traverse subjects jpreconds  -- TODO: should really be the closure of this info
+  let (outputs, operators) = partitionEithers jpostconds
+  outputs <- concat <$> traverse subjects outputs
+  checkCompatiblePlaces jplaces inputs outputs
+  (protocol, subjectKinds)  <- bimap Protocol fold . unzip
+    <$> traverse (citizenJudgement inputs outputs) jplaces
+  jname <- isFresh jname
+  local (declare (Used jname) (AJudgement jextractmode protocol)) $ do
+      (operators, gs) <- sdeclOps =<< traverse (kindify subjectKinds) operators
+      pure ((jextractmode, jname, protocol), gs)
+
+
+  where
     subjects :: JUDGEMENT Concrete -> Elab [(Variable, ASemanticsDesc)]
     subjects (Judgement r name fms) = do
       IsJudgement{..} <- isJudgement name
@@ -388,19 +406,25 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
         (x, _) -> throwError $ UnexpectedNonSubject r x
 
     citizenJudgement :: [(Variable, ASemanticsDesc)] -> [(Variable, ASemanticsDesc)]
-                     -> CPlace -> Elab (PROTOCOLENTRY Abstract)
+                     -> CPlace -> Elab (PROTOCOLENTRY Abstract, Map Variable CSyntaxDesc)
     citizenJudgement inputs outputs (name, place) = case place of
       CitizenPlace ->
         case (lookup name inputs, lookup name outputs) of
-          (Just isem, Nothing) -> pure (Input, isem)
-          (Nothing, Just osem) -> pure (Output, osem)
+          (Just isem, Nothing) -> pure ((Input, isem), Map.empty)
+          (Nothing, Just osem) -> pure ((Output, osem), Map.empty)
           _  -> error "Impossible in citizenJudgement"
 
-      SubjectPlace syn sem -> do
+      SubjectPlace rsyn sem -> do
         syndecls <- gets (Map.keys . syntaxCats)
-        syn <- ssyntaxdesc syndecls syn
+        syn <- ssyntaxdesc syndecls rsyn
         sem <- ssemanticsdesc sem
-        pure (Subject syn, sem)
+        pure ((Subject syn, sem), Map.singleton name rsyn)
+
+    kindify :: Map Variable CSyntaxDesc -> CAnOperator -> Elab CAnOperator
+    kindify m op
+      | Var _ x <- objDesc op
+      , Just syn <- Map.lookup x m = pure (op { objDesc = syn})
+      | otherwise = throwError (MalformedPostOperator (getRange (objDesc op)) (theValue (opName op)))
 
 
 -- | sopargs desc cops

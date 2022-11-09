@@ -63,16 +63,26 @@ mkSubjectPlace :: SYNTAXDESC Concrete -> Maybe (SEMANTICSDESC Concrete)
                -> PLACEKIND Concrete
 mkSubjectPlace syn = SubjectPlace syn . fromMaybe syn  
 
-data JUDGEMENTFORM (ph :: Phase) = JudgementForm
+data CJudgementForm = JudgementForm
   { jrange :: Range
-  , jpreconds :: [JUDGEMENT ph]
-  , jname :: JUDGEMENTNAME ph
-  , jplaces :: [PLACE ph]
-  , jpostconds :: [Either (JUDGEMENT ph) (ANOPERATOR ph)]
+  , jpreconds :: [JUDGEMENT Concrete]
+  , jextractmode :: ExtractMode
+  , jname :: JUDGEMENTNAME Concrete
+  , jplaces :: [PLACE Concrete]
+  , jpostconds :: [Either (JUDGEMENT Concrete) (ANOPERATOR Concrete)]
   }
+  deriving Show
 
-instance HasSetRange (JUDGEMENTFORM ph) where
-  setRange r (JudgementForm _ a b c d) = JudgementForm r a b c d
+type AJudgementForm = (ExtractMode, String, AProtocol)
+
+instance HasSetRange CJudgementForm where
+  setRange r (JudgementForm _ a b c d e) = JudgementForm r a b c d e
+
+
+type family JUDGEMENTFORM (ph :: Phase) :: *
+type instance JUDGEMENTFORM Concrete = CJudgementForm
+type instance JUDGEMENTFORM Abstract = AJudgementForm
+
 
 deriving instance
   ( Show (JUDGEMENTNAME ph)
@@ -94,13 +104,6 @@ deriving instance
   ( Show (SYNTAXDESC ph)
   , Show (SEMANTICSDESC ph)) =>
   Show (PLACEKIND ph)
-
-deriving instance
-  ( Show (JUDGEMENT ph)
-  , Show (JUDGEMENTNAME ph)
-  , Show (PLACE ph)
-  , Show (ANOPERATOR ph)) =>
-  Show (JUDGEMENTFORM ph)
 
 pformula :: Parser CFormula
 pformula = pcitizen
@@ -126,8 +129,8 @@ pplace :: Parser (PLACE Concrete)
 pplace = (,CitizenPlace) <$> pvariable
        <|> pparens ((,) <$> pvariable <* punc ":" <*> (mkSubjectPlace <$> psyntaxdecl <*> optional (id <$ punc "=>" <*> pTM)))
 
-pjudgementform :: Parser (JUDGEMENTFORM Concrete)
+pjudgementform :: Parser CJudgementForm
 pjudgementform = withRange $ JudgementForm unknown <$ pkeyword KwJudgementForm <* pspc <*> pcurlies (psep (punc ";") pjudgement)
-                <* pspc <*> pvariable
+                <* pspc <*> pextractmode <*> pvariable
                 <* pspc <*> psep pspc pplace
                 <* pspc <*> pcurlies (psep (punc ";") (Left <$> pjudgement <|> Right <$> panoperator ":"))

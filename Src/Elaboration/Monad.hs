@@ -194,7 +194,7 @@ data Kind
   deriving (Show)
 
 type Decls = Bwd (String, Kind)
-type Operators = Map String (SyntaxDesc, [SyntaxDesc], SyntaxDesc)
+type Operators = Map String (SyntaxDesc, [SyntaxDesc], ASemanticsDesc)
 
 data Context = Context
   { objVars      :: ObjVars
@@ -385,6 +385,7 @@ data Complaint
   | ProtocolsNotDual Range AProtocol AProtocol
   | IncompatibleModes Range AProtocolEntry AProtocolEntry
   | WrongDirection Range AProtocolEntry Ordering AProtocolEntry
+  -- judgementforms
   | JudgementWrongArity Range JudgementName AProtocol [CFormula]
   | UnexpectedNonSubject Range CFormula
   | DuplicatedPlace Range Variable
@@ -392,6 +393,7 @@ data Complaint
   | DuplicatedOutput Range Variable
   | BothInputOutput Range Variable
   | ProtocolCitizenSubjectMismatch Range Variable (Mode ())
+  | MalformedPostOperator Range String
   -- syntaxes
   | AlreadyDeclaredSyntaxCat Range SyntaxCat
   -- syntaxdesc validation
@@ -452,6 +454,7 @@ instance HasGetRange Complaint where
     DuplicatedOutput r _ -> r
     BothInputOutput r _ -> r
     ProtocolCitizenSubjectMismatch r _ _ -> r
+    MalformedPostOperator r _ -> r
   -- syntaxes
     AlreadyDeclaredSyntaxCat r _ -> r
   -- syntaxdesc validation

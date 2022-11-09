@@ -8,7 +8,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Maybe
+import Data.Maybe (fromMaybe)
 import Control.Monad.State
 import Control.Applicative
 
@@ -22,7 +22,7 @@ import Location (WithRange)
 import Term
 import qualified Term.Substitution as Substitution
 import Thin
-import Concrete.Base (Phase(..), Root, Guard, ExtractMode, TERM, PATTERN, ACTOR (..), SYNTAXDESC)
+import Concrete.Base
 import Syntax (SyntaxDesc)
 
 import Data.Bifunctor (Bifunctor(first))
@@ -371,7 +371,7 @@ data ANOPERATOR (ph :: Phase) = AnOperator
   { opName :: OPERATOR ph
   , objDesc :: SYNTAXDESC ph
   , paramDescs :: [SYNTAXDESC ph]
-  , retDesc :: SYNTAXDESC ph
+  , retDesc :: SEMANTICSDESC ph
   }
 
 deriving instance
@@ -433,5 +433,5 @@ panoperator copula = do
   punc "-"
   (opname, params) <- poperator psyntaxdecl
   punc copula
-  ret <- psyntaxdecl
+  ret <- psemanticsdecl
   pure (AnOperator opname obj params ret)

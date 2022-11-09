@@ -15,6 +15,7 @@
 * [x] irrefutable patterns in binders
 * [x] literate markdown
 * [ ] literate LaTeX
+* [ ] protect against "redefining" syntax keywords such as 'Atom etc
 
 ### Features
 

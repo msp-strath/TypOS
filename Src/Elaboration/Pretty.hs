@@ -158,6 +158,8 @@ instance Pretty Complaint where
       hsep [ "Channels scopes", collapse (pretty <$> sc1)
            , "and", collapse (pretty <$> sc2), "are incompatible"]
     WrongDirection r m1 dir m2 -> hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]
+
+    -- judgementforms
     JudgementWrongArity r name (Protocol protocol) fms ->
         let applied = (if length protocol > length fms then "under" else "over") <> "-applied" in
         hsep ["Judgement", pretty name, applied]
@@ -172,6 +174,7 @@ instance Pretty Complaint where
             Subject{} -> ("a subject", "neither as an input nor an output")
             Output -> ("an output", "not as a subject")
       in hsep ["Found", pretty v, "as", seen, "but", unseen ]
+    MalformedPostOperator r op -> hsep ["Malformed operator", pretty op]
 
     -- syntaxes
     AlreadyDeclaredSyntaxCat r x -> hsep ["The syntactic category", pretty x, "is already defined"]

@@ -131,8 +131,8 @@ ssyntaxdesc syndecls syn = do
 ssemanticsdesc :: CSemanticsDesc -> Elab ASemanticsDesc
 ssemanticsdesc sem = do
   syndecls <- gets (Map.keys . syntaxCats)
-  ssyntaxdesc syndecls sem
-  -- TOOD: use stm to actually be able to use operators & actor vars
+  ssyntaxdesc ("Universe":syndecls) sem
+  -- TODO: use stm to actually be able to use operators & actor vars
   -- DontLog (catToDesc "Semantics")
 
 ssbst :: Usage -> Bwd SbstC -> Elab (ACTSbst, ObjVars)
@@ -413,7 +413,7 @@ isChannel ch = resolve ch >>= \case
   Just mk -> throwError (NotAValidChannel (getRange ch) ch $ either Just (const Nothing) mk)
   Nothing -> throwError (OutOfScope (getRange ch) ch)
 
-isOperator :: Range -> String -> Elab (SyntaxDesc, [SyntaxDesc], SyntaxDesc)
+isOperator :: Range -> String -> Elab (SyntaxDesc, [SyntaxDesc], ASemanticsDesc)
 isOperator r nm = do
   ops <- asks operators
   case Map.lookup nm ops of
