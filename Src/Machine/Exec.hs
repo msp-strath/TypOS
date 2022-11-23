@@ -43,10 +43,15 @@ lookupRules jd zf = do
     _ -> Nothing
   pure cha
 
+mkHeadUpData :: Process a Store Bwd -> HeadUpData
+mkHeadUpData Process{..} =
+  let what m = Map.lookup m (solutions store) >>= snd
+  in HeadUpData (mkOpTable stack) store options env what
+
 recordFrame :: Process Shots Store Bwd -> Process Shots Store Bwd
 recordFrame p@Process{..} =
-  let dat = HeadUpData (mkOpTable stack) store (options { quiet = True }) env in
-  p { logs = normalise dat (extract Simple (length logs) (stack <>> [])) : logs }
+  let dat = mkHeadUpData (p{options = options { quiet = True }})
+  in p { logs = normalise dat (extract Simple (length logs) (stack <>> [])) : logs }
 
 -- run an actor
 exec :: Process Shots Store Bwd -> Process Shots Store []
@@ -104,8 +109,7 @@ exec p@Process { actor = m@(Match _ s cls), ..}
   = switch term cls
  where
 
-  dat :: HeadUpData
-  dat = HeadUpData (mkOpTable stack) store options env
+  dat = mkHeadUpData p
 
   search :: Bwd Frame -> Int -> Stack -> Int -> Maybe Term
   search B0 i stk bd = Nothing
@@ -170,7 +174,7 @@ exec p@Process { actor = Constrain _ s t, ..}
   -- , dmesg (show env) True
   -- , dmesg (show s ++ " ----> " ++ show s') True
   -- , dmesg (show t ++ " ----> " ++ show t') True
-  = let dat = HeadUpData (mkOpTable stack) store options env in
+  = let dat = mkHeadUpData p in
     unify dat (p { stack = stack :<+>: [UnificationProblem (today store) s' t'], actor = Win unknown })
 exec p@Process { actor = Under _ (Scope (Hide x) a), ..}
   = let scopeSize = length (globalScope env <> localScope env)
@@ -225,13 +229,12 @@ evalError p@Process{..} fmt
 
 format :: [Annotation] -> Process log Store Bwd -> [Format Directive Debug Term] -> String
 format ann p@Process{..} fmt
-  = let dat = HeadUpData (mkOpTable stack) store options env
-  in renderWith (renderOptions options)
+  = renderWith (renderOptions options)
   $ unsafeEvalDisplay (frDisplayEnv stack)
   $ fmap (withANSI ann)
   $ subdisplay
   $ insertDebug p
-  $ map (followDirectives dat) fmt
+  $ map (followDirectives $ mkHeadUpData p) fmt
 
 unify :: HeadUpData -> Process Shots Store Cursor -> Process Shots Store []
 -- unify p | dmesg ("\nunify\n  " ++ show p) False = undefined
@@ -305,7 +308,7 @@ solveMeta :: Meta   -- The meta (m) we're solving
           -> Process log Store Cursor
           -> Maybe (Process log Store Cursor)
 solveMeta m (CdB (S0 :^^ _) th) tm p@Process{..} = do
-  let dat = HeadUpData (mkOpTable (let (fs :<+>: _) = stack in fs)) store options env
+  let dat = mkHeadUpData (p{ stack = let (fs :<+>: _) = stack in fs})
   (tm, p) <- deepCheck dat th tm p
   return (p { store = updateStore m tm store })
 
@@ -417,9 +420,9 @@ move p@Process { stack = zf :< Spawner (Interface (childP, q) (rxs, Hole) jd jdp
     in exec (childP { stack = stack', store = st, logs })
 move p@Process { stack = zf :< UnificationProblem date s t :<+>: fs, .. }
   | today store > date
-  = let dat = HeadUpData (mkOpTable zf) store options env in
+  = let dat = mkHeadUpData (p{ stack = zf}) in
     unify dat (p { stack = zf :<+>: UnificationProblem (today store) s t : fs })
-move p@Process { stack = (zf :< f) :<+>: fs }
+move p@Process { stack = (zf :< f) :<+>: fs }  
   = move (p { stack = zf :<+>: (f : fs) })
 
 debug :: (Show (t Frame), Traversable t, Collapse t, Display0 s)

@@ -16,7 +16,7 @@ syntax
              ]]
   }
 
--- this is in 'Universe, or so we declare
+-- this is in 'Semantics, or so we declare
 syntax -- we're calling in not-'Nat on purpose
   { 'Natural = ['EnumOrTag ['Zero]
                            [['Succ 'Natural]]
@@ -45,12 +45,12 @@ myCtxt |- 'Synth -> 'Type
 judgementform
   {}
   type (T : 'Type) -- no '=> B' means the citizen version is the same
-  {T - 'Value : 'Universe}
+  {T - 'Value : 'Semantics}
 
 judgementform
   {type T}
   check T (t : 'Check => T - 'Value)
-  {t - 'Bla : 'Universe}
+  {t - 'Bla : 'Semantics}
 
 judgementform
   {}
@@ -58,7 +58,7 @@ judgementform
   {type T}
 
 -- Open question in the above: will it always be the subject that's fed to an operator?
--- Note: the "T - 'Value" is in 'Universe and that T is the citizen, not the subject
+-- Note: the "T - 'Value" is in 'Semantics and that T is the citizen, not the subject
 
 -- {} myCtxt |- x -> T {synth x T}
 
@@ -72,7 +72,7 @@ rule
   {type S; type T}
   ------------------------
   type ['Arr S T] => ['Arr S T]
--- Global assumption: 'Universe comes with Pi builtin
+-- Global assumption: 'Semantics comes with Pi builtin
   {['Arr S T] - 'Value ~> ['Pi (S - 'Value) \_. (T - 'Value)]}
 
 -- Invariant: the subject in a premiss is always something with a name

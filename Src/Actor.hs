@@ -67,19 +67,24 @@ aconnect r ch1 th ch2 n
   | otherwise = Win r
 
 
-data Env = Env
+data Env' m = Env
   { globalScope :: Bwd String -- free vars ga actor does *not* know about
-  , actorVars :: Map ActorMeta ([String] -- bound vars xi actorVar does know about
-                                   , Term) -- in scope ga <>< xi
+  , actorVars :: Map ActorMeta (EnvImg' m)
   , subjectGuards :: Map String Guard
   , localScope :: Bwd String -- vars de actor has bound
   , alphaRenamings :: Map String (Hide String)
   } deriving (Show, Eq)
 
+type EnvImg' m = ([String] -- bound vars xi actorVar does know about
+                 , CdB (Tm m)) -- in scope ga <>< xi
+
+type Env = Env' Meta
+type EnvImg = EnvImg' Meta
+
 tryAlpha :: Env -> String -> String
 tryAlpha rho x = maybe x unhide (Map.lookup x (alphaRenamings rho))
 
-declareAlpha :: (String, Hide String) -> Env -> Env
+declareAlpha :: (String, Hide String) -> Env' m -> Env' m
 declareAlpha (x, Hide "_") rho = rho
 declareAlpha ("_", y) rho = rho
 declareAlpha (x, y) rho =
@@ -97,7 +102,7 @@ initEnv gamma = Env
 childEnv :: Env -> Env
 childEnv parentEnv = initEnv (globalScope parentEnv <> localScope parentEnv)
 
-newActorVar :: ActorMeta -> ([String], Term) -> Env -> Env
+newActorVar :: ActorMeta -> EnvImg' m -> Env' m -> Env' m
 newActorVar x defn env = env { actorVars = Map.insert x defn (actorVars env) }
 
 guardSubject :: ActorVar -> ([String], Term) -> Guard -> Env -> Env

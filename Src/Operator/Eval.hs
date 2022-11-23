@@ -26,19 +26,22 @@ data StoreF i d = Store
   , today :: d
   } deriving (Show, Functor)
 
-data HeadUpData = forall i d. HeadUpData
+data HeadUpData' m = forall i d. HeadUpData
   { opTable :: Operator -> Clause
   , metaStore :: StoreF i d
   , huOptions :: Options
-  , huEnv :: Env
+  , huEnv :: Env' m
+  , whatIs :: m -> Maybe (Term' m)
   }
+
+type HeadUpData = HeadUpData' Meta
 
 -- Expanding the term using the information currently available:
 -- + meta solutions
 -- + operator clauses
-headUp :: HeadUpData -> Term -> Term
+headUp :: forall m . Show m => HeadUpData' m -> Term' m -> Term' m
 headUp dat@HeadUpData{..} term = case expand term of
-  m :$: sg | Just (_, Just t) <- Map.lookup m (solutions metaStore)
+  m :$: sg | Just t <- whatIs m
     -> headUp dat (t //^ sg)
   t :-: o -> case expand o of
     AX op i -> operate (Operator op) (t, [])
@@ -47,12 +50,12 @@ headUp dat@HeadUpData{..} term = case expand term of
         Nothing -> contract (t :-: contract o)
         Just t -> t
     o -> contract (t :-: contract o)
-  GX g t -> if Set.null (dependencySet metaStore g) then headUp dat t else term
+  GX g t | Set.null (dependencySet metaStore g) -> headUp dat t
   _ -> term
 
   where
 
-  operate :: Operator -> (Term, [Term]) -> Term
+  operate :: Operator -> (Term' m, [Term' m]) -> Term' m
   operate op tps = case runClause (opTable op) huOptions (headUp dat) huEnv tps of
     Left (t, ps) -> t -% (getOperator op, ps)
     Right t -> headUp dat t

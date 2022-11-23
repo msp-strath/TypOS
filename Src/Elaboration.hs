@@ -131,7 +131,7 @@ ssyntaxdesc syndecls syn = do
 ssemanticsdesc :: CSemanticsDesc -> Elab ASemanticsDesc
 ssemanticsdesc sem = do
   syndecls <- gets (Map.keys . syntaxCats)
-  ssyntaxdesc ("Universe":syndecls) sem
+  ssyntaxdesc ("Semantics":syndecls) sem
   -- TODO: use stm to actually be able to use operators & actor vars
   -- DontLog (catToDesc "Semantics")
 

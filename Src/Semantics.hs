@@ -11,7 +11,7 @@ import qualified Data.Map as Map
 import Hide
 import Bwd
 import Concrete.Base (Phase(..), ASyntaxDesc, ASemanticsDesc, SEMANTICSDESC)
-import Actor (ACTm, mangleActors)
+import Actor (ACTm, ActorMeta)
 import Thin (CdB(..), DB(..), weak, scope, lsb, ($^))
 import Term hiding (contract, expand)
 import Syntax (SyntaxTable, SyntaxCat, WithSyntaxCat(..))
@@ -37,30 +37,31 @@ data VSemanticsDesc' a
   | VNeutral ASemanticsDesc
   -- canonical semantics constructors
   | VUniverse
-  | VPi ASemanticsDesc (Named Bool, ASemanticsDesc)
+  | VPi ASemanticsDesc (String, ASemanticsDesc)
   deriving (Eq, Show)
 
 type VSemanticsDesc = VSemanticsDesc' Void
 
-{-
-expand' :: WithSyntaxCat a -> SyntaxTable -> HeadUpData -> ASemanticsDesc -> Maybe (VSemanticsDesc' a)
+
+expand' :: forall a. WithSyntaxCat a -> SyntaxTable -> HeadUpData' ActorMeta -> ASemanticsDesc -> Maybe (VSemanticsDesc' a)
 expand' w table dat desc = do
-  desc <- mangleActors (huOptions dat) (huEnv dat) desc
   go True (headUp dat desc) where
 
-  go b s = (($ s) $ asAtomOrTagged (goAtoms b) (goTagged b s))
+  go :: Bool -> ASemanticsDesc -> Maybe (VSemanticsDesc' a)  
+  go b s = ($ s) (asAtomOrTagged (goAtoms b) (goTagged b s))
        <|> pure (VNeutral desc)
 
   goAtoms b (a,_) = case a of
     "Atom" -> pure VAtom
     "Nil"  -> pure VNil
     "Wildcard" -> pure VWildcard
+    "Semantics" -> pure VUniverse
     a -> do
       s <- Map.lookup a table
       case w of
         Yes -> pure (VSyntaxCat a)
         No -> do guard b
-                 go False s
+                 go False (embed s)
 
   goTagged b s (a, n) = case a of
     "AtomBar" -> asPair $ asListOf (asAtom $ Just . fst)
@@ -75,11 +76,11 @@ expand' w table dat desc = do
                      ($ ts) $ asListOf (asTagged $ \ (a, _) -> asList $ \ bs -> Just (a, bs)) $ \ ys ->
                      pure (VEnumOrTag xs ys)
     "Fix" -> asPair $ asBind $ \ x s' _ -> go False (s' //^ topSbst x s)
+    "Pi" -> asPair $ \ s0 -> asPair $ asBind $ \ x s1 _ -> pure $ VPi s0 (x, s1)
     _ -> bust
 
-expand :: SyntaxTable -> HeadUpData -> ASemanticsDesc -> Maybe VSemanticsDesc
+expand :: SyntaxTable -> HeadUpData' ActorMeta -> ASemanticsDesc -> Maybe VSemanticsDesc
 expand = expand' No
--}
 
 {-
 

@@ -8,7 +8,7 @@ import Concrete.Parse
 import Location
 import Parse
 import Options
-import Actor (Env)
+import Actor (Env, Env')
 import Term.Base
 
 ------------------------------------------------------------------------------
@@ -38,11 +38,12 @@ type instance OPERATOR Concrete = WithRange String
 type instance OPERATOR Abstract = Operator
 
 newtype Clause = Clause { runClause
-  :: Options
-  -> (Term -> Term) -- head normaliser
-  -> Env
-  -> (Term, [Term]) -- object & parameters
-  -> Either (Term, [Term]) Term }
+  :: forall m
+  .  Options
+  -> (Term' m -> Term' m) -- head normaliser
+  -> Env' m
+  -> (Term' m, [Term' m]) -- object & parameters
+  -> Either (Term' m, [Term' m]) (Term' m) }
 
 instance Semigroup Clause where
   (<>) = mappend

@@ -57,8 +57,11 @@ compressedMeta (Meta ms) = go (B0 :< "?[") ms where
 instance Pretty Meta where
   pretty = pretty . compressedMeta
 
-type Term = CdB (Tm Meta)
-type Subst = CdB (Sbst Meta)
+type Term' m = CdB (Tm m)
+type Subst' m = CdB (Sbst m)
+
+type Term  = Term' Meta
+type Subst = Subst' Meta
 
 initRoot :: Root
 initRoot = (B0, 0)

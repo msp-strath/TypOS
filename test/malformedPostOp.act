@@ -10,4 +10,4 @@ syntax
 judgementform
   {}
   type (T : 'Type)
-  {['a 'a] - 'Value : 'Universe}
+  {['a 'a] - 'Value : 'Semantics}

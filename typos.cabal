@@ -17,15 +17,16 @@ common haskell
                        FlexibleContexts,
                        FlexibleInstances,
                        GeneralizedNewtypeDeriving,
+                       LambdaCase,
                        MultiParamTypeClasses,
                        NamedFieldPuns,
+                       RankNTypes,
                        RecordWildCards,
                        ScopedTypeVariables,
                        StandaloneDeriving,
                        TupleSections,
                        TypeFamilies,
-                       TypeSynonymInstances,
-                       LambdaCase
+                       TypeSynonymInstances
 
 library
   import:              haskell
