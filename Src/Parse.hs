@@ -315,11 +315,18 @@ class Lisp t where
   pCar   :: Parser t
 
 -- Parse a lispy language, with an optional transformer
+plisp :: (Lisp t, HasRange t) => Parser t
+plisp = withRange $
+  mkNil <$ plit "]"
+  <|> id <$ plit "|" <* pspc <*> pCar <* pspc <* plit "]"
+  <|> mkCons <$> pCar <* pspc <*> plisp
+{-
 plisp :: (Lisp t, HasRange t) => Maybe (Parser t -> Parser t) -> Parser t
 plisp tr = maybe (doit id) (doit) tr
   where
     doit :: (Lisp t, HasRange t) => (Parser t -> Parser t) -> Parser t
-    doit tr = withRange $ id <$ pch (== '[') <* pspc <*> tr (
+    doit tr = id <$ pch (== '[') <* pspc <*> tr (withRange $
       mkNil <$ plit "]"
       <|> id <$ plit "|" <* pspc <*> pCar <* pspc <* plit "]"
       <|> mkCons <$> pCar <* pspc <*> plisp Nothing)
+-}

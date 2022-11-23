@@ -61,8 +61,8 @@ ptm :: Parser Raw
 ptm = withRange $
   Var unknown <$> pvariable
   <|> At unknown <$> patom
-  <|> plisp Nothing
-  -- <|> id <$ pch (== '[') <* pspc <*> plisp
+  -- <|> plisp Nothing
+  <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> pparens pTM
 
 psbstC :: Parser SbstC
@@ -81,8 +81,8 @@ ppat = withRange $
   AsP unknown <$> pvariable <* ppunc "@" <*> ppat
   <|> VarP unknown <$> pvariable
   <|> AtP unknown <$> patom
-  <|> plisp (Just $ pmustwork "Expected a list pattern")
-  -- <|> id <$ pch (== '[') <* pspc <*> pmustwork "Expected a list pattern" plisp
+  -- <|> plisp (Just $ pmustwork "Expected a list pattern")
+  <|> id <$ pch (== '[') <* pspc <*> pmustwork "Expected a list pattern" plisp
   <|> pparens ppat
   <|> pscoped LamP pbinder ppat
   <|> ThP unknown <$ pch (== '{') <* pspc <*> pth <* ppunc "}" <*> ppat
@@ -150,8 +150,8 @@ pscrutinee = withRange $ do
   <|> Compare unknown <$ pkeyword KwCompare <* pspc1 <*> pTM <* pspc <*> pTM
   <|> pparens pscrutinee
   <|> Term unknown <$> pTM
-  <|> (isProper =<< plisp Nothing) where
-  -- id <$ pch (== '[') <* pspc <*> plisp) where
+  -- <|> (isProper =<< plisp Nothing) where
+  <|> (isProper =<< id <$ pch (== '[') <* pspc <*> plisp) where
 
     isProper :: CScrutinee -> Parser CScrutinee
     isProper (Term _ _) = pfail
