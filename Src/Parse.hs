@@ -190,6 +190,7 @@ pparens :: Parser a -> Parser a
 pparens p = id <$ pch (== '(') <* pspc <*> p <* pspc <* plit ")"
 
 -- | get something within curlies, at a point where we're expecting them
+--   NB: we are exceptionally consuming leading space here!
 pcurlies :: Parser a -> Parser a
 pcurlies p = id <$ ppunc "{" <*> p <* pspc <* plit "}"
 
