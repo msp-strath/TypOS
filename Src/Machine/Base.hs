@@ -132,7 +132,7 @@ instance Instantiable Term where
 
 followDirectives :: (Show t, Instantiable t, Instantiated t ~ t)
        => HeadUpData -> Format Directive dbg t -> Format () dbg t
-followDirectives dat@(HeadUpData _ store _ _) = \case
+followDirectives dat@(HeadUpData _ store _ _ _) = \case
     TermPart Instantiate t -> TermPart () (instantiate store t)
     TermPart Normalise t -> TermPart () (normalise dat t)
     TermPart Raw t -> TermPart () t

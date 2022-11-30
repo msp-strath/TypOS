@@ -267,19 +267,28 @@ setGlobals (decls, ops) = setDecls decls . setOperators ops
 
 sdeclOps :: [CAnOperator] -> Elab ([AAnOperator], Globals)
 sdeclOps [] = ([],) <$> asks globals
-sdeclOps ((AnOperator (WithRange r opname) objDesc paramDescs retDesc) : ops) = do
+sdeclOps ((AnOperator (WithRange r opname) (objName, objDesc) paramDescs retDesc) : ops) = do
   opname <- do
     ctxt <- ask
     when (Map.member opname (operators ctxt)) $
       throwError (AlreadyDeclaredOperator r opname)
     pure (Operator opname)
   syndecls <- gets (Map.keys . syntaxCats)
-  objDesc <- ssyntaxdesc syndecls objDesc
-  paramDescs <- traverse (ssyntaxdesc syndecls) paramDescs
+  {- _ <- case objName of
+         Nothing -> pure (Nothing, id)
+         Just objName -> do
+           objName <- isFresh objName
+           pure (Just objName , local (declare )) -}
+           
+  objDesc <- _ --ssyntaxdesc syndecls objDesc
+  paramDescs <- _ --traverse (ssyntaxdesc syndecls) paramDescs
   retDesc <- ssemanticsdesc retDesc
   let op = AnOperator opname objDesc paramDescs retDesc
   (ops, decls) <- local (addOperator op) $ sdeclOps ops
   pure (op : ops, decls)
+
+spatSemantics :: ASemanticsDesc -> CPattern -> Elab (APattern, _ )
+spatSemantics = _
 
 scommand :: CCommand -> Elab (ACommand, Globals)
 scommand = \case
@@ -377,6 +386,14 @@ checkCompatiblePlaces places inputs outputs = do
     check (These a b) = (a, Subject ()) <$ guard (a /= fst b)
     check t = Just (mergeThese const (first (, Subject ()) t))
 
+
+{-
+Do not use operators to compute citizens from subjects.
+Rather, transmit glued subject-citizen pairs,
+when matching a subject, glue metavars to pattern vars
+then use s => c clauses ub rules to constrain the citizen
+the parent sent with the subject syntax.
+-}
 
 sjudgementform :: JUDGEMENTFORM Concrete -> Elab (JUDGEMENTFORM Abstract, Globals)
 sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do

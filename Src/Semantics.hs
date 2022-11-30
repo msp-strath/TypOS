@@ -171,7 +171,7 @@ typecheck table env dat = check where
           $ check ctx (universe sc) ty0 && check (ctx :< ty0) (universe $ sc + 1)  ty1 
       VCons ty0 ty1 -> check ctx ty0 a0 && check ctx ty1 a1
       _ -> False  -- don't forget to handle any new cases
-    op0 :-: op1 -> _ 
+    a0 :-: a1 -> _ 
     _ :.: t0 -> case vty of
       VBind cat ty0 -> check (ctx :< atom cat (scope t)) ty0 t0
       VPi ty0 (_, ty1) -> check (ctx :< ty0) ty1 t0

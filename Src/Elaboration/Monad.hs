@@ -162,7 +162,13 @@ data ObjVar = ObjVar
   , objVarDesc :: Info ASemanticsDesc
   } deriving (Show, Eq)
 
-type ObjVars = Bwd ObjVar
+-- ObjVars is a representation of variable contexts
+-- which are in scope for all the types they contain,
+-- i.e. they should be weakened on extension, not on
+-- lookup.
+
+newtype ObjVars = ObjVars { getObjVars :: Bwd ObjVar }
+  deriving (Show, Eq)
 
 data Provenance = Parent | Pattern
   deriving (Show, Eq)

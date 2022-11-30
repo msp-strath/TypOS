@@ -133,4 +133,4 @@ pjudgementform :: Parser CJudgementForm
 pjudgementform = withRange $ JudgementForm unknown <$ pkeyword KwJudgementForm <* pspc <*> pcurlies (psep (punc ";") pjudgement)
                 <* pspc <*> pextractmode <*> pvariable
                 <* pspc <*> psep pspc pplace
-                <* pspc <*> pcurlies (psep (punc ";") (Left <$> pjudgement <|> Right <$> panoperator ":"))
+                <* pspc <*> pcurlies (psep (punc ";") (Left <$> pjudgement <|> Right <$> panoperator))
