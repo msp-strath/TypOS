@@ -117,7 +117,7 @@ instance Instantiable Term where
     s :%: t  -> instantiate store s % instantiate store t
     s :-: t  -> contract (instantiate store s :-: instantiate store t)
     x :.: b  -> x \\ instantiate store b
-    m :$: sg -> case join $ fmap snd $ Map.lookup m (solutions store) of
+    m :$: sg -> case snd =<< Map.lookup m (solutions store) of
       Nothing -> m $: sg -- TODO: instantiate sg
       Just tm -> instantiate store (tm //^ sg)
     GX g t    -> contract (GX g (instantiate store t))
@@ -189,7 +189,7 @@ toClause :: Pat -> Bwd (Operator, [Pat]) -> ACTm
          -> (Term, [Term]) -- object & parameters
          -> Either (Term, [Term]) Term
 toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
-  let msg = \ result -> flush $ vcat
+  let msg result = flush $ vcat
         [ hsep ( "Matching"
                : withANSI [SetColour Background Green] (unsafeDocDisplayClosed opts t)
                : "-"

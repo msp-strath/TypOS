@@ -56,7 +56,7 @@ type instance ITERM Abstract = Term
 type instance ITERM Concrete = Raw
 
 data ARGUMENT (ph :: Phase) f ann = Argument
-  { argMode :: Mode () -- 
+  { argMode :: Mode ()  
   , argDesc :: SyntaxDesc
   , argTerm :: f (ITERM ph) ann
   }

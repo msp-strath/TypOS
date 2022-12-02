@@ -33,6 +33,7 @@ import Machine.Trace
 import System.IO.Unsafe
 
 import Debug.Trace
+import Operator.Eval
 
 dmesg = trace
 

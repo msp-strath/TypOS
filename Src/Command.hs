@@ -45,6 +45,7 @@ import Utils
 
 import Data.Char (isSpace)
 import qualified Data.Set as Set
+import Operator
 
 type family SYNTAXCAT (ph :: Phase) :: *
 type instance SYNTAXCAT Concrete = WithRange SyntaxCat
