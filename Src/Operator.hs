@@ -8,8 +8,45 @@ import Concrete.Parse
 import Location
 import Parse
 import Options
-import Actor ( Env')
+import Actor ( Env', ACTm)
 import Term.Base
+import Info
+import Bwd
+import Thin
+
+data ObjVar = ObjVar
+  { objVarName :: String
+  , objVarDesc :: Info ASemanticsDesc
+  } deriving (Show, Eq)
+
+-- ObjVars is a representation of variable contexts
+-- which are in scope for all the types they contain,
+-- i.e. they should be weakened on extension, not on
+-- lookup.
+
+newtype ObjVars = ObjVars { getObjVars :: Bwd ObjVar }
+  deriving (Show, Eq)
+
+thinsTo :: ObjVars -> ObjVars -> Maybe Th
+thinsTo (ObjVars x) (ObjVars y) = findSub (objVarName <$> x) (objVarName <$> y)
+
+scopeSize :: ObjVars -> Int
+scopeSize = length . getObjVars
+
+(<:) :: ObjVars -> ObjVar -> ObjVars
+(ObjVars xz) <: x = ObjVars $ xz :< x 
+
+-- Second Order Type
+type family SOT (ph :: Phase) :: *
+type instance SOT Concrete = Raw
+type instance SOT Abstract = ASOT
+
+  
+-- ObjVars are in scope for the ACTm
+data ASOT = ObjVars :=> ACTm
+  deriving (Show)
+
+infix 2 :=> 
 
 ------------------------------------------------------------------------------
 -- Operators
@@ -17,15 +54,15 @@ import Term.Base
 data ANOPERATOR (ph :: Phase) = AnOperator
   { opName     :: OPERATOR ph
   , objDesc    :: (Maybe (ACTORVAR ph), PATTERN ph)
-  , paramDescs :: [(Maybe (ACTORVAR ph), SEMANTICSDESC ph)]
-  , retDesc    :: SEMANTICSDESC ph
+  , paramDescs :: [(Maybe (ACTORVAR ph), SOT ph)]
+  , retDesc    :: SOT ph
   }
 
 deriving instance
   ( Show (OPERATOR ph)
   , Show (ACTORVAR ph)
   , Show (PATTERN ph)
-  , Show (SEMANTICSDESC ph)
+  , Show (SOT ph)
   ) => Show (ANOPERATOR ph)
 
 type CAnOperator = ANOPERATOR Concrete

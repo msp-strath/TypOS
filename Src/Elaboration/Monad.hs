@@ -12,19 +12,20 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 
-import Actor (ActorVar, AContextStack, AProtocol, Channel, JudgementName)
+import Actor
 import Bwd
 import Concrete.Base
 import Location (HasGetRange(..), Range, WithRange (..))
-import Syntax (SyntaxCat, SyntaxDesc, VSyntaxDesc'(..), VSyntaxDesc, SyntaxTable, wildcard)
-import Semantics (embed)
+import Syntax (SyntaxCat, SyntaxDesc, VSyntaxDesc'(..), VSyntaxDesc, SyntaxTable)
 import qualified Syntax
-import Thin (Selable(..), DB (..), CdB (..))
-import Term.Base (Tm(..), atom)
+import Thin
+import Term.Base
 import Utils
-import Machine.Base
 import Operator
 import Rules
+import Info
+import Pattern
+import Hide
 
 ------------------------------------------------------------------------------
 -- Elaboration Monad
@@ -105,27 +106,6 @@ evalElab = fmap fst
 ------------------------------------------------------------------------------
 -- Partial Info
 
-data Info a = Unknown | Known a | Inconsistent
-  deriving (Show, Eq, Functor)
-
-instance Applicative Info where
-  pure = Known
-  (<*>) = ap
-
-instance Monad Info where
-  Unknown >>= f = Unknown
-  Known a >>= f = f a
-  Inconsistent >>= f = Inconsistent
-
-instance Eq a => Semigroup (Info a) where
-  Unknown <> y = y
-  x <> Unknown = x
-  Known x <> Known y | x == y = Known x
-  _ <> _ = Inconsistent
-
-instance Eq a => Monoid (Info a) where
-  mempty = Unknown
-
 infoExpand :: SyntaxTable -> SyntaxDesc -> Info VSyntaxDesc
 infoExpand table s = case Syntax.expand table s of
   Nothing -> Inconsistent
@@ -157,19 +137,6 @@ compatibleInfos r desc desc' = do
 ------------------------------------------------------------------------------
 -- Context
 
-data ObjVar = ObjVar
-  { objVarName :: String
-  , objVarDesc :: Info ASemanticsDesc
-  } deriving (Show, Eq)
-
--- ObjVars is a representation of variable contexts
--- which are in scope for all the types they contain,
--- i.e. they should be weakened on extension, not on
--- lookup.
-
-newtype ObjVars = ObjVars { getObjVars :: Bwd ObjVar }
-  deriving (Show, Eq)
-
 data Provenance = Parent | Pattern
   deriving (Show, Eq)
 
@@ -195,14 +162,14 @@ isSubjectFree = \case
   SubjectVar{} -> False
 
 data Kind
-  = ActVar IsSubject (Info ASemanticsDesc) ObjVars
+  = ActVar IsSubject ASOT
   | AChannel ObjVars
   | AJudgement ExtractMode AProtocol
   | AStack AContextStack
   deriving (Show)
 
 type Decls = Bwd (String, Kind)
-type Operators = Map String (SyntaxDesc, [SyntaxDesc], ASemanticsDesc)
+type Operators = Map String AAnOperator
 
 data Context = Context
   { objVars      :: ObjVars
@@ -221,22 +188,35 @@ data ElabMode = Definition | Execution
 
 initContext :: Context
 initContext = Context
-  { objVars = B0
+  { objVars = ObjVars B0
   , declarations = B0
   , operators = Map.fromList
-    [ ("app", (wildcard, [wildcard], embed wildcard))
+    [ ("app", AnOperator
+        { opName = Operator "app"
+        , objDesc = (Nothing, PP (AP "Pi")
+                              $ PP (MP (am "S") (ones 0))
+                                $ PP (BP (Hide "x")
+                                  $ MP (am "T") (ones 1)) $ AP "")
+        , paramDescs = [(Just (am "s"), ObjVars B0 :=> (am "S" $: sbstI 0))]
+        , retDesc = ObjVars (B0 :< ObjVar "s" (Known (am "S" $: sbstI 0))) :=> (am "T" $: topSbst "x" (var (DB 0) 1))
+        })
     ]
   , location = B0
   , binderHints = Map.empty
   , elabMode = Definition
   , stackTrace = []
   }
+  where
+    am = ActorMeta ACitizen 
 
 declareObjVar :: (String, Info ASemanticsDesc) -> Context -> Context
-declareObjVar (x, info) ctx = ctx { objVars = objVars ctx :< ObjVar x info }
+declareObjVar (x, info) ctx = ctx { objVars = ObjVars $ getObjVars (objVars ctx) :< ObjVar x info }
 
 setObjVars :: ObjVars -> Context -> Context
 setObjVars ovs ctx = ctx { objVars = ovs }
+
+instance Selable ObjVars where
+  th ^? (ObjVars ovs) = ObjVars (th ^? ovs)
 
 instance Selable Context where
   th ^? ctxt = ctxt { objVars = th ^? objVars ctxt }
@@ -269,8 +249,8 @@ setOperators :: Operators -> Context -> Context
 setOperators ops ctx = ctx { operators = ops }
 
 addOperator :: AAnOperator -> Context -> Context
-addOperator (AnOperator (Operator op) obj params ret) ctx =
-  ctx { operators = Map.insert op (obj, params, ret) (operators ctx) }
+addOperator op ctx =
+  ctx { operators = Map.insert (getOperator . opName $ op) op (operators ctx) }
 
 ------------------------------------------------------------------------------
 -- Hints
@@ -518,11 +498,11 @@ channelDelete ch st = st { channelStates = Map.delete ch (channelStates st) }
 ------------------------------------------------------------------------------
 -- Variable lookup
 
-resolve :: Variable -> Elab (Maybe (Either Kind (Info SyntaxDesc, DB)))
+resolve :: Variable -> Elab (Maybe (Either Kind (Info ASemanticsDesc, DB)))
 resolve (Variable r x) = do
   ctx <- ask
   let ds  = declarations ctx
-  let ovs = objVars ctx
+  let ovs = getObjVars . objVars $ ctx
   case focusBy (\ (y, k) -> k <$ guard (x == y)) ds of
     Just (_, k, _) -> pure (Just $ Left k)
     _ -> case focusBy (\ (ObjVar y desc) -> desc <$ guard (x == y)) ovs of

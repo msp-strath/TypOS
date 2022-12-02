@@ -275,20 +275,38 @@ sdeclOps ((AnOperator (WithRange r opname) (objName, objDesc) paramDescs retDesc
       throwError (AlreadyDeclaredOperator r opname)
     pure (Operator opname)
   syndecls <- gets (Map.keys . syntaxCats)
-  {- _ <- case objName of
-         Nothing -> pure (Nothing, id)
-         Just objName -> do
-           objName <- isFresh objName
-           pure (Just objName , local (declare )) -}
-           
-  objDesc <- _ --ssyntaxdesc syndecls objDesc
-  paramDescs <- _ --traverse (ssyntaxdesc syndecls) paramDescs
-  retDesc <- ssemanticsdesc retDesc
-  let op = AnOperator opname objDesc paramDescs retDesc
-  (ops, decls) <- local (addOperator op) $ sdeclOps ops
-  pure (op : ops, decls)
+  (objName, objBinder) <- case objName of
+     Nothing -> pure (Nothing, Unused)
+     Just objName -> do
+       objName <- isFresh objName
+       pure (Just objName , Used objName)
+  (descPat, objDesc, ds) <- spatSemantics (atom "Semantics" 0) objDesc
+  ovs <- asks objVars
+  local (declare objBinder (ActVar IsNotSubject (ovs :=> objDesc) . setDecls ds)) $ do
+    (paramDescs, ds) <- sparamdescs paramDescs
+    retDesc <- local (setDecls ds) $ ssemanticsdesc retDesc
+    let op = AnOperator opname objDesc paramDescs retDesc
+    (ops, decls) <- local (addOperator op) $ sdeclOps ops
+    pure (op : ops, decls)
 
-spatSemantics :: ASemanticsDesc -> CPattern -> Elab (APattern, _ )
+-- TODO: change "Maybe" to "Binder" in Anoperator
+
+sparamdescs :: [(Maybe Variable, Raw)] -> Elab ([(Maybe ActorVar, ASOT)], Decls)
+sparamdescs [] = ([],) <$> asks declarations
+sparamdescs ((mx , ty):ps) = do
+  (mx, binder) <- case mx of
+    Nothing -> pure (Nothing, Unused)
+    Just x -> do
+      x <- isFresh x
+      pure (Just x , Used x)
+  ovs  <- asks objVars
+  ty <- ssemanticsdesc ty
+  let sty = ovs :=> ty
+  (ps, ds) <- local (declare binder (ActVar IsNotSubject sty)) $ sparamdescs ps
+  pure ((mx , sty):ps, ds)
+
+
+spatSemantics :: ASemanticsDesc -> CPattern -> Elab (APattern, ASemanticsDesc, Decls)
 spatSemantics = _
 
 scommand :: CCommand -> Elab (ACommand, Globals)

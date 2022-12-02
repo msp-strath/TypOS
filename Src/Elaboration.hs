@@ -22,6 +22,7 @@ import Scope
 import Syntax
 import Thin
 import Utils
+import Info
 
 import Elaboration.Monad
 import Term.Base
@@ -32,6 +33,8 @@ import Location
 import Data.List.NonEmpty (fromList)
 import Pattern.Coverage (Covering'(..), combine, shrinkBy, missing)
 import Control.Applicative ((<|>))
+import Operator
+import qualified Semantics
 
 isSubject :: EScrutinee -> IsSubject' ()
 isSubject SubjectVar{} = IsSubject ()
@@ -40,13 +43,13 @@ isSubject _ = IsNotSubject
 -- must be used in definition mode only
 checkSendableSubject :: Raw -> Elab (Maybe ActorVar)
 checkSendableSubject tm = do
-  localVars <- asks objVars
+  localVars <- asks (getObjVars . objVars)
   go (fmap objVarName localVars) tm
   where
   go :: Bwd String -> Raw -> Elab (Maybe ActorVar)
   go localVars x = case x of
     Var r v -> resolve v >>= \case
-      Just (Left (ActVar (IsSubject {}) _ _)) -> pure . Just $ getVariable v
+      Just (Left (ActVar (IsSubject {}) _)) -> pure . Just $ getVariable v
       _ -> Nothing <$ raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
     Sbst r sg x -> do
       case isInvertible localVars sg of
@@ -103,22 +106,22 @@ svar usage x = do
   ovs <- asks objVars
   res <- resolve x
   case res of
-    Just (Left k) -> case k of -- TODO: come back and remove fst <$>
-      ActVar isSub desc sc -> case findSub (objVarName <$> sc) (objVarName <$> ovs) of
+    Just (Left k) -> case k of
+      ActVar isSub (sc :=> desc) -> case sc `thinsTo` ovs of
         Just th -> do
           logUsage (getVariable x) usage
           pure (isSub, desc, ActorMeta (spassport usage isSub) (getVariable x) $: sbstW (sbst0 0) th)
         Nothing -> throwError (MetaScopeTooBig (getRange x) x sc ovs)
       _ -> throwError (NotAValidTermVariable (getRange x) x k)
-    Just (Right (desc, i)) -> pure (IsNotSubject, desc, var i (length ovs))
+    Just (Right (desc, i)) -> pure (IsNotSubject, desc, var i (scopeSize ovs))
     Nothing -> throwError (OutOfScope (getRange x) x)
 
-spop :: Range -> Elab (ObjVars, (Variable, Info SyntaxDesc))
+spop :: Range -> Elab (ObjVars, (Variable, Info ASemanticsDesc))
 spop r = do
   ovs <- asks objVars
-  case ovs of
+  case getObjVars ovs of
     B0 -> throwError (EmptyContext r)
-    (xz :< ObjVar x cat) -> pure (xz, (Variable r x, cat))
+    (xz :< ObjVar x cat) -> pure (ObjVars xz, (Variable r x, cat))
 
 ssyntaxdesc :: [SyntaxCat] -> Raw -> Elab SyntaxDesc
 ssyntaxdesc syndecls syn = do
@@ -138,13 +141,13 @@ ssemanticsdesc sem = do
 ssbst :: Usage -> Bwd SbstC -> Elab (ACTSbst, ObjVars)
 ssbst usage B0 = do
     ovs <- asks objVars
-    pure (sbstI (length ovs), ovs)
+    pure (sbstI (scopeSize ovs), ovs)
 ssbst usage (sg :< sgc) = case sgc of
     Keep r v -> do
       (xz, (w, cat)) <- spop r
       when (v /= w) $ throwError (NotTopVariable r v w)
       (sg, ovs) <- local (setObjVars xz) (ssbst usage sg)
-      pure (sbstW sg (ones 1), ovs :< ObjVar (getVariable w) cat)
+      pure (sbstW sg (ones 1), ovs <: ObjVar (getVariable w) cat)
     Drop r v -> do
       (xz, (w, cat)) <- spop r
       when (v /= w) $ throwError (NotTopVariable r v w)
@@ -156,12 +159,12 @@ ssbst usage (sg :< sgc) = case sgc of
       t <- stm usage desc t
       (sg, ovs) <- ssbst usage sg
       v <- local (setObjVars ovs) $ isFresh v
-      pure (sbstT sg ((Hide v :=) $^ t), ovs :< ObjVar v info)
+      pure (sbstT sg ((Hide v :=) $^ t), ovs <: ObjVar v info)
 
 sth :: (Bwd Variable, ThDirective) -> Elab Th
 sth (xz, b) = do
   ovs <- asks objVars
-  let th = which (`elem` (getVariable <$> xz)) (objVarName <$> ovs)
+  let th = which (`elem` (getVariable <$> xz)) (objVarName <$> getObjVars ovs)
   pure $ case b of
     ThKeep -> th
     ThDrop -> comp th
@@ -317,17 +320,17 @@ spat esc@(Lookup _ _ av) rp@(ConsP r (AtP _ "Just") (ConsP _ _ (AtP _ ""))) = do
   logUsage av (SuccessfullyLookedUp r)
   spatBase IsNotSubject (escrutinee esc) rp
 spat esc@(Lookup _ _ av) rp = spatBase IsNotSubject (escrutinee esc) rp
-spat esc@(Compare _ _ _) rp = spatBase IsNotSubject (escrutinee esc) rp
-spat esc@(Term _ _) rp = spatBase IsNotSubject (escrutinee esc) rp
+spat esc@(Compare{}) rp = spatBase IsNotSubject (escrutinee esc) rp
+spat esc@(Term{}) rp = spatBase IsNotSubject (escrutinee esc) rp
 
-spatBase :: IsSubject -> SyntaxDesc -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
+spatBase :: IsSubject -> ASemanticsDesc -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
 spatBase isSub desc rp@(AsP r v p) = do
   unless (isSub == IsNotSubject) $
     throwError (AsPatternCannotHaveSubjects r rp)
   v <- isFresh v
   ds <- asks declarations
   ovs <- asks objVars
-  (mr, p, ds, hs) <- local (setDecls (ds :< (v, ActVar isSub (Known desc) ovs))) $ spatBase isSub desc p
+  (mr, p, ds, hs) <- local (setDecls (ds :< (v, ActVar isSub (ovs :=> desc)))) $ spatBase isSub desc p
   pure (mr, AT (ActorMeta ACitizen v) p, ds, hs)
 spatBase isSub desc (ThP r th p) = do
   th <- sth th
@@ -346,8 +349,8 @@ spatBase isSub desc (VarP r v) = during (PatternVariableElaboration v) $ do
     Nothing -> do
       ovs <- asks objVars
       v <- pure (getVariable v)
-      let pat = MP (ActorMeta (spassport (Scrutinised unknown) isSub) v) (ones (length ovs))
-      pure (Nothing, pat, ds :< (v, ActVar isSub (Known desc) ovs), hs)
+      let pat = MP (ActorMeta (spassport (Scrutinised unknown) isSub) v) (ones $ scopeSize ovs)
+      pure (Nothing, pat, ds :< (v, ActVar isSub (ovs :=> desc)), hs)
 spatBase isSub desc (UnderscoreP r) = do
   let mr = case isSub of
              IsSubject{} -> Just r
@@ -482,18 +485,19 @@ withChannel r dir ch@(Channel rch) p ma = do
   pure a
 
 guessDesc :: Bool -> -- is this in tail position?
-             Raw -> Elab (Info SyntaxDesc)
+             Raw -> Elab (Info ASemanticsDesc)
 guessDesc b (Var _ v) = resolve v >>= \case
   Just (Right (info, i)) -> pure info
-  Just (Left (ActVar isSub info _)) -> pure info
+  Just (Left (ActVar isSub (ObjVars B0 :=> desc))) -> pure $ Known desc
   _ -> pure Unknown
 guessDesc b (Cons _ p q) = do
   dp <- guessDesc False p
   dq <- guessDesc True q
   case (dp, dq) of
-    (Known d1, Known d2) -> pure (Known $ Syntax.contract (VCons d1 d2))
+    (Known d1, Known d2) -> pure (Known $ Semantics.contract (VCons d1 d2))
     _ -> pure Unknown
-guessDesc True (At _ "") = pure (Known $ Syntax.contract VNil)
+-- might need better guess for the scope than 0
+guessDesc True (At _ "") = pure (Known $ Semantics.contract (VNil 0))
 guessDesc _ _ = pure Unknown
 
 compatibleChannels :: Range -> (Direction, [AProtocolEntry]) -> Ordering -> (Direction, [AProtocolEntry]) -> Elab Int
@@ -709,7 +713,7 @@ consistentScrutinisation :: Range -> [ActvarStates] -> Elab ()
 consistentScrutinisation r sts = do
   ds <- asks declarations
   let subjects = flip foldMap ds $ \case
-        (nm, ActVar IsSubject{} _ _) -> Set.singleton nm
+        (nm, ActVar IsSubject{} _) -> Set.singleton nm
         _ -> Set.empty
   let check = List.groupBy cmp (flip Map.restrictKeys subjects <$> sts)
   unless (null check) $
@@ -731,7 +735,7 @@ sbranch r ds ra = do
   (a, All b) <- censor (const (All True)) $ listen $ sact ra
     -- make sure that the *newly bound* subject variables have been scrutinised
   forM ds $ \case -- HACK
-    (nm, ActVar isSub _ _) ->
+    (nm, ActVar isSub _) ->
       unlessM (checkScrutinised (Used nm)) $
 --        whenJust me $ \ _ -> -- HACK: do not complain about dead branches
           case isSub of

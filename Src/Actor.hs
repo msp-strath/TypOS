@@ -60,12 +60,12 @@ type ACTm = CdB (Tm ActorMeta)
 type ACTSbst = CdB (Sbst ActorMeta)
 type AScrutinee = SCRUTINEE Abstract
 
+type instance SEMANTICSDESC Abstract = ACTm
 
 aconnect :: Range -> Channel -> Th -> Channel -> Int -> AActor
 aconnect r ch1 th ch2 n
   | n > 0 = Connect r (AConnect ch1 th ch2 n)
   | otherwise = Win r
-
 
 data Env' m = Env
   { globalScope :: Bwd String -- free vars ga actor does *not* know about

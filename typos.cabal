@@ -47,6 +47,7 @@ library
                        Forget,
                        Format,
                        Hide,
+                       Info,
                        LaTeX,
                        Location,
                        Machine,

@@ -18,8 +18,6 @@ import qualified Term
 import Syntax (SyntaxTable, SyntaxCat, WithSyntaxCat(..))
 import Operator.Eval
 
-type instance SEMANTICSDESC Abstract = ACTm
-
 embed :: ASyntaxDesc -> ASemanticsDesc
 embed = (fmap absurd $^)
 
@@ -111,7 +109,7 @@ catToDesc :: SyntaxCat -> ASemanticsDesc
 catToDesc c = atom c 0
 
 validate :: Show m => SyntaxTable -> Bwd SyntaxCat -> ASemanticsDesc -> CdB (Tm m) -> Bool
-validate table = go where
+validate table = _
 {-
   go :: Show m => Bwd SyntaxCat -> ASemanticsDesc -> CdB (Tm m) -> Bool
   go env s t@(CdB V th) = reportError s t $ ($ s) $ asRec $ \ a -> a == env <! (dbIndex $ lsb th)
