@@ -90,7 +90,7 @@ declareAlpha ("_", y) rho = rho
 declareAlpha (x, y) rho =
   rho { alphaRenamings = Map.insert x y (alphaRenamings rho) }
 
-initEnv :: Bwd String -> Env
+initEnv :: Bwd String -> Env' m
 initEnv gamma = Env
   { globalScope = gamma
   , actorVars = Map.empty

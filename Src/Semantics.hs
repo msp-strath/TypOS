@@ -41,6 +41,20 @@ data VSemanticsDesc' a
 
 type VSemanticsDesc = VSemanticsDesc' Void
 
+extractScope :: VSemanticsDesc' a -> Int
+extractScope = \case
+  VAtom sc -> sc
+  VAtomBar sc _ -> sc
+  VNil sc -> sc
+  VCons s t -> scope s
+  VNilOrCons s t -> scope s
+  VBind cat s -> scope s
+  VEnumOrTag sc _ _ -> sc
+  VWildcard sc -> sc
+  VSyntaxCat sc _ -> sc
+  VNeutral s -> scope s
+  VUniverse sc -> sc
+  VPi s (n , t) -> scope s 
 
 expand' :: forall a. WithSyntaxCat a -> SyntaxTable -> HeadUpData' ActorMeta -> ASemanticsDesc -> Maybe (VSemanticsDesc' a)
 expand' w table dat desc = do

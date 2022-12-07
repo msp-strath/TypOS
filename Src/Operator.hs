@@ -34,7 +34,8 @@ scopeSize :: ObjVars -> Int
 scopeSize = length . getObjVars
 
 (<:) :: ObjVars -> ObjVar -> ObjVars
-(ObjVars xz) <: x = ObjVars $ xz :< x 
+(ObjVars xz) <: x = ObjVars $ xz :< x
+
 
 -- Second Order Type
 type family SOT (ph :: Phase) :: *

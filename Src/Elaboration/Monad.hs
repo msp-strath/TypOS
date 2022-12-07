@@ -26,6 +26,8 @@ import Rules
 import Info
 import Pattern
 import Hide
+import Operator.Eval
+import Options
 
 ------------------------------------------------------------------------------
 -- Elaboration Monad
@@ -96,10 +98,10 @@ instance MonadError Complaint Elab where
 
   catchError ma k = Elab (catchError (runElab ma) (runElab . k . theMessage))
 
-evalElab :: Elab a -> Either (WithStackTrace Complaint) a
-evalElab = fmap fst
+evalElab :: Options -> Elab a -> Either (WithStackTrace Complaint) a
+evalElab opts = fmap fst
          . runWriterT
-         . (`runReaderT` initContext)
+         . (`runReaderT` (initContext opts))
          . (`evalStateT` initElabState)
          . runElab
 
@@ -112,7 +114,7 @@ infoExpand table s = case Syntax.expand table s of
   Just VWildcard -> Unknown
   Just a -> Known a
 
-fromInfo :: Range -> Info SyntaxDesc -> Elab SyntaxDesc
+fromInfo :: Range -> Info ASemanticsDesc -> Elab ASemanticsDesc
 fromInfo r Unknown = pure (atom "Wildcard" 0)
 fromInfo r (Known desc) = pure desc
 -- I believe this last case is currently unreachable because this
@@ -145,9 +147,9 @@ data IsSubject' a = IsSubject a | IsNotSubject
 
 type IsSubject = IsSubject' Provenance
 
-type instance SCRUTINEEVAR Elaboration = SyntaxDesc
-type instance SCRUTINEETERM Elaboration = SyntaxDesc
-type instance STACK Elaboration = SyntaxDesc
+type instance SCRUTINEEVAR Elaboration = ASemanticsDesc
+type instance SCRUTINEETERM Elaboration = ASemanticsDesc
+type instance STACK Elaboration = ASemanticsDesc
 type instance TERM Elaboration = ()
 type instance LOOKEDUP Elaboration = String
 
@@ -179,15 +181,16 @@ data Context = Context
   , binderHints  :: Hints
   , elabMode     :: ElabMode
   , stackTrace   :: StackTrace
+  , headUpData   :: HeadUpData' ActorMeta
   } deriving (Show)
 
-type Hints = Map String (Info SyntaxDesc)
+type Hints = Map String (Info ASemanticsDesc)
 
 data ElabMode = Definition | Execution
               deriving (Eq, Show)
 
-initContext :: Context
-initContext = Context
+initContext :: Options -> Context
+initContext opts = Context
   { objVars = ObjVars B0
   , declarations = B0
   , operators = Map.fromList
@@ -205,6 +208,13 @@ initContext = Context
   , binderHints = Map.empty
   , elabMode = Definition
   , stackTrace = []
+  , headUpData = HeadUpData
+    { opTable = const mempty
+    , metaStore = Store Map.empty Map.empty ()
+    , huOptions = opts
+    , huEnv = initEnv B0
+    , whatIs = const Nothing
+    }
   }
   where
     am = ActorMeta ACitizen 
@@ -258,7 +268,7 @@ addOperator op ctx =
 setHints :: Hints -> Context -> Context
 setHints hs ctx = ctx { binderHints = hs }
 
-addHint :: String -> Info SyntaxDesc -> Context -> Context
+addHint :: String -> Info ASemanticsDesc -> Context -> Context
 addHint str cat ctx =
   let hints = binderHints ctx
       hints' = case Map.lookup str hints of
@@ -266,7 +276,7 @@ addHint str cat ctx =
                  Just cat' -> Map.insert str (cat <> cat') hints
   in ctx { binderHints = hints' }
 
-getHint :: String -> Elab (Info SyntaxDesc)
+getHint :: String -> Elab (Info ASemanticsDesc)
 getHint str = do
   hints <- asks binderHints
   pure $ fromMaybe Unknown $ Map.lookup str hints
@@ -387,6 +397,7 @@ data Complaint
   -- syntaxdesc validation
   | InconsistentSyntaxDesc Range
   | InvalidSyntaxDesc Range SyntaxDesc
+  | InvalidSemanticsDesc Range ASemanticsDesc
   | IncompatibleSyntaxInfos Range (Info SyntaxDesc) (Info SyntaxDesc)
   | IncompatibleSyntaxDescs Range SyntaxDesc SyntaxDesc
   | GotBarredAtom Range String [String]
@@ -398,9 +409,11 @@ data Complaint
   | ExpectedAConsGot Range Raw
   | ExpectedAConsPGot Range RawP
   | SyntaxError Range SyntaxDesc Raw
+  | SemanticsError Range ASemanticsDesc Raw
   | SyntaxPError Range SyntaxDesc RawP
   | ExpectedAnOperator Range Raw
   | ExpectedAnEmptyListGot Range String [SyntaxDesc]
+  | ExpectedAnEmptyASOTListGot Range String [(Maybe ActorMeta, ASOT)]
   -- subjects and citizens
   | AsPatternCannotHaveSubjects Range RawP
   deriving (Show)

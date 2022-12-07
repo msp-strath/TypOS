@@ -20,6 +20,8 @@ import Format
 import Hide
 import Scope
 import Syntax
+    ( SyntaxCat,
+      SyntaxDesc, syntaxDesc)
 import Thin
 import Utils
 import Info
@@ -34,7 +36,7 @@ import Data.List.NonEmpty (fromList)
 import Pattern.Coverage (Covering'(..), combine, shrinkBy, missing)
 import Control.Applicative ((<|>))
 import Operator
-import qualified Semantics
+import Semantics
 
 isSubject :: EScrutinee -> IsSubject' ()
 isSubject SubjectVar{} = IsSubject ()
@@ -66,12 +68,13 @@ checkSendableSubject tm = do
     = (:< getVariable v) <$> isInvertible (lz <>< ls) sz
   isInvertible _ _ = Nothing
 
-escrutinee :: EScrutinee -> SyntaxDesc
+escrutinee :: EScrutinee -> ASemanticsDesc
 escrutinee = \case
-  Pair _ p q -> Syntax.contract (VCons (escrutinee p) (escrutinee q))
+  Pair _ p q -> Semantics.contract (Semantics.VCons (escrutinee p) (escrutinee q))
   SubjectVar _ desc -> desc
   Lookup _ desc _ -> desc
-  Compare _ _ _ -> Syntax.contract (VEnumOrTag ["LT", "EQ", "GT"] [])
+  -- TODO : do we need to pass in the scope?
+  Compare _ t1 t2 -> Semantics.contract (Semantics.VEnumOrTag 0 ["LT", "EQ", "GT"] [])
   Term _ desc -> desc
 
 dual :: PROTOCOL ph -> PROTOCOL ph
@@ -103,14 +106,14 @@ spassport _ _ = ACitizen
 
 svar :: Usage -> Variable -> Elab (IsSubject, Info ASemanticsDesc, ACTm)
 svar usage x = do
-  ovs <- asks objVars
+  ovs <- asks objVars 
   res <- resolve x
   case res of
     Just (Left k) -> case k of
       ActVar isSub (sc :=> desc) -> case sc `thinsTo` ovs of
         Just th -> do
           logUsage (getVariable x) usage
-          pure (isSub, desc, ActorMeta (spassport usage isSub) (getVariable x) $: sbstW (sbst0 0) th)
+          pure (isSub, Known desc, ActorMeta (spassport usage isSub) (getVariable x) $: sbstW (sbst0 0) th)
         Nothing -> throwError (MetaScopeTooBig (getRange x) x sc ovs)
       _ -> throwError (NotAValidTermVariable (getRange x) x k)
     Just (Right (desc, i)) -> pure (IsNotSubject, desc, var i (scopeSize ovs))
@@ -169,8 +172,8 @@ sth (xz, b) = do
     ThKeep -> th
     ThDrop -> comp th
 
-stms :: Usage -> [SyntaxDesc] -> Raw -> Elab ACTm
-stms usage [] (At r "") = atom "" <$> asks (length . objVars)
+stms :: Usage -> [ASemanticsDesc] -> Raw -> Elab ACTm
+stms usage [] (At r "") = atom "" <$> asks (scopeSize . objVars)
 stms usage [] (At r a) = throwError (ExpectedNilGot r a)
 stms usage [] t = throwError (ExpectedANilGot (getRange t) t)
 stms usage (d:ds) (Cons r p q) = (%) <$> stm usage d p <*> stms usage ds q
@@ -193,7 +196,7 @@ sscrutinee (Lookup r stk v) = do
     (isSub, info, t) <- svar (LookedUp r) v
     void $ compatibleInfos r (Known (keyDesc stkTy)) info
     pure t
-  let desc = Syntax.contract (VEnumOrTag ["Nothing"] [("Just", [valueDesc stkTy])])
+  let desc = Semantics.contract (VEnumOrTag ["Nothing"] [("Just", [valueDesc stkTy])])
   pure (Lookup r desc (getVariable v), Lookup r stk t)
 sscrutinee (Compare r s t) = do
   infoS <- guessDesc False s
@@ -221,24 +224,25 @@ stm usage desc (Sbst r sg t) = do
     pure (t //^ sg)
 stm usage desc rt = do
   table <- gets syntaxCats
-  case Syntax.expand table desc of
-    Nothing -> throwError (InvalidSyntaxDesc (getRange rt) desc)
+  dat <- asks headUpData
+  case Semantics.expand table dat desc of
+    Nothing -> throwError (InvalidSemanticsDesc (getRange rt) desc)
     Just vdesc -> case rt of
       At r a -> do
         case vdesc of
-          VAtom -> pure ()
-          VAtomBar as -> when (a `elem` as) $ throwError (GotBarredAtom r a as)
-          VNil -> unless (a == "") $ throwError (ExpectedNilGot r a)
+          VAtom _ -> pure ()
+          VAtomBar _ as -> when (a `elem` as) $ throwError (GotBarredAtom r a as)
+          VNil _ -> unless (a == "") $ throwError (ExpectedNilGot r a)
           VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot r a)
-          VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
-          VWildcard -> pure ()
-          _ -> throwError (SyntaxError r desc rt)
-        atom a <$> asks (length . objVars)
+          VEnumOrTag _ es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
+          VWildcard _ -> pure ()
+          _ -> throwError (SemanticsError r desc rt)
+        atom a <$> asks (scopeSize . objVars)
       Cons r p q -> case vdesc of
         VNilOrCons d1 d2 -> (%) <$> stm usage d1 p <*> stm usage d2 q
         VCons d1 d2 -> (%) <$> stm usage d1 p <*> stm usage d2 q
-        VWildcard -> (%) <$> stm usage desc p <*> stm usage desc q
-        VEnumOrTag _ ds -> case p of
+        VWildcard _ -> (%) <$> stm usage desc p <*> stm usage desc q
+        VEnumOrTag _ _ ds -> case p of
           At r a -> case lookup a ds of
             Nothing -> throwError (ExpectedTagGot r (fst <$> ds) a)
             Just descs -> (%) <$> stm usage (atom "Atom" 0) p <*> stms usage descs q
@@ -246,7 +250,7 @@ stm usage desc rt = do
         _ -> throwError (SyntaxError r desc rt)
       Lam r (Scope (Hide x) sc) -> do
         (s, desc) <- case vdesc of
-          VWildcard -> pure (Unknown, desc)
+          VWildcard _ -> pure (Unknown, desc)
           VBind cat desc -> pure (Known (catToDesc cat), desc)
           _ -> throwError (SyntaxError r desc rt)
         case x of
@@ -260,15 +264,15 @@ stm usage desc rt = do
       Op r rs ro -> case ro of
         -- TODO: usage checking
         At ra a -> do
-          (sdesc, psdesc, rdesc) <- isOperator ra a
-          unless (null psdesc) $ throwError (ExpectedAnEmptyListGot r a psdesc)
-          o <- stm usage (Syntax.contract VAtom) ro
+          AnOperator{..} <- isOperator ra a
+          unless (null paramDescs) $ throwError (ExpectedAnEmptyASOTListGot r a paramDescs)
+          o <- stm usage (Semantics.contract $ VAtom _) ro
           s <- stm usage sdesc rs
           compatibleInfos r (Known rdesc) (Known desc)
           pure (Term.contract (s :-: o))
         Cons rp (At ra a) ps -> do
           (sdesc, psdesc, rdesc) <- isOperator ra a
-          o <- stms usage (Syntax.contract VAtom : psdesc) ro
+          o <- stms usage (Semantics.contract VAtom : psdesc) ro
           s <- stm usage sdesc rs
           compatibleInfos r (Known rdesc) (Known desc)
           pure (Term.contract (s :-: o))
@@ -298,7 +302,7 @@ spat esc rp@(AsP r v p) = do
   v <- isFresh v
   ds <- asks declarations
   ovs <- asks objVars
-  (mr, p, ds, hs) <- local (setDecls (ds :< (v, ActVar IsNotSubject (Known desc) ovs))) $ spat esc p
+  (mr, p, ds, hs) <- local (setDecls (ds :< (v, ActVar IsNotSubject (ovs :=> desc)))) $ spat esc p
   pure (mr, AT (ActorMeta ACitizen v) p, ds, hs)
 spat esc p@VarP{} = spatBase (Pattern <$ isSubject esc) (escrutinee esc) p
 spat esc (ThP r th p) = do
@@ -358,17 +362,18 @@ spatBase isSub desc (UnderscoreP r) = do
   (mr,HP,,) <$> asks declarations <*> asks binderHints
 spatBase isSub desc rp = do
   table <- gets syntaxCats
-  case Syntax.expand table desc of
-    Nothing -> throwError (InvalidSyntaxDesc (getRange rp) desc)
+  dat <- asks headUpData
+  case Semantics.expand table dat desc of
+    Nothing -> throwError (InvalidSemanticsDesc (getRange rp) desc)
     Just vdesc -> case rp of
       AtP r a -> do
         case vdesc of
-          VAtom -> pure ()
-          VAtomBar as -> when (a `elem` as) $ throwError (GotBarredAtom r a as)
-          VNil -> unless (a == "") $ throwError (ExpectedNilGot r a)
+          VAtom _ -> pure ()
+          VAtomBar _ as -> when (a `elem` as) $ throwError (GotBarredAtom r a as)
+          VNil _ -> unless (a == "") $ throwError (ExpectedNilGot r a)
           VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot r a)
-          VEnumOrTag es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
-          VWildcard -> pure ()
+          VEnumOrTag sc es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
+          VWildcard sc -> pure ()
           _ -> throwError (SyntaxPError r desc rp)
         (Nothing, AP a,,) <$> asks declarations <*> asks binderHints
 
@@ -381,11 +386,11 @@ spatBase isSub desc rp = do
           (mr1, p, ds, hs) <- spatBase isSub d1 p
           (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spatBase isSub d2 q)
           pure (mr1 <|> mr2, PP p q, ds, hs)
-        VWildcard -> do
+        VWildcard _ -> do
           (mr1, p, ds, hs) <- spatBase isSub desc p
           (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spatBase isSub desc q)
           pure (mr1 <|> mr2, PP p q, ds, hs)
-        VEnumOrTag _ ds -> case p of
+        VEnumOrTag _ _ ds -> case p of
           AtP r a -> case lookup a ds of
             Nothing -> throwError (ExpectedTagGot r (fst <$> ds) a)
             Just descs ->  do
@@ -397,8 +402,8 @@ spatBase isSub desc rp = do
 
       LamP r (Scope v@(Hide x) p) -> do
         (s, desc) <- case vdesc of
-          VWildcard -> pure (Unknown, desc)
-          VBind cat desc -> pure (Known (catToDesc cat), desc)
+          VWildcard _ -> pure (Unknown, desc)
+          VBind cat desc -> pure (Known (Semantics.catToDesc cat), desc)
           _ -> throwError (SyntaxPError r desc rp)
 
         case x of
@@ -416,7 +421,7 @@ isChannel ch = resolve ch >>= \case
   Just mk -> throwError (NotAValidChannel (getRange ch) ch $ either Just (const Nothing) mk)
   Nothing -> throwError (OutOfScope (getRange ch) ch)
 
-isOperator :: Range -> String -> Elab (SyntaxDesc, [SyntaxDesc], ASemanticsDesc)
+isOperator :: Range -> String -> Elab AAnOperator
 isOperator r nm = do
   ops <- asks operators
   case Map.lookup nm ops of
@@ -494,10 +499,10 @@ guessDesc b (Cons _ p q) = do
   dp <- guessDesc False p
   dq <- guessDesc True q
   case (dp, dq) of
-    (Known d1, Known d2) -> pure (Known $ Semantics.contract (VCons d1 d2))
+    (Known d1, Known d2) -> pure (Known $ Semantics.contract (Semantics.VCons d1 d2))
     _ -> pure Unknown
 -- might need better guess for the scope than 0
-guessDesc True (At _ "") = pure (Known $ Semantics.contract (VNil 0))
+guessDesc True (At _ "") = pure (Known $ Semantics.contract (Semantics.VNil 0))
 guessDesc _ _ = pure Unknown
 
 compatibleChannels :: Range -> (Direction, [AProtocolEntry]) -> Ordering -> (Direction, [AProtocolEntry]) -> Elab Int
@@ -520,7 +525,7 @@ sirrefutable nm isSub = \case
   p -> do ctxt <- ask
           -- this should be a unique name & is not user-writable
           let r = getRange p
-          let av = "&" ++ nm ++ show (length (objVars ctxt) + length (declarations ctxt))
+          let av = "&" ++ nm ++ show (scopeSize (objVars ctxt) + length (declarations ctxt))
           let var = Variable r av
           let sc = case isSub of
                      IsSubject{} -> SubjectVar r var
@@ -588,8 +593,8 @@ sact = \case
       ovs <- asks objVars
       -- NB: the lintersection takes the (Info ASemanticsDesc) into account
       -- Should it?
-      let (thx, xyz, thy) = lintersection sc ovs
-      (*^ thx) <$> local (setObjVars xyz) (stm usage desc tm)
+      let (thx, xyz, thy) = lintersection (getObjVars sc) (getObjVars ovs)
+      (*^ thx) <$> local (setObjVars $ ObjVars xyz) (stm usage desc tm)
 
     a <- sact a
     pure $ Send r ch gd tm a
@@ -611,7 +616,7 @@ sact = \case
 
     -- Further actor
     sc <- channelScope ch
-    (a, All canwin) <- local (declare av (ActVar isSub (Known cat) sc))
+    (a, All canwin) <- local (declare av (ActVar isSub (sc :=> cat)))
            $ listen
            $ sact
            $ case pat of
@@ -632,7 +637,7 @@ sact = \case
     q <- steppingChannel r ch2 $ \ dir p -> pure ((dir,p), [])
     sc1 <- channelScope ch1
     sc2 <- channelScope ch2
-    (dir, th) <- case (findSub sc1 sc2, findSub sc2 sc1) of
+    (dir, th) <- case (sc1 `thinsTo` sc2, sc2 `thinsTo` sc1) of
       (Just thl, Just thr) -> pure (EQ, thl)
       (Just thl, _) -> pure (LT, thl)
       (_, Just thr) -> pure (GT, thr)
@@ -643,22 +648,22 @@ sact = \case
   FreshMeta r desc (av, a) -> do
     (desc, av, ovs) <- during FreshMetaElaboration $ do
       syndecls <- gets (Map.keys . syntaxCats)
-      desc <- ssyntaxdesc syndecls desc
+      desc <- ssemanticsdesc desc
       av <- isFresh av
       ovs <- asks objVars
       pure (desc, av, ovs)
-    a <- local (declare (Used av) (ActVar IsNotSubject (Known desc) ovs)) $ sact a
+    a <- local (declare (Used av) (ActVar IsNotSubject (ovs :=> desc))) $ sact a
     pure $ FreshMeta r desc (ActorMeta ACitizen av, a)
 
   Let r av desc t a -> do
     (desc, av, ovs) <- during FreshMetaElaboration $ do
       syndecls <- gets (Map.keys . syntaxCats)
-      desc <- ssyntaxdesc syndecls desc
+      desc <- ssemanticsdesc desc
       av <- isFresh av
       ovs <- asks objVars
       pure (desc, av, ovs)
     t <- stm (LetBound (getRange t)) desc t
-    a <- local (declare (Used av) (ActVar IsNotSubject (Known desc) ovs)) $ sact a
+    a <- local (declare (Used av) (ActVar IsNotSubject (ovs :=> desc))) $ sact a
     pure (Let r (ActorMeta ACitizen av) desc t a)
 
   Under r (Scope v@(Hide x) a) -> do
@@ -672,7 +677,8 @@ sact = \case
     (clsts, cov) <- traverse (sclause esc) cls `runStateT` [escrutinee esc]
     unless (null cov) $ do
       table <- gets syntaxCats
-      let examples = fromList cov >>= missing table
+      dat <- asks headUpData
+      let examples = fromList cov >>= missing dat table
       raiseWarning $ MissingClauses r examples
     let (cls, sts) = unzip clsts
     let (chst, avst) = unzip $ catMaybes sts
@@ -750,7 +756,7 @@ sbranch r ds ra = do
   pure (a, ((,) <$> channelStates <*> actvarStates) st  <$ guard b )
 
 sclause :: EScrutinee -> (RawP, CActor) ->
-           StateT [SyntaxDesc] Elab ((Pat, AActor), Maybe (ChannelStates, ActvarStates))
+           StateT [ASemanticsDesc] Elab ((Pat, AActor), Maybe (ChannelStates, ActvarStates))
 sclause esc (rp, a) = do
   ds0 <- asks declarations
   avs <- lift $ gets actvarStates
@@ -764,11 +770,12 @@ sclause esc (rp, a) = do
   whenJust (me *> mr) (lift . raiseWarning . UnderscoreOnSubject)
   pure ((p, a), me)
 
-coverageCheckClause :: RawP -> Pat -> StateT [SyntaxDesc] Elab ()
+coverageCheckClause :: RawP -> Pat -> StateT [ASemanticsDesc] Elab ()
 coverageCheckClause rp p = do
   leftovers <- get
   table <- lift $ gets syntaxCats
-  leftovers <- lift $ case combine $ map (\ d -> (d, shrinkBy table d p)) leftovers of
+  dat <- lift $ asks headUpData
+  leftovers <- lift $ case combine $ map (\ d -> (d, shrinkBy dat table d p)) leftovers of
     Covering -> pure []
     AlreadyCovered -> do
       unless (isCatchall p) $
