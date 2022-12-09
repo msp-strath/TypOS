@@ -1,6 +1,17 @@
 module Format where
-{- Description: various utilities for nicely formatting things,
-  including terms, debugging info and various raw Strings
+{- Description: various utilities for nicely "format strings" that
+ - can direct how to print terms, debugging info and just plain text
+ 
+ In particular:
+ For terms
+  - %r - Raw
+  - %i - Instantiate
+  - %n - Normalize
+  - %s - Show
+ For Debugging:
+  - %E - show environment
+  - %S - show stack
+  - %M - show store
 -}
 
 import Bwd (Bwd(..), (<>>))
