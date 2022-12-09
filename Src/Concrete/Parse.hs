@@ -23,7 +23,7 @@ pscoped con px pa = do
     pspc
     xs <- pmustwork "Expected at least a binder" $
           psep1 pspc (Hide <$> px)
-    punc "."
+    ppunc "."
     a <- pa
     pure (xs, a)
   pure $ foldr (\ x a -> con r (Scope x a)) a xs
@@ -48,25 +48,26 @@ pTM :: Parser Raw
 pTM = withRange $
   (ptm >>= more)
   <|> pscoped Lam pbinder pTM
-  <|> Sbst unknown <$ pch (== '{') <* pspc <*> ppes (punc ",") psbstC <* punc "}" <*> pTM
+  <|> Sbst unknown <$ pch (== '{') <* pspc <*> ppes (ppunc ",") psbstC <* ppunc "}" <*> pTM
 
   where
 
   more :: Raw -> Parser Raw
   more t = withRange $
-    ((Op unknown t <$ punc "-" <*> ptm) >>= more)
+    ((Op unknown t <$ ppunc "-" <*> ptm) >>= more)
     <|> pure t
 
 ptm :: Parser Raw
 ptm = withRange $
   Var unknown <$> pvariable
   <|> At unknown <$> patom
+  -- <|> plisp Nothing
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> pparens pTM
 
 psbstC :: Parser SbstC
 psbstC = withRange $ pvariable >>= \ x ->
-  Assign unknown x <$ punc "=" <*> pTM
+  Assign unknown x <$ ppunc "=" <*> pTM
   <|> Drop unknown x <$ pspc <* pch (== '*')
   <|> pure (Keep unknown x)
 
@@ -77,13 +78,14 @@ instance Lisp RawP where
 
 ppat :: Parser RawP
 ppat = withRange $
-  AsP unknown <$> pvariable <* punc "@" <*> ppat
+  AsP unknown <$> pvariable <* ppunc "@" <*> ppat
   <|> VarP unknown <$> pvariable
   <|> AtP unknown <$> patom
+  -- <|> plisp (Just $ pmustwork "Expected a list pattern")
   <|> id <$ pch (== '[') <* pspc <*> pmustwork "Expected a list pattern" plisp
   <|> pparens ppat
   <|> pscoped LamP pbinder ppat
-  <|> ThP unknown <$ pch (== '{') <* pspc <*> pth <* punc "}" <*> ppat
+  <|> ThP unknown <$ pch (== '{') <* pspc <*> pth <* ppunc "}" <*> ppat
   <|> UnderscoreP unknown <$ pch (== '_')
 
 pth :: Parser (Bwd Variable, ThDirective)
@@ -107,24 +109,24 @@ psyntaxdecl = pTM
 pcontextstack :: Parser (ContextStack Raw)
 pcontextstack = ContextStack
   <$> psyntaxdecl
-  <* punc "->"
+  <* ppunc "->"
   <*> pmustwork "Expected a syntax declaration" psyntaxdecl
 
 pACT :: Parser CActor
 pACT = withRange (pact >>= more) where
 
   more :: CActor -> Parser CActor
-  more act = Branch unknown act <$ punc "|" <*> pmustwork "Expected an actor" pACT
+  more act = Branch unknown act <$ ppunc "|" <*> pmustwork "Expected an actor" pACT
     <|> pure act
 
 withVar :: Parser x -> String -> Parser a -> Parser (x, a)
-withVar px str p = (,) <$> px <* punc str <*> p
+withVar px str p = (,) <$> px <* ppunc str <*> p
 
 withVars :: (Range -> (x, a) -> a) -> Parser x -> String -> Parser a -> Parser a
 withVars con px str pa = do
   WithRange r (xs, a) <- withRange $ WithRange unknown <$> do
     xs <- psep1 pspc px
-    punc str
+    ppunc str
     a <- pa
     pure (xs, a)
   pure $ foldr (curry (con r)) a xs
@@ -148,6 +150,7 @@ pscrutinee = withRange $ do
   <|> Compare unknown <$ pkeyword KwCompare <* pspc1 <*> pTM <* pspc <*> pTM
   <|> pparens pscrutinee
   <|> Term unknown <$> pTM
+  -- <|> (isProper =<< plisp Nothing) where
   <|> (isProper =<< id <$ pch (== '[') <* pspc <*> plisp) where
 
     isProper :: CScrutinee -> Parser CScrutinee
@@ -157,29 +160,29 @@ pscrutinee = withRange $ do
 pact :: Parser CActor
 pact = withRange $
   pscoped Under pvariable pact
-  <|> Send unknown <$> pvariable <*> pure () <* punc "!" <*> pmustwork "Expected a term" pTM <* punc "." <*> pact
+  <|> Send unknown <$> pvariable <*> pure () <* ppunc "!" <*> pmustwork "Expected a term" pTM <* ppunc "." <*> pact
   <|> do tm <- pTM
-         punc "?"
+         ppunc "?"
          case tm of
            Var _ c -> withVars (`Recv` c) ppat "." pact
            t -> withVars (`FreshMeta` t) pvariable "." pact
-  <|> Let unknown <$ pkeyword KwLet <* pspc1 <*> pvariable <* punc ":" <*> psyntaxdecl
-                  <* punc "=" <*> pTM <* punc "." <*> pact
-  <|> Spawn unknown <$> pextractmode <*> pvariable <* punc "@" <*> pvariable <* punc "." <*> pact
-  <|> Constrain unknown <$> pTM <* punc "~" <*> pmustwork "Expected a term" pTM
-  <|> Connect unknown <$> (CConnect <$> pvariable <* punc "<->" <*> pvariable)
-  <|> Match unknown <$> pcase <* punc "{"
-       <*> psep (punc ";") ((,) <$> ppat <* punc "->" <*> pACT)
+  <|> Let unknown <$ pkeyword KwLet <* pspc1 <*> pvariable <* ppunc ":" <*> psyntaxdecl
+                  <* ppunc "=" <*> pTM <* ppunc "." <*> pact
+  <|> Spawn unknown <$> pextractmode <*> pvariable <* ppunc "@" <*> pvariable <* ppunc "." <*> pact
+  <|> Constrain unknown <$> pTM <* ppunc "~" <*> pmustwork "Expected a term" pTM
+  <|> Connect unknown <$> (CConnect <$> pvariable <* ppunc "<->" <*> pvariable)
+  <|> Match unknown <$> pcase <* ppunc "{"
+       <*> psep (ppunc ";") ((,) <$> ppat <* ppunc "->" <*> pACT)
        <* pspc <* pch (== '}')
   <|> pparens pACT
-  <|> Break unknown <$ pkeyword KwBREAK <* pspc1 <*> (pformat >>= pargs) <* punc "." <*> pact
-  <|> Print unknown <$ pkeyword KwPRINT <* pspc1 <*> pargs [TermPart Instantiate ()] <* punc "." <*> pact
-  <|> Print unknown <$ pkeyword KwPRINTF <* pspc1 <*> (pformat >>= pargs) <* punc "." <*> pact
+  <|> Break unknown <$ pkeyword KwBREAK <* pspc1 <*> (pformat >>= pargs) <* ppunc "." <*> pact
+  <|> Print unknown <$ pkeyword KwPRINT <* pspc1 <*> pargs [TermPart Instantiate ()] <* ppunc "." <*> pact
+  <|> Print unknown <$ pkeyword KwPRINTF <* pspc1 <*> (pformat >>= pargs) <* ppunc "." <*> pact
   <|> Fail unknown <$ pch (== '#') <* pspc <*> (pformat >>= pargs)
-  <|> Push unknown <$> pvariable <* punc "|-"
+  <|> Push unknown <$> pvariable <* ppunc "|-"
                    <*> ((\ (a, b) -> (a, (), b)) <$> withVar pvariable "->" pTM)
-                   <* punc "." <*> pact
-  <|> Note unknown <$ plit "!" <* punc "." <*> pact
+                   <* ppunc "." <*> pact
+  <|> Note unknown <$ plit "!" <* ppunc "." <*> pact
   <|> pure (Win unknown)
   where
     -- allows `case$ x` to stand for `case $ x`
