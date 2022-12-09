@@ -16,8 +16,7 @@ import Actor
 import Bwd
 import Concrete.Base
 import Location (HasGetRange(..), Range, WithRange (..))
-import Syntax (SyntaxCat, SyntaxDesc, VSyntaxDesc'(..), VSyntaxDesc, SyntaxTable)
-import qualified Syntax
+import Syntax (SyntaxCat, SyntaxDesc, VSyntaxDesc, SyntaxTable)
 import Thin
 import Term.Base
 import Utils
@@ -28,7 +27,7 @@ import Pattern
 import Hide
 import Operator.Eval
 import Options
-
+import Semantics
 ------------------------------------------------------------------------------
 -- Elaboration Monad
 
@@ -108,10 +107,10 @@ evalElab opts = fmap fst
 ------------------------------------------------------------------------------
 -- Partial Info
 
-infoExpand :: SyntaxTable -> SyntaxDesc -> Info VSyntaxDesc
-infoExpand table s = case Syntax.expand table s of
+infoExpand :: HeadUpData' ActorMeta -> SyntaxTable -> ASemanticsDesc -> Info VSemanticsDesc
+infoExpand dat table s = case Semantics.expand table dat s of
   Nothing -> Inconsistent
-  Just VWildcard -> Unknown
+  Just (VWildcard _) -> Unknown
   Just a -> Known a
 
 fromInfo :: Range -> Info ASemanticsDesc -> Elab ASemanticsDesc
@@ -124,17 +123,18 @@ fromInfo r (Known desc) = pure desc
 -- 2. `compatibleInfos` where the error is handled locally
 fromInfo r Inconsistent = throwError (InconsistentSyntaxDesc r)
 
-compatibleInfos :: Range -> Info SyntaxDesc -> Info SyntaxDesc -> Elab (Info SyntaxDesc)
+compatibleInfos :: Range -> Info ASemanticsDesc -> Info ASemanticsDesc -> Elab (Info ASemanticsDesc)
 compatibleInfos r desc desc' = do
   table <- gets syntaxCats
-  let de = infoExpand table =<< desc
-  let de' = infoExpand table =<< desc'
+  dat <- asks headUpData
+  let de = infoExpand dat table =<< desc
+  let de' = infoExpand dat table =<< desc'
   case de <> de' of
-    Inconsistent -> throwError (IncompatibleSyntaxInfos r desc desc')
+    Inconsistent -> throwError (IncompatibleSemanticsInfos r desc desc')
     d -> pure $ case (desc, desc') of
       (Known (CdB (A _) _), _) -> desc
       (_, Known (CdB (A _) _)) -> desc'
-      _ -> Syntax.contract <$> d
+      _ -> Semantics.contract <$> d
 
 ------------------------------------------------------------------------------
 -- Context
@@ -208,16 +208,19 @@ initContext opts = Context
   , binderHints = Map.empty
   , elabMode = Definition
   , stackTrace = []
-  , headUpData = HeadUpData
-    { opTable = const mempty
-    , metaStore = Store Map.empty Map.empty ()
-    , huOptions = opts
-    , huEnv = initEnv B0
-    , whatIs = const Nothing
-    }
+  , headUpData = initHeadUpData
   }
   where
-    am = ActorMeta ACitizen 
+    am = ActorMeta ACitizen
+    
+    initHeadUpData = HeadUpData
+      { opTable = const mempty
+      , metaStore = Store Map.empty Map.empty ()
+      , huOptions = opts
+      , huEnv = initEnv B0
+      , whatIs = const Nothing
+      }
+
 
 declareObjVar :: (String, Info ASemanticsDesc) -> Context -> Context
 declareObjVar (x, info) ctx = ctx { objVars = ObjVars $ getObjVars (objVars ctx) :< ObjVar x info }
@@ -399,6 +402,7 @@ data Complaint
   | InvalidSyntaxDesc Range SyntaxDesc
   | InvalidSemanticsDesc Range ASemanticsDesc
   | IncompatibleSyntaxInfos Range (Info SyntaxDesc) (Info SyntaxDesc)
+  | IncompatibleSemanticsInfos Range (Info ASemanticsDesc) (Info ASemanticsDesc)
   | IncompatibleSyntaxDescs Range SyntaxDesc SyntaxDesc
   | GotBarredAtom Range String [String]
   | ExpectedNilGot Range String

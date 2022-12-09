@@ -289,26 +289,6 @@ sdeclOps ((AnOperator (WithRange r opname) (objName, objDesc) paramDescs retDesc
     (ops, decls) <- local (addOperator op) $ sdeclOps ops
     pure (op : ops, decls)
 
--- TODO: change "Maybe" to "Binder" in Anoperator
-
-sparamdescs :: [(Maybe Variable, Raw)] -> Elab ([(Maybe ActorVar, ASOT)], Decls)
-sparamdescs [] = ([],) <$> asks declarations
-sparamdescs ((mx , ty):ps) = do
-  (mx, binder) <- case mx of
-    Nothing -> pure (Nothing, Unused)
-    Just x -> do
-      x <- isFresh x
-      pure (Just x , Used x)
-  ovs  <- asks objVars
-  ty <- ssemanticsdesc ty
-  let sty = ovs :=> ty
-  (ps, ds) <- local (declare binder (ActVar IsNotSubject sty)) $ sparamdescs ps
-  pure ((mx , sty):ps, ds)
-
-
-spatSemantics :: ASemanticsDesc -> CPattern -> Elab (APattern, ASemanticsDesc, Decls)
-spatSemantics = _
-
 scommand :: CCommand -> Elab (ACommand, Globals)
 scommand = \case
   DeclJudge em jd p -> during (DeclJElaboration jd) $ do

@@ -54,7 +54,7 @@ type instance GUARD Abstract = Maybe ActorVar
 
 data AConnect = AConnect Channel Th Channel Int deriving (Show)
 type AProtocol = PROTOCOL Abstract
-type AContextStack = ContextStack ASyntaxDesc
+type AContextStack = ContextStack ASemanticsDesc
 type AActor = ACTOR Abstract
 type ACTm = CdB (Tm ActorMeta)
 type ACTSbst = CdB (Sbst ActorMeta)

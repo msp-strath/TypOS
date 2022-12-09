@@ -55,7 +55,7 @@ infix 2 :=>
 data ANOPERATOR (ph :: Phase) = AnOperator
   { opName     :: OPERATOR ph
   , objDesc    :: (Maybe (ACTORVAR ph), PATTERN ph)
-  , paramDescs :: [(Maybe (ACTORVAR ph), SOT ph)]
+  , paramsDesc :: [(Maybe (ACTORVAR ph), SOT ph)]
   , retDesc    :: SOT ph
   }
 

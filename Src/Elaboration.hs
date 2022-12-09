@@ -38,6 +38,9 @@ import Control.Applicative ((<|>))
 import Operator
 import Semantics
 
+type CPattern = PATTERN Concrete
+type APattern = PATTERN Abstract
+
 isSubject :: EScrutinee -> IsSubject' ()
 isSubject SubjectVar{} = IsSubject ()
 isSubject _ = IsNotSubject
@@ -137,7 +140,8 @@ ssyntaxdesc syndecls syn = do
 ssemanticsdesc :: CSemanticsDesc -> Elab ASemanticsDesc
 ssemanticsdesc sem = do
   syndecls <- gets (Map.keys . syntaxCats)
-  ssyntaxdesc ("Semantics":syndecls) sem
+  syndesc <- ssyntaxdesc ("Semantics":syndecls) sem
+  pure . embed $ syndesc
   -- TODO: use stm to actually be able to use operators & actor vars
   -- DontLog (catToDesc "Semantics")
 
@@ -196,7 +200,8 @@ sscrutinee (Lookup r stk v) = do
     (isSub, info, t) <- svar (LookedUp r) v
     void $ compatibleInfos r (Known (keyDesc stkTy)) info
     pure t
-  let desc = Semantics.contract (VEnumOrTag ["Nothing"] [("Just", [valueDesc stkTy])])
+  let vdesc = valueDesc stkTy
+      desc = Semantics.contract (VEnumOrTag (scope vdesc) ["Nothing"] [("Just", [vdesc])])
   pure (Lookup r desc (getVariable v), Lookup r stk t)
 sscrutinee (Compare r s t) = do
   infoS <- guessDesc False s
@@ -211,6 +216,36 @@ sscrutinee (Term r t) = during (ScrutineeTermElaboration t) $ do
   t <- stm (MatchedOn r) desc t
   pure (Term r desc, Term r t)
 
+
+-- TODO: change "Maybe" to "Binder" in Anoperator
+sparamdescs :: [(Maybe Variable, Raw)] -> Elab ([(Maybe ActorVar, ASOT)], Decls)
+sparamdescs [] = ([],) <$> asks declarations
+sparamdescs ((mx , ty):ps) = do
+  (mx, binder) <- case mx of
+    Nothing -> pure (Nothing, Unused)
+    Just x -> do
+      x <- isFresh x
+      pure (Just x , Used x)
+  ovs  <- asks objVars
+  ty <- ssemanticsdesc ty
+  let sty = ovs :=> ty
+  (ps, ds) <- local (declare binder (ActVar IsNotSubject sty)) $ sparamdescs ps
+  pure ((mx , sty):ps, ds)
+
+
+spatSemantics :: ASemanticsDesc -> CPattern -> Elab (APattern, ASemanticsDesc, Decls)
+spatSemantics ty (AsP r v p) = _
+spatSemantics ty (VarP r v) = _
+spatSemantics ty (AtP r a) = _
+spatSemantics ty (ConsP r p1 p2) = _
+spatSemantics ty (LamP r p) = _
+spatSemantics ty (ThP r th p) = _
+spatSemantics ty (UnderscoreP r) = _
+spatSemantics ty (Irrefutable r p) = _
+
+
+patToTm :: Pat -> Maybe ASemanticsDesc
+patToTm p = _
 
 stm :: Usage -> ASemanticsDesc -> Raw -> Elab ACTm
 stm usage desc (Var r v) = during (TermVariableElaboration v) $ do
@@ -266,10 +301,14 @@ stm usage desc rt = do
         At ra a -> do
           AnOperator{..} <- isOperator ra a
           unless (null paramDescs) $ throwError (ExpectedAnEmptyASOTListGot r a paramDescs)
-          o <- stm usage (Semantics.contract $ VAtom _) ro
-          s <- stm usage sdesc rs
-          compatibleInfos r (Known rdesc) (Known desc)
-          pure (Term.contract (s :-: o))
+          o <- stm usage (Semantics.contract $ VAtom 0) ro
+          case patToTm . snd $ objDesc of
+            Nothing -> error "Impossible"
+            Just sdesc -> do
+              s <- stm usage sdesc rs
+              
+              compatibleInfos r (Known rdesc) (Known desc)
+              pure (Term.contract (s :-: o))
         Cons rp (At ra a) ps -> do
           (sdesc, psdesc, rdesc) <- isOperator ra a
           o <- stms usage (Semantics.contract VAtom : psdesc) ro
