@@ -123,7 +123,7 @@ catToDesc :: SyntaxCat -> ASemanticsDesc
 catToDesc c = atom c 0
 
 validate :: Show m => SyntaxTable -> Bwd SyntaxCat -> ASemanticsDesc -> CdB (Tm m) -> Bool
-validate table = _
+validate table = undefined -- TODO REVERT
 {-
   go :: Show m => Bwd SyntaxCat -> ASemanticsDesc -> CdB (Tm m) -> Bool
   go env s t@(CdB V th) = reportError s t $ ($ s) $ asRec $ \ a -> a == env <! (dbIndex $ lsb th)
@@ -183,12 +183,12 @@ typecheck table env dat = check where
           $ check ctx (universe sc) ty0 && check (ctx :< ty0) (universe $ sc + 1)  ty1 
       VCons ty0 ty1 -> check ctx ty0 a0 && check ctx ty1 a1
       _ -> False  -- don't forget to handle any new cases
-    a0 :-: a1 -> _ 
+    a0 :-: a1 -> undefined -- TODO REVERT
     _ :.: t0 -> case vty of
       VBind cat ty0 -> check (ctx :< atom cat (scope t)) ty0 t0
       VPi ty0 (_, ty1) -> check (ctx :< ty0) ty1 t0
       _ -> False
-    m :$: t0 -> _
+    m :$: t0 -> undefined -- TODO REVERT
     GX _ t0 -> check ctx ty t0
 
 
