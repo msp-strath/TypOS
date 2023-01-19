@@ -75,7 +75,7 @@ rule
 -- Global assumption: 'Semantics comes with Pi builtin
   {['Arr S T] - 'Value ~> ['Pi (S - 'Value) \_. (T - 'Value)]}
 
--- Invariant: the subject in a premiss is always something with a name
+-- Invariant: the subject in a premise is always something with a name
 -- payoff - the name BECOMES the name of the citizen
 
 rule

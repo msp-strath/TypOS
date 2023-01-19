@@ -23,7 +23,7 @@ data ObjVar = ObjVar
 
 -- TODO : print the info
 instance Pretty ObjVar where
-  pretty (ObjVar x info) =  pretty x 
+  pretty (ObjVar x info) =  pretty x
 
 -- ObjVars is a representation of variable contexts
 -- which are in scope for all the types they contain,
@@ -47,16 +47,20 @@ scopeSize = length . getObjVars
 
 
 -- Second Order Type
+-- i.e. the type of a schematic variable; it can itself bind object variables
+-- e.g. ['Pi S \x.T]
+--    - S has a SOT, binding nothing
+--    - T has a SOT, binding x with type S[]
 type family SOT (ph :: Phase) :: *
 type instance SOT Concrete = Raw
 type instance SOT Abstract = ASOT
 
-  
+
 -- ObjVars are in scope for the ACTm
 data ASOT = ObjVars :=> ACTm
   deriving (Show)
 
-infix 2 :=> 
+infix 2 :=>
 
 ------------------------------------------------------------------------------
 -- Operators
@@ -127,7 +131,7 @@ poperator ph =
 
 panoperator :: Parser CAnOperator
 panoperator = do
-  obj <- pmaybeNamed ppat  
+  obj <- pmaybeNamed ppat
   punc "-"
   (opname, params) <- poperator $ pmaybeNamed psemanticsdecl
   punc ":"

@@ -5,12 +5,12 @@ import Control.Monad
 import Control.Applicative
 
 import Data.Void
-import Data.Map (Map)
+-- import Data.Map (Map)
 import qualified Data.Map as Map
 
-import Hide
+-- import Hide
 import Bwd
-import Concrete.Base (Phase(..), ASyntaxDesc, ASemanticsDesc, SEMANTICSDESC)
+import Concrete.Base (ASyntaxDesc, ASemanticsDesc)
 import Actor (ACTm, ActorMeta)
 import Thin (CdB(..), DB(..), weak, scope, ($^), (*^), ones, none)
 import Term hiding (contract, expand)
@@ -54,13 +54,13 @@ extractScope = \case
   VSyntaxCat sc _ -> sc
   VNeutral s -> scope s
   VUniverse sc -> sc
-  VPi s (n , t) -> scope s 
+  VPi s (n , t) -> scope s
 
 expand' :: forall a. WithSyntaxCat a -> SyntaxTable -> HeadUpData' ActorMeta -> ASemanticsDesc -> Maybe (VSemanticsDesc' a)
 expand' w table dat desc = do
   go True (headUp dat desc) where
 
-  go :: Bool -> ASemanticsDesc -> Maybe (VSemanticsDesc' a)  
+  go :: Bool -> ASemanticsDesc -> Maybe (VSemanticsDesc' a)
   go b s = ($ s) (asAtomOrTagged (goAtoms b) (goTagged b s))
        <|> pure (VNeutral desc)
 
@@ -148,10 +148,10 @@ validate table = undefined -- TODO REVERT
   gos env [] = asNil True
   gos env (s:ss) = asPair $ \ t0 t1 -> go env s t0 && gos env ss t1
 -}
-  
+
 typecheck :: SyntaxTable
           -> Bwd SyntaxCat          -- already known syntax environment
-          -> HeadUpData' ActorMeta 
+          -> HeadUpData' ActorMeta
           -> Bwd ASemanticsDesc     -- type context `ctx`
           -> ASemanticsDesc         -- type `ty` we are checking, `ty` lives in `ctx`
           -> ACTm                   -- term `t` we are checking, `t` is alson in `ctx`
@@ -174,13 +174,13 @@ typecheck table env dat = check where
       VNeutral{} -> False
       VPi{} -> False
     a0 :%: a1 -> case vty of
-      VNilOrCons ty0 ty1 -> check ctx ty0 a0 && check ctx ty1 a1 
+      VNilOrCons ty0 ty1 -> check ctx ty0 a0 && check ctx ty1 a1
       VEnumOrTag _ _ atys -> ($ a0) $ asAtom $ \(a, _) -> case lookup a atys of
           Nothing -> False
           Just tys -> checks ctx tys a1
       VUniverse sc -> ($ a0) $ asAtom $ \(s, _) ->  (&&) (s == "Pi")
         $ ($ a1) $ asPair $ \ty0 -> asPair $ \ty1 -> asNil
-          $ check ctx (universe sc) ty0 && check (ctx :< ty0) (universe $ sc + 1)  ty1 
+          $ check ctx (universe sc) ty0 && check (ctx :< ty0) (universe $ sc + 1)  ty1
       VCons ty0 ty1 -> check ctx ty0 a0 && check ctx ty1 a1
       _ -> False  -- don't forget to handle any new cases
     a0 :-: a1 -> undefined -- TODO REVERT
@@ -195,12 +195,12 @@ typecheck table env dat = check where
   checks :: Bwd ASemanticsDesc -> [ASemanticsDesc] -> ACTm -> Bool
   checks ctx [] t = ($ t) $ asNil True
   checks ctx (ty : tys) t = ($ t) $ asPair $ \t0 t1 -> check ctx ty t0 && checks ctx tys t1
-  
+
   var :: Bwd ASemanticsDesc -> Int -> DB -> ASemanticsDesc
   var ctx sc (DB i) = (ctx <! i) *^ (ones (sc - (1 + i)) <> none (1 + i))
 
   universe sc = contract $ VUniverse sc
-      
+
 listOf :: String -> ASemanticsDesc -> ASemanticsDesc
 listOf x d = let ga = scope d + 1 in
   "Fix" #%+ [x \\ (atom "NilOrCons" ga % (weak d % var (DB 0) ga % nil ga))]

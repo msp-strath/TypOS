@@ -109,7 +109,7 @@ spassport _ _ = ACitizen
 
 svar :: Usage -> Variable -> Elab (IsSubject, Info ASemanticsDesc, ACTm)
 svar usage x = do
-  ovs <- asks objVars 
+  ovs <- asks objVars
   res <- resolve x
   case res of
     Just (Left k) -> case k of
@@ -234,6 +234,8 @@ sparamdescs ((mx , ty):ps) = do
 
 
 spatSemantics :: ASemanticsDesc -> CPattern -> Elab (APattern, ASemanticsDesc, Decls)
+spatSemantics = undefined
+{-
 spatSemantics ty (AsP r v p) = _
 spatSemantics ty (VarP r v) = _
 spatSemantics ty (AtP r a) = _
@@ -242,9 +244,46 @@ spatSemantics ty (LamP r p) = _
 spatSemantics ty (ThP r th p) = _
 spatSemantics ty (UnderscoreP r) = _
 spatSemantics ty (Irrefutable r p) = _
+-}
 
-patToTm :: Pat -> ASemanticsDesc -> Maybe ASemanticsDesc
-patToTm p = _
+isList :: Raw -> Elab [Raw]
+isList (At r "") = pure []
+isList (At r a) = throwError (ExpectedNilGot r a)
+isList (Cons r p q) = (p:) <$> isList q
+isList t = throwError (ExpectedAConsGot (getRange t) t)
+
+sop :: Raw -> Elab (AAnOperator, [Raw])
+sop (At ra a) = do
+  op <- isOperator ra a
+  pure (op, [])
+sop (Cons rp (At ra a) ps) = do
+  op <- isOperator ra a
+  es <- isList ps
+  pure (op, es)
+sop ro = throwError (ExpectedAnOperator (getRange ro) ro)
+
+itm :: Usage -> Raw -> Elab (ASemanticsDesc, ACTm)
+itm usage (Var r v) = do
+  (_, idesc, v) <- svar usage v
+  desc <- fromInfo r idesc
+  pure (desc, v)
+itm usage (Op r rs ro) = do
+  (AnOperator{..}, rps) <- sop ro
+  (sdesc, s) <- itm usage rs
+  -- TODO: check sdesc against (snd objDesc)
+  (desc, ps) <- _ -- rps
+  let o = case ps of
+            [] -> atom (getOperator opName) (scope s)
+            _ -> getOperator opName #%+ ps
+  pure (desc, Term.contract (s :-: o))
+-- TODO?: annotated terms?
+itm _ _ = throwError _
+
+itms ::
+
+{-
+    o <- stms usage (Semantics.contract VAtom : psdesc) ro
+-}
 
 stm :: Usage -> ASemanticsDesc -> Raw -> Elab ACTm
 stm usage desc (Var r v) = during (TermVariableElaboration v) $ do
@@ -295,26 +334,10 @@ stm usage desc rt = do
           Unused -> do
             sc <- stm usage desc sc
             pure ((Hide "_" := False :.) $^ sc)
-      Op r rs ro -> case ro of
-        -- TODO: usage checking
-        At ra a -> do
-          AnOperator{..} <- isOperator ra a
-          unless (null paramsDesc) $ throwError (ExpectedAnEmptyASOTListGot r a paramsDesc)
-          o <- stm usage (Semantics.contract $ VAtom 0) ro
-          case patToTm . snd $ objDesc of
-            Nothing -> error "Impossible"
-            Just sdesc -> do
-              s <- stm usage sdesc rs
-              
-              compatibleInfos r (Known rdesc) (Known desc)
-              pure (Term.contract (s :-: o))
-        Cons rp (At ra a) ps -> do
-          (sdesc, psdesc, rdesc) <- isOperator ra a
-          o <- stms usage (Semantics.contract VAtom : psdesc) ro
-          s <- stm usage sdesc rs
-          compatibleInfos r (Known rdesc) (Known desc)
-          pure (Term.contract (s :-: o))
-        _ -> throwError (ExpectedAnOperator (getRange ro) ro)
+      Op{} -> do
+        (tdesc, t) <- itm usage rt
+        compatibleInfos (getRange t) (Known tdesc) (Known desc)
+        pure t
 
 
 spats :: IsSubject -> [SyntaxDesc] -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
