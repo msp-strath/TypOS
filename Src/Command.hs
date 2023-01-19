@@ -106,8 +106,6 @@ type CCommand = COMMAND Concrete
 type ACommand = COMMAND Abstract
 type CStatement = STATEMENT Concrete
 type AStatement = STATEMENT Abstract
-type CPattern = PATTERN Concrete
-type APattern = PATTERN Abstract
 
 instance (Show a, Unelab a, Pretty (Unelabed a)) => Display (Mode a) where
   type DisplayEnv (Mode a) = UnelabEnv a

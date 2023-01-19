@@ -1,5 +1,7 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Info where
 import Control.Monad
+import Pretty
 
 -- Partial info
 
@@ -24,3 +26,10 @@ instance Eq a => Semigroup (Info a) where
 
 instance Eq a => Monoid (Info a) where
   mempty = Unknown
+
+instance Pretty a => Pretty (Info a) where
+  prettyPrec d = \case
+    Unknown -> "Unknown"
+    Known a -> parenthesise (d > 0) (hsep ["Known", prettyPrec 1 a])
+    Inconsistent -> "Inconsistent"
+

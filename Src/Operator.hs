@@ -13,11 +13,17 @@ import Term.Base
 import Info
 import Bwd
 import Thin
+import Pretty
+
 
 data ObjVar = ObjVar
   { objVarName :: String
   , objVarDesc :: Info ASemanticsDesc
   } deriving (Show, Eq)
+
+-- TODO : print the info
+instance Pretty ObjVar where
+  pretty (ObjVar x info) =  pretty x 
 
 -- ObjVars is a representation of variable contexts
 -- which are in scope for all the types they contain,
@@ -26,6 +32,9 @@ data ObjVar = ObjVar
 
 newtype ObjVars = ObjVars { getObjVars :: Bwd ObjVar }
   deriving (Show, Eq)
+
+instance Pretty ObjVars where
+  pretty = collapse . fmap pretty . getObjVars
 
 thinsTo :: ObjVars -> ObjVars -> Maybe Th
 thinsTo (ObjVars x) (ObjVars y) = findSub (objVarName <$> x) (objVarName <$> y)

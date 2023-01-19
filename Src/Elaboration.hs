@@ -243,8 +243,7 @@ spatSemantics ty (ThP r th p) = _
 spatSemantics ty (UnderscoreP r) = _
 spatSemantics ty (Irrefutable r p) = _
 
-
-patToTm :: Pat -> Maybe ASemanticsDesc
+patToTm :: Pat -> ASemanticsDesc -> Maybe ASemanticsDesc
 patToTm p = _
 
 stm :: Usage -> ASemanticsDesc -> Raw -> Elab ACTm
@@ -300,7 +299,7 @@ stm usage desc rt = do
         -- TODO: usage checking
         At ra a -> do
           AnOperator{..} <- isOperator ra a
-          unless (null paramDescs) $ throwError (ExpectedAnEmptyASOTListGot r a paramDescs)
+          unless (null paramsDesc) $ throwError (ExpectedAnEmptyASOTListGot r a paramsDesc)
           o <- stm usage (Semantics.contract $ VAtom 0) ro
           case patToTm . snd $ objDesc of
             Nothing -> error "Impossible"

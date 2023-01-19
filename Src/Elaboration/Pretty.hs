@@ -31,12 +31,6 @@ instance Pretty Stack where
 instance Pretty ActorMeta where
   pretty (ActorMeta _ m) = pretty m
 
-instance Pretty a => Pretty (Info a) where
-  prettyPrec d = \case
-    Unknown -> "Unknown"
-    Known a -> parenthesise (d > 0) (hsep ["Known", prettyPrec 1 a])
-    Inconsistent -> "Inconsistent"
-
 instance Pretty Kind where
   pretty = \case
     ActVar{} -> "an object variable"
@@ -52,9 +46,6 @@ instance (Unelab a, Pretty (Unelabed a), UnelabEnv a ~ Naming)
 
 instance Pretty AProtocol where
   pretty (Protocol ps) = foldMap (\ x -> pretty x <> ". ") ps
-
-instance Pretty ObjVar where
-  pretty (ObjVar x info) = hsep [ pretty x, colon, pretty info ]
 
 instance Pretty CFormula where
   pretty (CFormula a) = these pretty pretty (const pretty) a
@@ -113,9 +104,9 @@ instance Pretty Complaint where
     MetaScopeTooBig r x sc1 sc2 ->
         hsep [ "Cannot use", pretty x
              , "here as it is defined in too big a scope"
-             , parens (hsep [ collapse (pretty <$> sc1)
+             , parens (hsep [ pretty sc1
                             , "won't fit in"
-                            , collapse (pretty <$> sc2) ])]
+                            , pretty sc2 ])]
     VariableShadowing r x -> hsep [pretty x, "is already defined"]
     EmptyContext r -> "Tried to pop an empty context"
     NotTopVariable r x y ->
@@ -155,8 +146,8 @@ instance Pretty Complaint where
     ProtocolsNotDual r ps qs -> hsep ["Protocols", pretty ps, "and", pretty qs, "are not dual"]
     IncompatibleModes r m1 m2 -> hsep ["Modes", pretty m1, "and", pretty m2, "are incompatible"]
     IncompatibleChannelScopes r sc1 sc2 ->
-      hsep [ "Channels scopes", collapse (pretty <$> sc1)
-           , "and", collapse (pretty <$> sc2), "are incompatible"]
+      hsep [ "Channels scopes", pretty sc1
+           , "and", pretty sc2, "are incompatible"]
     WrongDirection r m1 dir m2 -> hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]
 
     -- judgementforms
