@@ -201,7 +201,17 @@ instance Pretty Complaint where
     ExpectedAnEmptyListGot r a ds ->
        hsep ["Expected", pretty a, "to be a constant operator"
             , "but it takes arguments of type:", collapse (pretty <$> ds)]
+    -- TODO : learn to print the semantics desc         
+    InvalidSemanticsDesc r sem -> "Invalid semantics description"
+    SemanticsError r sem t -> hsep [pretty t, "does not match the semantics description"]
+    IncompatibleSemanticsInfos r isem isem' -> "Incompatible semantics description"
     AsPatternCannotHaveSubjects r p -> hsep ["As pattern", pretty p, "duplicates a subject variable"]
+    -- desc inference
+    -- TODO : add more info
+    InferredDescMismatch r -> "Inferred object description does not match pattern"
+    DontKnowHowToInferDesc r t -> hsep ["Do not know how to infer description for", pretty  t]
+    ArityMismatchInOperator r -> "Arity mismatch in operator"
+    SchematicVariableNotInstantiated r -> "Schematic variable not instantiated"
 
 instance Pretty a => Pretty (WithStackTrace a) where
   pretty (WithStackTrace stk msg) = vcat (pretty msg : map pretty stk)

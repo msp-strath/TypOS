@@ -228,6 +228,9 @@ declareObjVar (x, info) ctx = ctx { objVars = ObjVars $ getObjVars (objVars ctx)
 setObjVars :: ObjVars -> Context -> Context
 setObjVars ovs ctx = ctx { objVars = ovs }
 
+setHeadUpData :: HeadUpData' ActorMeta -> Context -> Context
+setHeadUpData dat ctx = ctx { headUpData = dat}
+
 instance Selable ObjVars where
   th ^? (ObjVars ovs) = ObjVars (th ^? ovs)
 
@@ -400,9 +403,7 @@ data Complaint
   -- syntaxdesc validation
   | InconsistentSyntaxDesc Range
   | InvalidSyntaxDesc Range SyntaxDesc
-  | InvalidSemanticsDesc Range ASemanticsDesc
   | IncompatibleSyntaxInfos Range (Info SyntaxDesc) (Info SyntaxDesc)
-  | IncompatibleSemanticsInfos Range (Info ASemanticsDesc) (Info ASemanticsDesc)
   | IncompatibleSyntaxDescs Range SyntaxDesc SyntaxDesc
   | GotBarredAtom Range String [String]
   | ExpectedNilGot Range String
@@ -413,13 +414,20 @@ data Complaint
   | ExpectedAConsGot Range Raw
   | ExpectedAConsPGot Range RawP
   | SyntaxError Range SyntaxDesc Raw
-  | SemanticsError Range ASemanticsDesc Raw
   | SyntaxPError Range SyntaxDesc RawP
   | ExpectedAnOperator Range Raw
   | ExpectedAnEmptyListGot Range String [SyntaxDesc]
-  | ExpectedAnEmptyASOTListGot Range String [(Maybe ActorMeta, ASOT)]
+  -- semanticsdesc validation
+  | InvalidSemanticsDesc Range ASemanticsDesc
+  | SemanticsError Range ASemanticsDesc Raw
+  | IncompatibleSemanticsInfos Range (Info ASemanticsDesc) (Info ASemanticsDesc)
   -- subjects and citizens
   | AsPatternCannotHaveSubjects Range RawP
+  -- desc inference
+  | InferredDescMismatch Range
+  | DontKnowHowToInferDesc Range Raw
+  | ArityMismatchInOperator Range
+  | SchematicVariableNotInstantiated Range
   deriving (Show)
 
 instance HasGetRange Complaint where
@@ -479,8 +487,17 @@ instance HasGetRange Complaint where
     SyntaxPError r _ _ -> r
     ExpectedAnOperator r _ -> r
     ExpectedAnEmptyListGot r _ _ -> r
+    -- semantics validation
+    InvalidSemanticsDesc r _ -> r
+    SemanticsError r _ _ -> r
+    IncompatibleSemanticsInfos r  _ _ -> r
     -- subjects and citizens
     AsPatternCannotHaveSubjects r _ -> r
+    -- desc inference
+    InferredDescMismatch r -> r
+    DontKnowHowToInferDesc r _ -> r
+    ArityMismatchInOperator r -> r
+    SchematicVariableNotInstantiated r -> r
 
 ------------------------------------------------------------------------------
 -- Syntaxes

@@ -25,17 +25,19 @@ import Syntax
 import Thin
 import Utils
 import Info
+import Machine.Matching
 
 import Elaboration.Monad
 import Term.Base
 import qualified Term.Base as Term
 import Term.Substitution
-import Pattern as P
+import Pattern as P hiding (match)
 import Location
 import Data.List.NonEmpty (fromList)
 import Pattern.Coverage (Covering'(..), combine, shrinkBy, missing)
 import Control.Applicative ((<|>))
 import Operator
+import Operator.Eval
 import Semantics
 
 type CPattern = PATTERN Concrete
@@ -270,20 +272,51 @@ itm usage (Var r v) = do
 itm usage (Op r rs ro) = do
   (AnOperator{..}, rps) <- sop ro
   (sdesc, s) <- itm usage rs
-  -- TODO: check sdesc against (snd objDesc)
-  (desc, ps) <- _ -- rps
-  let o = case ps of
-            [] -> atom (getOperator opName) (scope s)
-            _ -> getOperator opName #%+ ps
-  pure (desc, Term.contract (s :-: o))
+  dat <- do
+    dat <- asks headUpData
+    let hnf = headUp dat
+    env <- case snd $ match hnf initMatching (Problem B0 (snd objDesc) sdesc) of
+      Left e -> throwError $ InferredDescMismatch r
+      Right m -> pure $ matchingToEnv m (huEnv dat)
+    env <- case fst objDesc of
+      Nothing -> pure env
+      Just v  -> pure $ newActorVar v (localScope env <>> [], s) env
+    pure dat{huEnv = env}
+  local (setHeadUpData dat) $ do
+    (desc, ps) <- itms r usage paramsDesc rps retDesc 
+    let o = case ps of
+              [] -> atom (getOperator opName) (scope s)
+              _ -> getOperator opName #%+ ps
+    pure (desc, Term.contract (s :-: o))
 -- TODO?: annotated terms?
-itm _ _ = throwError _
+itm _ t = throwError $ DontKnowHowToInferDesc (getRange t) t
 
-itms ::
+itms :: Range -> Usage -> [(Maybe ActorMeta, ASOT)] -> [Raw] -> ASOT -> Elab (ASemanticsDesc, [ACTm])
+itms r usage [] [] rdesc = (, []) <$> sasot r rdesc
+itms r usage ((binder, asot):bs) (rp:rps) rdesc = do
+  pdesc <- sasot (getRange rp) asot --interpolate asot with the objVars in the env
+  p <- stm usage pdesc rp
+  dat <- do
+    dat <- asks headUpData
+    pure $ case binder of
+      Nothing -> dat
+      Just v  ->
+        let env = huEnv dat
+            env' = newActorVar v (localScope env <>> [], p) env
+        in dat{huEnv = env'}
+  local (setHeadUpData dat) $ 
+     fmap (p:) <$> itms r usage bs rps rdesc
+itms r usage bs rps rdesc = throwError $ ArityMismatchInOperator r
 
-{-
-    o <- stms usage (Semantics.contract VAtom : psdesc) ro
--}
+sasot :: Range -> ASOT -> Elab ASemanticsDesc
+sasot r (objVars :=> desc) = do
+  dat  <- asks headUpData
+  -- we hope that mangleActors will instantiate objVars in desc for us
+  -- TODO: restrict the env to the actual support
+  case mangleActors (huOptions dat) (huEnv dat) desc of
+    Nothing -> throwError $ SchematicVariableNotInstantiated r
+    Just v  -> pure v
+  
 
 stm :: Usage -> ASemanticsDesc -> Raw -> Elab ACTm
 stm usage desc (Var r v) = during (TermVariableElaboration v) $ do
