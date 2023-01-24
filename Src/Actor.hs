@@ -81,7 +81,7 @@ type EnvImg' m = ([String] -- bound vars xi actorVar does know about
 type Env = Env' Meta
 type EnvImg = EnvImg' Meta
 
-tryAlpha :: Env -> String -> String
+tryAlpha :: Env' m -> String -> String
 tryAlpha rho x = maybe x unhide (Map.lookup x (alphaRenamings rho))
 
 declareAlpha :: (String, Hide String) -> Env' m -> Env' m
@@ -120,15 +120,16 @@ guardSubject v defn gd env =
 --       in the environment (tm := ['Lam \x.['Emb x]])
 --  we need to instantiate tm to ['Lam \x.['Emb x]] before
 -- trying to find the clause that matches
-mangleActors :: Options
-             -> Env          {- Env ga -}
-             -> ACTm         {- Src de -}
-             -> Maybe Term   {- Trg (ga <<< de) -}
+mangleActors :: forall m . Show m
+             =>  Options
+             -> Env' m          {- Env ga -}
+             -> ACTm            {- Src de -}
+             -> Maybe (Term' m) {- Trg (ga <<< de) -}
 mangleActors opts rho tm = go tm where
   ga = length (globalScope rho)
 
-  go :: CdB (Tm ActorMeta) {- Src de -}
-     -> Maybe Term         {- Trg (ga <<< de) -}
+  go :: CdB (Tm ActorMeta)  {- Src de -}
+     -> Maybe (Term' m)     {- Trg (ga <<< de) -}
   go tm = case expand tm of
     VX i de -> pure (var i (ga + de))
     AX a de -> pure (atom a (ga + de))
@@ -140,8 +141,8 @@ mangleActors opts rho tm = go tm where
       sg <- goSbst sg
       pure (t //^ sg)
 
-  goSbst :: CdB (Sbst ActorMeta) {-        xi =>Src de -}
-         -> Maybe Subst          {- ga <<< xi =>Trg ga <<< de -}
+  goSbst :: CdB (Sbst ActorMeta)   {-        xi =>Src de -}
+         -> Maybe (Subst' m)       {- ga <<< xi =>Trg ga <<< de -}
   goSbst (CdB (S0 :^^ 0) th) = pure $ sbstI ga *^ (ones ga <> th)
   goSbst (CdB (ST rp :^^ 0) th) =
     splirp (CdB rp th) $ \ s (CdB (x := tm) ph) -> do
@@ -157,11 +158,11 @@ mangleActors opts rho tm = go tm where
   -- local scope extension it was bound in. We expect that the
   -- substitution acting upon the term will cover all of these local
   -- variables.
-  lookupVar :: Env -> ActorMeta -> Maybe ([String], Term)
-  lookupVar rh av = Map.lookup av (actorVars rh)
+  lookupVar :: ActorMeta -> Maybe ([String], Term' m)
+  lookupVar av = Map.lookup av (actorVars rho)
 
-  noisyLookupVar :: ActorMeta -> Maybe Term
-  noisyLookupVar av = case lookupVar rho av of
+  noisyLookupVar :: ActorMeta -> Maybe (Term' m)
+  noisyLookupVar av = case lookupVar av of
     Just (_, t) -> Just t
     Nothing -> alarm opts ("couldn't find " ++ show av ++ " in " ++ show rho)
                        Nothing
