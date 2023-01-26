@@ -157,18 +157,18 @@ ssbst usage (sg :< sgc) = case sgc of
       when (v /= w) $ throwError (NotTopVariable r v w)
       (sg, ovs) <- local (setObjVars xz) (ssbst usage sg)
       pure (sbstW sg (ones 1), ovs <: ObjVar (getVariable w) cat)
+    -- TODO : worry about dropped things ocurring in types
     Drop r v -> do
       (xz, (w, cat)) <- spop r
       when (v /= w) $ throwError (NotTopVariable r v w)
       (sg, ovs) <- local (setObjVars xz) (ssbst usage sg)
       pure (weak sg, ovs)
     Assign r v t -> do
-      info <- getHint (getVariable v)
-      desc <- fromInfo r info
-      t <- stm usage desc t
       (sg, ovs) <- ssbst usage sg
-      v <- local (setObjVars ovs) $ isFresh v
-      pure (sbstT sg ((Hide v :=) $^ t), ovs <: ObjVar v info)
+      local (setObjVars ovs) $ do
+        (desc, t) <- itm usage t
+        v <- isFresh v
+        pure (sbstT sg ((Hide v :=) $^ t), ovs <: ObjVar v (Known desc))
 
 sth :: (Bwd Variable, ThDirective) -> Elab Th
 sth (xz, b) = do
@@ -289,12 +289,13 @@ itm usage (Op r rs ro) = do
               _ -> getOperator opName #%+ ps
     pure (desc, Term.contract (s :-: o))
 -- TODO?: annotated terms?
+
 itm _ t = throwError $ DontKnowHowToInferDesc (getRange t) t
 
 itms :: Range -> Usage -> [(Maybe ActorMeta, ASOT)] -> [Raw] -> ASOT -> Elab (ASemanticsDesc, [ACTm])
 itms r usage [] [] rdesc = (, []) <$> sasot r rdesc
 itms r usage ((binder, asot):bs) (rp:rps) rdesc = do
-  pdesc <- sasot (getRange rp) asot --interpolate asot with the objVars in the env
+  pdesc <- sasot (getRange rp) asot 
   p <- stm usage pdesc rp
   dat <- do
     dat <- asks headUpData

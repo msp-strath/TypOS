@@ -173,6 +173,19 @@ data Kind
 type Decls = Bwd (String, Kind)
 type Operators = Map String AAnOperator
 
+data LexicalVar = CdBVar ObjVar | Macro Raw 
+
+-- LexicalScope gives the meanings of things that look like variables.
+-- Crucially, only the CdBVars are in scope for the abstract syntax
+-- and their semantics desc is in the scope of the whole context,
+-- i.e., CdbVars are ready for lookup with no further
+-- weakening. Consequently, we must weaken them when we go under a
+-- binder. Macros are scope checked and expanded at def.  site but
+-- not elaborated until use site. Hence, they cannot be recursive. The
+-- vars that occur in a Macro are CdBVars - we have checked they are
+-- in scope and if they are Macros, we have further expanded them.
+type LexicalScope = Bwd (String, LexicalVar)
+
 data Context = Context
   { objVars      :: ObjVars
   , declarations :: Decls

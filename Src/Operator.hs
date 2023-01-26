@@ -15,6 +15,20 @@ import Bwd
 import Thin
 import Pretty
 
+{-
+  1. No subst in parsing phase.
+     => parser has no clue about lexical scope
+  2. Elaborator keeps separate notions of CdB context
+     and lexical scope.                      ^
+             ^                               |
+     (maps var names to either CdB vars      |
+      or raw terms - the latter must be      |
+      in scope at def. site)                 |
+                                             |     
+     (types in scope for the whole context, weakens under binders,
+      never strengthens)
+  
+-}
 
 data ObjVar = ObjVar
   { objVarName :: String

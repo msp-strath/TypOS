@@ -129,8 +129,6 @@ instance Pretty (PLACE Concrete) where
     parens $ hsep $ [ pretty v, ":", pretty syntaxdesc ]
       ++ (("=>" <+> pretty semanticsdesc) <$ guard (syntaxdesc /= semanticsdesc))
 
-
-
 instance Pretty CCommand where
   pretty = let prettyCds cds = collapse (BracesList $ pretty <$> cds) in \case
     DeclJudge em jd p -> hsep [pretty em <> pretty jd, colon, pretty p]
@@ -280,7 +278,7 @@ sdeclOps ((AnOperator (WithRange r opname) (objName, objDesc) paramDescs retDesc
        pure (Just objName , Used objName)
   (descPat, objDesc, ds) <- spatSemantics (atom "Semantics" 0) objDesc
   ovs <- asks objVars
-  local (declare objBinder (ActVar IsNotSubject (ovs :=> objDesc) . setDecls ds)) $ do
+  local (declare objBinder (ActVar IsNotSubject (ovs :=> objDesc)) . setDecls ds) $ do
     (paramDescs, ds) <- sparamdescs paramDescs
     retDesc <- local (setDecls ds) $ ssemanticsdesc retDesc
     let op = AnOperator opname objDesc paramDescs retDesc
