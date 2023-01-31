@@ -91,7 +91,7 @@ pth :: Parser (Bwd Variable, ThDirective)
 pth = (,) <$> ppes pspc pvariable
           <*> (ThDrop <$ pspc <* pch ('*' ==) <|> pure ThKeep)
 
-pmode :: Parser (Mode ()) 
+pmode :: Parser (Mode ())
 pmode = Input <$ pch (== '?')
     <|> Subject () <$ pch (== '$')
     <|> Output <$ pch (== '!')
@@ -111,7 +111,7 @@ psyntaxdecl = pTM
 psemanticsdecl :: Parser Raw
 psemanticsdecl = pTM
 
-pcontextstack :: Parser (ContextStack Raw)
+pcontextstack :: Parser CContextStack
 pcontextstack = ContextStack
   <$> psyntaxdecl
   <* punc "->"

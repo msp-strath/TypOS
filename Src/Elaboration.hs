@@ -21,7 +21,7 @@ import Hide
 import Scope
 import Syntax
     ( SyntaxCat,
-      SyntaxDesc, syntaxDesc)
+      SyntaxDesc, syntaxDesc, wildcard)
 import Thin
 import Utils
 import Info
@@ -56,7 +56,7 @@ checkSendableSubject tm = do
   go :: Bwd String -> Raw -> Elab (Maybe ActorVar)
   go localVars x = case x of
     Var r v -> resolve v >>= \case
-      Just (Left (ActVar (IsSubject {}) _)) -> pure . Just $ getVariable v
+      Just (ADeclaration (ActVar (IsSubject {}) _)) -> pure . Just $ getVariable v
       _ -> Nothing <$ raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
     Sbst r sg x -> do
       case isInvertible localVars sg of
@@ -109,22 +109,22 @@ spassport :: Usage -> IsSubject -> Passport
 spassport u IsSubject{} | isBeingScrutinised u = ASubject
 spassport _ _ = ACitizen
 
-svar :: Usage -> Variable -> Elab (IsSubject, Info ASemanticsDesc, ACTm)
+svar :: Usage -> Variable -> Elab (IsSubject, ASemanticsDesc, ACTm)
 svar usage x = do
   ovs <- asks objVars
   res <- resolve x
   case res of
-    Just (Left k) -> case k of
+    Just (ADeclaration k) -> case k of
       ActVar isSub (sc :=> desc) -> case sc `thinsTo` ovs of
         Just th -> do
           logUsage (getVariable x) usage
-          pure (isSub, Known desc, ActorMeta (spassport usage isSub) (getVariable x) $: sbstW (sbst0 0) th)
+          pure (isSub, desc, ActorMeta (spassport usage isSub) (getVariable x) $: sbstW (sbst0 0) th)
         Nothing -> throwError (MetaScopeTooBig (getRange x) x sc ovs)
       _ -> throwError (NotAValidTermVariable (getRange x) x k)
-    Just (Right (desc, i)) -> pure (IsNotSubject, desc, var i (scopeSize ovs))
+    Just (AnObjVar desc i) -> pure (IsNotSubject, desc, var i (scopeSize ovs))
     Nothing -> throwError (OutOfScope (getRange x) x)
 
-spop :: Range -> Elab (ObjVars, (Variable, Info ASemanticsDesc))
+spop :: Range -> Elab (ObjVars, (Variable, ASemanticsDesc))
 spop r = do
   ovs <- asks objVars
   case getObjVars ovs of
@@ -152,6 +152,21 @@ ssbst usage B0 = do
     ovs <- asks objVars
     pure (sbstI (scopeSize ovs), ovs)
 ssbst usage (sg :< sgc) = case sgc of
+    Assign r v t -> do
+      (sg, ovs) <- ssbst usage sg
+      -- ovs better be a valid scope (without Drop, we know it will be)
+      local (setObjVars' ovs) $ do
+        v <- isFresh v
+        (desc, t) <- itm usage t
+        pure (sbstT sg ((Hide v :=) $^ t), ovs <: ObjVar v desc)
+    _ -> undefined
+
+{-
+ssbst :: Usage -> Bwd SbstC -> Elab (ACTSbst, ObjVars)
+ssbst usage B0 = do
+    ovs <- asks objVars
+    pure (sbstI (scopeSize ovs), ovs)
+ssbst usage (sg :< sgc) = case sgc of
     Keep r v -> do
       (xz, (w, cat)) <- spop r
       when (v /= w) $ throwError (NotTopVariable r v w)
@@ -169,6 +184,7 @@ ssbst usage (sg :< sgc) = case sgc of
         (desc, t) <- itm usage t
         v <- isFresh v
         pure (sbstT sg ((Hide v :=) $^ t), ovs <: ObjVar v (Known desc))
+-}
 
 sth :: (Bwd Variable, ThDirective) -> Elab Th
 sth (xz, b) = do
@@ -187,8 +203,9 @@ stms usage _ t = throwError (ExpectedAConsGot (getRange t) t)
 
 sscrutinee :: CScrutinee -> Elab (EScrutinee, AScrutinee)
 sscrutinee (SubjectVar r v) = do
-  (isSub, info, actm) <- svar (Scrutinised r) v
-  desc <- fromInfo r info
+  -- TODO: shouldn't this svar return a syntax desc?
+  -- We're in subject analysis mode
+  (isSub, desc, actm) <- svar (Scrutinised r) v
   case (isSub, actm) of
     (IsSubject{}, CdB (m :$ sg) _) -> pure (SubjectVar r desc, SubjectVar r actm)
     _ -> throwError (NotAValidSubjectVar r v)
@@ -199,8 +216,14 @@ sscrutinee (Pair r sc1 sc2) = do
 sscrutinee (Lookup r stk v) = do
   (stk, stkTy) <- isContextStack stk
   t <- during (LookupVarElaboration v) $ do
-    (isSub, info, t) <- svar (LookedUp r) v
-    void $ compatibleInfos r (Known (keyDesc stkTy)) info
+    -- TODO:
+    -- Shouldn't this `svar LookedUp` return the SyntaxDesc attached
+    -- to v given that we are currently analysing it as a subject?
+    (isSub, desc, t) <- svar (LookedUp r) v
+    -- /!\ This is probably not correct. Cf. above comment about
+    -- LookedUp
+    let hmmmDesc = embed (keyDesc stkTy)
+    void $ compatibleInfos r (Known hmmmDesc) (Known desc)
     pure t
   let vdesc = valueDesc stkTy
       desc = Semantics.contract (VEnumOrTag (scope vdesc) ["Nothing"] [("Just", [vdesc])])
@@ -266,8 +289,7 @@ sop ro = throwError (ExpectedAnOperator (getRange ro) ro)
 
 itm :: Usage -> Raw -> Elab (ASemanticsDesc, ACTm)
 itm usage (Var r v) = do
-  (_, idesc, v) <- svar usage v
-  desc <- fromInfo r idesc
+  (_, desc, v) <- svar usage v
   pure (desc, v)
 itm usage (Op r rs ro) = do
   (AnOperator{..}, rps) <- sop ro
@@ -283,7 +305,7 @@ itm usage (Op r rs ro) = do
       Just v  -> pure $ newActorVar v (localScope env <>> [], s) env
     pure dat{huEnv = env}
   local (setHeadUpData dat) $ do
-    (desc, ps) <- itms r usage paramsDesc rps retDesc 
+    (desc, ps) <- itms r usage paramsDesc rps retDesc
     let o = case ps of
               [] -> atom (getOperator opName) (scope s)
               _ -> getOperator opName #%+ ps
@@ -295,7 +317,7 @@ itm _ t = throwError $ DontKnowHowToInferDesc (getRange t) t
 itms :: Range -> Usage -> [(Maybe ActorMeta, ASOT)] -> [Raw] -> ASOT -> Elab (ASemanticsDesc, [ACTm])
 itms r usage [] [] rdesc = (, []) <$> sasot r rdesc
 itms r usage ((binder, asot):bs) (rp:rps) rdesc = do
-  pdesc <- sasot (getRange rp) asot 
+  pdesc <- sasot (getRange rp) asot
   p <- stm usage pdesc rp
   dat <- do
     dat <- asks headUpData
@@ -305,7 +327,7 @@ itms r usage ((binder, asot):bs) (rp:rps) rdesc = do
         let env = huEnv dat
             env' = newActorVar v (localScope env <>> [], p) env
         in dat{huEnv = env'}
-  local (setHeadUpData dat) $ 
+  local (setHeadUpData dat) $
      fmap (p:) <$> itms r usage bs rps rdesc
 itms r usage bs rps rdesc = throwError $ ArityMismatchInOperator r
 
@@ -317,17 +339,17 @@ sasot r (objVars :=> desc) = do
   case mangleActors (huOptions dat) (huEnv dat) desc of
     Nothing -> throwError $ SchematicVariableNotInstantiated r
     Just v  -> pure v
-  
+
 
 stm :: Usage -> ASemanticsDesc -> Raw -> Elab ACTm
 stm usage desc (Var r v) = during (TermVariableElaboration v) $ do
   table <- gets syntaxCats
   (_, desc', t) <- svar usage v
-  compatibleInfos (getRange v) (Known desc) desc'
+  compatibleInfos (getRange v) (Known desc) (Known desc')
   pure t
 stm usage desc (Sbst r sg t) = do
     (sg, ovs) <- during (SubstitutionElaboration sg) $ ssbst usage sg
-    t <- local (setObjVars ovs) (stm usage desc t)
+    t <- local (setObjVars' ovs) (stm usage desc t)
     pure (t //^ sg)
 stm usage desc rt = do
   table <- gets syntaxCats
@@ -357,8 +379,8 @@ stm usage desc rt = do
         _ -> throwError (SyntaxError r desc rt)
       Lam r (Scope (Hide x) sc) -> do
         (s, desc) <- case vdesc of
-          VWildcard _ -> pure (Unknown, desc)
-          VBind cat desc -> pure (Known (catToDesc cat), desc)
+          VWildcard i -> pure (desc, desc)
+          VBind cat desc -> pure (catToDesc cat, desc)
           _ -> throwError (SyntaxError r desc rt)
         case x of
           Used x -> do
@@ -370,11 +392,11 @@ stm usage desc rt = do
             pure ((Hide "_" := False :.) $^ sc)
       Op{} -> do
         (tdesc, t) <- itm usage rt
-        compatibleInfos (getRange t) (Known tdesc) (Known desc)
+        compatibleInfos (getRange rt) (Known tdesc) (Known desc)
         pure t
 
 
-spats :: IsSubject -> [SyntaxDesc] -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
+spats :: IsSubject -> [ASemanticsDesc] -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
 spats _ [] (AtP r "") = (Nothing, AP "",,) <$> asks declarations <*> asks binderHints
 spats _ [] (AtP r a) = throwError (ExpectedNilGot r a)
 spats _ [] t = throwError (ExpectedANilPGot (getRange t) t)
@@ -441,10 +463,10 @@ spatBase isSub desc (VarP r v) = during (PatternVariableElaboration v) $ do
   hs <- asks binderHints
   res <- resolve v
   case res of
-    Just (Left k)  -> throwError (NotAValidPatternVariable r v k)
-    Just (Right (desc', i)) -> do
-      compatibleInfos (getRange v) (Known desc) desc'
+    Just (AnObjVar desc' i) -> do
+      compatibleInfos (getRange v) (Known desc) (Known desc')
       pure (Nothing, VP i, ds, hs)
+    Just mk -> throwError (NotAValidPatternVariable r v mk)
     Nothing -> do
       ovs <- asks objVars
       v <- pure (getVariable v)
@@ -497,8 +519,8 @@ spatBase isSub desc rp = do
 
       LamP r (Scope v@(Hide x) p) -> do
         (s, desc) <- case vdesc of
-          VWildcard _ -> pure (Unknown, desc)
-          VBind cat desc -> pure (Known (Semantics.catToDesc cat), desc)
+          VWildcard _ -> pure (desc, desc)
+          VBind cat desc -> pure (Semantics.catToDesc cat, desc)
           _ -> throwError (SyntaxPError r desc rp)
 
         case x of
@@ -507,13 +529,19 @@ spatBase isSub desc rp = do
             pure (mr, BP (Hide "_") p, ds, hs)
           Used x -> do
             x <- isFresh x
-            (mr, p, ds, hs) <- local (declareObjVar (x, s) . addHint x s) $ spatBase isSub desc p
+            (mr, p, ds, hs) <- local (declareObjVar (x, s) . addHint x (Known s)) $ spatBase isSub desc p
             pure (mr, BP (Hide x) p, ds, hs)
+
+isObjVar :: Variable -> Elab (ASemanticsDesc, DB)
+isObjVar p = resolve p >>= \case
+  Just (AnObjVar desc i) -> pure (desc, i)
+  Just mk -> throwError $ NotAValidPatternVariable (getRange p) p mk
+  Nothing -> throwError $ OutOfScope (getRange p) p
 
 isChannel :: Variable -> Elab Channel
 isChannel ch = resolve ch >>= \case
-  Just (Left (AChannel sc)) -> pure (Channel $ getVariable ch)
-  Just mk -> throwError (NotAValidChannel (getRange ch) ch $ either Just (const Nothing) mk)
+  Just (ADeclaration (AChannel sc)) -> pure (Channel $ getVariable ch)
+  Just mk -> throwError (NotAValidChannel (getRange ch) ch mk)
   Nothing -> throwError (OutOfScope (getRange ch) ch)
 
 isOperator :: Range -> String -> Elab AAnOperator
@@ -531,14 +559,14 @@ data IsJudgement = IsJudgement
 
 isJudgement :: Variable -> Elab IsJudgement
 isJudgement jd = resolve jd >>= \case
-  Just (Left (AJudgement em p)) -> pure (IsJudgement em (getVariable jd) p)
-  Just mk -> throwError (NotAValidJudgement (getRange jd) jd $ either Just (const Nothing) mk)
+  Just (ADeclaration (AJudgement em p)) -> pure (IsJudgement em (getVariable jd) p)
+  Just mk -> throwError (NotAValidJudgement (getRange jd) jd mk)
   Nothing -> throwError (OutOfScope (getRange jd) jd)
 
 isContextStack :: Variable -> Elab (Stack, AContextStack)
 isContextStack stk = resolve stk >>= \case
-  Just (Left (AStack stkTy)) -> pure (Stack (getVariable stk), stkTy)
-  Just mk -> throwError (NotAValidStack (getRange stk) stk $ either Just (const Nothing) mk)
+  Just (ADeclaration (AStack stkTy)) -> pure (Stack (getVariable stk), stkTy)
+  Just mk -> throwError (NotAValidStack (getRange stk) stk mk)
   Nothing -> throwError (OutOfScope (getRange stk) stk)
 
 
@@ -587,8 +615,8 @@ withChannel r dir ch@(Channel rch) p ma = do
 guessDesc :: Bool -> -- is this in tail position?
              Raw -> Elab (Info ASemanticsDesc)
 guessDesc b (Var _ v) = resolve v >>= \case
-  Just (Right (info, i)) -> pure info
-  Just (Left (ActVar isSub (ObjVars B0 :=> desc))) -> pure $ Known desc
+  Just (AnObjVar desc i) -> pure (Known desc)
+  Just (ADeclaration (ActVar isSub (ObjVars B0 :=> desc))) -> pure $ Known desc
   _ -> pure Unknown
 guessDesc b (Cons _ p q) = do
   dp <- guessDesc False p
@@ -600,10 +628,14 @@ guessDesc b (Cons _ p q) = do
 guessDesc True (At _ "") = pure (Known $ Semantics.contract (Semantics.VNil 0))
 guessDesc _ _ = pure Unknown
 
-compatibleChannels :: Range -> (Direction, [AProtocolEntry]) -> Ordering -> (Direction, [AProtocolEntry]) -> Elab Int
+compatibleChannels :: Range
+                   -> (Direction, [AProtocolEntry])
+                   -> Ordering
+                   -> (Direction, [AProtocolEntry])
+                   -> Elab Int
 compatibleChannels r (dp, []) dir (dq, []) = pure 0
 compatibleChannels r (dp, p@(m, s) : ps) dir (dq, q@(n, t) : qs) = do
-  unless (s == t) $ throwError (IncompatibleSyntaxDescs r s t)
+  unless (s == t) $ throwError (IncompatibleSemanticsDescs r s t)
   let (cp , cq) = (whatComm m dp, whatComm n dq)
   when (cp == cq) $ throwError (IncompatibleModes r p q)
   case (cp, dir) of
@@ -686,10 +718,16 @@ sact = \case
     tm <- during (SendTermElaboration ch tm) $ do
       sc <- channelScope ch
       ovs <- asks objVars
-      -- NB: the lintersection takes the (Info ASemanticsDesc) into account
-      -- Should it?
+      -- NB: the lintersection takes the ASemanticsDesc into account
+      -- Should it? Yes?
+
+      -- AFAWU:
+      --   1. sc is a prefix of ovs
+      --   2. lintersection sc ovs will return sc (?)
+      --   3. thx is the thinning embedding sc back into ovs
+      -- => setObjVars would be legitimate because xyz is a valid scope
       let (thx, xyz, thy) = lintersection (getObjVars sc) (getObjVars ovs)
-      (*^ thx) <$> local (setObjVars $ ObjVars xyz) (stm usage desc tm)
+      (*^ thx) <$> local (setObjVars' $ ObjVars xyz) (stm usage desc tm)
 
     a <- sact a
     pure $ Send r ch gd tm a
@@ -702,6 +740,10 @@ sact = \case
       (m, cat) : p | whatComm m dir == RECV -> pure ((m, cat), p)
       _ -> throwError (InvalidRecv r ch p)
 
+    -- TODO: m contains a SyntaxDesc when it's a subject position
+    --       Why do we throw it away? Shouldn't it be stored &
+    --       returned when we `svar` with a validation usage?
+    -- Should it be stored in the ActVar bound below at GOTO?
     let isSub = case m of
            Subject _ -> IsSubject Parent
            _ -> IsNotSubject
@@ -711,7 +753,7 @@ sact = \case
 
     -- Further actor
     sc <- channelScope ch
-    (a, All canwin) <- local (declare av (ActVar isSub (sc :=> cat)))
+    (a, All canwin) <- local (declare av (ActVar isSub (sc :=> cat))) -- GOTO
            $ listen
            $ sact
            $ case pat of
@@ -762,8 +804,10 @@ sact = \case
     pure (Let r (ActorMeta ACitizen av) desc t a)
 
   Under r (Scope v@(Hide x) a) -> do
-    during UnderElaboration $ () <$ isFresh x
-    a <- local (declareObjVar (getVariable x, Unknown)) $ sact a
+    x <- during UnderElaboration $ isFresh x
+    -- TODO: Have the syntax carry a desc? Fail if the hint is Unknown?
+    desc <- fromInfo r =<< getHint x
+    a <- local (declareObjVar (x, desc)) $ sact a
     pure $ Under r (Scope v a)
 
   Match r rsc cls -> do
@@ -782,13 +826,10 @@ sact = \case
       consistentScrutinisation r avst
     pure $ Match r sc cls
 
-  Push r stk (p, (), t) a -> do
+  Push r stk (rp, (), t) a -> do
     (stk, stkTy) <- isContextStack stk
-
-    p <- resolve p >>= \case
-      Just (Right (cat, i)) -> i <$ compatibleInfos (getRange p) cat (Known $ keyDesc stkTy)
-      Just (Left k) -> throwError $ NotAValidPatternVariable r p k
-      _ -> throwError $ OutOfScope (getRange p) p
+    (desc, p) <- isObjVar rp
+    compatibleInfos (getRange rp) (Known desc) (Known $ embed $ keyDesc stkTy)
     t <- during (PushTermElaboration t) $ stm (Pushed r) (valueDesc stkTy) t
     a <- sact a
     pure $ Push r stk (p, valueDesc stkTy, t) a
@@ -891,5 +932,5 @@ scontextstack :: CContextStack -> Elab AContextStack
 scontextstack (ContextStack key val) = do
   syndecls <- gets (Map.keys . syntaxCats)
   key <- ssyntaxdesc syndecls key
-  val <- ssyntaxdesc syndecls val
+  val <- ssemanticsdesc val
   pure (ContextStack key val)

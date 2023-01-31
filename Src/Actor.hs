@@ -46,7 +46,7 @@ type instance TERM Abstract = ACTm
 type instance PATTERN Abstract = Pat
 type instance CONNECT Abstract = AConnect
 type instance STACK Abstract = Stack
-type instance STACKDESC Abstract = ASyntaxDesc
+type instance STACKDESC Abstract = ASemanticsDesc
 type instance SCRUTINEEVAR Abstract = ACTm
 type instance SCRUTINEETERM Abstract = ACTm
 type instance LOOKEDUP Abstract = ACTm
@@ -54,7 +54,7 @@ type instance GUARD Abstract = Maybe ActorVar
 
 data AConnect = AConnect Channel Th Channel Int deriving (Show)
 type AProtocol = PROTOCOL Abstract
-type AContextStack = ContextStack ASemanticsDesc
+type AContextStack = ContextStack ASyntaxDesc ASemanticsDesc
 type AActor = ACTOR Abstract
 type ACTm = CdB (Tm ActorMeta)
 type ACTSbst = CdB (Sbst ActorMeta)

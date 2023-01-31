@@ -24,20 +24,22 @@ import Pretty
      (maps var names to either CdB vars      |
       or raw terms - the latter must be      |
       in scope at def. site)                 |
-                                             |     
+                                             |
      (types in scope for the whole context, weakens under binders,
       never strengthens)
-  
+
 -}
 
-data ObjVar = ObjVar
+data ObjVar' a = ObjVar
   { objVarName :: String
-  , objVarDesc :: Info ASemanticsDesc
-  } deriving (Show, Eq)
+  , objVarDesc :: a
+  } deriving (Functor, Show, Eq)
 
--- TODO : print the info
-instance Pretty ObjVar where
-  pretty (ObjVar x info) =  pretty x
+type ObjVar = ObjVar' ASemanticsDesc
+
+-- TODO : print the sem
+instance Pretty (ObjVar' a) where
+  pretty (ObjVar x sem) =  pretty x
 
 -- ObjVars is a representation of variable contexts
 -- which are in scope for all the types they contain,
@@ -69,7 +71,7 @@ type family SOT (ph :: Phase) :: *
 type instance SOT Concrete = Raw
 type instance SOT Abstract = ASOT
 
-
+-- TODO: conversion function to telescope
 -- ObjVars are in scope for the ACTm
 data ASOT = ObjVars :=> ACTm
   deriving (Show)

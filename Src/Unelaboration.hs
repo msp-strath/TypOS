@@ -311,10 +311,10 @@ instance Unelab () where
   type Unelabed () = ()
   unelab = pure
 
-instance Unelab t => Unelab (ContextStack t) where
-  type UnelabEnv (ContextStack t) = UnelabEnv t
-  type Unelabed (ContextStack t) = ContextStack (Unelabed t)
-  unelab = traverse unelab
+instance (Unelab k, Unelab v, UnelabEnv k ~ UnelabEnv v) => Unelab (ContextStack k v) where
+  type UnelabEnv (ContextStack k v) = UnelabEnv k
+  type Unelabed (ContextStack k v) = ContextStack (Unelabed k) (Unelabed v)
+  unelab (ContextStack k v) = ContextStack <$> unelab k <*> unelab v
 
 instance Unelab AProtocol where
   type UnelabEnv AProtocol = Naming

@@ -173,21 +173,23 @@ data Kind
 type Decls = Bwd (String, Kind)
 type Operators = Map String AAnOperator
 
-data LexicalVar = CdBVar ObjVar | Macro Raw 
+-- LexicalScope = ObjVars + Macros
+-- gives the meanings of things that look like variables.
 
--- LexicalScope gives the meanings of things that look like variables.
--- Crucially, only the CdBVars are in scope for the abstract syntax
+-- Crucially, only the ObjVars are in scope for the abstract syntax
 -- and their semantics desc is in the scope of the whole context,
--- i.e., CdbVars are ready for lookup with no further
--- weakening. Consequently, we must weaken them when we go under a
--- binder. Macros are scope checked and expanded at def.  site but
+-- i.e. ObjVars are ready for lookup with no further weakening.
+-- Consequently, we must weaken them when we go under a binder.
+
+type Macros = Bwd (String, Raw)
+-- Macros are scope checked and expanded at def.  site but
 -- not elaborated until use site. Hence, they cannot be recursive. The
 -- vars that occur in a Macro are CdBVars - we have checked they are
 -- in scope and if they are Macros, we have further expanded them.
-type LexicalScope = Bwd (String, LexicalVar)
 
 data Context = Context
   { objVars      :: ObjVars
+  , macros       :: Macros
   , declarations :: Decls
   , operators    :: Operators
   , location     :: Bwd Turn
@@ -205,6 +207,7 @@ data ElabMode = Definition | Execution
 initContext :: Options -> Context
 initContext opts = Context
   { objVars = ObjVars B0
+  , macros = B0
   , declarations = B0
   , operators = Map.fromList
     [ ("app", AnOperator
@@ -214,7 +217,7 @@ initContext opts = Context
                                 $ PP (BP (Hide "x")
                                   $ MP (am "T") (ones 1)) $ AP "")
         , paramsDesc = [(Just (am "s"), ObjVars B0 :=> (am "S" $: sbstI 0))]
-        , retDesc = ObjVars (B0 :< ObjVar "s" (Known (am "S" $: sbstI 0))) :=> (am "T" $: topSbst "x" (var (DB 0) 1))
+        , retDesc = ObjVars (B0 :< ObjVar "s" (am "S" $: sbstI 0)) :=> (am "T" $: topSbst "x" (var (DB 0) 1))
         })
     ]
   , location = B0
@@ -225,7 +228,7 @@ initContext opts = Context
   }
   where
     am = ActorMeta ACitizen
-    
+
     initHeadUpData = HeadUpData
       { opTable = const mempty
       , metaStore = Store Map.empty Map.empty ()
@@ -234,21 +237,33 @@ initContext opts = Context
       , whatIs = const Nothing
       }
 
+-- We have already checked the name is fresh
+declareObjVar :: (String, ASemanticsDesc) -> Context -> Context
+declareObjVar (x, sem) ctx
+  = let scp = fmap weak <$> getObjVars (objVars ctx) in
+    ctx { objVars = ObjVars (scp :< ObjVar x sem) }
 
-declareObjVar :: (String, Info ASemanticsDesc) -> Context -> Context
-declareObjVar (x, info) ctx = ctx { objVars = ObjVars $ getObjVars (objVars ctx) :< ObjVar x info }
+-- Careful! The new ovs better be a valid scope
+-- i.e. all the objvars mentioned in the SemanticsDesc of
+-- further vars need to be bound earlier in the telescope
+setObjVars' :: ObjVars -> Context -> Context
+setObjVars' ovs ctx = ctx { objVars = ovs }
 
+{-
 setObjVars :: ObjVars -> Context -> Context
 setObjVars ovs ctx = ctx { objVars = ovs }
+-}
 
 setHeadUpData :: HeadUpData' ActorMeta -> Context -> Context
 setHeadUpData dat ctx = ctx { headUpData = dat}
 
+{-
 instance Selable ObjVars where
   th ^? (ObjVars ovs) = ObjVars (th ^? ovs)
 
 instance Selable Context where
   th ^? ctxt = ctxt { objVars = th ^? objVars ctxt }
+-}
 
 declare :: Binder String -> Kind -> Context -> Context
 declare Unused k ctx = ctx
@@ -382,10 +397,10 @@ data Complaint
   | IncompatibleChannelScopes Range ObjVars ObjVars
   -- kinding
   | NotAValidTermVariable Range Variable Kind
-  | NotAValidPatternVariable Range Variable Kind
-  | NotAValidJudgement Range Variable (Maybe Kind)
-  | NotAValidStack Range Variable (Maybe Kind)
-  | NotAValidChannel Range Variable (Maybe Kind)
+  | NotAValidPatternVariable Range Variable Resolved
+  | NotAValidJudgement Range Variable Resolved
+  | NotAValidStack Range Variable Resolved
+  | NotAValidChannel Range Variable Resolved
   | NotAValidBoundVar Range Variable
   | NotAValidSubjectVar Range Variable
   | NotAValidOperator Range String
@@ -417,7 +432,7 @@ data Complaint
   | InconsistentSyntaxDesc Range
   | InvalidSyntaxDesc Range SyntaxDesc
   | IncompatibleSyntaxInfos Range (Info SyntaxDesc) (Info SyntaxDesc)
-  | IncompatibleSyntaxDescs Range SyntaxDesc SyntaxDesc
+  | IncompatibleSemanticsDescs Range ASemanticsDesc ASemanticsDesc
   | GotBarredAtom Range String [String]
   | ExpectedNilGot Range String
   | ExpectedEnumGot Range [String] String
@@ -426,8 +441,8 @@ data Complaint
   | ExpectedANilPGot Range RawP
   | ExpectedAConsGot Range Raw
   | ExpectedAConsPGot Range RawP
-  | SyntaxError Range SyntaxDesc Raw
-  | SyntaxPError Range SyntaxDesc RawP
+  | SyntaxError Range ASemanticsDesc Raw
+  | SyntaxPError Range ASemanticsDesc RawP
   | ExpectedAnOperator Range Raw
   | ExpectedAnEmptyListGot Range String [SyntaxDesc]
   -- semanticsdesc validation
@@ -487,7 +502,7 @@ instance HasGetRange Complaint where
     InconsistentSyntaxDesc r -> r
     InvalidSyntaxDesc r _ -> r
     IncompatibleSyntaxInfos r _ _ -> r
-    IncompatibleSyntaxDescs r _ _ -> r
+    IncompatibleSemanticsDescs r _ _ -> r
     GotBarredAtom r _ _ -> r
     ExpectedNilGot r _ -> r
     ExpectedEnumGot r _ _ -> r
@@ -545,16 +560,27 @@ channelDelete ch st = st { channelStates = Map.delete ch (channelStates st) }
 ------------------------------------------------------------------------------
 -- Variable lookup
 
-resolve :: Variable -> Elab (Maybe (Either Kind (Info ASemanticsDesc, DB)))
+data Resolved
+  = ADeclaration Kind
+  | AnObjVar ASemanticsDesc DB
+  | AMacro Raw
+  deriving Show
+
+resolve :: Variable -> Elab (Maybe Resolved)
 resolve (Variable r x) = do
   ctx <- ask
   let ds  = declarations ctx
   let ovs = getObjVars . objVars $ ctx
-  case focusBy (\ (y, k) -> k <$ guard (x == y)) ds of
-    Just (_, k, _) -> pure (Just $ Left k)
+  let mcs = macros ctx
+  pure $ case focusBy (\ (y, k) -> k <$ guard (x == y)) ds of
+    Just (_, k, _) -> Just $ ADeclaration k
     _ -> case focusBy (\ (ObjVar y desc) -> desc <$ guard (x == y)) ovs of
-      Just (xz, desc, xs) -> pure (Just $ Right (desc, DB $ length xs))
-      Nothing -> pure Nothing
+      Just (xz, desc, xs) ->
+        -- no need to weaken desc as it's already living in ctx
+        Just $ AnObjVar desc (DB $ length xs)
+      Nothing -> case focusBy (\ (y, k) -> k <$ guard (x == y)) mcs of
+        Just (_, t, _) -> Just $ AMacro t
+        Nothing -> Nothing
 
 ------------------------------------------------------------------------------
 -- Subject usage logging

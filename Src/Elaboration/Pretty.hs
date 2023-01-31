@@ -176,8 +176,8 @@ instance Pretty Complaint where
   -- syntaxdesc validation
     InconsistentSyntaxDesc r -> "Inconsistent syntactic descriptions"
     InvalidSyntaxDesc r d -> hsep ["Invalid syntax desc", pretty d]
-    IncompatibleSyntaxDescs r desc desc' ->
-      hsep ["Incompatible syntax descriptions", prettyPrec 1 desc, "and", prettyPrec 1 desc']
+    IncompatibleSemanticsDescs r desc desc' ->
+      hsep ["Incompatible semantics descriptions", prettyPrec 1 desc, "and", prettyPrec 1 desc']
     IncompatibleSyntaxInfos r info1 info2 ->
       hsep ["Syntax infos", pretty info1, "and", pretty info2, "are incompatible"]
     GotBarredAtom r a as -> hsep
@@ -201,7 +201,7 @@ instance Pretty Complaint where
     ExpectedAnEmptyListGot r a ds ->
        hsep ["Expected", pretty a, "to be a constant operator"
             , "but it takes arguments of type:", collapse (pretty <$> ds)]
-    -- TODO : learn to print the semantics desc         
+    -- TODO : learn to print the semantics desc
     InvalidSemanticsDesc r sem -> "Invalid semantics description"
     SemanticsError r sem t -> hsep [pretty t, "does not match the semantics description"]
     IncompatibleSemanticsInfos r isem isem' -> "Incompatible semantics description"

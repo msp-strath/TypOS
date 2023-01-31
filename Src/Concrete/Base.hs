@@ -163,10 +163,10 @@ deriving instance
   ( Show (SYNTAXDESC ph)
   , Show (SEMANTICSDESC ph)) => Show (PROTOCOL ph)
 
-data ContextStack t = ContextStack
-  { keyDesc :: t
-  , valueDesc :: t
-  } deriving (Show, Functor, Foldable, Traversable)
+data ContextStack k v = ContextStack
+  { keyDesc :: k
+  , valueDesc :: v
+  } deriving (Show)
 
 data CConnect = CConnect Variable Variable
   deriving (Show)
@@ -342,6 +342,6 @@ isWin (Win _) = True
 isWin _ = False
 
 type CProtocol = PROTOCOL Concrete
-type CContextStack = ContextStack Raw
+type CContextStack = ContextStack Raw Raw
 type CActor = ACTOR Concrete
 type CScrutinee = SCRUTINEE Concrete
