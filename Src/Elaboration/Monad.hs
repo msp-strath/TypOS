@@ -201,6 +201,20 @@ data Context = Context
 
 type Hints = Map String (Info ASemanticsDesc)
 
+data Restriction = Restriction
+  { support :: Bwd String
+  , restriction :: Th
+  }
+
+initRestriction :: ObjVars -> Restriction
+initRestriction ovs = Restriction (objVarName <$> getObjVars ovs) (ones (scopeSize ovs))
+
+extend :: Restriction -> String -> Restriction
+extend (Restriction ls th) x = Restriction (ls :< x) (th -? True)
+
+instance Selable Restriction where
+  ph ^? Restriction ls th = Restriction (ph ^? ls) (ph ^? th)
+
 data ElabMode = Definition | Execution
               deriving (Eq, Show)
 
@@ -248,6 +262,18 @@ declareObjVar (x, sem) ctx
 -- further vars need to be bound earlier in the telescope
 setObjVars' :: ObjVars -> Context -> Context
 setObjVars' ovs ctx = ctx { objVars = ovs }
+
+-- A Γ-context Δ gives Δ variables with Γ-types
+
+-- Thicken a context. It is the user's responsibility to
+-- evict all variables whose type depends on other evicted
+-- variables.
+thickenObjVars :: Th             -- Δ ≤ Γ
+               -> ObjVars        -- Γ-context Γ
+               -> Maybe ObjVars  -- Δ-context Δ
+thickenObjVars th (ObjVars ga) = ObjVars <$>
+  let de = th ^? ga in
+  traverse (traverse (thickenCdB th)) de
 
 {-
 setObjVars :: ObjVars -> Context -> Context
@@ -327,6 +353,8 @@ data Warning
   | PatternSubjectNotScrutinised Range String
   | UnderscoreOnSubject Range
   | InconsistentScrutinisation Range
+  -- Missing features
+  | IgnoredIrrefutable Range RawP
 
 instance HasGetRange Warning where
   getRange = \case
@@ -338,6 +366,8 @@ instance HasGetRange Warning where
     PatternSubjectNotScrutinised r _ -> r
     UnderscoreOnSubject r -> r
     InconsistentScrutinisation r -> r
+    -- Missing features
+    IgnoredIrrefutable r _ -> r
 
 raiseWarning :: Warning -> Elab ()
 raiseWarning w = do
@@ -395,6 +425,8 @@ data Complaint
   | EmptyContext Range
   | NotTopVariable Range Variable Variable
   | IncompatibleChannelScopes Range ObjVars ObjVars
+  | NotAValidContextRestriction Th ObjVars
+  | NotAValidDescriptionRestriction Th ASemanticsDesc
   -- kinding
   | NotAValidTermVariable Range Variable Kind
   | NotAValidPatternVariable Range Variable Resolved

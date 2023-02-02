@@ -12,8 +12,10 @@ import Concrete.Base (Root)
 import Term.Base
 
 -- patterns are de Bruijn
+-- | Abstract Patterns, generic over the notion of
+-- | binding site
 data Pat' s
-  = AT s (Pat' s)
+  = AT s (Pat' s) -- v@p
   | VP DB
   | AP String
   | PP (Pat' s) (Pat' s)

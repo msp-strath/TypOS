@@ -208,7 +208,7 @@ pcommand
                     <* pspc <*> pconditions
   <|> Go <$ plit "exec" <* pspc <*> pACT
   <|> Trace <$ plit "trace" <* pspc <*> pcurlies (psep (punc ",") pmachinestep)
--- TODO  <|> DeclOp <$ plit "operator" <* pspc <*> pcurlies (psep (punc ";") (panoperator "~>"))
+  <|> DeclOp <$ plit "operator" <* pspc <*> pcurlies (psep (punc ";") panoperator)
   <|> DefnOp <$> pdefnop
   <|> DeclJudgementForm <$> pjudgementform
   <|> DeclRule <$> prule
@@ -265,7 +265,6 @@ globals = (,) <$> asks declarations <*> asks operators
 setGlobals :: Globals -> Context -> Context
 setGlobals (decls, ops) = setDecls decls . setOperators ops
 
-{-
 sdeclOps :: [CAnOperator] -> Elab ([AAnOperator], Globals)
 sdeclOps [] = ([],) <$> asks globals
 sdeclOps ((AnOperator (WithRange r opname) (objName, objDesc) paramDescs retDesc) : ops) = do
@@ -279,16 +278,17 @@ sdeclOps ((AnOperator (WithRange r opname) (objName, objDesc) paramDescs retDesc
      Nothing -> pure (Nothing, Unused)
      Just objName -> do
        objName <- isFresh objName
-       pure (Just objName , Used objName)
-  (descPat, objDesc, ds) <- spatSemantics (atom "Semantics" 0) objDesc
+       pure (Just (ActorMeta ACitizen objName) , Used objName)
   ovs <- asks objVars
+  (descPat, ds, objDesc) <- spatSemantics (atom "Semantics" 0) (initRestriction ovs) objDesc
   local (declare objBinder (ActVar IsNotSubject (ovs :=> objDesc)) . setDecls ds) $ do
     (paramDescs, ds) <- sparamdescs paramDescs
-    retDesc <- local (setDecls ds) $ ssemanticsdesc retDesc
-    let op = AnOperator opname objDesc paramDescs retDesc
+    retDesc <- local (setDecls ds) $ do
+      ovs <- asks objVars
+      (ovs :=>) <$> ssemanticsdesc retDesc
+    let op = AnOperator opname (objName, descPat) paramDescs retDesc
     (ops, decls) <- local (addOperator op) $ sdeclOps ops
     pure (op : ops, decls)
--}
 
 scommand :: CCommand -> Elab (ACommand, Globals)
 scommand = \case
@@ -331,14 +331,23 @@ scommand = \case
     (ContractStack pres (stk, lhs, rhs) posts,) <$> asks globals
   Go a -> during ExecElaboration $ (,) . Go <$> local (setElabMode Execution) (sact a) <*> asks globals
   Trace ts -> (Trace ts,) <$> asks globals
-{-
   DeclOp ops -> first DeclOp <$> sdeclOps ops
-  DefnOp (p, opargs, rhs) -> do
+
+
+  -- Sig S \x.T - 'fst ~> S
+  -- (p : Sig S \x.T) - 'snd ~> {x=[ p - 'fst ]}T
+
+  DefnOp (p, opelims, rhs) -> do
+    ovs <- asks objVars
+    let scp = scopeSize ovs
+    -- p -[ opelim0 ] -[ opelim1 ] ... -[ opelimn ] ~> rhs
     ((p, opargs), ret, decls, hints) <- do
       -- this is the op applied to the object, not the outer op being extended
-      let op = fst (head opargs)
-      (AnOperator op obj _ ret) <- soperator op
-      (mr1, p, decls, hints) <- spat (Term unknown obj) p
+      let op = fst (head opelims)
+      (AnOperator op (mb, opat{-, odesc-}) pdescs rdesc) <- soperator op
+      let rest = initRestriction ovs
+      (opat, decls, otm) <- spatSemantics (atom "Semantics" scp) rest opat
+      (mr1, p, decls, hints) <- spat (Term unknown otm) rest p
       (opargs, decls, hints) <- local (setDecls decls . setHints hints) $
                                 sopargs obj opargs
       pure ((p, opargs), ret, decls, hints)
@@ -348,10 +357,16 @@ scommand = \case
 --    trace (unwords [getOperator op, "-[", '\'':show p, show opargs, "~>", show rhs]) (pure ())
     let cl = Clause (toClause p (B0 <>< opargs) rhs)
     (DefnOp (op, cl),) <$> asks globals
-  DeclJudgementForm j -> do
-    (j , gs) <- sjudgementform j
-    pure (DeclJudgementForm j, gs)
--}
+
+
+
+
+
+
+
+--  DeclJudgementForm j -> do
+--    (j , gs) <- sjudgementform j
+--    pure (DeclJudgementForm j, gs)
 
 checkCompatiblePlaces :: [PLACE Concrete] ->
                     [(Variable, ASemanticsDesc)] ->
@@ -445,6 +460,7 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
       | Var _ x <- objDesc op
       , Just syn <- Map.lookup x m = pure (op { objDesc = syn})
       | otherwise = throwError (MalformedPostOperator (getRange (objDesc op)) (theValue (opName op)) (Map.keys m))
+-}
 
 -- | sopargs desc cops
 -- | desc: description of the object the cops are applied to
@@ -474,8 +490,7 @@ soperator (WithRange r tag) = do
   ops <- asks operators
   case Map.lookup tag ops of
     Nothing -> throwError (NotAValidOperator r tag)
-    Just (obj, params, ret) -> pure (AnOperator (Operator tag) obj params ret)
--}
+    Just anop -> pure anop
 
 scommands :: [CCommand] -> Elab [ACommand]
 scommands [] = pure []

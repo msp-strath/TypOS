@@ -33,7 +33,7 @@ import Pretty
 data ObjVar' a = ObjVar
   { objVarName :: String
   , objVarDesc :: a
-  } deriving (Functor, Show, Eq)
+  } deriving (Functor, Foldable, Traversable, Show, Eq)
 
 type ObjVar = ObjVar' ASemanticsDesc
 
@@ -83,7 +83,7 @@ infix 2 :=>
 
 data ANOPERATOR (ph :: Phase) = AnOperator
   { opName     :: OPERATOR ph
-  , objDesc    :: (Maybe (ACTORVAR ph), PATTERN ph)
+  , objDesc    :: (Maybe (ACTORVAR ph), PATTERN ph) -- add ([ACTORVar ph], TERM ph)?
   , paramsDesc :: [(Maybe (ACTORVAR ph), SOT ph)]
   , retDesc    :: SOT ph
   }

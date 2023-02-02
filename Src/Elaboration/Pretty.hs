@@ -75,6 +75,8 @@ instance Pretty Warning where
       PatternSubjectNotScrutinised r x -> hsep ["Pattern subject", pretty x, "did not get scrutinised"]
       UnderscoreOnSubject r -> hsep ["Subject pattern thrown away using an underscore"]
       InconsistentScrutinisation r -> hsep ["Inconsistent scrutinisation of subject in match"]
+      -- Missing feature
+      IgnoredIrrefutable r p -> hsep ["TODO: actually implement irrefutable patterns (", pretty p, ")"]
 
 instance Pretty ContextualInfo where
   pretty = \case
