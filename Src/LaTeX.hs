@@ -100,7 +100,7 @@ toLaTeXCdr d p = do
   pure $ call False "typosListTail" [p]
 
 instance LaTeX Raw where
-  type Format Raw = ASyntaxDesc
+  type Format Raw = SyntaxDesc
   toLaTeX d = \case
     Var _ v -> do
       v <- toLaTeX () v

@@ -181,14 +181,16 @@ unOp t = case expand t of
     pure (Operator op, ps)
   _ -> Nothing
 
-toClause :: Pat -> Bwd (Operator, [Pat]) -> ACTm
+toClause :: forall m . Show m => Pat -> Bwd (Operator, [Pat]) -> ACTm
          -> Options
-         -> (Term -> Term) -- head normaliser
-         -> Env
-         -> (Term, [Term]) -- object & parameters
-         -> Either (Term, [Term]) Term
+         -> (Term' m -> Term' m) -- head normaliser
+         -> Env' m
+         -> (Term' m, [Term' m]) -- object & parameters
+         -> Either (Term' m, [Term' m]) (Term' m)
 toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
-  let msg result = flush $ vcat
+  let msg result = "" in
+{- TODO: reinstate:
+let msg result = flush $ vcat
         [ hsep ( "Matching"
                : withANSI [SetColour Background Green] (unsafeDocDisplayClosed opts t)
                : "-"
@@ -204,6 +206,7 @@ toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
                )
                <> " ~> " <> unsafeDocDisplayClosed opts rhs
         , result ] in
+-}
   let ((t, ts), res) = loop initMatching ops op targs in case res of
     Right mtch | Just val <- mangleActors opts (matchingToEnv mtch env) rhs
       -> whenClause opts (msg (withANSI [SetColour Background Green] "Success!")) $ pure val
@@ -218,12 +221,12 @@ toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
     = trace (renderWith (renderOptions opts) doc) a
     | otherwise = a
 
-  loop :: Matching
+  loop :: Matching' m
        -> Bwd (Operator, [Pat])  -- left nested operators
        -> (Operator, [Pat])      -- current operator OP in focus
-       -> (Term, [Term])         -- current term (t -['OP | ts]) already taken apart
-       -> ( (Term, [Term])       -- evaluated (t,ts)
-          , Either Failure Matching)
+       -> (Term' m, [Term' m])         -- current term (t -['OP | ts]) already taken apart
+       -> ( (Term' m, [Term' m])       -- evaluated (t,ts)
+          , Either Failure (Matching' m))
   loop mtch ops (op, ps) (tops, tps) =
     -- match tops against the left-nested (pobj -- ops)
     -- we don't care about the tps yet
@@ -236,12 +239,13 @@ toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
                 case loop mtch lops (lop, lps) (ltops, ltps) of
                   ((ltops, ltps), res) -> (ltops -% (getOperator lop, ltps), res)
               _ -> (contract (ltops :-: loptpsnf), Left Mismatch) -- Careful: could be a stuck meta
-            _ -> (topsnf, Left (whenClause opts (unsafeDocDisplayClosed unsafeOptions topsnf <+> "not an operator application") Mismatch))
+            _ -> (topsnf, Left (whenClause opts "not an operator application" Mismatch))
+--            _ -> (topsnf, Left (whenClause opts (unsafeDocDisplayClosed unsafeOptions topsnf <+> "not an operator application") Mismatch))
     in case leftnested of
       (tops, Left err) -> ((tops, tps), Left err)
       (tops, Right mtch) -> first (tops,) $ matches mtch ps tps
 
-  matches :: Matching -> [Pat] -> [Term] -> ([Term], Either Failure Matching)
+  matches :: Matching' m -> [Pat] -> [Term' m] -> ([Term' m], Either Failure (Matching' m))
   matches mtch [] [] = ([], pure mtch)
   matches mtch (p:ps) (t:ts) = case match hnf mtch (Problem (localScope env) p t) of
     (t, Left err) -> (t:ts, Left err)
@@ -269,7 +273,7 @@ data Frame
   | Spawnee (Interface Hole (Process () Status []))
   | Spawner (Interface (Process () Status []) Hole)
   | Sent Channel (Maybe Guard) ([String], Term)
-  | Pushed Stack (DB, SyntaxDesc, Term)
+  | Pushed Stack (DB, ASemanticsDesc, Term)
   | Extended Operator Clause
   | Binding String
   | UnificationProblem Date Term Term

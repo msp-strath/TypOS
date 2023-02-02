@@ -21,6 +21,7 @@ import Pretty
 import Term.Base
 import Options
 import Command
+import Operator.Eval
 import Machine.Trace (diagnostic, ldiagnostic, adiagnostic)
 import Utils
 import Location
@@ -36,7 +37,7 @@ main = do
                  ".md" -> pmarkdown
                  _ -> pfile
   let ccs = parse parser (Source txt $ initLocation (filename opts))
-  case elaborate ccs of
+  case elaborate opts ccs of
     Left err -> do
       ctxt <- if noContext opts then pure "" else fileContext (getRange err)
       putStrLn $ renderWith (renderOptions opts) $ fold
@@ -54,8 +55,10 @@ main = do
       let p = Process opts B0 initRoot (initEnv B0) initStore (Win unknown) [] initRoot
       let res@(Process _ fs _ env sto a _ geas) = run opts p acs
 
+      let whatIs m = Map.lookup m (solutions sto) >>= snd
+
       -- TODO: eventually need to be more careful about the operators due to local extensions
-      let dat = HeadUpData (mkOpTable (B0 <>< fs)) sto (opts {quiet = True}) env
+      let dat = HeadUpData (mkOpTable (B0 <>< fs)) sto (opts {quiet = True}) env whatIs
 
       -- run diagnostics
       let (win, trace) = diagnostic opts dat fs

@@ -33,10 +33,16 @@ instance Pretty ActorMeta where
 
 instance Pretty Kind where
   pretty = \case
-    ActVar{} -> "an object variable"
+    ActVar{} -> "an actor variable" -- TODO: terminology?
     AChannel{} -> "a channel"
     AJudgement{} -> "a judgement"
     AStack{} -> "a context stack"
+
+instance Pretty Resolved where
+  pretty = \case
+    ADeclaration k -> pretty k
+    AnObjVar{} -> "a bound variable"
+    AMacro t -> "a macro variable"  -- TODO: terminology?
 
 instance (Unelab a, Pretty (Unelabed a), UnelabEnv a ~ Naming)
          => Pretty (CdB a) where
@@ -117,13 +123,13 @@ instance Pretty Complaint where
     NotAValidPatternVariable r x k -> hsep ["Invalid pattern variable", pretty x, "refers to", pretty k]
     NotAValidJudgement r x mk ->
        hsep ["Invalid judgement variable", pretty x
-            , "refers to", maybe "a bound variable" pretty mk]
+            , "refers to", pretty mk]
     NotAValidStack r x mk ->
        hsep ["Invalid context stack variable", pretty x
-            , "refers to", maybe "a bound variable" pretty mk]
+            , "refers to", pretty mk]
     NotAValidChannel r x mk ->
        hsep ["Invalid channel variable", pretty x
-            , "refers to", maybe "a bound variable" pretty mk]
+            , "refers to", pretty mk]
     NotAValidBoundVar r x -> hsep ["Invalid bound variable", pretty x]
     NotAValidSubjectVar r x -> hsep ["Invalid subject variable", pretty x]
     NotAValidOperator r x -> hsep ["Invalid operator name", pretty x]

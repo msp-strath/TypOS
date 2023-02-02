@@ -147,7 +147,7 @@ data IsSubject' a = IsSubject a | IsNotSubject
 
 type IsSubject = IsSubject' Provenance
 
-type instance SCRUTINEEVAR Elaboration = ASyntaxDesc
+type instance SCRUTINEEVAR Elaboration = ASemanticsDesc
 type instance SCRUTINEETERM Elaboration = ASemanticsDesc
 type instance STACK Elaboration = ASemanticsDesc
 type instance TERM Elaboration = ()

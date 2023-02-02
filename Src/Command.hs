@@ -38,6 +38,7 @@ import Parse
 import Pretty
 import Rules
 import Syntax
+import Info
 import Term.Base
 import Unelaboration(Unelab(..), subunelab, withEnv, initDAEnv, Naming, declareChannel)
 import Location
@@ -63,7 +64,7 @@ data COMMAND (ph :: Phase)
   | DefnJudge (JUDGEMENTNAME ph, DEFNPROTOCOL ph, CHANNEL ph) (ACTOR ph)
   | ContractJudge [STATEMENT ph] (STATEMENT ph) [STATEMENT ph]
   | DeclSyntax [(SYNTAXCAT ph, SYNTAXDESC ph)]
-  | DeclStack (STACK ph) (ContextStack (SYNTAXDESC ph))
+  | DeclStack (STACK ph) (ContextStack (SYNTAXDESC ph) (SEMANTICSDESC ph))
   | ContractStack [STATEMENT ph] (STACK ph, Variable, Variable) [STATEMENT ph]
   | Go (ACTOR ph)
   | Trace [MachineStep]
@@ -81,6 +82,8 @@ deriving instance
   , Show (SCRUTINEEVAR ph)
   , Show (SCRUTINEETERM ph)
   , Show (SYNTAXDESC ph)
+  , Show (SEMANTICSDESC ph)
+  , Show (SOT ph)
   , Show (TERMVAR ph)
   , Show (TERM ph)
   , Show (PATTERN ph)
@@ -111,9 +114,9 @@ instance (Show a, Unelab a, Pretty (Unelabed a)) => Display (Mode a) where
   type DisplayEnv (Mode a) = UnelabEnv a
   display = viaPretty
 
-instance (Show t, Unelab t, Pretty (Unelabed t)) =>
-  Display (ContextStack t) where
-  type DisplayEnv (ContextStack t) = UnelabEnv t
+instance (Show k, Show v, Unelab k, Unelab v, UnelabEnv k ~ UnelabEnv v, Pretty (Unelabed k), Pretty (Unelabed v)) =>
+  Display (ContextStack k v) where
+  type DisplayEnv (ContextStack k v) = UnelabEnv k
   display = viaPretty
 
 instance Display AProtocol where
@@ -156,7 +159,7 @@ instance Unelab ACommand where
     ContractJudge pres stm posts -> ContractJudge <$> traverse subunelab pres <*> subunelab stm
                                     <*> traverse subunelab posts
     DeclSyntax s -> DeclSyntax . map (first (WithRange unknown)) <$> traverse (traverse unelab) s
-    DeclStack stk stkTy -> DeclStack <$> subunelab stk <*> traverse unelab stkTy
+    DeclStack stk stkTy -> DeclStack <$> subunelab stk <*> unelab stkTy
     ContractStack pres (stk, lhs, rhs) posts -> ContractStack <$> traverse subunelab pres
                                                 <*> fmap (, lhs, rhs) (subunelab stk)
                                                 <*> traverse subunelab posts
@@ -205,7 +208,7 @@ pcommand
                     <* pspc <*> pconditions
   <|> Go <$ plit "exec" <* pspc <*> pACT
   <|> Trace <$ plit "trace" <* pspc <*> pcurlies (psep (punc ",") pmachinestep)
-  <|> DeclOp <$ plit "operator" <* pspc <*> pcurlies (psep (punc ";") (panoperator "~>"))
+-- TODO  <|> DeclOp <$ plit "operator" <* pspc <*> pcurlies (psep (punc ";") (panoperator "~>"))
   <|> DefnOp <$> pdefnop
   <|> DeclJudgementForm <$> pjudgementform
   <|> DeclRule <$> prule
@@ -262,6 +265,7 @@ globals = (,) <$> asks declarations <*> asks operators
 setGlobals :: Globals -> Context -> Context
 setGlobals (decls, ops) = setDecls decls . setOperators ops
 
+{-
 sdeclOps :: [CAnOperator] -> Elab ([AAnOperator], Globals)
 sdeclOps [] = ([],) <$> asks globals
 sdeclOps ((AnOperator (WithRange r opname) (objName, objDesc) paramDescs retDesc) : ops) = do
@@ -284,6 +288,7 @@ sdeclOps ((AnOperator (WithRange r opname) (objName, objDesc) paramDescs retDesc
     let op = AnOperator opname objDesc paramDescs retDesc
     (ops, decls) <- local (addOperator op) $ sdeclOps ops
     pure (op : ops, decls)
+-}
 
 scommand :: CCommand -> Elab (ACommand, Globals)
 scommand = \case
@@ -326,6 +331,7 @@ scommand = \case
     (ContractStack pres (stk, lhs, rhs) posts,) <$> asks globals
   Go a -> during ExecElaboration $ (,) . Go <$> local (setElabMode Execution) (sact a) <*> asks globals
   Trace ts -> (Trace ts,) <$> asks globals
+{-
   DeclOp ops -> first DeclOp <$> sdeclOps ops
   DefnOp (p, opargs, rhs) -> do
     ((p, opargs), ret, decls, hints) <- do
@@ -345,6 +351,7 @@ scommand = \case
   DeclJudgementForm j -> do
     (j , gs) <- sjudgementform j
     pure (DeclJudgementForm j, gs)
+-}
 
 checkCompatiblePlaces :: [PLACE Concrete] ->
                     [(Variable, ASemanticsDesc)] ->
@@ -390,6 +397,7 @@ then use s => c clauses ub rules to constrain the citizen
 the parent sent with the subject syntax.
 -}
 
+{-
 sjudgementform :: JUDGEMENTFORM Concrete -> Elab (JUDGEMENTFORM Abstract, Globals)
 sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
   inputs <- concat <$> traverse subjects jpreconds  -- TODO: should really be the closure of this info
@@ -438,7 +446,6 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
       , Just syn <- Map.lookup x m = pure (op { objDesc = syn})
       | otherwise = throwError (MalformedPostOperator (getRange (objDesc op)) (theValue (opName op)) (Map.keys m))
 
-
 -- | sopargs desc cops
 -- | desc: description of the object the cops are applied to
 sopargs :: SyntaxDesc -> [COpPattern] -> Elab ([AOpPattern], Decls, Hints)
@@ -468,6 +475,7 @@ soperator (WithRange r tag) = do
   case Map.lookup tag ops of
     Nothing -> throwError (NotAValidOperator r tag)
     Just (obj, params, ret) -> pure (AnOperator (Operator tag) obj params ret)
+-}
 
 scommands :: [CCommand] -> Elab [ACommand]
 scommands [] = pure []
@@ -476,8 +484,8 @@ scommands (c:cs) = do
   cs <- local (setGlobals ds) $ scommands cs
   pure (c:cs)
 
-elaborate :: [CCommand] -> Either (WithStackTrace Complaint) ([WithStackTrace Warning], [ACommand], SyntaxTable)
-elaborate ccs = evalElab $ do
+elaborate :: Options -> [CCommand] -> Either (WithStackTrace Complaint) ([WithStackTrace Warning], [ACommand], SyntaxTable)
+elaborate opts ccs = evalElab opts $ do
   acs <- scommands ccs
   st <- get
   pure (warnings st <>> [], acs, syntaxCats st)

@@ -27,6 +27,7 @@ import Operator.Eval
 import Options
 import Pretty
 import Syntax (SyntaxDesc, SyntaxTable, expand, VSyntaxDesc'(..), contract)
+import Semantics (embed)
 import Term.Base
 import Unelaboration
 import Data.String (fromString)
@@ -56,8 +57,8 @@ type instance ITERM Abstract = Term
 type instance ITERM Concrete = Raw
 
 data ARGUMENT (ph :: Phase) f ann = Argument
-  { argMode :: Mode ()  
-  , argDesc :: SyntaxDesc
+  { argMode :: Mode ()
+  , argDesc :: ASemanticsDesc
   , argTerm :: f (ITERM ph) ann
   }
 
@@ -86,7 +87,7 @@ instance Bifunctor f => Instantiable (AArgument f ann) where
 data STEP (ph :: Phase) f ann
   = BindingStep Variable
   | NotedStep
-  | PushingStep (STACK ph) (TERMVAR ph) (SyntaxDesc, f (ITERM ph) ann)
+  | PushingStep (STACK ph) (TERMVAR ph) (ASemanticsDesc, f (ITERM ph) ann)
   | CallingStep (f () (ann, Bool)) (JUDGEMENTNAME ph) [ARGUMENT ph f ann]
 
 deriving instance
@@ -321,14 +322,14 @@ instance AnnotateLaTeX () where
 instance AnnotateLaTeX Int where
   annotateLaTeX n d = call False (fromString ("visible<" ++ show n ++ "->")) [d]
 
-instance (LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ SyntaxDesc) =>
+instance (LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ ASemanticsDesc) =>
          LaTeX (CArgument f ann) where
   type Format (CArgument f ann) = ()
   toLaTeX _ (Argument m d t) = do
     t <- toLaTeX d t
     pure $ call False (fromString $ "typos" ++ show m) [t]
 
-instance ( LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ SyntaxDesc
+instance ( LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ ASemanticsDesc
          , LaTeX (f () (ann, Bool)), LaTeX.Format (f () (ann, Bool)) ~ ()) =>
          LaTeX (CStep f ann) where
   type Format (CStep f ann) = ()
@@ -358,7 +359,7 @@ instance LaTeX CError where
       pure $ call False "typosStuckUnifying" [s, t]
     Failed s -> call False "typosFailed" . pure <$> toLaTeX () s
 
-instance ( LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ SyntaxDesc
+instance ( LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ ASemanticsDesc
          , LaTeX (f () (ann, Bool)), LaTeX.Format (f () (ann, Bool)) ~ ()
          , AnnotateLaTeX ann) => LaTeX (CTrace f ann) where
   type Format (CTrace f ann) = ()
@@ -425,7 +426,7 @@ extract mkF a = go where
     _ -> go fs
     
   toArgument :: AProtocolEntry -> Term -> AArgument f ann
-  toArgument (Subject desc, _) term = Argument (Subject ()) desc (mkF term a)
+  toArgument (Subject desc, _) term = Argument (Subject ()) (embed desc) (mkF term a)
   toArgument (Input, desc) term = Argument Input desc (mkF term a)
   toArgument (Output, desc) term = Argument Output desc (mkF term a)
 
@@ -515,7 +516,7 @@ ldiagnostic :: SyntaxTable -> HeadUpData -> [Frame] -> String
 ldiagnostic table dat fs =
   let ats = cleanup $ extract Simple () fs in
   let iats = normalise dat ats in
-  ldiagnostic' standalone table fs iats
+  undefined --TODO!!!: ldiagnostic' standalone table fs iats
 
 adiagnostic :: SyntaxTable -> HeadUpData -> [Frame] -> Shots -> String
 adiagnostic table dat fs trs =
@@ -532,7 +533,7 @@ adiagnostic table dat fs trs =
         --    with its position in the sorted array.
         fmap (\ i -> fromMaybe (error "Impossible") (elemIndex i as)) at
   -- we can now render the beamer
-  in ldiagnostic' beamer table fs res
+  in undefined -- TODO!!!: ldiagnostic' beamer table fs res
 
 data LaTeXConfig = LaTeXConfig
   { documentClass :: String
@@ -559,7 +560,7 @@ beamer = LaTeXConfig
 ldiagnostic' :: AnnotateLaTeX ann
              => Bitraversable f
              => LaTeX (f Raw ann)
-             => LaTeX.Format (f Raw ann) ~ SyntaxDesc
+             => LaTeX.Format (f Raw ann) ~ ASemanticsDesc
              => LaTeX (f () (ann, Bool))
              => LaTeX.Format (f () (ann, Bool)) ~ ()
              => LaTeXConfig

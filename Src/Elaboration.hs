@@ -21,7 +21,7 @@ import Hide
 import Scope
 import Syntax
     ( SyntaxCat,
-      SyntaxDesc, syntaxDesc, wildcard)
+      SyntaxDesc, syntaxDesc)
 import Thin
 import Utils
 import Info
@@ -76,7 +76,7 @@ checkSendableSubject tm = do
 escrutinee :: EScrutinee -> ASemanticsDesc
 escrutinee = \case
   Pair _ p q -> Semantics.contract (Semantics.VCons (escrutinee p) (escrutinee q))
-  SubjectVar _ desc -> embed desc
+  SubjectVar _ desc -> desc
   Lookup _ desc _ -> desc
   -- TODO : do we need to pass in the scope?
   Compare _ t1 t2 -> Semantics.contract (Semantics.VEnumOrTag 0 ["LT", "EQ", "GT"] [])
