@@ -439,6 +439,7 @@ data Complaint
   -- operators
   | AlreadyDeclaredOperator Range String
   | InvalidOperatorArity Range String [SyntaxDesc] [RawP]
+  | ExpectedParameterBinding Range Raw
   -- protocol
   | InvalidSend Range Channel Raw
   | InvalidRecv Range Channel RawP

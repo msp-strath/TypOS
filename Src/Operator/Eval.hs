@@ -32,10 +32,13 @@ data HeadUpData' m = forall i d. HeadUpData
   , huOptions :: Options
   , huEnv :: Env' m
   , whatIs :: m -> Maybe (Term' m)
-  } 
-  
+  }
+
 instance Show (HeadUpData' m) where
   show _ = "HUD"
+
+instance Dischargeable (HeadUpData' m) where
+  _ \\ dat = dat
 
 type HeadUpData = HeadUpData' Meta
 

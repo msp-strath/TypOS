@@ -342,7 +342,7 @@ spatSemantics desc rest rp = do
           VWildcard _ -> pure (desc, desc)
           VBind cat desc -> pure (Semantics.catToDesc cat, desc)
           _ -> throwError (SyntaxPError r desc rp)
-
+      -- TODO: refactor using Dischargeable
         case x of
           Unused -> do
             (p, ds, t) <- spatSemantics desc rest p
@@ -371,6 +371,8 @@ isList (At r a) = throwError (ExpectedNilGot r a)
 isList (Cons r p q) = (p:) <$> isList q
 isList t = throwError (ExpectedAConsGot (getRange t) t)
 
+-- Input: fully applied operator ready to operate
+-- Output: (abstract operator, raw parameters)
 sop :: Raw -> Elab (AAnOperator, [Raw])
 sop (At ra a) = do
   op <- isOperator ra a
@@ -385,27 +387,27 @@ itm :: Usage -> Raw -> Elab (ASemanticsDesc, ACTm)
 itm usage (Var r v) = do
   (_, desc, v) <- svar usage v
   pure (desc, v)
-itm usage (Op r rs ro) = do
-  (AnOperator{..}, rps) <- sop ro
-  (sdesc, s) <- itm usage rs
+-- rob -rop
+itm usage (Op r rob rop) = do
+  (obDesc, ob) <- itm usage rob
+  (AnOperator{..}, rps) <- sop rop
   dat <- do
     dat <- asks headUpData
     let hnf = headUp dat
-    env <- case snd $ match hnf initMatching (Problem B0 (snd objDesc) sdesc) of
+    env <- case snd $ match hnf initMatching (Problem B0 (snd objDesc) obDesc) of
       Left e -> throwError $ InferredDescMismatch r
       Right m -> pure $ matchingToEnv m (huEnv dat)
     env <- case fst objDesc of
       Nothing -> pure env
-      Just v  -> pure $ newActorVar v (localScope env <>> [], s) env
+      Just v  -> pure $ newActorVar v (localScope env <>> [], ob) env
     pure dat{huEnv = env}
   local (setHeadUpData dat) $ do
-    (desc, ps) <- undefined -- TODO (was: itms r usage paramsDesc rps retDesc)
-    let o = case ps of
-              [] -> atom (getOperator opName) (scope s)
+    (desc, ps) <- itms r usage paramsDesc rps retDesc
+    let o = case ps of --TODO: break out into a smart constructor
+              [] -> atom (getOperator opName) (scope ob)
               _ -> getOperator opName #%+ ps
-    pure (desc, Term.contract (s :-: o))
+    pure (desc, Term.contract (ob :-: o))
 -- TODO?: annotated terms?
-
 itm _ t = throwError $ DontKnowHowToInferDesc (getRange t) t
 
 itms :: Range -> Usage
@@ -413,14 +415,27 @@ itms :: Range -> Usage
      -> [(Maybe ActorMeta, ASOT)]
         -- Raw parameters
      -> [Raw]
-        -- Return type as a SOT -- TODO: come back once we have DeclOps
-     -> ASOT
+        -- Return type
+     -> ASemanticsDesc
         --
-     -> Elab (ASemanticsDesc -- Inferred return type (instantiated ^SOT)
+     -> Elab (ASemanticsDesc -- Instantiated return type
              , [ACTm])       -- Elaborated parameters
-itms r usage [] [] rdesc = undefined -- TODO (was: (, []) <$> sasot r rdesc)
-itms r usage ((binder, asot):bs) (rp:rps) rdesc = do
-  pdesc <- undefined -- TODO (was: sasot (getRange rp) asot)
+itms r usage [] [] rdesc = (, []) <$> instantiateDesc r rdesc
+itms r usage ((binder, sot):bs) (rp:rps) rdesc = do
+  (ovs :=> desc) <- instantiateSOT r sot
+  (p, dat) <- sparam usage binder B0 (discharge ovs desc) rp
+  local (setHeadUpData dat) $
+    fmap (p:) <$> itms r usage bs rps rdesc
+itms r usage bs rps rdesc = throwError $ ArityMismatchInOperator r
+
+sparam :: Usage
+       -> Maybe ActorMeta -- Name of parameter
+       -> Bwd String      -- Names of formal parameters of the parameter
+       -> Telescopic ASemanticsDesc -- Type of the parameter
+       -> Raw             -- Raw term naming the actual parameters
+       -> Elab (ACTm, HeadUpData' ActorMeta) -- Elaborated term,
+                                             -- headupdata with the parameter defined
+sparam usage binder namez (Stop pdesc) rp = do
   p <- stm usage pdesc rp
   dat <- do
     dat <- asks headUpData
@@ -428,11 +443,26 @@ itms r usage ((binder, asot):bs) (rp:rps) rdesc = do
       Nothing -> dat
       Just v  ->
         let env = huEnv dat
-            env' = newActorVar v (localScope env <>> [], p) env
-        in dat{huEnv = env'}
-  local (setHeadUpData dat) $
-     fmap (p:) <$> itms r usage bs rps rdesc
-itms r usage bs rps rdesc = throwError $ ArityMismatchInOperator r
+            env' = newActorVar v (namez <>> [], p) env
+        in dat {huEnv = env'}
+  pure (p, dat)
+sparam usage binder namez (Tele desc (Scope (Hide name) tele)) (Lam r (Scope (Hide x) rp)) =
+  elabUnder (x, desc) $ sparam usage binder (namez :< name) tele rp
+sparam _ _ _ _ rp = throwError $ ExpectedParameterBinding (getRange rp) rp
+
+instantiateSOT :: Range -> ASOT -> Elab ASOT
+instantiateSOT r (ovs :=> desc)
+  = (:=>) <$> traverse (instantiateDesc r) ovs <*> instantiateDesc r desc
+
+instantiateDesc :: Range -> ASemanticsDesc -> Elab ASemanticsDesc
+instantiateDesc r desc = do
+  dat  <- asks headUpData
+  -- The object acted upon and the parameters appearing before the
+  -- one currently being elaborated need to be substituted into the desc
+  case mangleActors (huOptions dat) (huEnv dat) desc of
+    Nothing -> throwError $ SchematicVariableNotInstantiated r
+    Just v  -> pure v
+
 
 {-
 sp is only for Concrete p to Abstract p
@@ -488,19 +518,18 @@ stm usage desc rt = do
           VWildcard i -> pure (desc, desc)
           VBind cat desc -> pure (catToDesc cat, desc)
           _ -> throwError (SyntaxError r desc rt)
-        case x of
-          Used x -> do
-            x <- isFresh x
-            sc <- local (declareObjVar (x, s)) $ stm usage desc sc
-            pure (x \\ sc)
-          Unused -> do
-            sc <- stm usage desc sc
-            pure ((Hide "_" := False :.) $^ sc)
+        elabUnder (x, s) $ stm usage desc sc
       Op{} -> do
         (tdesc, t) <- itm usage rt
         compatibleInfos (getRange rt) (Known tdesc) (Known desc)
         pure t
 
+elabUnder :: Dischargeable a => (Binder Variable, ASemanticsDesc) -> Elab a -> Elab a
+elabUnder (x, desc) ma = do
+  x <- case x of
+        Used x -> isFresh x
+        Unused -> pure "_"
+  (x \\) <$> local (declareObjVar (x, desc)) ma
 
 spats :: IsSubject -> [ASemanticsDesc] -> Restriction -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
 spats _ [] rest (AtP r "") = (Nothing, AP "",,) <$> asks declarations <*> asks binderHints

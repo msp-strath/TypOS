@@ -11,6 +11,8 @@ import Options
 import Actor ( Env', ACTm)
 import Term.Base
 import Bwd
+import Hide
+import Scope
 import Thin
 import Pretty
 
@@ -46,10 +48,12 @@ instance Pretty (ObjVar' a) where
 -- i.e. they should be weakened on extension, not on
 -- lookup.
 
-newtype ObjVars = ObjVars { getObjVars :: Bwd ObjVar }
-  deriving (Show, Eq)
+newtype ObjVars' a = ObjVars { getObjVars :: Bwd (ObjVar' a) }
+  deriving (Functor, Foldable, Traversable, Show, Eq)
 
-instance Pretty ObjVars where
+type ObjVars = ObjVars' ASemanticsDesc
+
+instance Pretty (ObjVars' a) where
   pretty = collapse . fmap pretty . getObjVars
 
 thinsTo :: ObjVars -> ObjVars -> Maybe Th
@@ -77,6 +81,19 @@ data ASOT = ObjVars :=> ACTm
   deriving (Show)
 
 infix 2 :=>
+
+data Telescopic a = Stop a
+                  | Tele ASemanticsDesc (Scope String (Telescopic a))
+
+discharge :: ObjVars -> a -> Telescopic a
+discharge (ObjVars oz) a = go oz (ones (length oz)) (Stop a)
+  where
+    -- Invariant: Thinning th is from scope of acc into the scope of oz
+    go B0 th acc = acc
+    go (oz :< ObjVar name ty) th acc = let th' = pop th in
+      case thickenCdB th' ty of
+        Nothing -> error "discharge: invalid context"
+        Just ty -> go oz th' (Tele ty (Scope (Hide name) acc))
 
 ------------------------------------------------------------------------------
 -- Operators

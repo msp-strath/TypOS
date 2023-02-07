@@ -257,8 +257,18 @@ asList :: OrBust x => ([CdB (Tm m)] -> x) -> CdB (Tm m) -> x
 asList f = asNilOrCons (f []) (\ x -> asList (f . (x:)))
 
 infixr 3 \\
-(\\) :: String -> CdB (Tm m) -> CdB (Tm m)
-x \\ t = contract (x :.: t)
+
+class Dischargeable a where
+  (\\) :: String -> a -> a
+
+instance Dischargeable (CdB (Tm m)) where
+  x \\ t = contract (x :.: t)
+
+instance Dischargeable () where
+  x \\ t = t
+
+instance (Dischargeable a, Dischargeable b) => Dischargeable (a, b) where
+  x \\ (s, t) = (x \\ s, x \\ t)
 
 infixr 5 $:
 ($:) :: m -> CdB (Sbst m) -> CdB (Tm m)
@@ -266,3 +276,4 @@ m $: sg = contract (m :$: sg)
 
 shitMeta :: String -> Meta
 shitMeta s = Meta [("user",0),(s,0)]
+
