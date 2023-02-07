@@ -10,10 +10,10 @@ import Parse
 import Options
 import Actor ( Env', ACTm)
 import Term.Base
-import Info
 import Bwd
 import Thin
 import Pretty
+
 
 {-
   1. No subst in parsing phase.
@@ -68,7 +68,7 @@ scopeSize = length . getObjVars
 --    - S has a SOT, binding nothing
 --    - T has a SOT, binding x with type S[]
 type family SOT (ph :: Phase) :: *
-type instance SOT Concrete = Raw
+type instance SOT Concrete = ([(Raw, Variable)], Raw)
 type instance SOT Abstract = ASOT
 
 -- TODO: conversion function to telescope
@@ -82,14 +82,15 @@ infix 2 :=>
 -- Operators
 
 data ANOPERATOR (ph :: Phase) = AnOperator
-  { opName     :: OPERATOR ph
-  , objDesc    :: (Maybe (ACTORVAR ph), PATTERN ph) -- add ([ACTORVar ph], TERM ph)?
-  , paramsDesc :: [(Maybe (ACTORVAR ph), SOT ph)]
-  , retDesc    :: SOT ph
-  }
+ {- (p : ['Sig a \x.b]) -} { objDesc    :: (Maybe (ACTORVAR ph), PATTERN ph) -- add ([ACTORVar ph], TERM ph)?
+ {- -[ 'snd             -} , opName     :: OPERATOR ph
+ {-  ]                  -} , paramsDesc :: [(Maybe (ACTORVAR ph), SOT ph)]
+ {-  : {x = p -'fst} b  -} , retDesc    :: SEMANTICSDESC ph
+                           }
 
 deriving instance
   ( Show (OPERATOR ph)
+  , Show (SEMANTICSDESC ph)
   , Show (ACTORVAR ph)
   , Show (PATTERN ph)
   , Show (SOT ph)
@@ -145,13 +146,16 @@ poperator ph =
   (,[]) <$> pwithRange patom
   <|> (,) <$ pch (== '[') <* pspc <*> pwithRange patom <*> many (id <$ pspc <*> ph) <* pspc <* pch (== ']')
 
+pBinders :: Parser (a, b) -> Parser (a, ([(Raw, Variable)], b))
+pBinders p = fmap . (,) <$> many ((,) <$> pTM <* punc "\\" <*> pvariable <* pspc <* pch ('.' ==)) <*> p
+
 panoperator :: Parser CAnOperator
 panoperator = do
   obj <- pmaybeNamed ppat
   punc "-"
-  (opname, params) <- poperator $ pmaybeNamed psemanticsdecl
+  (opname, params) <- poperator $ pBinders $ pmaybeNamed psemanticsdecl
   punc ":"
-  AnOperator opname obj params <$> psemanticsdecl
+  AnOperator obj opname params <$> psemanticsdecl
  where
   pmaybeNamed :: Parser a -> Parser (Maybe (ACTORVAR Concrete), a)
   pmaybeNamed p = pparens ((,) . Just <$> pvariable <* punc ":" <*> p)

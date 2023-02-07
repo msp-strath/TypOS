@@ -267,7 +267,16 @@ setGlobals (decls, ops) = setDecls decls . setOperators ops
 
 sdeclOps :: [CAnOperator] -> Elab ([AAnOperator], Globals)
 sdeclOps [] = ([],) <$> asks globals
-sdeclOps ((AnOperator (WithRange r opname) (objName, objDesc) paramDescs retDesc) : ops) = do
+-- (objName : objDescPat) -[ opname (p0 : paramDesc0) ... ] : retDesc
+-- e.g.
+-- 1. (p : ['Sig a \x.b]) -[ 'snd ]         : {x = p -[ 'fst ]} b
+-- 2. (f : ['Pi a \x.b])  -[ 'app (t : a) ] : {x = t} b
+-- 3. (n : 'Nat)
+--      -[ 'rec ('Nat\m.          p  : 'Semantics)
+--              (                 pZ : {m = 'Zero} p)
+--              ('Nat\m. {m}p\ih. pS : {m = ['Succ m]} p)
+--       ] : {m = n} p
+sdeclOps ((AnOperator (objName, objDescPat) (WithRange r opname) paramDescs retDesc) : ops) = do
   opname <- do
     ctxt <- ask
     when (Map.member opname (operators ctxt)) $
@@ -278,17 +287,17 @@ sdeclOps ((AnOperator (WithRange r opname) (objName, objDesc) paramDescs retDesc
      Nothing -> pure (Nothing, Unused)
      Just objName -> do
        objName <- isFresh objName
-       pure (Just (ActorMeta ACitizen objName) , Used objName)
+       pure (Just (ActorMeta ACitizen objName), Used objName)
   ovs <- asks objVars
-  (descPat, ds, objDesc) <- spatSemantics (atom "Semantics" 0) (initRestriction ovs) objDesc
-  local (declare objBinder (ActVar IsNotSubject (ovs :=> objDesc)) . setDecls ds) $ do
+  sem <- satom "Semantics"
+  (descPat, ds, objDesc) <- spatSemantics sem (initRestriction ovs) objDescPat
+  op <- local (declare objBinder (ActVar IsNotSubject (ovs :=> objDesc)) . setDecls ds) $ do
     (paramDescs, ds) <- sparamdescs paramDescs
-    retDesc <- local (setDecls ds) $ do
-      ovs <- asks objVars
-      (ovs :=>) <$> ssemanticsdesc retDesc
-    let op = AnOperator opname (objName, descPat) paramDescs retDesc
-    (ops, decls) <- local (addOperator op) $ sdeclOps ops
-    pure (op : ops, decls)
+    retDesc <- local (setDecls ds) $ sty retDesc
+    pure $ AnOperator (objName, descPat) opname paramDescs retDesc
+  -- Process the rest of the declarations, in the original context
+  (ops, decls) <- local (addOperator op) $ sdeclOps ops
+  pure (op : ops, decls)
 
 scommand :: CCommand -> Elab (ACommand, Globals)
 scommand = \case
@@ -337,6 +346,7 @@ scommand = \case
   -- Sig S \x.T - 'fst ~> S
   -- (p : Sig S \x.T) - 'snd ~> {x=[ p - 'fst ]}T
 
+{-
   DefnOp (p, opelims, rhs) -> do
     ovs <- asks objVars
     let scp = scopeSize ovs
@@ -357,7 +367,7 @@ scommand = \case
 --    trace (unwords [getOperator op, "-[", '\'':show p, show opargs, "~>", show rhs]) (pure ())
     let cl = Clause (toClause p (B0 <>< opargs) rhs)
     (DefnOp (op, cl),) <$> asks globals
-
+-}
 
 
 
@@ -467,7 +477,7 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
 sopargs :: SyntaxDesc -> [COpPattern] -> Elab ([AOpPattern], Decls, Hints)
 sopargs desc [] = ([],,) <$> asks declarations <*> asks binderHints
 sopargs desc ((rop, args):xs) = do
-  (AnOperator op obj ps ret) <- soperator rop
+  (AnOperator obj op ps ret) <- soperator rop
   compatibleInfos (theRange rop) (Known desc) (Known obj)
   (args, decls, hints) <- splat (getRange rop <> foldMap getRange args) ps args
   (rest, decls, hints) <- local (setDecls decls . setHints hints) $ sopargs ret xs

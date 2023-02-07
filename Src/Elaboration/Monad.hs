@@ -231,7 +231,7 @@ initContext opts = Context
                                 $ PP (BP (Hide "x")
                                   $ MP (am "T") (ones 1)) $ AP "")
         , paramsDesc = [(Just (am "s"), ObjVars B0 :=> (am "S" $: sbstI 0))]
-        , retDesc = ObjVars (B0 :< ObjVar "s" (am "S" $: sbstI 0)) :=> (am "T" $: topSbst "x" (var (DB 0) 1))
+        , retDesc = am "T" $: topSbst "x" (am "s" $: sbstI 0)
         })
     ]
   , location = B0

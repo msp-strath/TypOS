@@ -139,14 +139,6 @@ ssyntaxdesc syndecls syn = do
     Nothing -> error "Impossible in ssyntaxdesc" -- this should be impossible, since parsed in empty context
     Just syn0 -> pure syn0
 
-ssemanticsdesc :: CSemanticsDesc -> Elab ASemanticsDesc
-ssemanticsdesc sem = do
-  syndecls <- gets (Map.keys . syntaxCats)
-  syndesc <- ssyntaxdesc ("Semantics":syndecls) sem
-  pure . embed $ syndesc
-  -- TODO: use stm to actually be able to use operators & actor vars
-  -- DontLog (catToDesc "Semantics")
-
 ssbst :: Usage -> Bwd SbstC -> Elab (ACTSbst, ObjVars)
 ssbst usage B0 = do
     ovs <- asks objVars
@@ -241,25 +233,38 @@ sscrutinee (Term r t) = during (ScrutineeTermElaboration t) $ do
   pure (Term r desc, Term r t)
 
 
--- TODO: change "Maybe" to "Binder" in Anoperator
-sparamdescs :: [(Maybe Variable, Raw)] -> Elab ([(Maybe ActorMeta, ASOT)], Decls)
+satom :: String -> Elab ACTm
+satom at = atom at <$> asks (scopeSize . objVars)
+
+sty :: CSemanticsDesc -> Elab ASemanticsDesc
+sty t = do
+  sem <- satom "Semantics"
+  stm DontLog sem t
+
+ssot :: SOT 'Concrete -> Elab ASOT
+ssot ([], ty) = (:=>) <$> asks objVars <*> sty ty
+ssot ((desc, x) : xs, ty) = do
+  desc <- sty desc
+  x <- isFresh x
+  local (declareObjVar (x, desc)) $ ssot (xs, ty)
+
+sparamdescs :: [(Maybe Variable, ([(Raw, Variable)], Raw))]
+            -> Elab ([(Maybe ActorMeta, ASOT)], Decls)
 sparamdescs [] = ([],) <$> asks declarations
-sparamdescs ((mx , ty):ps) = do
+sparamdescs ((mx , sot):ps) = do
+  sot <- ssot sot
   (mx, binder) <- case mx of
     Nothing -> pure (Nothing, Unused)
     Just x -> do
       x <- isFresh x
       pure (Just (ActorMeta ACitizen x) , Used x)
-  ovs  <- asks objVars
-  ty <- ssemanticsdesc ty
-  let sty = ovs :=> ty
-  (ps, ds) <- local (declare binder (ActVar IsNotSubject sty)) $ sparamdescs ps
-  pure ((mx , sty):ps, ds)
+  (ps, ds) <- local (declare binder (ActVar IsNotSubject sot)) $ sparamdescs ps
+  pure ((mx , sot):ps, ds)
 
 spatSemantics :: ASemanticsDesc -> Restriction -> CPattern ->
                  Elab (APattern, Decls, ACTm)
 spatSemantics desc rest (Irrefutable r p) = do
-  raiseWarning (IgnoredIrrefutable r p)
+  raiseWarning (IgnoredIrrefutable r p) -- TODO
   spatSemantics desc rest p
 spatSemantics desc rest (AsP r v p) = do
   v <- isFresh v
@@ -394,7 +399,7 @@ itm usage (Op r rs ro) = do
       Just v  -> pure $ newActorVar v (localScope env <>> [], s) env
     pure dat{huEnv = env}
   local (setHeadUpData dat) $ do
-    (desc, ps) <- itms r usage paramsDesc rps retDesc
+    (desc, ps) <- undefined -- TODO (was: itms r usage paramsDesc rps retDesc)
     let o = case ps of
               [] -> atom (getOperator opName) (scope s)
               _ -> getOperator opName #%+ ps
@@ -403,10 +408,19 @@ itm usage (Op r rs ro) = do
 
 itm _ t = throwError $ DontKnowHowToInferDesc (getRange t) t
 
-itms :: Range -> Usage -> [(Maybe ActorMeta, ASOT)] -> [Raw] -> ASOT -> Elab (ASemanticsDesc, [ACTm])
-itms r usage [] [] rdesc = (, []) <$> sasot r rdesc
+itms :: Range -> Usage
+        -- Parameters types e.g. (_ : 'Nat\n. {m = n}p\ih. {m = ['Succ n]}p)
+     -> [(Maybe ActorMeta, ASOT)]
+        -- Raw parameters
+     -> [Raw]
+        -- Return type as a SOT -- TODO: come back once we have DeclOps
+     -> ASOT
+        --
+     -> Elab (ASemanticsDesc -- Inferred return type (instantiated ^SOT)
+             , [ACTm])       -- Elaborated parameters
+itms r usage [] [] rdesc = undefined -- TODO (was: (, []) <$> sasot r rdesc)
 itms r usage ((binder, asot):bs) (rp:rps) rdesc = do
-  pdesc <- sasot (getRange rp) asot
+  pdesc <- undefined -- TODO (was: sasot (getRange rp) asot)
   p <- stm usage pdesc rp
   dat <- do
     dat <- asks headUpData
@@ -420,15 +434,18 @@ itms r usage ((binder, asot):bs) (rp:rps) rdesc = do
      fmap (p:) <$> itms r usage bs rps rdesc
 itms r usage bs rps rdesc = throwError $ ArityMismatchInOperator r
 
+{-
+sp is only for Concrete p to Abstract p
+
 sasot :: Range -> ASOT -> Elab ASemanticsDesc
 sasot r (objVars :=> desc) = do
   dat  <- asks headUpData
-  -- we hope that mangleActors will instantiate objVars in desc for us
-  -- TODO: restrict the env to the actual support
+  -- The object acted upon and the parameters appearing before the
+  -- one currently being elaborated need to be substituted into the SOT
   case mangleActors (huOptions dat) (huEnv dat) desc of
     Nothing -> throwError $ SchematicVariableNotInstantiated r
-    Just v  -> pure v
-
+    Just v  -> pure v -- TODO: foldr (\ (x,t) v => ['Bind t \x.v]) id v
+-}
 
 stm :: Usage -> ASemanticsDesc -> Raw -> Elab ACTm
 stm usage desc (Var r v) = during (TermVariableElaboration v) $ do
@@ -455,7 +472,7 @@ stm usage desc rt = do
           VEnumOrTag _ es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
           VWildcard _ -> pure ()
           _ -> throwError (SemanticsError r desc rt)
-        atom a <$> asks (scopeSize . objVars)
+        satom a
       Cons r p q -> case vdesc of
         VNilOrCons d1 d2 -> (%) <$> stm usage d1 p <*> stm usage d2 q
         VCons d1 d2 -> (%) <$> stm usage d1 p <*> stm usage d2 q
@@ -896,7 +913,7 @@ sact = \case
   FreshMeta r desc (av, a) -> do
     (desc, av, ovs) <- during FreshMetaElaboration $ do
       syndecls <- gets (Map.keys . syntaxCats)
-      desc <- ssemanticsdesc desc
+      desc <- sty desc
       av <- isFresh av
       ovs <- asks objVars
       pure (desc, av, ovs)
@@ -906,7 +923,7 @@ sact = \case
   Let r av desc t a -> do
     (desc, av, ovs) <- during FreshMetaElaboration $ do
       syndecls <- gets (Map.keys . syntaxCats)
-      desc <- ssemanticsdesc desc
+      desc <- sty desc
       av <- isFresh av
       ovs <- asks objVars
       pure (desc, av, ovs)
@@ -1038,11 +1055,11 @@ coverageCheckClause rp p = do
 sprotocol :: CProtocol -> Elab AProtocol
 sprotocol p = during (ProtocolElaboration p) $ do
   syndecls <- gets (Map.keys . syntaxCats)
-  Protocol <$> traverse (bitraverse (traverse $ ssyntaxdesc syndecls) ssemanticsdesc) (getProtocol p)
+  Protocol <$> traverse (bitraverse (traverse $ ssyntaxdesc syndecls) sty) (getProtocol p)
 
 scontextstack :: CContextStack -> Elab AContextStack
 scontextstack (ContextStack key val) = do
   syndecls <- gets (Map.keys . syntaxCats)
   key <- ssyntaxdesc syndecls key
-  val <- ssemanticsdesc val
+  val <- sty val
   pure (ContextStack key val)
