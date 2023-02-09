@@ -261,6 +261,11 @@ sparamdescs ((mx , sot):ps) = do
   (ps, ds) <- local (declare binder (ActVar IsNotSubject sot)) $ sparamdescs ps
   pure ((mx , sot):ps, ds)
 
+spatSemantics0 :: ASemanticsDesc -> CPattern -> Elab (APattern, Decls, ACTm)
+spatSemantics0 desc p = do
+  ovs <- asks objVars
+  spatSemantics desc (initRestriction ovs) p
+
 spatSemantics :: ASemanticsDesc -> Restriction -> CPattern ->
                  Elab (APattern, Decls, ACTm)
 spatSemantics desc rest (Irrefutable r p) = do
@@ -369,6 +374,7 @@ isList :: Raw -> Elab [Raw]
 isList (At r "") = pure []
 isList (At r a) = throwError (ExpectedNilGot r a)
 isList (Cons r p q) = (p:) <$> isList q
+
 isList t = throwError (ExpectedAConsGot (getRange t) t)
 
 -- Input: fully applied operator ready to operate
@@ -383,6 +389,19 @@ sop (Cons rp (At ra a) ps) = do
   pure (op, es)
 sop ro = throwError (ExpectedAnOperator (getRange ro) ro)
 
+
+matchObjType :: Range -> (Maybe ActorMeta, Pat) -> (ASemanticsDesc, ACTm) -> Elab (HeadUpData' ActorMeta)
+matchObjType r (mb , oty) (obDesc, ob) = do
+    dat <- asks headUpData
+    let hnf = headUp dat
+    env <- case snd $ match hnf initMatching (Problem B0 oty obDesc) of
+      Left e -> throwError $ InferredDescMismatch r
+      Right m -> pure $ matchingToEnv m (huEnv dat)
+    env <- case mb of
+      Nothing -> pure env
+      Just v  -> pure $ newActorVar v (localScope env <>> [], ob) env
+    pure dat{huEnv = env}
+
 itm :: Usage -> Raw -> Elab (ASemanticsDesc, ACTm)
 itm usage (Var r v) = do
   (_, desc, v) <- svar usage v
@@ -391,16 +410,7 @@ itm usage (Var r v) = do
 itm usage (Op r rob rop) = do
   (obDesc, ob) <- itm usage rob
   (AnOperator{..}, rps) <- sop rop
-  dat <- do
-    dat <- asks headUpData
-    let hnf = headUp dat
-    env <- case snd $ match hnf initMatching (Problem B0 (snd objDesc) obDesc) of
-      Left e -> throwError $ InferredDescMismatch r
-      Right m -> pure $ matchingToEnv m (huEnv dat)
-    env <- case fst objDesc of
-      Nothing -> pure env
-      Just v  -> pure $ newActorVar v (localScope env <>> [], ob) env
-    pure dat{huEnv = env}
+  dat <- matchObjType r objDesc (obDesc, ob)
   local (setHeadUpData dat) $ do
     (desc, ps) <- itms r usage paramsDesc rps retDesc
     let o = case ps of --TODO: break out into a smart constructor

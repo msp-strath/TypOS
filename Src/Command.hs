@@ -342,15 +342,24 @@ scommand = \case
   Trace ts -> (Trace ts,) <$> asks globals
   DeclOp ops -> first DeclOp <$> sdeclOps ops
 
-
   -- Sig S \x.T - 'fst ~> S
   -- (p : Sig S \x.T) - 'snd ~> {x=[ p - 'fst ]}T
+  DefnOp ((p, pty), opelims, rhs) -> do
+    -- p : pty -[ opelim0 ] -[ opelim1 ] ... -[ opelimn ] ~> rhs
+    sem <- satom "Semantics"
+    (pty, decls, ty) <- spatSemantics0 sem pty
+    (p, decls, t) <- local (setDecls decls) $ spatSemantics0 ty p
+    (opelimz, decls, lhsTy) <- sopelims0 decls (ty, t) opelims
+    rhs <- local (setDecls decls) $ stm DontLog lhsTy rhs
+    -- this is the outer op being extended
+    let op = case opelimz of (_ :< (op, _)) -> op
+    let cl = Clause (toClause p opelimz rhs)
+    (DefnOp (op, cl),) <$> asks globals
 
 {-
-  DefnOp (p, opelims, rhs) -> do
     ovs <- asks objVars
     let scp = scopeSize ovs
-    -- p -[ opelim0 ] -[ opelim1 ] ... -[ opelimn ] ~> rhs
+
     ((p, opargs), ret, decls, hints) <- do
       -- this is the op applied to the object, not the outer op being extended
       let op = fst (head opelims)
@@ -362,16 +371,9 @@ scommand = \case
                                 sopargs obj opargs
       pure ((p, opargs), ret, decls, hints)
     rhs <- local (setDecls decls . setHints hints) $ stm DontLog ret rhs
-    -- this is the outer op being extended
-    let op = fst (last opargs)
+
 --    trace (unwords [getOperator op, "-[", '\'':show p, show opargs, "~>", show rhs]) (pure ())
-    let cl = Clause (toClause p (B0 <>< opargs) rhs)
-    (DefnOp (op, cl),) <$> asks globals
 -}
-
-
-
-
 
 
 --  DeclJudgementForm j -> do
@@ -472,6 +474,29 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
       | otherwise = throwError (MalformedPostOperator (getRange (objDesc op)) (theValue (opName op)) (Map.keys m))
 -}
 
+sopelims0 :: Decls
+          -> (ASemanticsDesc, ACTm)
+          -> [(OPERATOR Concrete, [RawP])]
+          -> Elab (Bwd (OPERATOR Abstract, [Pat]), Decls, ASemanticsDesc)
+sopelims0 = sopelims B0
+
+sopelims :: Bwd (OPERATOR Abstract, [Pat])
+         -> Decls
+         -> (ASemanticsDesc, ACTm)
+         -> [(OPERATOR Concrete, [RawP])]
+         -> Elab (Bwd (OPERATOR Abstract, [Pat]), Decls, ASemanticsDesc)
+sopelims opelimz decls (ty, t) [] = pure (opelimz, decls, ty)
+sopelims opelimz decls (ty, t) ((op, args):opelims) = do
+  (AnOperator (mb, opat) op pdescs rdesc) <- soperator op
+  dat <- matchObjType (foldMap getRange args) (mb, opat) (ty, t)
+  _ --TODO: continue here
+
+{-
+Note to selves: we need to worry about freshening up names in operator
+declarations when checking definitions.
+-}
+
+{-
 -- | sopargs desc cops
 -- | desc: description of the object the cops are applied to
 sopargs :: SyntaxDesc -> [COpPattern] -> Elab ([AOpPattern], Decls, Hints)
@@ -494,6 +519,7 @@ sopargs desc ((rop, args):xs) = do
            ([], (_:_)) -> foldMap getRange ps
            _ -> r
     throwError (InvalidOperatorArity r (theValue rop) ds ps)
+-}
 
 soperator :: COperator -> Elab AAnOperator
 soperator (WithRange r tag) = do

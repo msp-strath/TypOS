@@ -125,7 +125,7 @@ type instance OPERATOR Abstract = Operator
 
 newtype Clause = Clause
   { runClause :: forall m
-  .  Options
+  .  Show m => Options
   -> (Term' m -> Term' m) -- head normaliser
   -> Env' m
   -> (Term' m, [Term' m]) -- object & parameters
@@ -147,11 +147,16 @@ instance Show Clause where
 type OPPATTERN ph = (OPERATOR ph, [PATTERN ph])
 
 type family DEFNOP (ph :: Phase) :: *
-type instance DEFNOP Concrete = (PATTERN Concrete, [OPPATTERN Concrete], TERM Concrete)
+type instance DEFNOP Concrete = ((PATTERN Concrete, PATTERN Concrete) -- object and its type
+                                , [OPPATTERN Concrete]                -- spine
+                                , TERM Concrete)                      -- right hand side
 type instance DEFNOP Abstract = (Operator, Clause)
 
 pdefnop :: Parser (DEFNOP Concrete)
-pdefnop =  (,,) <$> ppat <*> some (punc "-" *> poperator ppat) <* punc "~>" <*> pTM
+pdefnop =  (,,) <$> ((,) <$> ppat <* punc ":" <*> ppat)
+                <*> some (punc "-" *> poperator ppat)
+                <*  punc "~>"
+                <*> pTM
 
 type COpPattern = OPPATTERN Concrete
 type AOpPattern = OPPATTERN Abstract
