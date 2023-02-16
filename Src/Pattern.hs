@@ -23,7 +23,7 @@ data Pat' s
   | MP s Th
   | GP -- grumpy pattern
   | HP -- happy pattern
-  deriving (Show, Eq)
+  deriving (Show, Eq, Functor)
 
 isCatchall :: Pat' s -> Bool
 isCatchall (MP x th) = is1s th
@@ -49,6 +49,9 @@ instance Selable (Pat' s) where
   th ^? MP m ph = MP m (let (tph, _, _) = pullback th ph in tph)
   th ^? GP = GP
   th ^? HP = HP
+
+instance Dischargeable (Pat' m) where
+  x \\ p = BP (Hide x) p
 
 (#?) :: String -> [Pat' s] -> Pat' s
 a #? ts = foldr PP (AP "") (AP a : ts)

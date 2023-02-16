@@ -389,7 +389,9 @@ sop (Cons rp (At ra a) ps) = do
   pure (op, es)
 sop ro = throwError (ExpectedAnOperator (getRange ro) ro)
 
-
+-- e.g.  (p : ['Sig S \x.T]) -'snd
+--       ['MkSig a b] : ['Sig A \y.B]
+-- Then we want an environment extended by: (S = A, \x.T = \y.B, p = ['MkSig a b])
 matchObjType :: Range -> (Maybe ActorMeta, Pat) -> (ASemanticsDesc, ACTm) -> Elab (HeadUpData' ActorMeta)
 matchObjType r (mb , oty) (obDesc, ob) = do
     dat <- asks headUpData
@@ -413,10 +415,7 @@ itm usage (Op r rob rop) = do
   dat <- matchObjType r objDesc (obDesc, ob)
   local (setHeadUpData dat) $ do
     (desc, ps) <- itms r usage paramsDesc rps retDesc
-    let o = case ps of --TODO: break out into a smart constructor
-              [] -> atom (getOperator opName) (scope ob)
-              _ -> getOperator opName #%+ ps
-    pure (desc, Term.contract (ob :-: o))
+    pure (desc, ob -% (getOperator opName, ps))
 -- TODO?: annotated terms?
 itm _ t = throwError $ DontKnowHowToInferDesc (getRange t) t
 
@@ -432,7 +431,7 @@ itms :: Range -> Usage
              , [ACTm])       -- Elaborated parameters
 itms r usage [] [] rdesc = (, []) <$> instantiateDesc r rdesc
 itms r usage ((binder, sot):bs) (rp:rps) rdesc = do
-  (ovs :=> desc) <- instantiateSOT r sot
+  (ovs :=> desc) <- instantiateSOT (getRange rp) sot
   (p, dat) <- sparam usage binder B0 (discharge ovs desc) rp
   local (setHeadUpData dat) $
     fmap (p:) <$> itms r usage bs rps rdesc

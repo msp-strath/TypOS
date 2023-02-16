@@ -36,6 +36,7 @@ data ElabState = ElabState
   , actvarStates  :: ActvarStates
   , syntaxCats    :: SyntaxTable
   , warnings      :: Bwd (WithStackTrace Warning)
+  , clock         :: Int
   }
 
 type ChannelState = (Direction, [Turn], [AProtocolEntry])
@@ -77,7 +78,7 @@ data Direction = Rootwards
   deriving (Eq, Show)
 
 initElabState :: ElabState
-initElabState = ElabState Map.empty Map.empty Map.empty B0
+initElabState = ElabState Map.empty Map.empty Map.empty B0 0
 
 newtype Elab a = Elab
   { runElab :: StateT ElabState

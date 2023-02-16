@@ -156,6 +156,7 @@ weak (CdB t th) = CdB t (th -? False)
 weaks :: Int -> CdB a -> CdB a
 weaks i (CdB t th) = CdB t (th <> none i)
 
+-- TODO: refactor via derive Functor
 ($^) :: (a -> b) -> CdB a -> CdB b
 f $^ CdB a th = CdB (f a) th
   -- f better be support-preserving

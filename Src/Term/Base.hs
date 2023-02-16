@@ -276,4 +276,3 @@ m $: sg = contract (m :$: sg)
 
 shitMeta :: String -> Meta
 shitMeta s = Meta [("user",0),(s,0)]
-

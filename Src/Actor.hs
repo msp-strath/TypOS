@@ -22,8 +22,10 @@ type Pat = Pat' ActorMeta
 data Passport = ASubject | ACitizen
   deriving (Show, Eq, Ord)
 
-data ActorMeta = ActorMeta Passport ActorVar
-  deriving (Eq, Ord)
+data ActorMeta' a = ActorMeta Passport a
+  deriving (Eq, Ord, Functor)
+
+type ActorMeta = ActorMeta' ActorVar
 
 instance Show ActorMeta where
   show (ActorMeta _ str) = str

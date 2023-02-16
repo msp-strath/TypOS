@@ -6,7 +6,7 @@ import Data.Foldable
 import Data.These
 
 import ANSI hiding (withANSI)
-import Actor (ActorMeta(..), Channel(..), Stack(..), AProtocol)
+import Actor (ActorMeta'(..), ActorMeta, Channel(..), Stack(..), AProtocol)
 import Concrete.Base (Binder (..), PROTOCOL(Protocol), Mode (..))
 import Concrete.Pretty()
 import Elaboration.Monad

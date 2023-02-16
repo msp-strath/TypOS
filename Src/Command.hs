@@ -47,6 +47,11 @@ import Utils
 import Data.Char (isSpace)
 import qualified Data.Set as Set
 import Operator
+import Elaboration.Monad (clock)
+import Thin
+import Operator.Eval (HeadUpData' (..))
+import Hide (Hide(..))
+import Scope (Scope(..))
 
 type family SYNTAXCAT (ph :: Phase) :: *
 type instance SYNTAXCAT Concrete = WithRange SyntaxCat
@@ -347,9 +352,9 @@ scommand = \case
   DefnOp ((p, pty), opelims, rhs) -> do
     -- p : pty -[ opelim0 ] -[ opelim1 ] ... -[ opelimn ] ~> rhs
     sem <- satom "Semantics"
-    (pty, decls, ty) <- spatSemantics0 sem pty
+    (_, decls, ty) <- spatSemantics0 sem pty
     (p, decls, t) <- local (setDecls decls) $ spatSemantics0 ty p
-    (opelimz, decls, lhsTy) <- sopelims0 decls (ty, t) opelims
+    (opelimz, decls, lhsTy) <- local (setDecls decls) $ sopelims0 (ty, t) opelims
     rhs <- local (setDecls decls) $ stm DontLog lhsTy rhs
     -- this is the outer op being extended
     let op = case opelimz of (_ :< (op, _)) -> op
@@ -474,27 +479,65 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
       | otherwise = throwError (MalformedPostOperator (getRange (objDesc op)) (theValue (opName op)) (Map.keys m))
 -}
 
-sopelims0 :: Decls
-          -> (ASemanticsDesc, ACTm)
+sopelims0 :: (ASemanticsDesc, ACTm)
           -> [(OPERATOR Concrete, [RawP])]
           -> Elab (Bwd (OPERATOR Abstract, [Pat]), Decls, ASemanticsDesc)
 sopelims0 = sopelims B0
 
 sopelims :: Bwd (OPERATOR Abstract, [Pat])
-         -> Decls
          -> (ASemanticsDesc, ACTm)
          -> [(OPERATOR Concrete, [RawP])]
          -> Elab (Bwd (OPERATOR Abstract, [Pat]), Decls, ASemanticsDesc)
-sopelims opelimz decls (ty, t) [] = pure (opelimz, decls, ty)
-sopelims opelimz decls (ty, t) ((op, args):opelims) = do
-  (AnOperator (mb, opat) op pdescs rdesc) <- soperator op
-  dat <- matchObjType (foldMap getRange args) (mb, opat) (ty, t)
-  _ --TODO: continue here
+sopelims opelimz (ty, t) [] = (opelimz,,ty) <$> asks declarations
+sopelims opelimz (ty, t) ((op, args):opelims) = do
+  -- We need to worry about freshening up names in operator
+  -- declarations when checking definitions to avoid clashes
+  (AnOperator (mb, opat) opName pdescs rdesc) <- freshenOp =<< soperator op
+  let r = getRange op <> foldMap getRange args
+  dat <- matchObjType r (mb, opat) (ty, t)
+  local (setHeadUpData dat) $ do
+    ((ty, decls), (pargs, args)) <- spats r pdescs args rdesc
+    local (setDecls decls) $
+        sopelims (opelimz :< (opName, pargs)) (ty, t -% (getOperator opName, args)) opelims
 
-{-
-Note to selves: we need to worry about freshening up names in operator
-declarations when checking definitions.
--}
+  where
+
+
+    -- cf. sparam
+    sparamSemantics :: Maybe ActorMeta
+                    -> Bwd String
+                    -> Telescopic ASemanticsDesc
+                    -> RawP
+                    -> Elab ((Pat, ACTm), HeadUpData' ActorMeta)
+    sparamSemantics binder namez (Stop pdesc) rp = do
+      (p, decls, t) <- spatSemantics0 pdesc rp
+      dat <- do
+        dat <- asks headUpData
+        pure $ case binder of
+          Nothing -> dat
+          Just v  ->
+           let env = huEnv dat
+               env' = newActorVar v (namez <>> [], t) env
+           in dat {huEnv = env'}
+      pure ((p, t), dat)
+    sparamSemantics binder namez
+      (Tele desc (Scope (Hide name) tele))
+      (LamP r (Scope (Hide x) rp)) =
+      elabUnder (x, desc) $ sparamSemantics binder (namez :< name) tele rp
+
+    -- cf. itms
+    spats :: Range
+          -> [(Maybe ActorMeta, ASOT)]
+          -> [CPattern]
+          -> ASemanticsDesc
+          -> Elab ((ASemanticsDesc, Decls), ([APattern], [ACTm]))
+    spats r [] [] rdesc = (,([], [])) <$> ((,) <$> instantiateDesc r rdesc <*> asks declarations)
+    spats r ((binder, sot) : bs) (rp:rps) rdesc = do
+      (ovs :=> desc) <- instantiateSOT (getRange rp) sot
+      ((p, t), dat) <- sparamSemantics binder B0 (discharge ovs desc) rp
+      local (setHeadUpData dat) $
+        fmap (bimap (p:) (t:)) <$> spats r bs rps rdesc
+    spats r bs rps rdesc = throwError $ ArityMismatchInOperator r
 
 {-
 -- | sopargs desc cops
@@ -520,6 +563,21 @@ sopargs desc ((rop, args):xs) = do
            _ -> r
     throwError (InvalidOperatorArity r (theValue rop) ds ps)
 -}
+
+freshenOp :: AAnOperator -> Elab AAnOperator
+freshenOp (AnOperator (mp, p) opName pdesc rdesc) = do
+  n <- gets clock
+  modify (\ st -> st { clock = 1+n })
+  let tick = ((show n ++) <$>)
+  let tickCdB = ((tick <$>) $^)
+  let tick' (ObjVars ovs :=> t) =
+        ObjVars (fmap (tickCdB <$>) ovs) :=> tickCdB t
+  pure $ AnOperator
+    { objDesc = (tick <$> mp, tick <$> p)
+    , opName
+    , paramsDesc = map (bimap (tick <$>) tick') pdesc
+    , retDesc = tickCdB rdesc
+    }
 
 soperator :: COperator -> Elab AAnOperator
 soperator (WithRange r tag) = do
