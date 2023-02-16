@@ -91,6 +91,9 @@
 * [ ] `keyword` pretty printing should use the data type of keywords
 * [ ] `class Declarable a where { declare :: a -> Context -> Context }`
       instead of declareObjVar, declareChannel, declareXXX
+* [ ] Add `throwComplaint :: Range -> Complaint -> Elab ()` and
+      refactor `Complaint` to be range-free with the range carried
+      by a `WithRange` wrapper.
 
 ### Pretty
 
