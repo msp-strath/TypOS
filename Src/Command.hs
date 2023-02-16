@@ -288,7 +288,7 @@ sdeclOps ((AnOperator (objName, objDescPat) (WithRange r opname) paramDescs retD
   opname <- do
     ctxt <- ask
     when (Map.member opname (operators ctxt)) $
-      throwError (AlreadyDeclaredOperator r opname)
+      throwComplaint r (AlreadyDeclaredOperator opname)
     pure (Operator opname)
   syndecls <- gets (Map.keys . syntaxCats)
   (objName, objBinder) <- case objName of
@@ -403,17 +403,17 @@ checkCompatiblePlaces places inputs outputs = do
   let citizenNames = [x | (x, CitizenPlace) <- places]
   let inputNames = map fst inputs
   let outputNames = map fst outputs
-  whenLeft (allUnique names) $ \ a -> throwError $ DuplicatedPlace (getRange a) a
+  whenLeft (allUnique names) $ \ a -> throwComplaint a $ DuplicatedPlace a
   inputNamesSet <- case allUnique inputNames of
-    Left a -> throwError $ DuplicatedInput (getRange a) a
+    Left a -> throwComplaint a $ DuplicatedInput a
     Right as -> pure as
   outputNamesSet <- case allUnique outputNames of
-    Left a -> throwError $ DuplicatedOutput (getRange a) a
+    Left a -> throwComplaint a $ DuplicatedOutput a
     Right as -> pure as
   whenCons (Set.toList (Set.intersection inputNamesSet outputNamesSet)) $ \ a _ ->
-    throwError $ BothInputOutput (getRange a) a
+    throwComplaint a $ BothInputOutput a
   whenCons (mismatch citizenNames inputNames outputNames) $ \ (v, m) _ ->
-    throwError (ProtocolCitizenSubjectMismatch (getRange v) v m)
+    throwComplaint v (ProtocolCitizenSubjectMismatch v m)
   where
     mismatch :: [Variable]
              -> [Variable]
@@ -458,12 +458,12 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
       IsJudgement{..} <- isJudgement name
       xs <- case halfZip (getProtocol judgementProtocol) fms of
         Just xs -> pure xs
-        Nothing -> throwError $ JudgementWrongArity r judgementName judgementProtocol fms
+        Nothing -> throwComplaint r $ JudgementWrongArity judgementName judgementProtocol fms
       let ys = [ (fm, sem) | ((Subject _, sem), fm) <- xs ]
       forM ys $ \case
         -- TODO: should use something like `isSendableSubject`
         (CFormula (These _ (Var r x)), sem) -> pure (x, sem)
-        (x, _) -> throwError $ UnexpectedNonSubject r x
+        (x, _) -> throwComplaint r $ UnexpectedNonSubject x
 
     citizenJudgement :: [(Variable, ASemanticsDesc)] -> [(Variable, ASemanticsDesc)]
                      -> CPlace -> Elab (PROTOCOLENTRY Abstract, Map Variable CSyntaxDesc)
@@ -484,7 +484,7 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
     kindify m op
       | Var _ x <- objDesc op
       , Just syn <- Map.lookup x m = pure (op { objDesc = syn})
-      | otherwise = throwError (MalformedPostOperator (getRange (objDesc op)) (theValue (opName op)) (Map.keys m))
+      | otherwise = throwComplaint (objDesc op) (MalformedPostOperator (theValue (opName op)) (Map.keys m))
 -}
 
 sopelims0 :: (ASemanticsDesc, ACTm)
@@ -545,7 +545,7 @@ sopelims opelimz (ty, t) ((op, args):opelims) = do
       ((p, t), dat) <- sparamSemantics binder B0 (discharge ovs desc) rp
       local (setHeadUpData dat) $
         fmap (bimap (p:) (t:)) <$> spats r bs rps rdesc
-    spats r bs rps rdesc = throwError $ ArityMismatchInOperator r
+    spats r bs rps rdesc = throwComplaint r $ ArityMismatchInOperator
 
 {-
 -- | sopargs desc cops
@@ -569,7 +569,7 @@ sopargs desc ((rop, args):xs) = do
     r <- pure $ case (ds, ps) of
            ([], (_:_)) -> foldMap getRange ps
            _ -> r
-    throwError (InvalidOperatorArity r (theValue rop) ds ps)
+    throwComplaint r (InvalidOperatorArity (theValue rop) ds ps)
 -}
 
 freshenOp :: AAnOperator -> Elab AAnOperator
@@ -591,7 +591,7 @@ soperator :: COperator -> Elab AAnOperator
 soperator (WithRange r tag) = do
   ops <- asks operators
   case Map.lookup tag ops of
-    Nothing -> throwError (NotAValidOperator r tag)
+    Nothing -> throwComplaint r (NotAValidOperator tag)
     Just anop -> pure anop
 
 scommands :: [CCommand] -> Elab [ACommand]
@@ -601,7 +601,9 @@ scommands (c:cs) = do
   cs <- local (setGlobals ds) $ scommands cs
   pure (c:cs)
 
-elaborate :: Options -> [CCommand] -> Either (WithStackTrace Complaint) ([WithStackTrace Warning], [ACommand], SyntaxTable)
+elaborate :: Options -> [CCommand]
+          -> Either (WithStackTrace (WithRange Complaint))
+                    ([WithStackTrace Warning], [ACommand], SyntaxTable)
 elaborate opts ccs = evalElab opts $ do
   acs <- scommands ccs
   st <- get

@@ -84,24 +84,27 @@ newtype Elab a = Elab
   { runElab :: StateT ElabState
                (ReaderT Context
                (WriterT All       -- Can we win?
-               (Either (WithStackTrace Complaint))))
+               (Either (WithStackTrace (WithRange Complaint)))))
                a }
   deriving ( Functor, Applicative, Monad
            , MonadReader Context
            , MonadState ElabState
            , MonadWriter All)
 
-instance MonadError Complaint Elab where
+instance MonadError (WithRange Complaint) Elab where
   throwError err = do
     stk <- asks stackTrace
     Elab (throwError (WithStackTrace stk err))
 
   catchError ma k = Elab (catchError (runElab ma) (runElab . k . theMessage))
 
-evalElab :: Options -> Elab a -> Either (WithStackTrace Complaint) a
+throwComplaint :: HasGetRange a => a -> Complaint -> Elab b
+throwComplaint r c = throwError (WithRange (getRange r) c)
+
+evalElab :: Options -> Elab a -> Either (WithStackTrace (WithRange Complaint)) a
 evalElab opts = fmap fst
          . runWriterT
-         . (`runReaderT` (initContext opts))
+         . (`runReaderT` initContext opts)
          . (`evalStateT` initElabState)
          . runElab
 
@@ -122,7 +125,7 @@ fromInfo r (Known desc) = pure desc
 -- places:
 -- 1. `addHint` (and if we had a clash, that'd be a shadowing error)
 -- 2. `compatibleInfos` where the error is handled locally
-fromInfo r Inconsistent = throwError (InconsistentSyntaxDesc r)
+fromInfo r Inconsistent = throwComplaint r InconsistentSyntaxDesc
 
 compatibleInfos :: Range -> Info ASemanticsDesc -> Info ASemanticsDesc -> Elab (Info ASemanticsDesc)
 compatibleInfos r desc desc' = do
@@ -131,7 +134,9 @@ compatibleInfos r desc desc' = do
   let de = infoExpand dat table =<< desc
   let de' = infoExpand dat table =<< desc'
   case de <> de' of
-    Inconsistent -> throwError (IncompatibleSemanticsInfos r desc desc')
+    Inconsistent -> throwComplaint r $ case (desc, desc') of
+      (Known desc, Known desc') -> IncompatibleSemanticsDescs desc desc'
+      _ -> IncompatibleSemanticsInfos desc desc'
     d -> pure $ case (desc, desc') of
       (Known (CdB (A _) _), _) -> desc
       (_, Known (CdB (A _) _)) -> desc'
@@ -421,153 +426,78 @@ data ContextualInfo
 
 data Complaint
   -- scope
-  = OutOfScope Range Variable
-  | MetaScopeTooBig Range Variable ObjVars ObjVars
-  | VariableShadowing Range Variable
-  | EmptyContext Range
-  | NotTopVariable Range Variable Variable
-  | IncompatibleChannelScopes Range ObjVars ObjVars
-  | NotAValidContextRestriction Range Th ObjVars
-  | NotAValidDescriptionRestriction Range Th ASemanticsDesc
+  = OutOfScope Variable
+  | MetaScopeTooBig Variable ObjVars ObjVars
+  | VariableShadowing Variable
+  | EmptyContext
+  | NotTopVariable Variable Variable
+  | IncompatibleChannelScopes ObjVars ObjVars
+  | NotAValidContextRestriction Th ObjVars
+  | NotAValidDescriptionRestriction Th ASemanticsDesc
   -- kinding
-  | NotAValidTermVariable Range Variable Kind
-  | NotAValidPatternVariable Range Variable Resolved
-  | NotAValidJudgement Range Variable Resolved
-  | NotAValidStack Range Variable Resolved
-  | NotAValidChannel Range Variable Resolved
-  | NotAValidBoundVar Range Variable
-  | NotAValidSubjectVar Range Variable
-  | NotAValidOperator Range String
+  | NotAValidTermVariable Variable Kind
+  | NotAValidPatternVariable Variable Resolved
+  | NotAValidJudgement Variable Resolved
+  | NotAValidStack Variable Resolved
+  | NotAValidChannel Variable Resolved
+  | NotAValidBoundVar Variable
+  | NotAValidSubjectVar Variable
+  | NotAValidOperator String
   -- operators
-  | AlreadyDeclaredOperator Range String
-  | InvalidOperatorArity Range String [SyntaxDesc] [RawP]
-  | ExpectedParameterBinding Range Raw
+  | AlreadyDeclaredOperator String
+  | InvalidOperatorArity String [SyntaxDesc] [RawP]
+  | ExpectedParameterBinding Raw
   -- protocol
-  | InvalidSend Range Channel Raw
-  | InvalidRecv Range Channel RawP
-  | NonLinearChannelUse Range Channel
-  | UnfinishedProtocol Range Channel AProtocol
-  | InconsistentCommunication Range
-  | DoomedBranchCommunicated Range CActor
-  | ProtocolsNotDual Range AProtocol AProtocol
-  | IncompatibleModes Range AProtocolEntry AProtocolEntry
-  | WrongDirection Range AProtocolEntry Ordering AProtocolEntry
+  | InvalidSend Channel Raw
+  | InvalidRecv Channel RawP
+  | NonLinearChannelUse Channel
+  | UnfinishedProtocol Channel AProtocol
+  | InconsistentCommunication
+  | DoomedBranchCommunicated CActor
+  | ProtocolsNotDual AProtocol AProtocol
+  | IncompatibleModes AProtocolEntry AProtocolEntry
+  | WrongDirection AProtocolEntry Ordering AProtocolEntry
   -- judgementforms
-  | JudgementWrongArity Range JudgementName AProtocol [CFormula]
-  | UnexpectedNonSubject Range CFormula
-  | DuplicatedPlace Range Variable
-  | DuplicatedInput Range Variable
-  | DuplicatedOutput Range Variable
-  | BothInputOutput Range Variable
-  | ProtocolCitizenSubjectMismatch Range Variable (Mode ())
-  | MalformedPostOperator Range String [Variable]
+  | JudgementWrongArity JudgementName AProtocol [CFormula]
+  | UnexpectedNonSubject CFormula
+  | DuplicatedPlace Variable
+  | DuplicatedInput Variable
+  | DuplicatedOutput Variable
+  | BothInputOutput Variable
+  | ProtocolCitizenSubjectMismatch Variable (Mode ())
+  | MalformedPostOperator String [Variable]
   -- syntaxes
-  | AlreadyDeclaredSyntaxCat Range SyntaxCat
+  | AlreadyDeclaredSyntaxCat SyntaxCat
   -- syntaxdesc validation
-  | InconsistentSyntaxDesc Range
-  | InvalidSyntaxDesc Range SyntaxDesc
-  | IncompatibleSyntaxInfos Range (Info SyntaxDesc) (Info SyntaxDesc)
-  | IncompatibleSemanticsDescs Range ASemanticsDesc ASemanticsDesc
-  | GotBarredAtom Range String [String]
-  | ExpectedASemanticsGot Range Raw
-  | ExpectedNilGot Range String
-  | ExpectedEnumGot Range [String] String
-  | ExpectedTagGot Range [String] String
-  | ExpectedANilGot Range Raw
-  | ExpectedANilPGot Range RawP
-  | ExpectedAConsGot Range Raw
-  | ExpectedAConsPGot Range RawP
-  | SyntaxError Range ASemanticsDesc Raw
-  | SyntaxPError Range ASemanticsDesc RawP
-  | ExpectedAnOperator Range Raw
-  | ExpectedAnEmptyListGot Range String [SyntaxDesc]
+  | InconsistentSyntaxDesc
+  | InvalidSyntaxDesc SyntaxDesc
+  | IncompatibleSyntaxInfos (Info SyntaxDesc) (Info SyntaxDesc)
+  | IncompatibleSemanticsDescs ASemanticsDesc ASemanticsDesc
+  | GotBarredAtom String [String]
+  | ExpectedASemanticsGot Raw
+  | ExpectedNilGot String
+  | ExpectedEnumGot [String] String
+  | ExpectedTagGot [String] String
+  | ExpectedANilGot Raw
+  | ExpectedANilPGot RawP
+  | ExpectedAConsGot Raw
+  | ExpectedAConsPGot RawP
+  | SyntaxError ASemanticsDesc Raw
+  | SyntaxPError ASemanticsDesc RawP
+  | ExpectedAnOperator Raw
+  | ExpectedAnEmptyListGot String [SyntaxDesc]
   -- semanticsdesc validation
-  | InvalidSemanticsDesc Range ASemanticsDesc
-  | SemanticsError Range ASemanticsDesc Raw
-  | IncompatibleSemanticsInfos Range (Info ASemanticsDesc) (Info ASemanticsDesc)
+  | InvalidSemanticsDesc ASemanticsDesc
+  | SemanticsError ASemanticsDesc Raw
+  | IncompatibleSemanticsInfos (Info ASemanticsDesc) (Info ASemanticsDesc)
   -- subjects and citizens
-  | AsPatternCannotHaveSubjects Range RawP
+  | AsPatternCannotHaveSubjects RawP
   -- desc inference
-  | InferredDescMismatch Range
-  | DontKnowHowToInferDesc Range Raw
-  | ArityMismatchInOperator Range
-  | SchematicVariableNotInstantiated Range
+  | InferredDescMismatch
+  | DontKnowHowToInferDesc Raw
+  | ArityMismatchInOperator
+  | SchematicVariableNotInstantiated
   deriving (Show)
-
-instance HasGetRange Complaint where
-  getRange = \case
-    OutOfScope r _ -> r
-    MetaScopeTooBig r _ _ _ -> r
-    VariableShadowing r _ -> r
-    EmptyContext r -> r
-    NotTopVariable r _ _ -> r
-    IncompatibleChannelScopes r _ _ -> r
-  -- kinding
-    NotAValidTermVariable r _ _ -> r
-    NotAValidPatternVariable r _ _ -> r
-    NotAValidJudgement r _ _ -> r
-    NotAValidStack r _ _ -> r
-    NotAValidChannel r _ _ -> r
-    NotAValidBoundVar r _ -> r
-    NotAValidSubjectVar r _ -> r
-    NotAValidOperator r _ -> r
-  -- operators
-    AlreadyDeclaredOperator r _ -> r
-    InvalidOperatorArity r _ _ _ -> r
-  -- protocol
-    InvalidSend r _ _ -> r
-    InvalidRecv r _ _ -> r
-    NonLinearChannelUse r _ -> r
-    UnfinishedProtocol r _ _ -> r
-    InconsistentCommunication r -> r
-    DoomedBranchCommunicated r _ -> r
-    ProtocolsNotDual r _ _ -> r
-    IncompatibleModes r _ _ -> r
-    WrongDirection r _ _ _ -> r
-    JudgementWrongArity r _ _ _ -> r
-    UnexpectedNonSubject r _ -> r
-    DuplicatedPlace r _ -> r
-    DuplicatedInput r _ -> r
-    DuplicatedOutput r _ -> r
-    BothInputOutput r _ -> r
-    ProtocolCitizenSubjectMismatch r _ _ -> r
-    MalformedPostOperator r _ _ -> r
-  -- syntaxes
-    AlreadyDeclaredSyntaxCat r _ -> r
-  -- syntaxdesc validation
-    InconsistentSyntaxDesc r -> r
-    InvalidSyntaxDesc r _ -> r
-    IncompatibleSyntaxInfos r _ _ -> r
-    IncompatibleSemanticsDescs r _ _ -> r
-    GotBarredAtom r _ _ -> r
-    ExpectedNilGot r _ -> r
-    ExpectedEnumGot r _ _ -> r
-    ExpectedTagGot r _ _ -> r
-    ExpectedANilGot r _ -> r
-    ExpectedANilPGot r _ -> r
-    ExpectedAConsGot r _ -> r
-    ExpectedAConsPGot r _ -> r
-    SyntaxError r _ _ -> r
-    SyntaxPError r _ _ -> r
-    ExpectedAnOperator r _ -> r
-    ExpectedAnEmptyListGot r _ _ -> r
-    -- semantics validation
-    InvalidSemanticsDesc r _ -> r
-    SemanticsError r _ _ -> r
-    IncompatibleSemanticsInfos r  _ _ -> r
-    -- subjects and citizens
-    AsPatternCannotHaveSubjects r _ -> r
-    -- desc inference
-    InferredDescMismatch r -> r
-    DontKnowHowToInferDesc r _ -> r
-    ArityMismatchInOperator r -> r
-    SchematicVariableNotInstantiated r -> r
-    -- TODO: categorise
-    NotAValidContextRestriction r _ _ -> r
-    NotAValidDescriptionRestriction r _ _ -> r
-    ExpectedParameterBinding r _ -> r
-    ExpectedASemanticsGot r _ -> r
-
 
 ------------------------------------------------------------------------------
 -- Syntaxes
@@ -576,7 +506,7 @@ declareSyntax :: WithRange SyntaxCat -> SyntaxDesc -> Elab ()
 declareSyntax (WithRange r cat) desc = do
   st <- get
   whenJust (Map.lookup cat (syntaxCats st)) $ \ _ ->
-    throwError (AlreadyDeclaredSyntaxCat r cat)
+    throwComplaint r (AlreadyDeclaredSyntaxCat cat)
   put (st { syntaxCats = Map.insert cat desc (syntaxCats st) })
 
 withSyntax :: SyntaxDesc -> Elab a -> Elab a

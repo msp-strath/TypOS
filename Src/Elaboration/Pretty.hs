@@ -106,127 +106,129 @@ instance Pretty ContextualInfo where
     JudgementFormElaboration v -> hsep ["when elaborating the judgement form", pretty v]
 
 instance Pretty Complaint where
-  pretty c = flush (pretty (getRange c)) <> case c of
+  pretty c = case c of
     -- scope
-    OutOfScope r x -> hsep ["Out of scope variable", pretty x]
-    MetaScopeTooBig r x sc1 sc2 ->
+    OutOfScope x -> hsep ["Out of scope variable", pretty x]
+    MetaScopeTooBig x sc1 sc2 ->
         hsep [ "Cannot use", pretty x
              , "here as it is defined in too big a scope"
              , parens (hsep [ pretty sc1
                             , "won't fit in"
                             , pretty sc2 ])]
-    VariableShadowing r x -> hsep [pretty x, "is already defined"]
-    EmptyContext r -> "Tried to pop an empty context"
-    NotTopVariable r x y ->
+    VariableShadowing x -> hsep [pretty x, "is already defined"]
+    EmptyContext -> "Tried to pop an empty context"
+    NotTopVariable x y ->
           hsep [ "Expected", pretty x, "to be the top variable"
                , "but found", pretty y, "instead"]
     -- kinding
-    NotAValidTermVariable r x k -> hsep ["Invalid term variable", pretty x, "refers to", pretty k]
-    NotAValidPatternVariable r x k -> hsep ["Invalid pattern variable", pretty x, "refers to", pretty k]
-    NotAValidJudgement r x mk ->
+    NotAValidTermVariable x k -> hsep ["Invalid term variable", pretty x, "refers to", pretty k]
+    NotAValidPatternVariable x k -> hsep ["Invalid pattern variable", pretty x, "refers to", pretty k]
+    NotAValidJudgement x mk ->
        hsep ["Invalid judgement variable", pretty x
             , "refers to", pretty mk]
-    NotAValidStack r x mk ->
+    NotAValidStack x mk ->
        hsep ["Invalid context stack variable", pretty x
             , "refers to", pretty mk]
-    NotAValidChannel r x mk ->
+    NotAValidChannel x mk ->
        hsep ["Invalid channel variable", pretty x
             , "refers to", pretty mk]
-    NotAValidBoundVar r x -> hsep ["Invalid bound variable", pretty x]
-    NotAValidSubjectVar r x -> hsep ["Invalid subject variable", pretty x]
-    NotAValidOperator r x -> hsep ["Invalid operator name", pretty x]
+    NotAValidBoundVar x -> hsep ["Invalid bound variable", pretty x]
+    NotAValidSubjectVar x -> hsep ["Invalid subject variable", pretty x]
+    NotAValidOperator x -> hsep ["Invalid operator name", pretty x]
       -- operators
-    AlreadyDeclaredOperator r op -> hsep ["Not a valid operator name", pretty op]
-    InvalidOperatorArity r op [] ops ->
+    AlreadyDeclaredOperator op -> hsep ["Not a valid operator name", pretty op]
+    InvalidOperatorArity op [] ops ->
       hsep ["Invalid arity:", pretty (show $ length ops), "extra operator parameters for", pretty op]
-    InvalidOperatorArity r op ds [] ->
+    InvalidOperatorArity op ds [] ->
       hsep ["Invalid arity:", pretty (show $ length ds), "missing operator parameters for", pretty op]
-    InvalidOperatorArity r op ds ps ->
+    InvalidOperatorArity op ds ps ->
       hsep ["Invalid arity (the impossible happened)"]
     -- protocol
-    InvalidSend r ch tm -> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
-    InvalidRecv r ch v -> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]
-    NonLinearChannelUse r ch -> hsep ["Non linear use of channel", pretty ch]
-    UnfinishedProtocol r ch p ->
+    InvalidSend ch tm -> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
+    InvalidRecv ch v -> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]
+    NonLinearChannelUse ch -> hsep ["Non linear use of channel", pretty ch]
+    UnfinishedProtocol ch p ->
       hsep ["Unfinished protocol", parens (pretty p), "on channel", pretty ch]
-    InconsistentCommunication r -> hsep ["Inconsistent communication"]
-    DoomedBranchCommunicated r a -> hsep ["Doomed branch communicated", pretty a]
-    ProtocolsNotDual r ps qs -> hsep ["Protocols", pretty ps, "and", pretty qs, "are not dual"]
-    IncompatibleModes r m1 m2 -> hsep ["Modes", pretty m1, "and", pretty m2, "are incompatible"]
-    IncompatibleChannelScopes r sc1 sc2 ->
+    InconsistentCommunication -> hsep ["Inconsistent communication"]
+    DoomedBranchCommunicated a -> hsep ["Doomed branch communicated", pretty a]
+    ProtocolsNotDual ps qs -> hsep ["Protocols", pretty ps, "and", pretty qs, "are not dual"]
+    IncompatibleModes m1 m2 -> hsep ["Modes", pretty m1, "and", pretty m2, "are incompatible"]
+    IncompatibleChannelScopes sc1 sc2 ->
       hsep [ "Channels scopes", pretty sc1
            , "and", pretty sc2, "are incompatible"]
-    WrongDirection r m1 dir m2 -> hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]
+    WrongDirection m1 dir m2 -> hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]
 
     -- judgementforms
-    JudgementWrongArity r name (Protocol protocol) fms ->
+    JudgementWrongArity name (Protocol protocol) fms ->
         let applied = (if length protocol > length fms then "under" else "over") <> "-applied" in
         hsep ["Judgement", pretty name, applied]
-    UnexpectedNonSubject r fm -> hsep ["Unexpected non-subject", pretty fm]
-    DuplicatedPlace r v -> hsep [pretty v, "is a duplicated place" ]
-    DuplicatedInput r v -> hsep [pretty v, "is a duplicated input"]
-    DuplicatedOutput r v -> hsep [pretty v, "is a duplicated output"]
-    BothInputOutput r v -> hsep [pretty v, "is both an input and an output"]
-    ProtocolCitizenSubjectMismatch r v m ->
+    UnexpectedNonSubject fm -> hsep ["Unexpected non-subject", pretty fm]
+    DuplicatedPlace v -> hsep [pretty v, "is a duplicated place" ]
+    DuplicatedInput v -> hsep [pretty v, "is a duplicated input"]
+    DuplicatedOutput v -> hsep [pretty v, "is a duplicated output"]
+    BothInputOutput v -> hsep [pretty v, "is both an input and an output"]
+    ProtocolCitizenSubjectMismatch v m ->
       let (seen, unseen) = case m of
             Input -> ("an input", "not as a subject")
             Subject{} -> ("a subject", "neither as an input nor an output")
             Output -> ("an output", "not as a subject")
       in hsep ["Found", pretty v, "as", seen, "but", unseen ]
-    MalformedPostOperator r op cands ->
+    MalformedPostOperator op cands ->
       let message = case cands of [x] -> "the subject"
                                   _   -> "a subject among" in
       hsep $ ["Malformed operator", pretty op <> "; expected it to act on", message] ++ punctuate ", " (map pretty cands)
 
     -- syntaxes
-    AlreadyDeclaredSyntaxCat r x -> hsep ["The syntactic category", pretty x, "is already defined"]
+    AlreadyDeclaredSyntaxCat x -> hsep ["The syntactic category", pretty x, "is already defined"]
 
   -- syntaxdesc validation
-    InconsistentSyntaxDesc r -> "Inconsistent syntactic descriptions"
-    InvalidSyntaxDesc r d -> hsep ["Invalid syntax desc", pretty d]
-    IncompatibleSemanticsDescs r desc desc' ->
+    InconsistentSyntaxDesc -> "Inconsistent syntactic descriptions"
+    InvalidSyntaxDesc d -> hsep ["Invalid syntax desc", pretty d]
+    IncompatibleSemanticsDescs desc desc' ->
       hsep ["Incompatible semantics descriptions", prettyPrec 1 desc, "and", prettyPrec 1 desc']
-    IncompatibleSyntaxInfos r info1 info2 ->
+    IncompatibleSyntaxInfos info1 info2 ->
       hsep ["Syntax infos", pretty info1, "and", pretty info2, "are incompatible"]
-    GotBarredAtom r a as -> hsep
+    GotBarredAtom a as -> hsep
       [ squote <> pretty a, "is one of the barred atoms", collapse (map pretty as) ]
-    ExpectedNilGot r at -> hsep ["Expected [] and got", squote <> pretty at]
-    ExpectedEnumGot r es e -> sep
+    ExpectedNilGot at -> hsep ["Expected [] and got", squote <> pretty at]
+    ExpectedEnumGot es e -> sep
       [ "Expected an atom among"
       , collapse $ map pretty es
       , hsep ["and got", pretty e]]
-    ExpectedTagGot r ts t -> sep
+    ExpectedTagGot ts t -> sep
       [ "Expected a tag among"
       , collapse $ map pretty ts
       , hsep ["and got", pretty t]]
-    ExpectedANilGot r t -> hsep ["Expected the term [] and got", pretty t]
-    ExpectedANilPGot r p -> hsep ["Expected the pattern [] and got", pretty p]
-    ExpectedAConsGot r t -> hsep ["Expected a cons cell and got", pretty t]
-    ExpectedAConsPGot r p -> hsep ["Expected a pattern for a cons cell and got", pretty p]
-    SyntaxError r d t -> hsep ["Term", pretty t, "does not match", pretty d]
-    SyntaxPError r d p -> hsep ["Pattern", pretty p, "does not match", pretty d]
-    ExpectedAnOperator r t -> hsep ["Expected an operator call but got", pretty t]
-    ExpectedAnEmptyListGot r a ds ->
+    ExpectedANilGot t -> hsep ["Expected the term [] and got", pretty t]
+    ExpectedANilPGot p -> hsep ["Expected the pattern [] and got", pretty p]
+    ExpectedAConsGot t -> hsep ["Expected a cons cell and got", pretty t]
+    ExpectedAConsPGot p -> hsep ["Expected a pattern for a cons cell and got", pretty p]
+    SyntaxError d t -> hsep ["Term", pretty t, "does not match", pretty d]
+    SyntaxPError d p -> hsep ["Pattern", pretty p, "does not match", pretty d]
+    ExpectedAnOperator t -> hsep ["Expected an operator call but got", pretty t]
+    ExpectedAnEmptyListGot a ds ->
        hsep ["Expected", pretty a, "to be a constant operator"
             , "but it takes arguments of type:", collapse (pretty <$> ds)]
     -- TODO : learn to print the semantics desc
-    InvalidSemanticsDesc r sem -> "Invalid semantics description"
-    SemanticsError r sem t -> hsep [pretty t, "does not match the semantics description"]
-    IncompatibleSemanticsInfos r isem isem' ->
+    InvalidSemanticsDesc sem -> "Invalid semantics description"
+    SemanticsError sem t -> hsep [pretty t, "does not match the semantics description"]
+    IncompatibleSemanticsInfos isem isem' ->
       hsep ["Incompatible semantics description infos", prettyPrec 1 isem, "and", prettyPrec 1 isem']
-    AsPatternCannotHaveSubjects r p -> hsep ["As pattern", pretty p, "duplicates a subject variable"]
+    AsPatternCannotHaveSubjects p -> hsep ["As pattern", pretty p, "duplicates a subject variable"]
     -- desc inference
     -- TODO : add more info
-    InferredDescMismatch r -> "Inferred object description does not match pattern"
-    DontKnowHowToInferDesc r t -> hsep ["Do not know how to infer description for", pretty  t]
-    ArityMismatchInOperator r -> "Arity mismatch in operator"
-    SchematicVariableNotInstantiated r -> "Schematic variable not instantiated"
-    NotAValidContextRestriction r x y -> "Not a valid context restriction"
-    NotAValidDescriptionRestriction r x y -> "Not a valid description restriction"
-    ExpectedParameterBinding r x -> "Expected parameter binding"
-    ExpectedASemanticsGot r t -> hsep ["Expected a semantics but got", pretty t]
+    InferredDescMismatch -> "Inferred object description does not match pattern"
+    DontKnowHowToInferDesc t -> hsep ["Do not know how to infer description for", pretty  t]
+    ArityMismatchInOperator -> "Arity mismatch in operator"
+    SchematicVariableNotInstantiated -> "Schematic variable not instantiated"
+    NotAValidContextRestriction x y -> "Not a valid context restriction"
+    NotAValidDescriptionRestriction x y -> "Not a valid description restriction"
+    ExpectedParameterBinding x -> "Expected parameter binding"
+    ExpectedASemanticsGot t -> hsep ["Expected a semantics but got", pretty t]
 
 
+instance Pretty a => Pretty (WithRange a) where
+  pretty (WithRange r a) = flush (pretty r) <> pretty a
 
 instance Pretty a => Pretty (WithStackTrace a) where
   pretty (WithStackTrace stk msg) = vcat (pretty msg : map pretty stk)

@@ -52,6 +52,9 @@ class HasSetRange t where
 class HasGetRange t where
   getRange :: t -> Range
 
+instance HasGetRange Range where
+  getRange = id
+
 instance HasSetRange (WithRange t) where
   setRange r (WithRange _ t) = WithRange r t
 

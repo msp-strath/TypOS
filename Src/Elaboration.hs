@@ -102,7 +102,7 @@ whatComm m d = case m of
 isFresh :: Variable -> Elab String
 isFresh x = do
   res <- resolve x
-  whenJust res $ \ _ -> throwError (VariableShadowing (getRange x) x)
+  whenJust res $ \ _ -> throwComplaint x (VariableShadowing x)
   pure (getVariable x)
 
 spassport :: Usage -> IsSubject -> Passport
@@ -119,16 +119,16 @@ svar usage x = do
         Just th -> do
           logUsage (getVariable x) usage
           pure (isSub, desc, ActorMeta (spassport usage isSub) (getVariable x) $: sbstW (sbst0 0) th)
-        Nothing -> throwError (MetaScopeTooBig (getRange x) x sc ovs)
-      _ -> throwError (NotAValidTermVariable (getRange x) x k)
+        Nothing -> throwComplaint x (MetaScopeTooBig x sc ovs)
+      _ -> throwComplaint x (NotAValidTermVariable x k)
     Just (AnObjVar desc i) -> pure (IsNotSubject, desc, var i (scopeSize ovs))
-    Nothing -> throwError (OutOfScope (getRange x) x)
+    Nothing -> throwComplaint x (OutOfScope x)
 
 spop :: Range -> Elab (ObjVars, (Variable, ASemanticsDesc))
 spop r = do
   ovs <- asks objVars
   case getObjVars ovs of
-    B0 -> throwError (EmptyContext r)
+    B0 -> throwComplaint r EmptyContext
     (xz :< ObjVar x cat) -> pure (ObjVars xz, (Variable r x, cat))
 
 ssyntaxdesc :: [SyntaxCat] -> Raw -> Elab SyntaxDesc
@@ -161,13 +161,13 @@ ssbst usage B0 = do
 ssbst usage (sg :< sgc) = case sgc of
     Keep r v -> do
       (xz, (w, cat)) <- spop r
-      when (v /= w) $ throwError (NotTopVariable r v w)
+      when (v /= w) $ throwComplaint r (NotTopVariable v w)
       (sg, ovs) <- local (setObjVars xz) (ssbst usage sg)
       pure (sbstW sg (ones 1), ovs <: ObjVar (getVariable w) cat)
     -- TODO : worry about dropped things ocurring in types
     Drop r v -> do
       (xz, (w, cat)) <- spop r
-      when (v /= w) $ throwError (NotTopVariable r v w)
+      when (v /= w) $ throwComplaint r (NotTopVariable v w)
       (sg, ovs) <- local (setObjVars xz) (ssbst usage sg)
       pure (weak sg, ovs)
     Assign r v t -> do
@@ -187,10 +187,10 @@ sth (Restriction ovs th) (xz, b) = do
 
 stms :: Usage -> [ASemanticsDesc] -> Raw -> Elab ACTm
 stms usage [] (At r "") = atom "" <$> asks (scopeSize . objVars)
-stms usage [] (At r a) = throwError (ExpectedNilGot r a)
-stms usage [] t = throwError (ExpectedANilGot (getRange t) t)
+stms usage [] (At r a) = throwComplaint r (ExpectedNilGot a)
+stms usage [] t = throwComplaint t (ExpectedANilGot t)
 stms usage (d:ds) (Cons r p q) = (%) <$> stm usage d p <*> stms usage ds q
-stms usage _ t = throwError (ExpectedAConsGot (getRange t) t)
+stms usage _ t = throwComplaint t (ExpectedAConsGot t)
 
 sscrutinee :: CScrutinee -> Elab (EScrutinee, AScrutinee)
 sscrutinee (SubjectVar r v) = do
@@ -199,7 +199,7 @@ sscrutinee (SubjectVar r v) = do
   (isSub, desc, actm) <- svar (Scrutinised r) v
   case (isSub, actm) of
     (IsSubject{}, CdB (m :$ sg) _) -> pure (SubjectVar r desc, SubjectVar r actm)
-    _ -> throwError (NotAValidSubjectVar r v)
+    _ -> throwComplaint r (NotAValidSubjectVar v)
 sscrutinee (Pair r sc1 sc2) = do
   (esc1, asc1) <- sscrutinee sc1
   (esc2, asc2) <- sscrutinee sc2
@@ -294,11 +294,11 @@ spatSemantics desc rest (VarP r v) = during (PatternVariableElaboration v) $ do
   case res of
     Just (AnObjVar desc' i) -> do
       i <- case thickx th i of -- TODO: do we need to check whether desc' is thickenable?
-        Nothing -> throwError (OutOfScope r v)
+        Nothing -> throwComplaint r (OutOfScope v)
         Just i -> pure i
       compatibleInfos (getRange v) (Known desc) (Known desc')
       pure (VP i, ds, var i scp)
-    Just mk -> throwError (NotAValidPatternVariable r v mk)
+    Just mk -> throwComplaint r (NotAValidPatternVariable v mk)
     Nothing -> do
       (ovs, asot) <- thickenedASOT r th desc
       v <- pure (getVariable v)
@@ -309,17 +309,17 @@ spatSemantics desc rest rp = do
   dat <- asks headUpData
   ds <- asks declarations
   case Semantics.expand table dat desc of
-    Nothing -> throwError (InvalidSemanticsDesc (getRange rp) desc)
+    Nothing -> throwComplaint rp (InvalidSemanticsDesc desc)
     Just vdesc -> case rp of
       AtP r a -> do
         case vdesc of
           VAtom _ -> pure ()
-          VAtomBar _ as -> when (a `elem` as) $ throwError (GotBarredAtom r a as)
-          VNil _ -> unless (a == "") $ throwError (ExpectedNilGot r a)
-          VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot r a)
-          VEnumOrTag sc es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
+          VAtomBar _ as -> when (a `elem` as) $ throwComplaint r (GotBarredAtom a as)
+          VNil _ -> unless (a == "") $ throwComplaint r (ExpectedNilGot a)
+          VNilOrCons{} -> unless (a == "") $ throwComplaint r (ExpectedNilGot a)
+          VEnumOrTag sc es _ -> unless (a `elem` es) $ throwComplaint r (ExpectedEnumGot es a)
           VWildcard sc -> pure ()
-          _ -> throwError (SyntaxPError r desc rp)
+          _ -> throwComplaint r (SyntaxPError desc rp)
         pure (AP a, ds, atom a (weeEnd (restriction rest)))
       ConsP r p1 p2 -> do
         descs <- case vdesc of
@@ -327,7 +327,7 @@ spatSemantics desc rest rp = do
           VCons d1 d2 -> pure (Left (d1, d2))
           VWildcard _ -> pure (Left (desc, desc))
           VEnumOrTag _ _ ds -> pure (Right ds)
-          _ -> throwError (SyntaxPError r desc rp)
+          _ -> throwComplaint r (SyntaxPError desc rp)
         case descs of
           Left (d1, d2) -> do
             (p1, ds, t1) <- spatSemantics d1 rest p1
@@ -335,18 +335,18 @@ spatSemantics desc rest rp = do
             pure (PP p1 p2, ds, t1 % t2)
           Right ds -> case p1 of
             AtP r a -> case lookup a ds of
-              Nothing -> throwError (ExpectedTagGot r (fst <$> ds) a)
+              Nothing -> throwComplaint r (ExpectedTagGot (fst <$> ds) a)
               Just descs ->  do
                 (p1, ds, t1) <- spatSemantics (atom "Atom" 0) rest p1
                 (p2, ds, t2) <- local (setDecls ds) (spatSemanticss descs rest p2)
                 pure (PP p1 p2, ds, t1 % t2)
-            _ -> throwError (SyntaxPError r desc rp)
+            _ -> throwComplaint r (SyntaxPError desc rp)
 
       LamP r (Scope v@(Hide x) p) -> do
         (s, desc) <- case vdesc of
           VWildcard _ -> pure (desc, desc)
           VBind cat desc -> pure (Semantics.catToDesc cat, desc)
-          _ -> throwError (SyntaxPError r desc rp)
+          _ -> throwComplaint r (SyntaxPError desc rp)
       -- TODO: refactor using Dischargeable
         case x of
           Unused -> do
@@ -362,20 +362,20 @@ spatSemanticss :: [ASemanticsDesc]
                -> RawP
                -> Elab (Pat, Decls, ACTm)
 spatSemanticss [] rest (AtP r "") = (AP "",, atom "" (weeEnd (restriction rest))) <$> asks declarations
-spatSemanticss [] rest (AtP r a) = throwError (ExpectedNilGot r a)
-spatSemanticss [] rest t = throwError (ExpectedANilPGot (getRange t) t)
+spatSemanticss [] rest (AtP r a) = throwComplaint r (ExpectedNilGot a)
+spatSemanticss [] rest t = throwComplaint t (ExpectedANilPGot t)
 spatSemanticss (d:ds) rest (ConsP r p ps) = do
   (p, decls, t) <- spatSemantics d rest p
   (ps, decls, ts) <- local (setDecls decls) $ spatSemanticss ds rest ps
   pure (PP p ps, decls, t % ts)
-spatSemanticss _ rest t = throwError (ExpectedAConsPGot (getRange t) t)
+spatSemanticss _ rest t = throwComplaint t (ExpectedAConsPGot t)
 
 isList :: Raw -> Elab [Raw]
 isList (At r "") = pure []
-isList (At r a) = throwError (ExpectedNilGot r a)
+isList (At r a) = throwComplaint r (ExpectedNilGot a)
 isList (Cons r p q) = (p:) <$> isList q
 
-isList t = throwError (ExpectedAConsGot (getRange t) t)
+isList t = throwComplaint t (ExpectedAConsGot t)
 
 -- Input: fully applied operator ready to operate
 -- Output: (abstract operator, raw parameters)
@@ -387,7 +387,7 @@ sop (Cons rp (At ra a) ps) = do
   op <- isOperator ra a
   es <- isList ps
   pure (op, es)
-sop ro = throwError (ExpectedAnOperator (getRange ro) ro)
+sop ro = throwComplaint ro (ExpectedAnOperator ro)
 
 -- e.g.  (p : ['Sig S \x.T]) -'snd
 --       ['MkSig a b] : ['Sig A \y.B]
@@ -397,7 +397,7 @@ matchObjType r (mb , oty) (obDesc, ob) = do
     dat <- asks headUpData
     let hnf = headUp dat
     env <- case snd $ match hnf initMatching (Problem B0 oty obDesc) of
-      Left e -> throwError $ InferredDescMismatch r
+      Left e -> throwComplaint r $ InferredDescMismatch
       Right m -> pure $ matchingToEnv m (huEnv dat)
     env <- case mb of
       Nothing -> pure env
@@ -417,7 +417,7 @@ itm usage (Op r rob rop) = do
     (desc, ps) <- itms r usage paramsDesc rps retDesc
     pure (desc, ob -% (getOperator opName, ps))
 -- TODO?: annotated terms?
-itm _ t = throwError $ DontKnowHowToInferDesc (getRange t) t
+itm _ t = throwComplaint t $ DontKnowHowToInferDesc t
 
 itms :: Range -> Usage
         -- Parameters types e.g. (_ : 'Nat\n. {m = n}p\ih. {m = ['Succ n]}p)
@@ -435,7 +435,7 @@ itms r usage ((binder, sot):bs) (rp:rps) rdesc = do
   (p, dat) <- sparam usage binder B0 (discharge ovs desc) rp
   local (setHeadUpData dat) $
     fmap (p:) <$> itms r usage bs rps rdesc
-itms r usage bs rps rdesc = throwError $ ArityMismatchInOperator r
+itms r usage bs rps rdesc = throwComplaint r $ ArityMismatchInOperator
 
 sparam :: Usage
        -> Maybe ActorMeta -- Name of parameter
@@ -457,7 +457,7 @@ sparam usage binder namez (Stop pdesc) rp = do
   pure (p, dat)
 sparam usage binder namez (Tele desc (Scope (Hide name) tele)) (Lam r (Scope (Hide x) rp)) =
   elabUnder (x, desc) $ sparam usage binder (namez :< name) tele rp
-sparam _ _ _ _ rp = throwError $ ExpectedParameterBinding (getRange rp) rp
+sparam _ _ _ _ rp = throwComplaint rp $ ExpectedParameterBinding rp
 
 instantiateSOT :: Range -> ASOT -> Elab ASOT
 instantiateSOT r (ovs :=> desc)
@@ -469,7 +469,7 @@ instantiateDesc r desc = do
   -- The object acted upon and the parameters appearing before the
   -- one currently being elaborated need to be substituted into the desc
   case mangleActors (huOptions dat) (huEnv dat) desc of
-    Nothing -> throwError $ SchematicVariableNotInstantiated r
+    Nothing -> throwComplaint r $ SchematicVariableNotInstantiated
     Just v  -> pure v
 
 
@@ -482,7 +482,7 @@ sasot r (objVars :=> desc) = do
   -- The object acted upon and the parameters appearing before the
   -- one currently being elaborated need to be substituted into the SOT
   case mangleActors (huOptions dat) (huEnv dat) desc of
-    Nothing -> throwError $ SchematicVariableNotInstantiated r
+    Nothing -> throwComplaint r $ SchematicVariableNotInstantiated r
     Just v  -> pure v -- TODO: foldr (\ (x,t) v => ['Bind t \x.v]) id v
 -}
 
@@ -500,19 +500,19 @@ stm usage desc rt = do
   table <- gets syntaxCats
   dat <- asks headUpData
   case Semantics.expand table dat desc of
-    Nothing -> throwError (InvalidSemanticsDesc (getRange rt) desc)
+    Nothing -> throwComplaint rt (InvalidSemanticsDesc desc)
     Just vdesc -> case rt of
       At r a -> do
         case vdesc of
           VAtom _ -> pure ()
-          VAtomBar _ as -> when (a `elem` as) $ throwError (GotBarredAtom r a as)
-          VNil _ -> unless (a == "") $ throwError (ExpectedNilGot r a)
-          VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot r a)
-          VEnumOrTag _ es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
+          VAtomBar _ as -> when (a `elem` as) $ throwComplaint r (GotBarredAtom a as)
+          VNil _ -> unless (a == "") $ throwComplaint r (ExpectedNilGot a)
+          VNilOrCons{} -> unless (a == "") $ throwComplaint r (ExpectedNilGot a)
+          VEnumOrTag _ es _ -> unless (a `elem` es) $ throwComplaint r (ExpectedEnumGot es a)
           VWildcard _ -> pure ()
-          VUniverse _ -> unless (a `elem` ("Semantics" : Map.keys table)) $ throwError (ExpectedASemanticsGot r rt)
+          VUniverse _ -> unless (a `elem` ("Semantics" : Map.keys table)) $ throwComplaint r (ExpectedASemanticsGot rt)
              --  TODO we're probably missing semantics here
-          _ -> throwError (SemanticsError r desc rt)
+          _ -> throwComplaint r (SemanticsError desc rt)
         satom a
       Cons r p q -> case vdesc of
         VNilOrCons d1 d2 -> (%) <$> stm usage d1 p <*> stm usage d2 q
@@ -520,22 +520,22 @@ stm usage desc rt = do
         VWildcard _ -> (%) <$> stm usage desc p <*> stm usage desc q
         VEnumOrTag _ _ ds -> case p of
           At r a -> case lookup a ds of
-            Nothing -> throwError (ExpectedTagGot r (fst <$> ds) a)
+            Nothing -> throwComplaint r (ExpectedTagGot (fst <$> ds) a)
             Just descs -> (%) <$> stm usage (atom "Atom" 0) p <*> stms usage descs q
-          _ -> throwError (SyntaxError r desc rt)
+          _ -> throwComplaint r (SyntaxError desc rt)
         VUniverse _ -> case (p , q) of
           (At _ "Pi", Cons _ s (Cons _ (Lam _ (Scope (Hide x) t)) (At _ ""))) -> do
             s <- sty s
             t <- elabUnder (x, s) $ sty t
             pure ("Pi" #%+ [s, t])
-          _ -> throwError (ExpectedASemanticsGot r rt)
-        _ -> throwError (SyntaxError r desc rt)
+          _ -> throwComplaint r (ExpectedASemanticsGot rt)
+        _ -> throwComplaint r (SyntaxError desc rt)
       Lam r (Scope (Hide x) sc) -> do
         (s, desc) <- case vdesc of
           VWildcard i -> pure (desc, desc)
           VBind cat desc -> pure (catToDesc cat, desc)
           VPi s (y, t) -> pure (s, t)
-          _ -> throwError (SyntaxError r desc rt)
+          _ -> throwComplaint r (SyntaxError desc rt)
         elabUnder (x, s) $ stm usage desc sc
       Op{} -> do
         (tdesc, t) <- itm usage rt
@@ -551,13 +551,13 @@ elabUnder (x, desc) ma = do
 
 spats :: IsSubject -> [ASemanticsDesc] -> Restriction -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
 spats _ [] rest (AtP r "") = (Nothing, AP "",,) <$> asks declarations <*> asks binderHints
-spats _ [] rest (AtP r a) = throwError (ExpectedNilGot r a)
-spats _ [] rest t = throwError (ExpectedANilPGot (getRange t) t)
+spats _ [] rest (AtP r a) = throwComplaint r (ExpectedNilGot a)
+spats _ [] rest t = throwComplaint t (ExpectedANilPGot t)
 spats isSub (d:ds) rest (ConsP r p q) = do
   (mr1, p, decls, hints) <- spatBase isSub d rest p
   (mr2, q, decls, hints) <- local (setDecls decls . setHints hints) $ spats isSub ds rest q
   pure (mr1 <|> mr2, PP p q, decls, hints)
-spats _ _ rest t = throwError (ExpectedAConsPGot (getRange t) t)
+spats _ _ rest t = throwComplaint t (ExpectedAConsPGot t)
 
 -- Inputs:
 --   0. Elaborated scrutinee -- description of how the scrutinee we are
@@ -573,7 +573,7 @@ spats _ _ rest t = throwError (ExpectedAConsPGot (getRange t) t)
 spat :: EScrutinee -> Restriction -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
 spat esc rest rp@(AsP r v p) = do
   unless (isSubjectFree esc) $
-    throwError (AsPatternCannotHaveSubjects r rp)
+    throwComplaint r (AsPatternCannotHaveSubjects rp)
   let desc = escrutinee esc
   v <- isFresh v
   ds <- asks declarations
@@ -594,7 +594,7 @@ spat esc@(Pair r esc1 esc2) rest rp = case rp of
     (mr1, p, ds, hs) <- spat esc1 rest p
     (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spat esc2 rest q)
     pure (mr1 <|> mr2, PP p q, ds, hs)
-  _ -> throwError (SyntaxPError (getRange rp) (escrutinee esc) rp)
+  _ -> throwComplaint rp (SyntaxPError (escrutinee esc) rp)
 spat (SubjectVar r desc) rest rp = spatBase (IsSubject Pattern) desc rest rp
 spat esc@(Lookup _ _ av) rest rp@(ConsP r (AtP _ "Just") (ConsP _ _ (AtP _ ""))) = do
   logUsage av (SuccessfullyLookedUp r)
@@ -607,17 +607,17 @@ thickenedASOT :: Range -> Th -> ASemanticsDesc -> Elab (ObjVars, ASOT)
 thickenedASOT r th desc = do
   ovs <- asks objVars
   ovs <- case thickenObjVars th ovs of
-    Nothing -> throwError (NotAValidContextRestriction r th ovs)
+    Nothing -> throwComplaint r (NotAValidContextRestriction th ovs)
     Just ovs -> pure ovs
   desc <- case thickenCdB th desc of
-    Nothing -> throwError (NotAValidDescriptionRestriction r th desc)
+    Nothing -> throwComplaint r (NotAValidDescriptionRestriction th desc)
     Just desc -> pure desc
   pure (ovs, ovs :=> desc)
 
 spatBase :: IsSubject -> ASemanticsDesc -> Restriction ->  RawP -> Elab (Maybe Range, Pat, Decls, Hints)
 spatBase isSub desc rest rp@(AsP r v p) = do
   unless (isSub == IsNotSubject) $
-    throwError (AsPatternCannotHaveSubjects r rp)
+    throwComplaint r (AsPatternCannotHaveSubjects rp)
   v <- isFresh v
   ds <- asks declarations
   (ovs, asot) <- thickenedASOT r (restriction rest) desc
@@ -635,11 +635,11 @@ spatBase isSub desc rest (VarP r v) = during (PatternVariableElaboration v) $ do
   case res of
     Just (AnObjVar desc' i) -> do
       i <- case thickx th i of -- TODO: do we need to check whether desc' is thickenable?
-        Nothing -> throwError (OutOfScope r v)
+        Nothing -> throwComplaint r (OutOfScope v)
         Just i -> pure i
       compatibleInfos (getRange v) (Known desc) (Known desc')
       pure (Nothing, VP i, ds, hs)
-    Just mk -> throwError (NotAValidPatternVariable r v mk)
+    Just mk -> throwComplaint r (NotAValidPatternVariable v mk)
     Nothing -> do
       (ovs, asot) <- thickenedASOT r th desc
       v <- pure (getVariable v)
@@ -654,17 +654,17 @@ spatBase isSub desc rest rp = do
   table <- gets syntaxCats
   dat <- asks headUpData
   case Semantics.expand table dat desc of
-    Nothing -> throwError (InvalidSemanticsDesc (getRange rp) desc)
+    Nothing -> throwComplaint rp (InvalidSemanticsDesc desc)
     Just vdesc -> case rp of
       AtP r a -> do
         case vdesc of
           VAtom _ -> pure ()
-          VAtomBar _ as -> when (a `elem` as) $ throwError (GotBarredAtom r a as)
-          VNil _ -> unless (a == "") $ throwError (ExpectedNilGot r a)
-          VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot r a)
-          VEnumOrTag sc es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
+          VAtomBar _ as -> when (a `elem` as) $ throwComplaint r (GotBarredAtom a as)
+          VNil _ -> unless (a == "") $ throwComplaint r (ExpectedNilGot a)
+          VNilOrCons{} -> unless (a == "") $ throwComplaint r (ExpectedNilGot a)
+          VEnumOrTag sc es _ -> unless (a `elem` es) $ throwComplaint r (ExpectedEnumGot es a)
           VWildcard sc -> pure ()
-          _ -> throwError (SyntaxPError r desc rp)
+          _ -> throwComplaint r (SyntaxPError desc rp)
         (Nothing, AP a,,) <$> asks declarations <*> asks binderHints
 
       ConsP r p q -> case vdesc of
@@ -682,19 +682,19 @@ spatBase isSub desc rest rp = do
           pure (mr1 <|> mr2, PP p q, ds, hs)
         VEnumOrTag _ _ ds -> case p of
           AtP r a -> case lookup a ds of
-            Nothing -> throwError (ExpectedTagGot r (fst <$> ds) a)
+            Nothing -> throwComplaint r (ExpectedTagGot (fst <$> ds) a)
             Just descs ->  do
               (mr1, p, ds, hs) <- spatBase isSub (atom "Atom" 0) rest p
               (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spats isSub descs rest q)
               pure (mr1 <|> mr2, PP p q, ds, hs)
-          _ -> throwError (SyntaxPError r desc rp)
-        _ -> throwError (SyntaxPError r desc rp)
+          _ -> throwComplaint r (SyntaxPError desc rp)
+        _ -> throwComplaint r (SyntaxPError desc rp)
 
       LamP r (Scope v@(Hide x) p) -> do
         (s, desc) <- case vdesc of
           VWildcard _ -> pure (desc, desc)
           VBind cat desc -> pure (Semantics.catToDesc cat, desc)
-          _ -> throwError (SyntaxPError r desc rp)
+          _ -> throwComplaint r (SyntaxPError desc rp)
 
         case x of
           Unused -> do
@@ -710,21 +710,21 @@ spatBase isSub desc rest rp = do
 isObjVar :: Variable -> Elab (ASemanticsDesc, DB)
 isObjVar p = resolve p >>= \case
   Just (AnObjVar desc i) -> pure (desc, i)
-  Just mk -> throwError $ NotAValidPatternVariable (getRange p) p mk
-  Nothing -> throwError $ OutOfScope (getRange p) p
+  Just mk -> throwComplaint p $ NotAValidPatternVariable p mk
+  Nothing -> throwComplaint p $ OutOfScope p
 
 isChannel :: Variable -> Elab Channel
 isChannel ch = resolve ch >>= \case
   Just (ADeclaration (AChannel sc)) -> pure (Channel $ getVariable ch)
-  Just mk -> throwError (NotAValidChannel (getRange ch) ch mk)
-  Nothing -> throwError (OutOfScope (getRange ch) ch)
+  Just mk -> throwComplaint ch (NotAValidChannel ch mk)
+  Nothing -> throwComplaint ch (OutOfScope ch)
 
 isOperator :: Range -> String -> Elab AAnOperator
 isOperator r nm = do
   ops <- asks operators
   case Map.lookup nm ops of
     Just res -> pure res
-    Nothing -> throwError (NotAValidOperator r nm)
+    Nothing -> throwComplaint r (NotAValidOperator nm)
 
 data IsJudgement = IsJudgement
   { judgementExtract :: ExtractMode
@@ -735,14 +735,14 @@ data IsJudgement = IsJudgement
 isJudgement :: Variable -> Elab IsJudgement
 isJudgement jd = resolve jd >>= \case
   Just (ADeclaration (AJudgement em p)) -> pure (IsJudgement em (getVariable jd) p)
-  Just mk -> throwError (NotAValidJudgement (getRange jd) jd mk)
-  Nothing -> throwError (OutOfScope (getRange jd) jd)
+  Just mk -> throwComplaint jd (NotAValidJudgement jd mk)
+  Nothing -> throwComplaint jd (OutOfScope jd)
 
 isContextStack :: Variable -> Elab (Stack, AContextStack)
 isContextStack stk = resolve stk >>= \case
   Just (ADeclaration (AStack stkTy)) -> pure (Stack (getVariable stk), stkTy)
-  Just mk -> throwError (NotAValidStack (getRange stk) stk mk)
-  Nothing -> throwError (OutOfScope (getRange stk) stk)
+  Just mk -> throwComplaint stk (NotAValidStack stk mk)
+  Nothing -> throwComplaint stk (OutOfScope stk)
 
 
 channelScope :: Channel -> Elab ObjVars
@@ -757,7 +757,7 @@ steppingChannel :: Range -> Channel
 steppingChannel r ch step = do
   nm <- getName
   (dir, pnm, p) <- gets (fromJust . channelLookup ch)
-  unless (pnm `isPrefixOf` nm) $ throwError (NonLinearChannelUse r ch)
+  unless (pnm `isPrefixOf` nm) $ throwComplaint r (NonLinearChannelUse ch)
   (cat, p) <- step dir p
   modify (channelInsert ch (dir, nm, p))
   pure cat
@@ -775,7 +775,7 @@ close b r ch = do
       [] -> pure ()
       _ -> when b $
             -- if we cannot win, we don't care
-            throwError (UnfinishedProtocol r ch (Protocol ps))
+            throwComplaint r (UnfinishedProtocol ch (Protocol ps))
   modify (channelDelete ch)
 
 withChannel :: Range -> Direction -> Channel -> AProtocol -> Elab a -> Elab a
@@ -810,15 +810,15 @@ compatibleChannels :: Range
                    -> Elab Int
 compatibleChannels r (dp, []) dir (dq, []) = pure 0
 compatibleChannels r (dp, p@(m, s) : ps) dir (dq, q@(n, t) : qs) = do
-  unless (s == t) $ throwError (IncompatibleSemanticsDescs r s t)
+  unless (s == t) $ throwComplaint r (IncompatibleSemanticsDescs s t)
   let (cp , cq) = (whatComm m dp, whatComm n dq)
-  when (cp == cq) $ throwError (IncompatibleModes r p q)
+  when (cp == cq) $ throwComplaint r (IncompatibleModes p q)
   case (cp, dir) of
-    (RECV, LT) -> throwError (WrongDirection r p dir q)
-    (SEND, GT) -> throwError (WrongDirection r p dir q)
+    (RECV, LT) -> throwComplaint r (WrongDirection p dir q)
+    (SEND, GT) -> throwComplaint r (WrongDirection p dir q)
     _ -> pure ()
   (+1) <$> compatibleChannels r (dp, ps) dir (dq , qs)
-compatibleChannels r (_,ps) _ (_,qs) = throwError (ProtocolsNotDual r (Protocol ps) (Protocol qs))
+compatibleChannels r (_,ps) _ (_,qs) = throwComplaint r (ProtocolsNotDual (Protocol ps) (Protocol qs))
 
 sirrefutable :: String -> IsSubject -> RawP -> Elab (Binder String, Maybe (CScrutinee, RawP))
 sirrefutable nm isSub = \case
@@ -880,7 +880,7 @@ sact = \case
     -- Check the channel is in sending mode, & step it
     (m, desc) <- steppingChannel r ch $ \ dir -> \case
       (m, desc) : p | whatComm m dir == SEND -> pure ((m, desc), p)
-      _ -> throwError (InvalidSend r ch tm)
+      _ -> throwComplaint r (InvalidSend ch tm)
 
     (usage, gd) <- do
       case m of
@@ -913,7 +913,7 @@ sact = \case
     -- Check the channel is in receiving mode & step it
     (m, cat) <- steppingChannel r ch $ \ dir -> \case
       (m, cat) : p | whatComm m dir == RECV -> pure ((m, cat), p)
-      _ -> throwError (InvalidRecv r ch p)
+      _ -> throwComplaint r (InvalidRecv ch p)
 
     -- TODO: m contains a SyntaxDesc when it's a subject position
     --       Why do we throw it away? Shouldn't it be stored &
@@ -953,7 +953,7 @@ sact = \case
       (Just thl, Just thr) -> pure (EQ, thl)
       (Just thl, _) -> pure (LT, thl)
       (_, Just thr) -> pure (GT, thr)
-      _ -> throwError (IncompatibleChannelScopes r sc1 sc2)
+      _ -> throwComplaint r (IncompatibleChannelScopes sc1 sc2)
     steps <- compatibleChannels r p dir q
     pure (aconnect r ch1 th ch2 steps)
 
@@ -1024,7 +1024,7 @@ consistentCommunication r sts =
  case List.groupBy ((==) `on` fmap (\ (_,_,x) -> x)) sts of
    [] -> tell (All False) -- all branches are doomed, we don't care
    [(c:_)] -> modify (\ r -> r { channelStates = c })
-   _ -> throwError (InconsistentCommunication r)
+   _ -> throwComplaint r InconsistentCommunication
 
 consistentScrutinisation :: Range -> [ActvarStates] -> Elab ()
 consistentScrutinisation r sts = do
@@ -1062,7 +1062,7 @@ sbranch r ds ra = do
 
   st <- get
   unless b $ unless (chs == channelStates st) $
-    throwError (DoomedBranchCommunicated (getRange ra) ra)
+    throwComplaint ra (DoomedBranchCommunicated ra)
   put (st { channelStates = chs })
   pure (a, ((,) <$> channelStates <*> actvarStates) st  <$ guard b )
 
