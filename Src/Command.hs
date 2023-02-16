@@ -77,7 +77,7 @@ data COMMAND (ph :: Phase)
   | DefnOp (DEFNOP ph)
   | DeclJudgementForm (JUDGEMENTFORM ph)
   | DeclRule (RULE ph)
-
+  | Typecheck (TERM ph) (SEMANTICSDESC ph)
 
 deriving instance
   ( Show (JUDGEMENTNAME ph)
@@ -153,6 +153,7 @@ instance Pretty CCommand where
     -- DeclJudgementForm j -> keyword "judgementform" <+> collapse (BracesList $ pretty <$> jpreconds j)
     --                    <+> hsep (pretty (jname j) : map pretty (jplaces j))
     --                    <+> collapse (BracesList $ either pretty pretty <$> jpostconds j)
+    Typecheck t ty -> keyword "typecheck" <+> pretty t <+> ":" <+> pretty ty
 
 instance Unelab ACommand where
   type UnelabEnv ACommand = Naming
@@ -170,6 +171,7 @@ instance Unelab ACommand where
                                                 <*> traverse subunelab posts
     Go a -> Go <$> withEnv initDAEnv (unelab a)
     Trace ts -> pure $ Trace ts
+    Typecheck t ty -> Typecheck <$> unelab t <*> unelab ty
 
 instance Unelab AStatement where
   type UnelabEnv AStatement = ()
@@ -217,6 +219,7 @@ pcommand
   <|> DefnOp <$> pdefnop
   <|> DeclJudgementForm <$> pjudgementform
   <|> DeclRule <$> prule
+  <|> Typecheck <$ plit "typecheck" <* pspc <*> pTM <* punc ":" <*> pTM
 
 pfile :: Parser [CCommand]
 pfile = id <$ pspc <*> psep pspc pcommand <* pspc
@@ -346,6 +349,11 @@ scommand = \case
   Go a -> during ExecElaboration $ (,) . Go <$> local (setElabMode Execution) (sact a) <*> asks globals
   Trace ts -> (Trace ts,) <$> asks globals
   DeclOp ops -> first DeclOp <$> sdeclOps ops
+  Typecheck t ty -> do
+    ty <- sty ty
+    t <- stm DontLog ty t
+    g <- asks globals
+    pure (Typecheck t ty, g)
 
   -- Sig S \x.T - 'fst ~> S
   -- (p : Sig S \x.T) - 'snd ~> {x=[ p - 'fst ]}T

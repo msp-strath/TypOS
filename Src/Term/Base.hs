@@ -252,6 +252,7 @@ asAtomOrTagged :: OrBust x => ((String, Int) -> x) -> ((String, Int) -> CdB (Tm 
 asAtomOrTagged atom tagged t = t ?: \case
   AX s n -> atom (s, n)
   x :%: xs -> ($ x) $ asAtom (`tagged` xs)
+  _ -> bust
 
 asList :: OrBust x => ([CdB (Tm m)] -> x) -> CdB (Tm m) -> x
 asList f = asNilOrCons (f []) (\ x -> asList (f . (x:)))

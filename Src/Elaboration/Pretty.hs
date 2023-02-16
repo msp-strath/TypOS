@@ -212,7 +212,8 @@ instance Pretty Complaint where
     -- TODO : learn to print the semantics desc
     InvalidSemanticsDesc r sem -> "Invalid semantics description"
     SemanticsError r sem t -> hsep [pretty t, "does not match the semantics description"]
-    IncompatibleSemanticsInfos r isem isem' -> "Incompatible semantics description"
+    IncompatibleSemanticsInfos r isem isem' ->
+      hsep ["Incompatible semantics description infos", prettyPrec 1 isem, "and", prettyPrec 1 isem']
     AsPatternCannotHaveSubjects r p -> hsep ["As pattern", pretty p, "duplicates a subject variable"]
     -- desc inference
     -- TODO : add more info
@@ -220,6 +221,12 @@ instance Pretty Complaint where
     DontKnowHowToInferDesc r t -> hsep ["Do not know how to infer description for", pretty  t]
     ArityMismatchInOperator r -> "Arity mismatch in operator"
     SchematicVariableNotInstantiated r -> "Schematic variable not instantiated"
+    NotAValidContextRestriction r x y -> "Not a valid context restriction"
+    NotAValidDescriptionRestriction r x y -> "Not a valid description restriction"
+    ExpectedParameterBinding r x -> "Expected parameter binding"
+    ExpectedASemanticsGot r t -> hsep ["Expected a semantics but got", pretty t]
+
+
 
 instance Pretty a => Pretty (WithStackTrace a) where
   pretty (WithStackTrace stk msg) = vcat (pretty msg : map pretty stk)

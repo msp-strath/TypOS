@@ -254,9 +254,10 @@ initContext opts = Context
 
 -- We have already checked the name is fresh
 declareObjVar :: (String, ASemanticsDesc) -> Context -> Context
-declareObjVar (x, sem) ctx
-  = let scp = fmap weak <$> getObjVars (objVars ctx) in
-    ctx { objVars = ObjVars (scp :< ObjVar x sem) }
+declareObjVar (x, sem) ctx =
+    -- We store semantics descs ready to be deployed at use sites
+    let scp = getObjVars (objVars ctx) :< ObjVar x sem in
+    ctx { objVars = ObjVars (fmap weak <$> scp) }
 
 -- Careful! The new ovs better be a valid scope
 -- i.e. all the objvars mentioned in the SemanticsDesc of
@@ -426,8 +427,8 @@ data Complaint
   | EmptyContext Range
   | NotTopVariable Range Variable Variable
   | IncompatibleChannelScopes Range ObjVars ObjVars
-  | NotAValidContextRestriction Th ObjVars
-  | NotAValidDescriptionRestriction Th ASemanticsDesc
+  | NotAValidContextRestriction Range Th ObjVars
+  | NotAValidDescriptionRestriction Range Th ASemanticsDesc
   -- kinding
   | NotAValidTermVariable Range Variable Kind
   | NotAValidPatternVariable Range Variable Resolved
@@ -468,7 +469,7 @@ data Complaint
   | IncompatibleSyntaxInfos Range (Info SyntaxDesc) (Info SyntaxDesc)
   | IncompatibleSemanticsDescs Range ASemanticsDesc ASemanticsDesc
   | GotBarredAtom Range String [String]
-  | ExpectedASemanticsGot Range String
+  | ExpectedASemanticsGot Range Raw
   | ExpectedNilGot Range String
   | ExpectedEnumGot Range [String] String
   | ExpectedTagGot Range [String] String
@@ -561,6 +562,12 @@ instance HasGetRange Complaint where
     DontKnowHowToInferDesc r _ -> r
     ArityMismatchInOperator r -> r
     SchematicVariableNotInstantiated r -> r
+    -- TODO: categorise
+    NotAValidContextRestriction r _ _ -> r
+    NotAValidDescriptionRestriction r _ _ -> r
+    ExpectedParameterBinding r _ -> r
+    ExpectedASemanticsGot r _ -> r
+
 
 ------------------------------------------------------------------------------
 -- Syntaxes

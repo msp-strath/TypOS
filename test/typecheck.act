@@ -1,0 +1,17 @@
+typecheck 'Semantics : 'Semantics
+
+syntax {
+  'Nat = ['EnumOrTag ['Zero] [['Suc 'Nat]]]
+}
+
+typecheck 'Nat : 'Semantics
+typecheck 'Zero : 'Nat
+typecheck ['Suc 'Zero] : 'Nat
+
+typecheck ['Pi 'Nat (\_.'Nat)] : 'Semantics
+typecheck \x.x : ['Pi 'Nat (\_.'Nat)]
+
+typecheck ['Pi 'Semantics \X.['Pi X \_.X]] : 'Semantics
+typecheck \X x.x : ['Pi 'Semantics \X.['Pi X \_.X]]
+
+exec PRINTF "Hurrah!".

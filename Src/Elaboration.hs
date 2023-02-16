@@ -274,7 +274,7 @@ spatSemantics desc rest (Irrefutable r p) = do
 spatSemantics desc rest (AsP r v p) = do
   v <- isFresh v
   ds <- asks declarations
-  (ovs, asot) <- thickenedASOT (restriction rest) desc
+  (ovs, asot) <- thickenedASOT r (restriction rest) desc
   (p, ds, t) <-
     local (setDecls (ds :< (v, ActVar IsNotSubject asot))) $ spatSemantics desc rest p
   pure (AT (ActorMeta ACitizen v) p, ds, t)
@@ -300,7 +300,7 @@ spatSemantics desc rest (VarP r v) = during (PatternVariableElaboration v) $ do
       pure (VP i, ds, var i scp)
     Just mk -> throwError (NotAValidPatternVariable r v mk)
     Nothing -> do
-      (ovs, asot) <- thickenedASOT th desc
+      (ovs, asot) <- thickenedASOT r th desc
       v <- pure (getVariable v)
       let pat = MP (ActorMeta ACitizen v) (ones scp)
       pure (pat, ds :< (v, ActVar IsNotSubject asot), ActorMeta ACitizen v $: sbstI scp)
@@ -510,7 +510,7 @@ stm usage desc rt = do
           VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot r a)
           VEnumOrTag _ es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
           VWildcard _ -> pure ()
-          VUniverse _ -> unless (a `elem` ("Semantics" : Map.keys table)) $ throwError (ExpectedASemanticsGot r a)
+          VUniverse _ -> unless (a `elem` ("Semantics" : Map.keys table)) $ throwError (ExpectedASemanticsGot r rt)
              --  TODO we're probably missing semantics here
           _ -> throwError (SemanticsError r desc rt)
         satom a
@@ -523,11 +523,18 @@ stm usage desc rt = do
             Nothing -> throwError (ExpectedTagGot r (fst <$> ds) a)
             Just descs -> (%) <$> stm usage (atom "Atom" 0) p <*> stms usage descs q
           _ -> throwError (SyntaxError r desc rt)
+        VUniverse _ -> case (p , q) of
+          (At _ "Pi", Cons _ s (Cons _ (Lam _ (Scope (Hide x) t)) (At _ ""))) -> do
+            s <- sty s
+            t <- elabUnder (x, s) $ sty t
+            pure ("Pi" #%+ [s, t])
+          _ -> throwError (ExpectedASemanticsGot r rt)
         _ -> throwError (SyntaxError r desc rt)
       Lam r (Scope (Hide x) sc) -> do
         (s, desc) <- case vdesc of
           VWildcard i -> pure (desc, desc)
           VBind cat desc -> pure (catToDesc cat, desc)
+          VPi s (y, t) -> pure (s, t)
           _ -> throwError (SyntaxError r desc rt)
         elabUnder (x, s) $ stm usage desc sc
       Op{} -> do
@@ -570,7 +577,7 @@ spat esc rest rp@(AsP r v p) = do
   let desc = escrutinee esc
   v <- isFresh v
   ds <- asks declarations
-  (ovs, asot) <- thickenedASOT (restriction rest) desc
+  (ovs, asot) <- thickenedASOT r (restriction rest) desc
   (mr, p, ds, hs) <- local (setDecls (ds :< (v, ActVar IsNotSubject asot))) $ spat esc rest p
   pure (mr, AT (ActorMeta ACitizen v) p, ds, hs)
 spat esc rest p@VarP{} = spatBase (Pattern <$ isSubject esc) (escrutinee esc) rest p
@@ -596,14 +603,14 @@ spat esc@(Lookup _ _ av) rest rp = spatBase IsNotSubject (escrutinee esc) rest r
 spat esc@(Compare{}) rest rp = spatBase IsNotSubject (escrutinee esc) rest rp
 spat esc@(Term{}) rest rp = spatBase IsNotSubject (escrutinee esc) rest rp
 
-thickenedASOT :: Th -> ASemanticsDesc -> Elab (ObjVars, ASOT)
-thickenedASOT th desc = do
+thickenedASOT :: Range -> Th -> ASemanticsDesc -> Elab (ObjVars, ASOT)
+thickenedASOT r th desc = do
   ovs <- asks objVars
   ovs <- case thickenObjVars th ovs of
-    Nothing -> throwError (NotAValidContextRestriction th ovs)
+    Nothing -> throwError (NotAValidContextRestriction r th ovs)
     Just ovs -> pure ovs
   desc <- case thickenCdB th desc of
-    Nothing -> throwError (NotAValidDescriptionRestriction th desc)
+    Nothing -> throwError (NotAValidDescriptionRestriction r th desc)
     Just desc -> pure desc
   pure (ovs, ovs :=> desc)
 
@@ -613,7 +620,7 @@ spatBase isSub desc rest rp@(AsP r v p) = do
     throwError (AsPatternCannotHaveSubjects r rp)
   v <- isFresh v
   ds <- asks declarations
-  (ovs, asot) <- thickenedASOT (restriction rest) desc
+  (ovs, asot) <- thickenedASOT r (restriction rest) desc
   (mr, p, ds, hs) <- local (setDecls (ds :< (v, ActVar isSub asot))) $ spatBase isSub desc rest p
   pure (mr, AT (ActorMeta ACitizen v) p, ds, hs)
 spatBase isSub desc rest (ThP r ph p) = do
@@ -634,7 +641,7 @@ spatBase isSub desc rest (VarP r v) = during (PatternVariableElaboration v) $ do
       pure (Nothing, VP i, ds, hs)
     Just mk -> throwError (NotAValidPatternVariable r v mk)
     Nothing -> do
-      (ovs, asot) <- thickenedASOT th desc
+      (ovs, asot) <- thickenedASOT r th desc
       v <- pure (getVariable v)
       let pat = MP (ActorMeta (spassport (Scrutinised unknown) isSub) v) (ones $ scopeSize ovs)
       pure (Nothing, pat, ds :< (v, ActVar isSub asot), hs)
