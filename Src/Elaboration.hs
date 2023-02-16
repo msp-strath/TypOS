@@ -510,6 +510,8 @@ stm usage desc rt = do
           VNilOrCons{} -> unless (a == "") $ throwError (ExpectedNilGot r a)
           VEnumOrTag _ es _ -> unless (a `elem` es) $ throwError (ExpectedEnumGot r es a)
           VWildcard _ -> pure ()
+          VUniverse _ -> unless (a `elem` ("Semantics" : Map.keys table)) $ throwError (ExpectedASemanticsGot r a)
+             --  TODO we're probably missing semantics here
           _ -> throwError (SemanticsError r desc rt)
         satom a
       Cons r p q -> case vdesc of

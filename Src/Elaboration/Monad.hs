@@ -468,6 +468,7 @@ data Complaint
   | IncompatibleSyntaxInfos Range (Info SyntaxDesc) (Info SyntaxDesc)
   | IncompatibleSemanticsDescs Range ASemanticsDesc ASemanticsDesc
   | GotBarredAtom Range String [String]
+  | ExpectedASemanticsGot Range String
   | ExpectedNilGot Range String
   | ExpectedEnumGot Range [String] String
   | ExpectedTagGot Range [String] String
