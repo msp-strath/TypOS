@@ -603,7 +603,7 @@ scommands (c:cs) = do
 
 elaborate :: Options -> [CCommand]
           -> Either (WithStackTrace (WithRange Complaint))
-                    ([WithStackTrace Warning], [ACommand], SyntaxTable)
+                    ([WithStackTrace (WithRange Warning)], [ACommand], SyntaxTable)
 elaborate opts ccs = evalElab opts $ do
   acs <- scommands ccs
   st <- get

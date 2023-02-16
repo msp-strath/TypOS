@@ -57,12 +57,12 @@ checkSendableSubject tm = do
   go localVars x = case x of
     Var r v -> resolve v >>= \case
       Just (ADeclaration (ActVar (IsSubject {}) _)) -> pure . Just $ getVariable v
-      _ -> Nothing <$ raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
+      _ -> Nothing <$ raiseWarning tm (SentSubjectNotASubjectVar tm)
     Sbst r sg x -> do
       case isInvertible localVars sg of
-        Nothing -> Nothing <$ raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
+        Nothing -> Nothing <$ raiseWarning tm (SentSubjectNotASubjectVar tm)
         Just localVars -> go localVars x
-    _ -> Nothing <$ raiseWarning (SentSubjectNotASubjectVar (getRange tm) tm)
+    _ -> Nothing <$ raiseWarning tm (SentSubjectNotASubjectVar tm)
   isInvertible :: Bwd String -> Bwd SbstC -> Maybe (Bwd String)
   isInvertible lvz B0 = pure lvz
   isInvertible (lvz :< w) (sz :< Keep _ v) | getVariable v == w
@@ -269,7 +269,7 @@ spatSemantics0 desc p = do
 spatSemantics :: ASemanticsDesc -> Restriction -> CPattern ->
                  Elab (APattern, Decls, ACTm)
 spatSemantics desc rest (Irrefutable r p) = do
-  raiseWarning (IgnoredIrrefutable r p) -- TODO
+  raiseWarning r (IgnoredIrrefutable p) -- TODO
   spatSemantics desc rest p
 spatSemantics desc rest (AsP r v p) = do
   v <- isFresh v
@@ -938,7 +938,7 @@ sact = \case
     -- Check we properly scrutinised a subject input
     unlessM (checkScrutinised av) $
       when (isSubjectMode m) $ do
-        when canwin $ raiseWarning (RecvSubjectNotScrutinised r ch av)
+        when canwin $ raiseWarning r (RecvSubjectNotScrutinised ch av)
 
     pure $ Recv r ch (ActorMeta (spassport (Scrutinised unknown) isSub) <$> av, a)
 
@@ -993,7 +993,7 @@ sact = \case
       table <- gets syntaxCats
       dat <- asks headUpData
       let examples = fromList cov >>= missing dat table
-      raiseWarning $ MissingClauses r examples
+      raiseWarning r $ MissingClauses examples
     let (cls, sts) = unzip clsts
     let (chst, avst) = unzip $ catMaybes sts
     during (MatchElaboration rsc) $ do
@@ -1036,7 +1036,7 @@ consistentScrutinisation r sts = do
   unless (null check) $
     modify (\ r -> r { actvarStates = foldr (Map.unionWith (<>)) Map.empty sts })
   case check of
-    _:_:_ -> raiseWarning (InconsistentScrutinisation r)
+    _:_:_ -> raiseWarning r InconsistentScrutinisation
     _ -> pure ()
 
   where
@@ -1056,7 +1056,7 @@ sbranch r ds ra = do
       unlessM (checkScrutinised (Used nm)) $
 --        whenJust me $ \ _ -> -- HACK: do not complain about dead branches
           case isSub of
-            IsSubject{} -> raiseWarning (PatternSubjectNotScrutinised r nm)
+            IsSubject{} -> raiseWarning r (PatternSubjectNotScrutinised nm)
             _ -> pure ()
     _ -> pure ()
 
@@ -1079,7 +1079,7 @@ sclause esc (rp, a) = do
                local (setDecls ds . setHints hs) $ sbranch (getRange rp) pats a
   lift $ modify (\ st -> st { actvarStates = avs })
   -- make sure no catchall on subject pattern, except in dead branches
-  whenJust (me *> mr) (lift . raiseWarning . UnderscoreOnSubject)
+  whenJust (me *> mr) (lift . flip raiseWarning UnderscoreOnSubject)
   pure ((p, a), me)
 
 coverageCheckClause :: RawP -> Pat -> StateT [ASemanticsDesc] Elab ()
@@ -1093,7 +1093,7 @@ coverageCheckClause rp p = do
       unless (isCatchall p) $
         -- For now we don't complain about catchalls because they may
         -- catching variables.
-        raiseWarning (UnreachableClause (getRange rp) rp)
+        raiseWarning rp (UnreachableClause rp)
       pure leftovers
     PartiallyCovering _ ps -> pure ps
   put leftovers

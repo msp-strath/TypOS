@@ -57,26 +57,26 @@ instance Pretty CFormula where
   pretty (CFormula a) = these pretty pretty (const pretty) a
   pretty (CCitizen p t) = hsep [pretty p, "=>", pretty t]
 
-instance Pretty Warning where
-  pretty w = (withANSI [ SetColour Background Yellow ] "Warning:" <+> pretty (getRange w)) $$ go w where
+instance Pretty (WithRange Warning) where
+  pretty (WithRange r w) = (withANSI [ SetColour Background Yellow ] "Warning:" <+> pretty r) $$ go w where
 
     go :: Warning -> Doc Annotations
     go = \case
-      UnreachableClause r pat ->
+      UnreachableClause pat ->
         hsep ["Unreachable clause", pretty pat]
-      MissingClauses r pats ->
+      MissingClauses pats ->
         let sIsAre = case pats of { _ :| [] -> " is"; _ -> "s are" } in
           asBlock 2 ("Incomplete pattern matching. The following pattern" <> sIsAre <+> "missing:")
           $ map pretty (toList pats)
       -- Subject analysis
-      SentSubjectNotASubjectVar r raw -> hsep ["Sent subject", pretty raw, "is not a subject variable"]
-      RecvSubjectNotScrutinised r ch Unused -> hsep ["Ignored received subject on channel", pretty ch]
-      RecvSubjectNotScrutinised r ch (Used x) -> hsep ["Received subject", pretty x,"on channel", pretty ch, "and did not scrutinise it"]
-      PatternSubjectNotScrutinised r x -> hsep ["Pattern subject", pretty x, "did not get scrutinised"]
-      UnderscoreOnSubject r -> hsep ["Subject pattern thrown away using an underscore"]
-      InconsistentScrutinisation r -> hsep ["Inconsistent scrutinisation of subject in match"]
+      SentSubjectNotASubjectVar raw -> hsep ["Sent subject", pretty raw, "is not a subject variable"]
+      RecvSubjectNotScrutinised ch Unused -> hsep ["Ignored received subject on channel", pretty ch]
+      RecvSubjectNotScrutinised ch (Used x) -> hsep ["Received subject", pretty x,"on channel", pretty ch, "and did not scrutinise it"]
+      PatternSubjectNotScrutinised x -> hsep ["Pattern subject", pretty x, "did not get scrutinised"]
+      UnderscoreOnSubject -> hsep ["Subject pattern thrown away using an underscore"]
+      InconsistentScrutinisation -> hsep ["Inconsistent scrutinisation of subject in match"]
       -- Missing feature
-      IgnoredIrrefutable r p -> hsep ["TODO: actually implement irrefutable patterns (", pretty p, ")"]
+      IgnoredIrrefutable p -> hsep ["TODO: actually implement irrefutable patterns (", pretty p, ")"]
 
 instance Pretty ContextualInfo where
   pretty = \case
@@ -105,8 +105,8 @@ instance Pretty ContextualInfo where
     ConnectElaboration ch1 ch2 -> hsep ["when elaborating the connection", pretty ch1, "<->", pretty ch2]
     JudgementFormElaboration v -> hsep ["when elaborating the judgement form", pretty v]
 
-instance Pretty Complaint where
-  pretty c = case c of
+instance Pretty (WithRange Complaint) where
+  pretty (WithRange r c) = flush (pretty r) <> case c of
     -- scope
     OutOfScope x -> hsep ["Out of scope variable", pretty x]
     MetaScopeTooBig x sc1 sc2 ->
@@ -225,10 +225,6 @@ instance Pretty Complaint where
     NotAValidDescriptionRestriction x y -> "Not a valid description restriction"
     ExpectedParameterBinding x -> "Expected parameter binding"
     ExpectedASemanticsGot t -> hsep ["Expected a semantics but got", pretty t]
-
-
-instance Pretty a => Pretty (WithRange a) where
-  pretty (WithRange r a) = flush (pretty r) <> pretty a
 
 instance Pretty a => Pretty (WithStackTrace a) where
   pretty (WithStackTrace stk msg) = vcat (pretty msg : map pretty stk)

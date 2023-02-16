@@ -35,7 +35,7 @@ data ElabState = ElabState
   { channelStates :: ChannelStates
   , actvarStates  :: ActvarStates
   , syntaxCats    :: SyntaxTable
-  , warnings      :: Bwd (WithStackTrace Warning)
+  , warnings      :: Bwd (WithStackTrace (WithRange Warning))
   , clock         :: Int
   }
 
@@ -352,34 +352,22 @@ getHint str = do
 -- Warnings
 
 data Warning
-  = UnreachableClause Range RawP
-  | MissingClauses Range (NonEmpty RawP)
+  = UnreachableClause RawP
+  | MissingClauses (NonEmpty RawP)
   -- Subject tracking
-  | SentSubjectNotASubjectVar Range Raw
-  | RecvSubjectNotScrutinised Range Channel (Binder String)
-  | PatternSubjectNotScrutinised Range String
-  | UnderscoreOnSubject Range
-  | InconsistentScrutinisation Range
+  | SentSubjectNotASubjectVar Raw
+  | RecvSubjectNotScrutinised Channel (Binder String)
+  | PatternSubjectNotScrutinised String
+  | UnderscoreOnSubject
+  | InconsistentScrutinisation
   -- Missing features
-  | IgnoredIrrefutable Range RawP
+  | IgnoredIrrefutable RawP
 
-instance HasGetRange Warning where
-  getRange = \case
-    UnreachableClause r _ -> r
-    MissingClauses r _ -> r
-    -- Subject analysis
-    SentSubjectNotASubjectVar r _ -> r
-    RecvSubjectNotScrutinised r _ _ -> r
-    PatternSubjectNotScrutinised r _ -> r
-    UnderscoreOnSubject r -> r
-    InconsistentScrutinisation r -> r
-    -- Missing features
-    IgnoredIrrefutable r _ -> r
-
-raiseWarning :: Warning -> Elab ()
-raiseWarning w = do
+raiseWarning :: HasGetRange a => a -> Warning -> Elab ()
+raiseWarning a w = do
   stk <- asks stackTrace
-  modify (\ r -> r { warnings = warnings r :< WithStackTrace stk w })
+  let warning = WithStackTrace stk (WithRange (getRange a) w)
+  modify (\ st -> st { warnings = warnings st :< warning })
 
 ------------------------------------------------------------------------------
 -- Errors
