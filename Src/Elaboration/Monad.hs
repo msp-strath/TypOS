@@ -210,16 +210,20 @@ data Context = Context
 
 type Hints = Map String (Info ASemanticsDesc)
 
-data Restriction = Restriction
+data Restriction {- gamma -} = Restriction
   { support :: Bwd String
-  , restriction :: Th
+  , restriction :: Th {- support -} {- gamma -}
   }
 
 initRestriction :: ObjVars -> Restriction
 initRestriction ovs = Restriction (objVarName <$> getObjVars ovs) (ones (scopeSize ovs))
 
-extend :: Restriction -> String -> Restriction
-extend (Restriction ls th) x = Restriction (ls :< x) (th -? True)
+extend :: Restriction {- gamma -}
+       -> {- x :: -} Binder String
+       -> Restriction {- gamma , x -}
+extend (Restriction ls th) (Used x) = Restriction (ls :< x) (th -? True)
+extend (Restriction ls th) Unused = Restriction ls (th -? False)
+
 
 instance Selable Restriction where
   ph ^? Restriction ls th = Restriction (ph ^? ls) (ph ^? th)
@@ -307,6 +311,9 @@ declare (Used x) k ctx = ctx { declarations = declarations ctx :< (x, k) }
 
 setDecls :: Decls -> Context -> Context
 setDecls ds ctx = ctx { declarations = ds }
+
+setMacros :: Macros -> Context -> Context
+setMacros ms ctx = ctx { macros = ms }
 
 ------------------------------------------------------------------------------
 -- Hierarchical path names generation

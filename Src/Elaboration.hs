@@ -109,17 +109,29 @@ spassport :: Usage -> IsSubject -> Passport
 spassport u IsSubject{} | isBeingScrutinised u = ASubject
 spassport _ _ = ACitizen
 
+smeta :: Usage
+      -> ActorMeta {- eps -}
+      -> ACTSbst {- delta -} {- gamma -}
+      -> Telescopic ASemanticsDesc {- delta -} {- eps -}
+      -> Elab ({- T :: -} ASemanticsDesc {- gamma -}, ACTm {- gamma -} {- T -})
+smeta usage am sg (Stop desc) = pure (desc //^ sg, am $: sg)
+smeta usage am sg (Tele desc (Scope (Hide x) tel)) = do
+  t <- stm usage (desc //^ sg) (Var unknown $ Variable unknown x)
+  smeta usage am (sbstT sg ((Hide x :=) $^ t)) tel
+
+-- TODO: pass (Maybe ASemanticsDesc) and handle macros
 svar :: Usage -> Variable -> Elab (IsSubject, ASemanticsDesc, ACTm)
 svar usage x = do
   ovs <- asks objVars
   res <- resolve x
   case res of
     Just (ADeclaration k) -> case k of
-      ActVar isSub (sc :=> desc) -> case sc `thinsTo` ovs of
-        Just th -> do
-          logUsage (getVariable x) usage
-          pure (isSub, desc, ActorMeta (spassport usage isSub) (getVariable x) $: sbstW (sbst0 0) th)
-        Nothing -> throwComplaint x (MetaScopeTooBig x sc ovs)
+      ActVar isSub (sc :=> desc) -> do
+        logUsage (getVariable x) usage
+        let tel = discharge sc desc
+        let am  = ActorMeta (spassport usage isSub) (getVariable x)
+        (desc, tm) <- smeta usage am (sbst0 $ scopeSize ovs) tel
+        pure (isSub, desc, tm)
       _ -> throwComplaint x (NotAValidTermVariable x k)
     Just (AnObjVar desc i) -> pure (IsNotSubject, desc, var i (scopeSize ovs))
     Nothing -> throwComplaint x (OutOfScope x)
@@ -139,8 +151,9 @@ ssyntaxdesc syndecls syn = do
     Nothing -> error "Impossible in ssyntaxdesc" -- this should be impossible, since parsed in empty context
     Just syn0 -> pure syn0
 
-ssbst :: Usage -> Bwd SbstC -> Elab (ACTSbst, ObjVars)
-ssbst usage B0 = do
+
+ssbst :: Bwd SbstC -> Elab Macros
+ssbst = undefined {-usage B0 = do
     ovs <- asks objVars
     pure (sbstI (scopeSize ovs), ovs)
 ssbst usage (sg :< sgc) = case sgc of
@@ -152,6 +165,7 @@ ssbst usage (sg :< sgc) = case sgc of
         (desc, t) <- itm usage t
         pure (sbstT sg ((Hide v :=) $^ t), ovs <: ObjVar v desc)
     _ -> undefined
+-}
 
 {-
 ssbst :: Usage -> Bwd SbstC -> Elab (ACTSbst, ObjVars)
@@ -358,7 +372,7 @@ spatSemantics desc rest rp = do
               (pt, ds, tt) <-
                 local (setDecls ds) $
                   elabUnder (x, ts) $
-                    spatSemantics (weak desc) (extend rest $ getVariable $ getBinder x) t
+                    spatSemantics (weak desc) (extend rest (getVariable <$> x)) t
               pure (PP (AP "Pi") (PP ps (PP pt (AP ""))), ds, "Pi" #%+ [ts,tt])
             _ -> throwComplaint r (ExpectedASemanticsPGot rp)
 
@@ -368,7 +382,7 @@ spatSemantics desc rest rp = do
           VBind cat desc -> pure (Semantics.catToDesc cat, desc)
           VPi s (y, t) -> pure (s, t)
           _ -> throwComplaint r (SyntaxPError desc rp)
-        elabUnder (x, s) $ spatSemantics desc (extend rest (getVariable $ getBinder x)) p
+        elabUnder (x, s) $ spatSemantics desc (extend rest (getVariable <$> x)) p
 
 spatSemanticss :: [ASemanticsDesc]
                -> Restriction
@@ -506,9 +520,8 @@ stm usage desc (Var r v) = during (TermVariableElaboration v) $ do
   compatibleInfos (getRange v) (Known desc) (Known desc')
   pure t
 stm usage desc (Sbst r sg t) = do
-    (sg, ovs) <- during (SubstitutionElaboration sg) $ ssbst usage sg
-    t <- local (setObjVars' ovs) (stm usage desc t)
-    pure (t //^ sg)
+    ms <- during (SubstitutionElaboration sg) $ ssbst sg
+    local (setMacros ms) (stm usage desc t)
 stm usage desc rt = do
   table <- gets syntaxCats
   dat <- asks headUpData
@@ -717,7 +730,7 @@ spatBase isSub desc rest rp = do
             x <- isFresh x
             (mr, p, ds, hs) <-
               local (declareObjVar (x, s) . addHint x (Known s)) $
-                spatBase isSub desc (extend rest x) p
+                spatBase isSub desc (extend rest $ Used x) p
             pure (mr, BP (Hide x) p, ds, hs)
 
 isObjVar :: Variable -> Elab (ASemanticsDesc, DB)
