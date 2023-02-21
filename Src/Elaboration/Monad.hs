@@ -179,6 +179,9 @@ data Kind
 type Decls = Bwd (String, Kind)
 type Operators = Map String AAnOperator
 
+instance Dischargeable Decls where
+  x \\ ds = ds
+
 -- LexicalScope = ObjVars + Macros
 -- gives the meanings of things that look like variables.
 
@@ -470,6 +473,7 @@ data Complaint
   | ExpectedANilPGot RawP
   | ExpectedAConsGot Raw
   | ExpectedAConsPGot RawP
+  | ExpectedASemanticsPGot RawP
   | SyntaxError ASemanticsDesc Raw
   | SyntaxPError ASemanticsDesc RawP
   | ExpectedAnOperator Raw

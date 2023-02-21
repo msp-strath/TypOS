@@ -185,7 +185,7 @@ instance Pretty (WithRange Complaint) where
     InconsistentSyntaxDesc -> "Inconsistent syntactic descriptions"
     InvalidSyntaxDesc d -> hsep ["Invalid syntax desc", pretty d]
     IncompatibleSemanticsDescs desc desc' ->
-      hsep ["Incompatible semantics descriptions", prettyPrec 1 desc, "and", prettyPrec 1 desc']
+      hsep ["Incompatible semantics descriptions", {-prettyPrec 1-} pretty (show desc), "and", {-prettyPrec 1-} pretty (show desc')]
     IncompatibleSyntaxInfos info1 info2 ->
       hsep ["Syntax infos", pretty info1, "and", pretty info2, "are incompatible"]
     GotBarredAtom a as -> hsep
@@ -203,8 +203,8 @@ instance Pretty (WithRange Complaint) where
     ExpectedANilPGot p -> hsep ["Expected the pattern [] and got", pretty p]
     ExpectedAConsGot t -> hsep ["Expected a cons cell and got", pretty t]
     ExpectedAConsPGot p -> hsep ["Expected a pattern for a cons cell and got", pretty p]
-    SyntaxError d t -> hsep ["Term", pretty t, "does not match", pretty d]
-    SyntaxPError d p -> hsep ["Pattern", pretty p, "does not match", pretty d]
+    SyntaxError d t -> hsep ["Term", pretty t, "does not check against", pretty d]
+    SyntaxPError d p -> hsep ["Pattern", pretty p, "does not check against", pretty d]
     ExpectedAnOperator t -> hsep ["Expected an operator call but got", pretty t]
     ExpectedAnEmptyListGot a ds ->
        hsep ["Expected", pretty a, "to be a constant operator"
@@ -225,6 +225,7 @@ instance Pretty (WithRange Complaint) where
     NotAValidDescriptionRestriction x y -> "Not a valid description restriction"
     ExpectedParameterBinding x -> "Expected parameter binding"
     ExpectedASemanticsGot t -> hsep ["Expected a semantics but got", pretty t]
+    ExpectedASemanticsPGot p -> hsep ["Expected a semantics pattern but got", pretty p]
 
 instance Pretty a => Pretty (WithStackTrace a) where
   pretty (WithStackTrace stk msg) = vcat (pretty msg : map pretty stk)

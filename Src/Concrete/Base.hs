@@ -38,6 +38,10 @@ mkBinder :: Variable -> Binder Variable
 mkBinder (Variable r "_") = Unused
 mkBinder v = Used v
 
+getBinder :: Binder Variable -> Variable
+getBinder (Used v) = v
+getBinder Unused = Variable unknown "_"
+
 data Raw
   = Var Range Variable
   | At Range Atom

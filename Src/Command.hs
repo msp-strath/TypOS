@@ -298,7 +298,7 @@ sdeclOps ((AnOperator (objName, objDescPat) (WithRange r opname) paramDescs retD
        pure (Just (ActorMeta ACitizen objName), Used objName)
   ovs <- asks objVars
   sem <- satom "Semantics"
-  (descPat, ds, objDesc) <- spatSemantics sem (initRestriction ovs) objDescPat
+  (descPat, ds, objDesc) <- spatSemantics0 sem objDescPat
   op <- local (declare objBinder (ActVar IsNotSubject (ovs :=> objDesc)) . setDecls ds) $ do
     (paramDescs, ds) <- sparamdescs paramDescs
     retDesc <- local (setDecls ds) $ sty retDesc
@@ -357,12 +357,12 @@ scommand = \case
 
   -- Sig S \x.T - 'fst ~> S
   -- (p : Sig S \x.T) - 'snd ~> {x=[ p - 'fst ]}T
-  DefnOp ((p, pty), opelims, rhs) -> do
+  DefnOp ((rp, pty), opelims, rhs) -> do
     -- p : pty -[ opelim0 ] -[ opelim1 ] ... -[ opelimn ] ~> rhs
     sem <- satom "Semantics"
     (_, decls, ty) <- spatSemantics0 sem pty
-    (p, decls, t) <- local (setDecls decls) $ spatSemantics0 ty p
-    (opelimz, decls, lhsTy) <- local (setDecls decls) $ sopelims0 (ty, t) opelims
+    (p, decls, t) <- local (setDecls decls) $ spatSemantics0 ty rp
+    (opelimz, decls, lhsTy) <- local (setDecls decls) $ sopelims0 (getRange rp <> getRange pty) (ty, t) opelims
     rhs <- local (setDecls decls) $ stm DontLog lhsTy rhs
     -- this is the outer op being extended
     let op = case opelimz of (_ :< (op, _)) -> op
@@ -487,26 +487,28 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
       | otherwise = throwComplaint (objDesc op) (MalformedPostOperator (theValue (opName op)) (Map.keys m))
 -}
 
-sopelims0 :: (ASemanticsDesc, ACTm)
+sopelims0 :: Range
+          -> (ASemanticsDesc, ACTm)
           -> [(OPERATOR Concrete, [RawP])]
           -> Elab (Bwd (OPERATOR Abstract, [Pat]), Decls, ASemanticsDesc)
-sopelims0 = sopelims B0
+sopelims0 r = sopelims r B0
 
-sopelims :: Bwd (OPERATOR Abstract, [Pat])
+sopelims :: Range
+         -> Bwd (OPERATOR Abstract, [Pat])
          -> (ASemanticsDesc, ACTm)
          -> [(OPERATOR Concrete, [RawP])]
          -> Elab (Bwd (OPERATOR Abstract, [Pat]), Decls, ASemanticsDesc)
-sopelims opelimz (ty, t) [] = (opelimz,,ty) <$> asks declarations
-sopelims opelimz (ty, t) ((op, args):opelims) = do
+sopelims r opelimz (ty, t) [] = (opelimz,,ty) <$> asks declarations
+sopelims r opelimz (ty, t) ((op, args):opelims) = do
   -- We need to worry about freshening up names in operator
   -- declarations when checking definitions to avoid clashes
   (AnOperator (mb, opat) opName pdescs rdesc) <- freshenOp =<< soperator op
-  let r = getRange op <> foldMap getRange args
   dat <- matchObjType r (mb, opat) (ty, t)
+  let r' = getRange op <> foldMap getRange args
   local (setHeadUpData dat) $ do
-    ((ty, decls), (pargs, args)) <- spats r pdescs args rdesc
+    ((ty, decls), (pargs, args)) <- spats r' pdescs args rdesc
     local (setDecls decls) $
-        sopelims (opelimz :< (opName, pargs)) (ty, t -% (getOperator opName, args)) opelims
+        sopelims (r <> r') (opelimz :< (opName, pargs)) (ty, t -% (getOperator opName, args)) opelims
 
   where
 
@@ -516,7 +518,7 @@ sopelims opelimz (ty, t) ((op, args):opelims) = do
                     -> Bwd String
                     -> Telescopic ASemanticsDesc
                     -> RawP
-                    -> Elab ((Pat, ACTm), HeadUpData' ActorMeta)
+                    -> Elab ((Pat, ACTm), Decls, HeadUpData' ActorMeta)
     sparamSemantics binder namez (Stop pdesc) rp = do
       (p, decls, t) <- spatSemantics0 pdesc rp
       dat <- do
@@ -527,7 +529,7 @@ sopelims opelimz (ty, t) ((op, args):opelims) = do
            let env = huEnv dat
                env' = newActorVar v (namez <>> [], t) env
            in dat {huEnv = env'}
-      pure ((p, t), dat)
+      pure ((p, t), decls, dat)
     sparamSemantics binder namez
       (Tele desc (Scope (Hide name) tele))
       (LamP r (Scope (Hide x) rp)) =
@@ -542,8 +544,8 @@ sopelims opelimz (ty, t) ((op, args):opelims) = do
     spats r [] [] rdesc = (,([], [])) <$> ((,) <$> instantiateDesc r rdesc <*> asks declarations)
     spats r ((binder, sot) : bs) (rp:rps) rdesc = do
       (ovs :=> desc) <- instantiateSOT (getRange rp) sot
-      ((p, t), dat) <- sparamSemantics binder B0 (discharge ovs desc) rp
-      local (setHeadUpData dat) $
+      ((p, t), decls, dat) <- sparamSemantics binder B0 (discharge ovs desc) rp
+      local (setDecls decls . setHeadUpData dat) $
         fmap (bimap (p:) (t:)) <$> spats r bs rps rdesc
     spats r bs rps rdesc = throwComplaint r $ ArityMismatchInOperator
 

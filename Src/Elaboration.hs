@@ -266,6 +266,11 @@ spatSemantics0 desc p = do
   ovs <- asks objVars
   spatSemantics desc (initRestriction ovs) p
 
+data ConsDesc
+  = ConsCell ASemanticsDesc ASemanticsDesc
+  | ConsEnum [(String, [ASemanticsDesc])]
+  | ConsUniverse
+
 spatSemantics :: ASemanticsDesc -> Restriction -> CPattern ->
                  Elab (APattern, Decls, ACTm)
 spatSemantics desc rest (Irrefutable r p) = do
@@ -319,43 +324,51 @@ spatSemantics desc rest rp = do
           VNilOrCons{} -> unless (a == "") $ throwComplaint r (ExpectedNilGot a)
           VEnumOrTag sc es _ -> unless (a `elem` es) $ throwComplaint r (ExpectedEnumGot es a)
           VWildcard sc -> pure ()
+          VUniverse _ -> unless (a `elem` ("Semantics" : Map.keys table)) $ throwComplaint r (ExpectedASemanticsGot (At r a))
           _ -> throwComplaint r (SyntaxPError desc rp)
         pure (AP a, ds, atom a (weeEnd (restriction rest)))
       ConsP r p1 p2 -> do
+        -- take vdesc apart and decide what needs to be checked
+        -- Left (d1, d2): usual cons cell
+        -- Right ds     : enumeration (ds :: [(String, [Desc])])
         descs <- case vdesc of
-          VNilOrCons d1 d2 -> pure (Left (d1, d2))
-          VCons d1 d2 -> pure (Left (d1, d2))
-          VWildcard _ -> pure (Left (desc, desc))
-          VEnumOrTag _ _ ds -> pure (Right ds)
+          VNilOrCons d1 d2 -> pure (ConsCell d1 d2)
+          VCons d1 d2 -> pure (ConsCell d1 d2)
+          VWildcard _ -> pure (ConsCell desc desc)
+          VEnumOrTag _ _ ds -> pure (ConsEnum ds)
+          VUniverse _ -> pure ConsUniverse
           _ -> throwComplaint r (SyntaxPError desc rp)
         case descs of
-          Left (d1, d2) -> do
+          ConsCell d1 d2 -> do
             (p1, ds, t1) <- spatSemantics d1 rest p1
             (p2, ds, t2) <- local (setDecls ds) (spatSemantics d2 rest p2)
             pure (PP p1 p2, ds, t1 % t2)
-          Right ds -> case p1 of
+          ConsEnum ds -> case p1 of
             AtP r a -> case lookup a ds of
               Nothing -> throwComplaint r (ExpectedTagGot (fst <$> ds) a)
               Just descs ->  do
-                (p1, ds, t1) <- spatSemantics (atom "Atom" 0) rest p1
+                at <- satom "Atom"
+                (p1, ds, t1) <- spatSemantics at rest p1
                 (p2, ds, t2) <- local (setDecls ds) (spatSemanticss descs rest p2)
                 pure (PP p1 p2, ds, t1 % t2)
             _ -> throwComplaint r (SyntaxPError desc rp)
+          ConsUniverse -> case (p1 , p2) of
+            (AtP _ "Pi", ConsP _ s (ConsP _ (LamP _ (Scope (Hide x) t)) (AtP _ ""))) -> do
+              (ps, ds, ts) <- spatSemantics desc rest s
+              (pt, ds, tt) <-
+                local (setDecls ds) $
+                  elabUnder (x, ts) $
+                    spatSemantics (weak desc) (extend rest $ getVariable $ getBinder x) t
+              pure (PP (AP "Pi") (PP ps (PP pt (AP ""))), ds, "Pi" #%+ [ts,tt])
+            _ -> throwComplaint r (ExpectedASemanticsPGot rp)
 
       LamP r (Scope v@(Hide x) p) -> do
         (s, desc) <- case vdesc of
           VWildcard _ -> pure (desc, desc)
           VBind cat desc -> pure (Semantics.catToDesc cat, desc)
+          VPi s (y, t) -> pure (s, t)
           _ -> throwComplaint r (SyntaxPError desc rp)
-      -- TODO: refactor using Dischargeable
-        case x of
-          Unused -> do
-            (p, ds, t) <- spatSemantics desc rest p
-            pure (BP (Hide "_") p, ds, (Hide "_" := False :.) $^ t)
-          Used x -> do
-            x <- isFresh x
-            (p, ds, t) <- local (declareObjVar (x, s)) $ spatSemantics desc (extend rest x) p
-            pure (BP (Hide x) p, ds, x \\ t)
+        elabUnder (x, s) $ spatSemantics desc (extend rest (getVariable $ getBinder x)) p
 
 spatSemanticss :: [ASemanticsDesc]
                -> Restriction

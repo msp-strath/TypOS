@@ -271,6 +271,9 @@ instance Dischargeable () where
 instance (Dischargeable a, Dischargeable b) => Dischargeable (a, b) where
   x \\ (s, t) = (x \\ s, x \\ t)
 
+instance (Dischargeable a, Dischargeable b, Dischargeable c) => Dischargeable (a, b, c) where
+  x \\ (s, t, u) = (x \\ s, x \\ t, x \\ u)
+
 infixr 5 $:
 ($:) :: m -> CdB (Sbst m) -> CdB (Tm m)
 m $: sg = contract (m :$: sg)
