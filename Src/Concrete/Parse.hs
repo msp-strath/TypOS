@@ -48,7 +48,7 @@ pTM :: Parser Raw
 pTM = withRange $
   (ptm >>= more)
   <|> pscoped Lam pbinder pTM
-  <|> Sbst unknown <$ pch (== '{') <* pspc <*> ppes (punc ",") psbstC <* punc "}" <*> pTM
+  <|> Sbst unknown <$ pch (== '{') <* pspc <*> ppes (punc ",") passign <* punc "}" <*> pTM
 
   where
 
@@ -64,11 +64,9 @@ ptm = withRange $
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> pparens pTM
 
-psbstC :: Parser SbstC
-psbstC = withRange $ pvariable >>= \ x ->
+passign :: Parser Assign
+passign = withRange $ pvariable >>= \ x ->
   Assign unknown x <$ punc "=" <*> pTM
-  <|> Drop unknown x <$ pspc <* pch (== '*')
-  <|> pure (Keep unknown x)
 
 instance Lisp RawP where
   mkNil = AtP unknown ""

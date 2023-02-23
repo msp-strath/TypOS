@@ -39,7 +39,7 @@ instance Pretty Raw where
     Op _ s t -> parenthesise (d > 0) $ hsep [ pretty s, "-", prettyPrec 1 t ]
     Guarded g t -> hsep [ "<", pretty t , ">"]
 
-instance Pretty (Bwd SbstC) where
+instance Pretty (Bwd Assign) where
   pretty sg = encloseSep lbrace rbrace ", " $ pretty <$> sg <>> []
 
 prettyCdr :: Raw -> [Doc Annotations]
@@ -48,10 +48,8 @@ prettyCdr = \case
   Cons _ p q -> pretty p : prettyCdr q
   p -> [pipe, pretty p]
 
-instance Pretty SbstC where
+instance Pretty Assign where
   pretty = \case
-    Keep _ x -> pretty x
-    Drop _ x -> pretty x <> "*"
     Assign _ x t -> pretty x <> equals <> pretty t
 
 instance Pretty ThDirective where

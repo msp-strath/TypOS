@@ -126,7 +126,7 @@ instance UnelabMeta m => Unelab (Tm m) where
 
 instance UnelabMeta m => Unelab (Sbst m) where
   type UnelabEnv (Sbst m) = Naming
-  type Unelabed (Sbst m) = Bwd SbstC
+  type Unelabed (Sbst m) = Bwd Assign
   unelab sg = do
     na@(_, th, _) <- ask
     case sg of
@@ -139,13 +139,15 @@ instance UnelabMeta m => Unelab (Sbst m) where
         (_, th, _) | bigEnd th <= 0 -> throwError (UnexpectedEmptyThinning na)
         (xz, th, yz :< y) -> case thun th of
          (th, False) -> do
+           local (const (xz, th, yz)) $ unelab (sg :^^ w)
+           {- TODO: bring back printing of Drop?
            sg <- local (const (xz, th, yz)) $ unelab (sg :^^ w)
            pure (sg :< Drop unknown (Variable unknown y))
+           -}
          (th, True) ->
            case xz of
              xz :< x -> do
-               sg <- local (const (xz, th, yz)) $ unelab (sg :^^ (w - 1))
-               pure (sg :< Keep unknown (Variable unknown x))
+               local (const (xz, th, yz)) $ unelab (sg :^^ (w - 1))
              _ -> throwError $ InvalidNaming na
         _ -> throwError $ InvalidNaming na
 

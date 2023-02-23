@@ -18,8 +18,8 @@ import qualified Term
 import Syntax (SyntaxTable, SyntaxCat, WithSyntaxCat(..))
 import Operator.Eval
 
-embed :: ASyntaxDesc -> ASemanticsDesc
-embed = (fmap absurd $^)
+embed :: Int -> ASyntaxDesc -> ASemanticsDesc
+embed sc syn = (fmap absurd $^ syn) *^ none sc
 
 data VSemanticsDesc' a
   -- embedding syntax
@@ -74,7 +74,7 @@ expand' w table dat desc = do
       case w of
         Yes -> pure (VSyntaxCat sc a)
         No -> do guard b
-                 go False (embed s)
+                 go False (embed sc s)
 
   goTagged b s (a, sc) = case a of
     "AtomBar" -> asPair $ asListOf (asAtom $ Just . fst)

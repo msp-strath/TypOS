@@ -28,8 +28,15 @@ import Hide
 import Operator.Eval
 import Options
 import Semantics
+import Data.Void (absurd)
+
 ------------------------------------------------------------------------------
 -- Elaboration Monad
+
+asSemantics :: ASyntaxDesc -> Elab ASemanticsDesc
+asSemantics syn = do
+  sc <- asks (scopeSize . objVars)
+  pure (embed sc syn)
 
 data ElabState = ElabState
   { channelStates :: ChannelStates
@@ -127,7 +134,10 @@ fromInfo r (Known desc) = pure desc
 -- 2. `compatibleInfos` where the error is handled locally
 fromInfo r Inconsistent = throwComplaint r InconsistentSyntaxDesc
 
-compatibleInfos :: Range -> Info ASemanticsDesc -> Info ASemanticsDesc -> Elab (Info ASemanticsDesc)
+compatibleInfos :: Range
+                -> Info ASemanticsDesc
+                -> Info ASemanticsDesc
+                -> Elab (Info ASemanticsDesc)
 compatibleInfos r desc desc' = do
   table <- gets syntaxCats
   dat <- asks headUpData
@@ -191,9 +201,9 @@ instance Dischargeable Decls where
 -- Consequently, we must weaken them when we go under a binder.
 
 type Macros = Bwd (String, Raw)
--- Macros are scope checked and expanded at def.  site but
--- not elaborated until use site. Hence, they cannot be recursive. The
--- vars that occur in a Macro are CdBVars - we have checked they are
+-- Macros are scope checked at definition site but not elaborated
+-- until use site. They cannot be recursive.
+-- The vars that occur in a Macro are CdBVars - we have checked they are
 -- in scope and if they are Macros, we have further expanded them.
 
 data Context = Context
@@ -315,6 +325,9 @@ setDecls ds ctx = ctx { declarations = ds }
 setMacros :: Macros -> Context -> Context
 setMacros ms ctx = ctx { macros = ms }
 
+declareMacro :: (String, Raw) -> Context -> Context
+declareMacro xt ctx = ctx { macros = macros ctx :< xt }
+
 ------------------------------------------------------------------------------
 -- Hierarchical path names generation
 
@@ -410,7 +423,7 @@ data ContextualInfo
   | DefnJElaboration Variable
   | ExecElaboration
   | DeclaringSyntaxCat SyntaxCat
-  | SubstitutionElaboration (Bwd SbstC)
+  | SubstitutionElaboration (Bwd Assign)
   | PatternVariableElaboration Variable
   | TermVariableElaboration Variable
   | ProtocolElaboration CProtocol

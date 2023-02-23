@@ -39,6 +39,7 @@ import Control.Applicative ((<|>))
 import Operator
 import Operator.Eval
 import Semantics
+import Debug.Trace (traceShow)
 
 type CPattern = PATTERN Concrete
 type APattern = PATTERN Abstract
@@ -63,7 +64,9 @@ checkSendableSubject tm = do
         Nothing -> Nothing <$ raiseWarning tm (SentSubjectNotASubjectVar tm)
         Just localVars -> go localVars x
     _ -> Nothing <$ raiseWarning tm (SentSubjectNotASubjectVar tm)
-  isInvertible :: Bwd String -> Bwd SbstC -> Maybe (Bwd String)
+  isInvertible :: Bwd String -> Bwd Assign -> Maybe (Bwd String)
+  isInvertible = undefined
+  {-
   isInvertible lvz B0 = pure lvz
   isInvertible (lvz :< w) (sz :< Keep _ v) | getVariable v == w
     = (:< w) <$> isInvertible lvz sz
@@ -72,6 +75,7 @@ checkSendableSubject tm = do
   isInvertible lvz (sz :< Assign _ v (Var _ w)) | Just (lz, x, ls) <- focus (getVariable w) lvz
     = (:< getVariable v) <$> isInvertible (lz <>< ls) sz
   isInvertible _ _ = Nothing
+-}
 
 escrutinee :: EScrutinee -> ASemanticsDesc
 escrutinee = \case
@@ -119,9 +123,12 @@ smeta usage am sg (Tele desc (Scope (Hide x) tel)) = do
   t <- stm usage (desc //^ sg) (Var unknown $ Variable unknown x)
   smeta usage am (sbstT sg ((Hide x :=) $^ t)) tel
 
--- TODO: pass (Maybe ASemanticsDesc) and handle macros
-svar :: Usage -> Variable -> Elab (IsSubject, ASemanticsDesc, ACTm)
-svar usage x = do
+svar :: Usage
+     -> Maybe ASemanticsDesc
+     -> Variable
+     -> Elab (IsSubject, ASemanticsDesc, ACTm)
+svar usage mdesc' x = do
+  let r = getRange x
   ovs <- asks objVars
   res <- resolve x
   case res of
@@ -131,9 +138,22 @@ svar usage x = do
         let tel = discharge sc desc
         let am  = ActorMeta (spassport usage isSub) (getVariable x)
         (desc, tm) <- smeta usage am (sbst0 $ scopeSize ovs) tel
+        desc <- fmap (fromMaybe desc) $ flip traverse mdesc' $ \desc' -> do
+          i <- compatibleInfos r (Known desc') (Known desc)
+          fromInfo r i -- cannot possibly fail
+          pure desc
         pure (isSub, desc, tm)
       _ -> throwComplaint x (NotAValidTermVariable x k)
-    Just (AnObjVar desc i) -> pure (IsNotSubject, desc, var i (scopeSize ovs))
+    Just (AnObjVar desc i) -> do
+      desc <- fmap (fromMaybe desc) $ flip traverse mdesc' $ \desc' -> do
+        i <- compatibleInfos r (Known desc') (Known desc)
+        fromInfo r i -- cannot possibly fail
+      pure (IsNotSubject, desc, var i (scopeSize ovs))
+    Just (AMacro t) -> do
+      (desc, t) <- case mdesc' of
+         Nothing -> itm usage t
+         Just desc -> (desc,) <$> stm usage desc t
+      pure (IsNotSubject, desc, t)
     Nothing -> throwComplaint x (OutOfScope x)
 
 spop :: Range -> Elab (ObjVars, (Variable, ASemanticsDesc))
@@ -151,9 +171,46 @@ ssyntaxdesc syndecls syn = do
     Nothing -> error "Impossible in ssyntaxdesc" -- this should be impossible, since parsed in empty context
     Just syn0 -> pure syn0
 
+smacro :: Bwd String -> Raw -> Elab ()
+smacro xz (Var r v) = do
+  unless (getVariable v `elem` xz) $ do
+    x <- resolve v
+    whenNothing x $ throwComplaint r (OutOfScope v)
+smacro xz (At r a) = pure ()
+smacro xz (Cons r t u) = do
+  smacro xz t
+  smacro xz u
+smacro xz (Lam r (Scope (Hide x) sc)) = do
+  xz <- case x of
+    Unused -> pure xz
+    Used x -> do x <- isFresh x
+                 pure (xz :< x)
+  smacro xz sc
+smacro xz (Sbst r sg t) = do
+  xz <- smacros xz (sg <>> [])
+  smacro xz t
+smacro xz (Op r obj opps) = do
+  smacro xz obj
+  smacro xz opps
+smacro xz (Guarded r t) = smacro xz t
 
-ssbst :: Bwd SbstC -> Elab Macros
-ssbst = undefined {-usage B0 = do
+smacros :: Bwd String -> [Assign] -> Elab (Bwd String)
+smacros xz [] = pure xz
+smacros xz (Assign r x t : asss) = do
+  x <- isFresh x
+  smacro xz t
+  smacros (xz :< x) asss
+
+ssbst :: [Assign] -> Elab Macros
+ssbst [] = asks macros
+ssbst (Assign r x t : asss) = do
+  x <- isFresh x
+  smacro B0 t
+  local (declareMacro (x, t)) $ ssbst asss
+
+
+
+{-usage B0 = do
     ovs <- asks objVars
     pure (sbstI (scopeSize ovs), ovs)
 ssbst usage (sg :< sgc) = case sgc of
@@ -168,7 +225,7 @@ ssbst usage (sg :< sgc) = case sgc of
 -}
 
 {-
-ssbst :: Usage -> Bwd SbstC -> Elab (ACTSbst, ObjVars)
+ssbst :: Usage -> Bwd Assign -> Elab (ACTSbst, ObjVars)
 ssbst usage B0 = do
     ovs <- asks objVars
     pure (sbstI (scopeSize ovs), ovs)
@@ -210,7 +267,7 @@ sscrutinee :: CScrutinee -> Elab (EScrutinee, AScrutinee)
 sscrutinee (SubjectVar r v) = do
   -- TODO: shouldn't this svar return a syntax desc?
   -- We're in subject analysis mode
-  (isSub, desc, actm) <- svar (Scrutinised r) v
+  (isSub, desc, actm) <- svar (Scrutinised r) Nothing v
   case (isSub, actm) of
     (IsSubject{}, CdB (m :$ sg) _) -> pure (SubjectVar r desc, SubjectVar r actm)
     _ -> throwComplaint r (NotAValidSubjectVar v)
@@ -221,14 +278,8 @@ sscrutinee (Pair r sc1 sc2) = do
 sscrutinee (Lookup r stk v) = do
   (stk, stkTy) <- isContextStack stk
   t <- during (LookupVarElaboration v) $ do
-    -- TODO:
-    -- Shouldn't this `svar LookedUp` return the SyntaxDesc attached
-    -- to v given that we are currently analysing it as a subject?
-    (isSub, desc, t) <- svar (LookedUp r) v
-    -- /!\ This is probably not correct. Cf. above comment about
-    -- LookedUp
-    let hmmmDesc = embed (keyDesc stkTy)
-    void $ compatibleInfos r (Known hmmmDesc) (Known desc)
+    desc <- asSemantics (keyDesc stkTy)
+    (isSub, desc, t) <- svar (LookedUp r) (Just desc) v
     pure t
   let vdesc = valueDesc stkTy
       desc = Semantics.contract (VEnumOrTag (scope vdesc) ["Nothing"] [("Just", [vdesc])])
@@ -373,16 +424,19 @@ spatSemantics desc rest rp = do
                 local (setDecls ds) $
                   elabUnder (x, ts) $
                     spatSemantics (weak desc) (extend rest (getVariable <$> x)) t
-              pure (PP (AP "Pi") (PP ps (PP pt (AP ""))), ds, "Pi" #%+ [ts,tt])
+              pure (PP (AP "Pi") (PP ps (PP pt (AP "")))
+                   , ds
+                   , "Pi" #%+ [ts,tt])
             _ -> throwComplaint r (ExpectedASemanticsPGot rp)
 
       LamP r (Scope v@(Hide x) p) -> do
         (s, desc) <- case vdesc of
-          VWildcard _ -> pure (desc, desc)
-          VBind cat desc -> pure (Semantics.catToDesc cat, desc)
+          VWildcard _ -> pure (desc, weak desc)
+          VBind cat desc -> pure (Semantics.catToDesc cat, weak desc)
           VPi s (y, t) -> pure (s, t)
           _ -> throwComplaint r (SyntaxPError desc rp)
-        elabUnder (x, s) $ spatSemantics desc (extend rest (getVariable <$> x)) p
+        (p, ds, t) <- elabUnder (x, s) $ spatSemantics desc (extend rest (getVariable <$> x)) p
+        traceShow t $ pure (p, ds, t)
 
 spatSemanticss :: [ASemanticsDesc]
                -> Restriction
@@ -433,7 +487,7 @@ matchObjType r (mb , oty) (obDesc, ob) = do
 
 itm :: Usage -> Raw -> Elab (ASemanticsDesc, ACTm)
 itm usage (Var r v) = do
-  (_, desc, v) <- svar usage v
+  (_, desc, v) <- svar usage Nothing v
   pure (desc, v)
 -- rob -rop
 itm usage (Op r rob rop) = do
@@ -516,11 +570,10 @@ sasot r (objVars :=> desc) = do
 stm :: Usage -> ASemanticsDesc -> Raw -> Elab ACTm
 stm usage desc (Var r v) = during (TermVariableElaboration v) $ do
   table <- gets syntaxCats
-  (_, desc', t) <- svar usage v
-  compatibleInfos (getRange v) (Known desc) (Known desc')
+  (_, _, t) <- svar usage (Just desc) v
   pure t
 stm usage desc (Sbst r sg t) = do
-    ms <- during (SubstitutionElaboration sg) $ ssbst sg
+    ms <- during (SubstitutionElaboration sg) $ ssbst (sg <>> [])
     local (setMacros ms) (stm usage desc t)
 stm usage desc rt = do
   table <- gets syntaxCats
@@ -558,8 +611,8 @@ stm usage desc rt = do
         _ -> throwComplaint r (SyntaxError desc rt)
       Lam r (Scope (Hide x) sc) -> do
         (s, desc) <- case vdesc of
-          VWildcard i -> pure (desc, desc)
-          VBind cat desc -> pure (catToDesc cat, desc)
+          VWildcard i -> pure (desc, weak desc)
+          VBind cat desc -> pure (catToDesc cat, weak desc)
           VPi s (y, t) -> pure (s, t)
           _ -> throwComplaint r (SyntaxError desc rt)
         elabUnder (x, s) $ stm usage desc sc
@@ -718,20 +771,12 @@ spatBase isSub desc rest rp = do
 
       LamP r (Scope v@(Hide x) p) -> do
         (s, desc) <- case vdesc of
-          VWildcard _ -> pure (desc, desc)
-          VBind cat desc -> pure (Semantics.catToDesc cat, desc)
+          VWildcard _ -> pure (desc, weak desc)
+          VBind cat desc -> pure (Semantics.catToDesc cat, weak desc)
+          VPi s (y, t) -> pure (s, t)
           _ -> throwComplaint r (SyntaxPError desc rp)
 
-        case x of
-          Unused -> do
-            (mr, p, ds, hs) <- spatBase isSub desc rest p
-            pure (mr, BP (Hide "_") p, ds, hs)
-          Used x -> do
-            x <- isFresh x
-            (mr, p, ds, hs) <-
-              local (declareObjVar (x, s) . addHint x (Known s)) $
-                spatBase isSub desc (extend rest $ Used x) p
-            pure (mr, BP (Hide x) p, ds, hs)
+        elabUnder (x, s) $ spatBase isSub desc (extend rest (getVariable <$> x)) p
 
 isObjVar :: Variable -> Elab (ASemanticsDesc, DB)
 isObjVar p = resolve p >>= \case
@@ -1030,7 +1075,7 @@ sact = \case
   Push r stk (rp, (), t) a -> do
     (stk, stkTy) <- isContextStack stk
     (desc, p) <- isObjVar rp
-    compatibleInfos (getRange rp) (Known desc) (Known $ embed $ keyDesc stkTy)
+    compatibleInfos (getRange rp) (Known desc) . Known =<< asSemantics (keyDesc stkTy)
     t <- during (PushTermElaboration t) $ stm (Pushed r) (valueDesc stkTy) t
     a <- sact a
     pure $ Push r stk (p, valueDesc stkTy, t) a

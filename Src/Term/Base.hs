@@ -1,5 +1,6 @@
 module Term.Base where
 
+import qualified Data.Map as Map
 import Data.Traversable
 import Data.Void
 
@@ -7,7 +8,7 @@ import Bwd
 import Thin
 import Hide
 import Pretty (Pretty(..))
-
+import Location (Range)
 import Concrete.Base (Guard, Root)
 
 data Pairing = Cell | Oper
@@ -268,11 +269,25 @@ instance Dischargeable (CdB (Tm m)) where
 instance Dischargeable () where
   x \\ t = t
 
+instance Dischargeable Range where
+  _ \\ r = r
+
+instance Dischargeable a => Dischargeable (Maybe a) where
+  x \\ t = (x \\) <$> t
+
 instance (Dischargeable a, Dischargeable b) => Dischargeable (a, b) where
   x \\ (s, t) = (x \\ s, x \\ t)
 
 instance (Dischargeable a, Dischargeable b, Dischargeable c) => Dischargeable (a, b, c) where
   x \\ (s, t, u) = (x \\ s, x \\ t, x \\ u)
+
+instance ( Dischargeable a, Dischargeable b
+         , Dischargeable c, Dischargeable d) =>
+         Dischargeable (a, b, c, d) where
+  x \\ (s, t, u, v) = (x \\ s, x \\ t, x \\ u, x \\ v)
+
+instance Dischargeable (Map.Map x v) where
+  _ \\ m = m
 
 infixr 5 $:
 ($:) :: m -> CdB (Sbst m) -> CdB (Tm m)

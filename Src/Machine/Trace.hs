@@ -424,9 +424,9 @@ extract mkF a = go where
     UnificationProblem date s t -> Error a (StuckUnifying s t) : go fs
     Noted -> Node a (AStep AlwaysExtract NotedStep) [] : go fs
     _ -> go fs
-    
+
   toArgument :: AProtocolEntry -> Term -> AArgument f ann
-  toArgument (Subject desc, _) term = Argument (Subject ()) (embed desc) (mkF term a)
+  toArgument (Subject desc, _) term = Argument (Subject ()) (embed 0 desc) (mkF term a) --- TOOD: Fix embed call
   toArgument (Input, desc) term = Argument Input desc (mkF term a)
   toArgument (Output, desc) term = Argument Output desc (mkF term a)
 

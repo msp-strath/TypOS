@@ -49,7 +49,7 @@ data Raw
   | At Range Atom
   | Cons Range Raw Raw
   | Lam Range (Scope (Binder Variable) Raw)
-  | Sbst Range (Bwd SbstC) Raw
+  | Sbst Range (Bwd Assign) Raw
   | Op Range Raw Raw
   | Guarded Guard Raw
   deriving (Show)
@@ -81,29 +81,20 @@ instance HasGetRange Raw where
     Sbst r _ _ -> r
     Op r _ _ -> r
 
-data SbstC
-  = Keep Range Variable
-  | Drop Range Variable
-  | Assign Range Variable Raw
-  deriving (Show)
+data Assign = Assign
+  { assignRange :: Range
+  , assignVariable :: Variable
+  , assignTerm :: Raw
+  } deriving (Show)
 
-instance Eq SbstC where
-  Keep _ v == Keep _ w = v == w
-  Drop _ v == Drop _ w = v == w
+instance Eq Assign where
   Assign _ v t == Assign _ w u = v == w && t == u
-  _ == _ = False
 
-instance HasSetRange SbstC where
-  setRange r = \case
-    Keep _ v -> Keep r v
-    Drop _ v -> Drop r v
-    Assign _ v t -> Assign r v t
+instance HasSetRange Assign where
+  setRange r (Assign _ v t) = Assign r v t
 
-instance HasGetRange SbstC where
-  getRange = \case
-    Keep r v -> r
-    Drop r v -> r
-    Assign r v t -> r
+instance HasGetRange Assign where
+  getRange = assignRange
 
 data RawP
   = AsP Range Variable RawP
