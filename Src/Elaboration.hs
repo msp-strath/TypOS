@@ -39,7 +39,7 @@ import Control.Applicative ((<|>))
 import Operator
 import Operator.Eval
 import Semantics
-import Debug.Trace (traceShow)
+import Debug.Trace (traceShow, traceId)
 
 type CPattern = PATTERN Concrete
 type APattern = PATTERN Abstract
@@ -435,8 +435,7 @@ spatSemantics desc rest rp = do
           VBind cat desc -> pure (Semantics.catToDesc cat, weak desc)
           VPi s (y, t) -> pure (s, t)
           _ -> throwComplaint r (SyntaxPError desc rp)
-        (p, ds, t) <- elabUnder (x, s) $ spatSemantics desc (extend rest (getVariable <$> x)) p
-        traceShow t $ pure (p, ds, t)
+        elabUnder (x, s) $ spatSemantics desc (extend rest (getVariable <$> x)) p
 
 spatSemanticss :: [ASemanticsDesc]
                -> Restriction
@@ -621,12 +620,12 @@ stm usage desc rt = do
         compatibleInfos (getRange rt) (Known tdesc) (Known desc)
         pure t
 
-elabUnder :: Dischargeable a => (Binder Variable, ASemanticsDesc) -> Elab a -> Elab a
+elabUnder :: Show a => Dischargeable a => (Binder Variable, ASemanticsDesc) -> Elab a -> Elab a
 elabUnder (x, desc) ma = do
   x <- case x of
         Used x -> isFresh x
         Unused -> pure "_"
-  (x \\) <$> local (declareObjVar (x, desc)) ma
+  (x \\) . (\ x -> traceShow x x) <$> local (declareObjVar (x, desc)) ma
 
 spats :: IsSubject -> [ASemanticsDesc] -> Restriction -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
 spats _ [] rest (AtP r "") = (Nothing, AP "",,) <$> asks declarations <*> asks binderHints
