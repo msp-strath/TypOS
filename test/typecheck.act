@@ -1,12 +1,9 @@
-{-
 typecheck 'Semantics : 'Semantics
--}
 
 syntax {
   'Nat = ['EnumOrTag ['Zero] [['Suc 'Nat]]]
 }
 
-{-
 typecheck 'Nat : 'Semantics
 typecheck 'Zero : 'Nat
 typecheck ['Suc 'Zero] : 'Nat
@@ -38,11 +35,7 @@ operator
   { ['Pi a \x.b] -['apply  (t : a)] : {x=t}b
   ; ['Pi a \x.b] -['apply2 (x : a)] : b
   }
--}
 
 \x.b : ['Pi 'Nat \_.'Nat] -[ 'apply t ] ~> 'Zero
 
-{-
-
 exec PRINTF "Hurrah!".
--}

@@ -234,7 +234,6 @@ extend :: Restriction {- gamma -}
 extend (Restriction ls th) (Used x) = Restriction (ls :< x) (th -? True)
 extend (Restriction ls th) Unused = Restriction ls (th -? False)
 
-
 instance Selable Restriction where
   ph ^? Restriction ls th = Restriction (ph ^? ls) (ph ^? th)
 

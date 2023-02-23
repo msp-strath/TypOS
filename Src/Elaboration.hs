@@ -39,7 +39,7 @@ import Control.Applicative ((<|>))
 import Operator
 import Operator.Eval
 import Semantics
-import Debug.Trace (traceShow, traceId)
+import Debug.Trace (traceShow)
 
 type CPattern = PATTERN Concrete
 type APattern = PATTERN Abstract
@@ -422,8 +422,16 @@ spatSemantics desc rest rp = do
               (ps, ds, ts) <- spatSemantics desc rest s
               (pt, ds, tt) <-
                 local (setDecls ds) $
-                  elabUnder (x, ts) $
-                    spatSemantics (weak desc) (extend rest (getVariable <$> x)) t
+                  elabUnder (x, ts) $ do
+                    -- TODO: refactor this
+                    -- complex interaction between restriction throwing "_" out of scope
+                    -- and Discheargeable (via elabUnder) abstracting over it on the way out
+                    (pt, ds, tt) <- spatSemantics (weak desc) (extend rest (getVariable <$> x)) t
+                    (pt, tt) <- case x of
+                      Unused -> do sc <- asks (scopeSize . objVars)
+                                   pure (pt *^ (ones sc -? False), weak tt)
+                      Used _ -> pure (pt, tt)
+                    pure (pt, ds, tt)
               pure (PP (AP "Pi") (PP ps (PP pt (AP "")))
                    , ds
                    , "Pi" #%+ [ts,tt])
@@ -435,7 +443,10 @@ spatSemantics desc rest rp = do
           VBind cat desc -> pure (Semantics.catToDesc cat, weak desc)
           VPi s (y, t) -> pure (s, t)
           _ -> throwComplaint r (SyntaxPError desc rp)
-        elabUnder (x, s) $ spatSemantics desc (extend rest (getVariable <$> x)) p
+        elabUnder (x, s) $ do
+          (pt, ds, tt) <- spatSemantics desc (extend rest (getVariable <$> x)) p
+          sc <- asks (scopeSize . objVars)
+          pure (pt *^ (ones sc -? False), ds, weak tt)
 
 spatSemanticss :: [ASemanticsDesc]
                -> Restriction
@@ -625,7 +636,7 @@ elabUnder (x, desc) ma = do
   x <- case x of
         Used x -> isFresh x
         Unused -> pure "_"
-  (x \\) . (\ x -> traceShow x x) <$> local (declareObjVar (x, desc)) ma
+  (x \\) {-. (\ x -> traceShow x x) -} <$> local (declareObjVar (x, desc)) ma
 
 spats :: IsSubject -> [ASemanticsDesc] -> Restriction -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
 spats _ [] rest (AtP r "") = (Nothing, AP "",,) <$> asks declarations <*> asks binderHints
@@ -775,7 +786,10 @@ spatBase isSub desc rest rp = do
           VPi s (y, t) -> pure (s, t)
           _ -> throwComplaint r (SyntaxPError desc rp)
 
-        elabUnder (x, s) $ spatBase isSub desc (extend rest (getVariable <$> x)) p
+        elabUnder (x, s) $ do
+          (mr, p, ds, hs) <- spatBase isSub desc (extend rest (getVariable <$> x)) p
+          sc <- asks (scopeSize . objVars)
+          pure (mr, p *^ (ones sc -? False), ds, hs)
 
 isObjVar :: Variable -> Elab (ASemanticsDesc, DB)
 isObjVar p = resolve p >>= \case
