@@ -336,8 +336,20 @@ data ConsDesc
   | ConsEnum [(String, [ASemanticsDesc])]
   | ConsUniverse
 
-spatSemantics :: ASemanticsDesc -> Restriction -> CPattern ->
-                 Elab (APattern, Decls, ACTm)
+vconsDesc :: Range -> ASemanticsDesc -> RawP -- for the error message
+          -> VSemanticsDesc -> Elab ConsDesc
+vconsDesc r desc rp vdesc = case vdesc of
+  VNilOrCons d1 d2 -> pure (ConsCell d1 d2)
+  VCons d1 d2 -> pure (ConsCell d1 d2)
+  VWildcard _ -> pure (ConsCell desc desc)
+  VEnumOrTag _ _ ds -> pure (ConsEnum ds)
+  VUniverse _ -> pure ConsUniverse
+  _ -> throwComplaint r (SyntaxPError desc rp)
+
+spatSemantics :: ASemanticsDesc {- gamma -}
+              -> {- r :: -} Restriction {- gamma -}
+              -> CPattern {- should fit in r.support -}
+              -> Elab (APattern {- gamma -}, Decls, ACTm {- gamma -})
 spatSemantics desc rest (Irrefutable r p) = do
   raiseWarning r (IgnoredIrrefutable p) -- TODO
   spatSemantics desc rest p
@@ -350,8 +362,7 @@ spatSemantics desc rest (AsP r v p) = do
   pure (AT (ActorMeta ACitizen v) p, ds, t)
 spatSemantics desc rest (ThP r ph p) = do
   ph <- sth rest ph
-  (p, ds, t) <- spatSemantics desc (ph ^? rest) p
-  pure (p *^ ph, ds, t *^ ph)
+  spatSemantics desc (ph ^? rest) p
 spatSemantics desc rest (UnderscoreP r) = do
   ds <- asks declarations
   let hack = Variable r ("_" ++ show (length ds))
@@ -360,20 +371,18 @@ spatSemantics desc rest (VarP r v) = during (PatternVariableElaboration v) $ do
   ds <- asks declarations
   res <- resolve v
   let th = restriction rest
-  let scp = weeEnd th
   case res of
     Just (AnObjVar desc' i) -> do
-      i <- case thickx th i of -- TODO: do we need to check whether desc' is thickenable?
-        Nothing -> throwComplaint r (OutOfScope v)
-        Just i -> pure i
+       -- TODO: do we need to check whether desc' is thickenable?
+      whenNothing (thickx th i) $ throwComplaint r (OutOfScope v)
       compatibleInfos (getRange v) (Known desc) (Known desc')
-      pure (VP i, ds, var i scp)
+      pure (VP i, ds, var i (bigEnd th))
     Just mk -> throwComplaint r (NotAValidPatternVariable v mk)
     Nothing -> do
       (ovs, asot) <- thickenedASOT r th desc
-      v <- pure (getVariable v)
-      let pat = MP (ActorMeta ACitizen v) (ones scp)
-      pure (pat, ds :< (v, ActVar IsNotSubject asot), ActorMeta ACitizen v $: sbstI scp)
+      v <- isFresh v
+      let pat = MP (ActorMeta ACitizen v) th
+      pure (pat, ds :< (v, ActVar IsNotSubject asot), ActorMeta ACitizen v $: sbstW (sbstI 0) th)
 spatSemantics desc rest rp = do
   table <- gets syntaxCats
   dat <- asks headUpData
@@ -391,18 +400,10 @@ spatSemantics desc rest rp = do
           VWildcard sc -> pure ()
           VUniverse _ -> unless (a `elem` ("Semantics" : Map.keys table)) $ throwComplaint r (ExpectedASemanticsGot (At r a))
           _ -> throwComplaint r (SyntaxPError desc rp)
-        pure (AP a, ds, atom a (weeEnd (restriction rest)))
+        pure (AP a, ds, atom a (bigEnd (restriction rest)))
       ConsP r p1 p2 -> do
         -- take vdesc apart and decide what needs to be checked
-        -- Left (d1, d2): usual cons cell
-        -- Right ds     : enumeration (ds :: [(String, [Desc])])
-        descs <- case vdesc of
-          VNilOrCons d1 d2 -> pure (ConsCell d1 d2)
-          VCons d1 d2 -> pure (ConsCell d1 d2)
-          VWildcard _ -> pure (ConsCell desc desc)
-          VEnumOrTag _ _ ds -> pure (ConsEnum ds)
-          VUniverse _ -> pure ConsUniverse
-          _ -> throwComplaint r (SyntaxPError desc rp)
+        descs <- vconsDesc r desc rp vdesc
         case descs of
           ConsCell d1 d2 -> do
             (p1, ds, t1) <- spatSemantics d1 rest p1
@@ -421,17 +422,8 @@ spatSemantics desc rest rp = do
             (AtP _ "Pi", ConsP _ s (ConsP _ (LamP _ (Scope (Hide x) t)) (AtP _ ""))) -> do
               (ps, ds, ts) <- spatSemantics desc rest s
               (pt, ds, tt) <-
-                local (setDecls ds) $
-                  elabUnder (x, ts) $ do
-                    -- TODO: refactor this
-                    -- complex interaction between restriction throwing "_" out of scope
-                    -- and Discheargeable (via elabUnder) abstracting over it on the way out
-                    (pt, ds, tt) <- spatSemantics (weak desc) (extend rest (getVariable <$> x)) t
-                    (pt, tt) <- case x of
-                      Unused -> do sc <- asks (scopeSize . objVars)
-                                   pure (pt *^ (ones sc -? False), weak tt)
-                      Used _ -> pure (pt, tt)
-                    pure (pt, ds, tt)
+                local (setDecls ds) $ elabUnder (x, ts) $
+                  spatSemantics (weak desc) (extend rest (getVariable <$> x)) t
               pure (PP (AP "Pi") (PP ps (PP pt (AP "")))
                    , ds
                    , "Pi" #%+ [ts,tt])
@@ -443,10 +435,7 @@ spatSemantics desc rest rp = do
           VBind cat desc -> pure (Semantics.catToDesc cat, weak desc)
           VPi s (y, t) -> pure (s, t)
           _ -> throwComplaint r (SyntaxPError desc rp)
-        elabUnder (x, s) $ do
-          (pt, ds, tt) <- spatSemantics desc (extend rest (getVariable <$> x)) p
-          sc <- asks (scopeSize . objVars)
-          pure (pt *^ (ones sc -? False), ds, weak tt)
+        elabUnder (x, s) $ spatSemantics desc (extend rest (getVariable <$> x)) p
 
 spatSemanticss :: [ASemanticsDesc]
                -> Restriction
@@ -756,29 +745,35 @@ spatBase isSub desc rest rp = do
           _ -> throwComplaint r (SyntaxPError desc rp)
         (Nothing, AP a,,) <$> asks declarations <*> asks binderHints
 
-      ConsP r p q -> case vdesc of
-        VNilOrCons d1 d2 -> do
-          (mr1, p, ds, hs) <- spatBase isSub d1 rest p
-          (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spatBase isSub d2 rest q)
-          pure (mr1 <|> mr2, PP p q, ds, hs)
-        VCons d1 d2 -> do
-          (mr1, p, ds, hs) <- spatBase isSub d1 rest p
-          (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spatBase isSub d2 rest q)
-          pure (mr1 <|> mr2, PP p q, ds, hs)
-        VWildcard _ -> do
-          (mr1, p, ds, hs) <- spatBase isSub desc rest p
-          (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spatBase isSub desc rest q)
-          pure (mr1 <|> mr2, PP p q, ds, hs)
-        VEnumOrTag _ _ ds -> case p of
-          AtP r a -> case lookup a ds of
-            Nothing -> throwComplaint r (ExpectedTagGot (fst <$> ds) a)
-            Just descs ->  do
-              (mr1, p, ds, hs) <- spatBase isSub (atom "Atom" 0) rest p
-              (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spats isSub descs rest q)
-              pure (mr1 <|> mr2, PP p q, ds, hs)
-          _ -> throwComplaint r (SyntaxPError desc rp)
-        _ -> throwComplaint r (SyntaxPError desc rp)
-
+      ConsP r p q -> do
+        -- take vdesc apart and decide what needs to be checked
+        descs <- vconsDesc r desc rp vdesc
+        case descs of
+          ConsCell d1 d2 -> do
+            (mr1, p, ds, hs) <- spatBase isSub d1 rest p
+            (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spatBase isSub d2 rest q)
+            pure (mr1 <|> mr2, PP p q, ds, hs)
+          ConsEnum ds -> case p of
+            AtP r a -> case lookup a ds of
+              Nothing -> throwComplaint r (ExpectedTagGot (fst <$> ds) a)
+              Just descs ->  do
+                (mr1, p, ds, hs) <- spatBase isSub (atom "Atom" 0) rest p
+                (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spats isSub descs rest q)
+                pure (mr1 <|> mr2, PP p q, ds, hs)
+            _ -> throwComplaint r (SyntaxPError desc rp)
+          ConsUniverse -> case (isSub, p, q) of
+            (IsNotSubject, AtP _ "Pi", ConsP _ s (ConsP _ (LamP _ (Scope (Hide x) t)) (AtP _ ""))) -> do
+              (ps, ds, s) <- spatSemantics desc rest s
+              (mr, pt, ds, hs) <-
+                local (setDecls ds) $
+                  elabUnder (x, s) $
+                    spatBase isSub (weak desc) (extend rest (getVariable <$> x)) q
+              pure ( mr
+                   , PP (AP "Pi") (PP ps (PP pt (AP "")))
+                   , ds
+                   , hs)
+            (IsSubject{}, _, _) -> throwComplaint r undefined
+            _ -> throwComplaint r (ExpectedASemanticsPGot rp)
       LamP r (Scope v@(Hide x) p) -> do
         (s, desc) <- case vdesc of
           VWildcard _ -> pure (desc, weak desc)
@@ -786,10 +781,8 @@ spatBase isSub desc rest rp = do
           VPi s (y, t) -> pure (s, t)
           _ -> throwComplaint r (SyntaxPError desc rp)
 
-        elabUnder (x, s) $ do
-          (mr, p, ds, hs) <- spatBase isSub desc (extend rest (getVariable <$> x)) p
-          sc <- asks (scopeSize . objVars)
-          pure (mr, p *^ (ones sc -? False), ds, hs)
+        elabUnder (x, s) $
+          spatBase isSub desc (extend rest (getVariable <$> x)) p
 
 isObjVar :: Variable -> Elab (ASemanticsDesc, DB)
 isObjVar p = resolve p >>= \case
