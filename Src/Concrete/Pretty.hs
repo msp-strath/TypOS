@@ -117,7 +117,7 @@ prettyact = go B0 B0 where
     Recv r ch (av, a) -> go ls (l `add` [pretty ch, "?", pretty av, dot]) a
     FreshMeta r syn (av, a) -> freshMetas ls l syn (B0 :< av) a
     Let r av syn t a -> go (ls :< fold (l `add` [hsep ["let", pretty av, ":", pretty syn, "=", pretty t] <> dot])) B0 a
-    Under r (Scope x a) -> unders ls l (B0 :< x) a
+    Under r mty (Scope x a) -> unders ls l mty (B0 :< x) a
     Note r a -> go ls (l `add` ["!", dot]) a
     Push r stk (x, _, t) a ->
       let push = hsep [pretty stk, "|-", pretty x, "->", pretty t] <> dot in
@@ -139,9 +139,14 @@ prettyact = go B0 B0 where
 
   unders :: Bwd (Doc Annotations) -> -- lines above us
             Bwd (Doc Annotations) -> -- part of the line on our left
+            Maybe Raw -> -- Type annotation
             Bwd (Hide Variable) -> CActor -> [Doc Annotations]
-  unders ls l xs (Under _ (Scope x a)) = unders ls l (xs :< x) a
-  unders ls l xs a = go ls (l `add` [backslash , hsep (pretty <$> xs <>> []), dot]) a
+  unders ls l mty xs (Under _ mty' (Scope x a))
+       | mty == mty' = unders ls l mty (xs :< x) a
+  unders ls l mty xs a
+    = go ls (l `add` [ maybe id (\ ty r -> pretty ty <+> r) mty backslash
+                     , hsep (pretty <$> xs <>> [])
+                     , dot]) a
 
 
 instance Pretty CActor where

@@ -292,7 +292,9 @@ instance Unelab AActor where
     Recv r ch (av, a) -> Recv r <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
     FreshMeta r desc (av, a) -> FreshMeta r <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
     Let r av desc t a -> Let r <$> subunelab av <*> subunelab desc <*> subunelab t <*> unelab a
-    Under r (Scope x a) -> Under r. Scope x <$> local (updateNaming (`nameOn` getVariable (unhide x))) (unelab a)
+    Under r mty (Scope x a) ->
+      Under r <$> traverse subunelab mty
+              <*> (Scope x <$> local (updateNaming (`nameOn` getVariable (unhide x))) (unelab a))
     Push r stk (p, _, t) a -> Push r <$> subunelab stk <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
     Match r tm pts -> Match r <$> subunelab tm <*> traverse unelab pts
     Constrain r s t -> Constrain r <$> subunelab s <*> subunelab t

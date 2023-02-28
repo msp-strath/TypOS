@@ -29,14 +29,13 @@ import Operator.Eval
 import Options
 import Semantics
 import Data.Void (absurd)
+import Data.Bifunctor (bimap)
 
 ------------------------------------------------------------------------------
 -- Elaboration Monad
 
-asSemantics :: ASyntaxDesc -> Elab ASemanticsDesc
-asSemantics syn = do
-  sc <- asks (scopeSize . objVars)
-  pure (embed sc syn)
+asSemantics :: ASyntaxDesc -> ASemanticsDesc
+asSemantics syn = fmap absurd $^ syn
 
 data ElabState = ElabState
   { channelStates :: ChannelStates
@@ -274,11 +273,16 @@ initContext opts = Context
       }
 
 -- We have already checked the name is fresh
-declareObjVar :: (String, ASemanticsDesc) -> Context -> Context
+declareObjVar :: ( {- x :: -} String
+                 , {- S :: -} ASemanticsDesc {- gamma -})
+              -> Context {- gamma -}
+              -> Context {- gamma, x :: S -}
 declareObjVar (x, sem) ctx =
     -- We store semantics descs ready to be deployed at use sites
     let scp = getObjVars (objVars ctx) :< ObjVar x sem in
-    ctx { objVars = ObjVars (fmap weak <$> scp) }
+    ctx { objVars = ObjVars (fmap weak <$> scp)
+        , binderHints = fmap weak <$> binderHints ctx
+        }
 
 -- Careful! The new ovs better be a valid scope
 -- i.e. all the objvars mentioned in the SemanticsDesc of
@@ -357,8 +361,10 @@ addOperator op ctx =
 setHints :: Hints -> Context -> Context
 setHints hs ctx = ctx { binderHints = hs }
 
-addHint :: String -> Info ASemanticsDesc -> Context -> Context
-addHint str cat ctx =
+-- TODO: hints should be ASOTs
+addHint :: Binder String -> Info ASemanticsDesc -> Context -> Context
+addHint Unused cat ctx = ctx
+addHint (Used str) cat ctx =
   let hints = binderHints ctx
       hints' = case Map.lookup str hints of
                  Nothing -> Map.insert str cat hints

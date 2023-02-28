@@ -177,7 +177,7 @@ exec p@Process { actor = Constrain _ s t, ..}
   -- , dmesg (show t ++ " ----> " ++ show t') True
   = let dat = mkHeadUpData p in
     unify dat (p { stack = stack :<+>: [UnificationProblem (today store) s' t'], actor = Win unknown })
-exec p@Process { actor = Under _ (Scope (Hide x) a), ..}
+exec p@Process { actor = Under _ _ (Scope (Hide x) a), ..}
   = let scopeSize = length (globalScope env <> localScope env)
         stack' = stack :< Binding (tryAlpha env (getVariable x) ++ "_" ++ show scopeSize)
         env'   = env { localScope = localScope env :< tryAlpha env (getVariable x) }
@@ -423,7 +423,7 @@ move p@Process { stack = zf :< UnificationProblem date s t :<+>: fs, .. }
   | today store > date
   = let dat = mkHeadUpData (p{ stack = zf}) in
     unify dat (p { stack = zf :<+>: UnificationProblem (today store) s t : fs })
-move p@Process { stack = (zf :< f) :<+>: fs }  
+move p@Process { stack = (zf :< f) :<+>: fs }
   = move (p { stack = zf :<+>: (f : fs) })
 
 debug :: (Show (t Frame), Traversable t, Collapse t, Display0 s)

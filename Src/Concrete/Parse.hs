@@ -162,7 +162,7 @@ pscrutinee = withRange $ do
 
 pact :: Parser CActor
 pact = withRange $
-  pscoped Under pvariable pact
+  do { ty <- optional pTM; pscoped (flip Under ty) pvariable pact }
   <|> Send unknown <$> pvariable <*> pure () <* punc "!" <*> pmustwork "Expected a term" pTM <* punc "." <*> pact
   <|> do tm <- pTM
          punc "?"

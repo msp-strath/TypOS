@@ -7,6 +7,7 @@ import Bwd
 import Format
 import Scope
 import Location
+import Data.Bifunctor (Bifunctor (..))
 
 data Variable = Variable
   { variableLoc :: Range
@@ -161,9 +162,12 @@ deriving instance
   , Show (SEMANTICSDESC ph)) => Show (PROTOCOL ph)
 
 data ContextStack k v = ContextStack
-  { keyDesc :: k
-  , valueDesc :: v
+  { keyDesc :: k {- syntax desc -}
+  , valueDesc :: v {- closed semantics desc -}
   } deriving (Show)
+
+instance Bifunctor ContextStack where
+  bimap f g (ContextStack k v) = ContextStack (f k) (g v)
 
 data CConnect = CConnect Variable Variable
   deriving (Show)
@@ -260,7 +264,7 @@ data ACTOR (ph :: Phase)
  | Note Range (ACTOR ph)
  | FreshMeta Range (SEMANTICSDESC ph) (ACTORVAR ph, ACTOR ph)
  | Let Range (ACTORVAR ph) (SEMANTICSDESC ph) (TERM ph) (ACTOR ph)
- | Under Range (Scope Variable (ACTOR ph))
+ | Under Range (Maybe (SEMANTICSDESC ph)) (Scope Variable (ACTOR ph))
  | Match Range (SCRUTINEE ph) [(PATTERN ph, ACTOR ph)]
  -- This is going to bite us when it comes to dependent types
  | Constrain Range (TERM ph) (TERM ph)
@@ -306,7 +310,7 @@ instance HasSetRange (ACTOR ph) where
     Note _ ac -> Note r ac
     FreshMeta _ syn x0 -> FreshMeta r syn x0
     Let _ x d t a -> Let r x d t a
-    Under _ sc -> Under r sc
+    Under _ mty sc -> Under r mty sc
     Match _ tm x0 -> Match r tm x0
     Constrain _ tm tm' -> Constrain r tm tm'
     Push _ jd x0 ac -> Push r jd x0 ac
@@ -325,7 +329,7 @@ instance HasGetRange (ACTOR ph) where
     Note r ac -> r
     FreshMeta r syn x0 -> r
     Let r _ _ _ _ -> r
-    Under r sc -> r
+    Under r mty sc -> r
     Match r tm x0 -> r
     Constrain r tm tm' -> r
     Push r jd x0 ac -> r

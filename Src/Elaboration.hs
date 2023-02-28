@@ -39,7 +39,8 @@ import Control.Applicative ((<|>))
 import Operator
 import Operator.Eval
 import Semantics
-import Debug.Trace (traceShow)
+import Debug.Trace (traceShow, traceShowId)
+import Data.Bifunctor (bimap)
 
 type CPattern = PATTERN Concrete
 type APattern = PATTERN Abstract
@@ -278,7 +279,7 @@ sscrutinee (Pair r sc1 sc2) = do
 sscrutinee (Lookup r stk v) = do
   (stk, stkTy) <- isContextStack stk
   t <- during (LookupVarElaboration v) $ do
-    desc <- asSemantics (keyDesc stkTy)
+    let desc = asSemantics (keyDesc stkTy)
     (isSub, desc, t) <- svar (LookedUp r) (Just desc) v
     pure t
   let vdesc = valueDesc stkTy
@@ -423,6 +424,7 @@ spatSemantics desc rest rp = do
               (ps, ds, ts) <- spatSemantics desc rest s
               (pt, ds, tt) <-
                 local (setDecls ds) $ elabUnder (x, ts) $
+--                  local (addHint (getVariable <$> x) (Known desc)) $
                   spatSemantics (weak desc) (extend rest (getVariable <$> x)) t
               pure (PP (AP "Pi") (PP ps (PP pt (AP "")))
                    , ds
@@ -435,7 +437,9 @@ spatSemantics desc rest rp = do
           VBind cat desc -> pure (Semantics.catToDesc cat, weak desc)
           VPi s (y, t) -> pure (s, t)
           _ -> throwComplaint r (SyntaxPError desc rp)
-        elabUnder (x, s) $ spatSemantics desc (extend rest (getVariable <$> x)) p
+        elabUnder (x, s) $
+--          local (addHint (getVariable <$> x) (Known s)) $
+            spatSemantics desc (extend rest (getVariable <$> x)) p
 
 spatSemanticss :: [ASemanticsDesc]
                -> Restriction
@@ -568,7 +572,6 @@ sasot r (objVars :=> desc) = do
 
 stm :: Usage -> ASemanticsDesc -> Raw -> Elab ACTm
 stm usage desc (Var r v) = during (TermVariableElaboration v) $ do
-  table <- gets syntaxCats
   (_, _, t) <- svar usage (Just desc) v
   pure t
 stm usage desc (Sbst r sg t) = do
@@ -662,7 +665,7 @@ spat esc rest p@VarP{} = spatBase (Pattern <$ isSubject esc) (escrutinee esc) re
 spat esc rest (ThP r ph p) = do
   ph <- sth rest ph
   (mr, p, ds, hs) <- spat esc (ph ^? rest) p
-  pure (mr, p *^ ph, ds, hs)
+  pure (mr, p, ds, hs)
 spat esc rest p@(UnderscoreP r) = do
   (_, p, ds, hs) <- spatBase (Pattern <$ isSubject esc) (escrutinee esc) rest p
   let mr = r <$ guard (not (isSubjectFree esc))
@@ -692,7 +695,11 @@ thickenedASOT r th desc = do
     Just desc -> pure desc
   pure (ovs, ovs :=> desc)
 
-spatBase :: IsSubject -> ASemanticsDesc -> Restriction ->  RawP -> Elab (Maybe Range, Pat, Decls, Hints)
+spatBase :: IsSubject
+         -> ASemanticsDesc
+         -> Restriction
+         ->  RawP
+         -> Elab (Maybe Range, Pat, Decls, Hints)
 spatBase isSub desc rest rp@(AsP r v p) = do
   unless (isSub == IsNotSubject) $
     throwComplaint r (AsPatternCannotHaveSubjects rp)
@@ -704,7 +711,7 @@ spatBase isSub desc rest rp@(AsP r v p) = do
 spatBase isSub desc rest (ThP r ph p) = do
   ph <- sth rest ph
   (mr, p, ds, hs) <- spatBase isSub desc (ph ^? rest) p
-  pure (mr, p *^ ph, ds, hs)
+  pure (mr, p, ds, hs)
 spatBase isSub desc rest (VarP r v) = during (PatternVariableElaboration v) $ do
   ds <- asks declarations
   hs <- asks binderHints
@@ -712,9 +719,8 @@ spatBase isSub desc rest (VarP r v) = during (PatternVariableElaboration v) $ do
   let th = restriction rest
   case res of
     Just (AnObjVar desc' i) -> do
-      i <- case thickx th i of -- TODO: do we need to check whether desc' is thickenable?
-        Nothing -> throwComplaint r (OutOfScope v)
-        Just i -> pure i
+      -- TODO: do we need to check whether desc' is thickenable?
+      whenNothing (thickx th i) $ throwComplaint r (OutOfScope v)
       compatibleInfos (getRange v) (Known desc) (Known desc')
       pure (Nothing, VP i, ds, hs)
     Just mk -> throwComplaint r (NotAValidPatternVariable v mk)
@@ -767,7 +773,8 @@ spatBase isSub desc rest rp = do
               (mr, pt, ds, hs) <-
                 local (setDecls ds) $
                   elabUnder (x, s) $
-                    spatBase isSub (weak desc) (extend rest (getVariable <$> x)) q
+--                    local (addHint (getVariable <$> x) (Known desc)) $
+                      spatBase isSub (weak desc) (extend rest (getVariable <$> x)) q
               pure ( mr
                    , PP (AP "Pi") (PP ps (PP pt (AP "")))
                    , ds
@@ -782,7 +789,8 @@ spatBase isSub desc rest rp = do
           _ -> throwComplaint r (SyntaxPError desc rp)
 
         elabUnder (x, s) $
-          spatBase isSub desc (extend rest (getVariable <$> x)) p
+--          local (addHint (getVariable <$> x) (Known s)) $
+            spatBase isSub desc (extend rest (getVariable <$> x)) p
 
 isObjVar :: Variable -> Elab (ASemanticsDesc, DB)
 isObjVar p = resolve p >>= \case
@@ -817,7 +825,9 @@ isJudgement jd = resolve jd >>= \case
 
 isContextStack :: Variable -> Elab (Stack, AContextStack)
 isContextStack stk = resolve stk >>= \case
-  Just (ADeclaration (AStack stkTy)) -> pure (Stack (getVariable stk), stkTy)
+  Just (ADeclaration (AStack stkTy)) -> do
+    scp <- asks (scopeSize . objVars)
+    pure (Stack (getVariable stk), bimap (weaks scp) (weaks scp) stkTy)
   Just mk -> throwComplaint stk (NotAValidStack stk mk)
   Nothing -> throwComplaint stk (OutOfScope stk)
 
@@ -1055,12 +1065,14 @@ sact = \case
     a <- local (declare (Used av) (ActVar IsNotSubject (ovs :=> desc))) $ sact a
     pure (Let r (ActorMeta ACitizen av) desc t a)
 
-  Under r (Scope v@(Hide x) a) -> do
+  Under r mdesc (Scope v@(Hide x) a) -> do
     x <- during UnderElaboration $ isFresh x
     -- TODO: Have the syntax carry a desc? Fail if the hint is Unknown?
-    desc <- fromInfo r =<< getHint x
+    desc <- case mdesc of
+      Nothing -> fromInfo r =<< getHint x
+      Just desc -> sty desc
     a <- local (declareObjVar (x, desc)) $ sact a
-    pure $ Under r (Scope v a)
+    pure $ Under r (desc <$ mdesc) (Scope v a)
 
   Match r rsc cls -> do
     (esc, sc) <- during (MatchScrutineeElaboration rsc) $ sscrutinee rsc
@@ -1079,9 +1091,9 @@ sact = \case
     pure $ Match r sc cls
 
   Push r stk (rp, (), t) a -> do
-    (stk, stkTy) <- isContextStack stk
-    (desc, p) <- isObjVar rp
-    compatibleInfos (getRange rp) (Known desc) . Known =<< asSemantics (keyDesc stkTy)
+    (stk, stkTy) <- traceShowId <$> isContextStack stk
+    (desc, p) <- traceShowId <$> isObjVar rp
+    compatibleInfos (getRange rp) (Known desc) (Known $ asSemantics (keyDesc stkTy))
     t <- during (PushTermElaboration t) $ stm (Pushed r) (valueDesc stkTy) t
     a <- sact a
     pure $ Push r stk (p, valueDesc stkTy, t) a
@@ -1151,7 +1163,8 @@ sclause esc (rp, a) = do
   ovs <- asks objVars
   (mr, p, ds, hs) <- lift $ during (MatchBranchElaboration rp) $ spat esc (initRestriction ovs) rp
   let pats = takez ds (length ds - length ds0)
-  coverageCheckClause rp p
+
+  traceShow hs $ coverageCheckClause rp p
   (a, me) <- lift $ during (MatchBranchElaboration rp) $
                local (setDecls ds . setHints hs) $ sbranch (getRange rp) pats a
   lift $ modify (\ st -> st { actvarStates = avs })
