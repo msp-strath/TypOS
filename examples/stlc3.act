@@ -12,6 +12,14 @@ syntax
             ]
   }
 
+type : $'Type.
+type@p = p?ty. case $ty
+  { 'Base ->
+  ; 'Nat ->
+  ; 'Bool ->
+  ; ['Arr s t] -> (type@q. q!s. | type@r. r!t.)
+  }
+
 check : ?'Type. $'Check.
 synth : $'Synth. !'Type.
 ctxt |- 'Synth -> 'Type
@@ -26,7 +34,7 @@ check@p = p?ty. p?tm. case $tm
 synth@p = p?tm . case (lookup ctxt tm)
  { ['Just S] -> p!S.
  ; 'Nothing -> case $tm
-   { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty.)
+   { ['Rad t ty] -> (check@q. q!ty. q!t. | p!ty. | type@r. r!ty.)
    ; ['App f s] -> 'Type?U. 'Type?V.
         ( synth@q. q!f. q?ty. ty ~ ['Arr U V]
         | check@r. r!U. r!s.
