@@ -1,4 +1,4 @@
-trace { exec }
+-- trace { exec }
 
 syntax
   { 'Term = ['Tag [

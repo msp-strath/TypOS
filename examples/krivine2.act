@@ -1,4 +1,4 @@
-trace { break }
+-- trace { break }
 
 syntax
   { 'Term = ['Tag [
