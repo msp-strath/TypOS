@@ -593,7 +593,7 @@ stm usage desc rt = do
           VNilOrCons{} -> unless (a == "") $ throwComplaint r (ExpectedNilGot a)
           VEnumOrTag _ es _ -> unless (a `elem` es) $ throwComplaint r (ExpectedEnumGot es a)
           VWildcard _ -> pure ()
-          VUniverse _ -> unless (a `elem` ("Semantics" : Map.keys table)) $ throwComplaint r (ExpectedASemanticsGot rt)
+          VUniverse _ -> unless (a `elem` ("Atom" : "Nil" : "Wildcard" : "Semantics" : Map.keys table)) $ throwComplaint r (ExpectedASemanticsGot rt)
              --  TODO we're probably missing semantics here
           _ -> throwComplaint r (SemanticsError desc rt)
         satom a
