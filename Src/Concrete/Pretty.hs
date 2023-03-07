@@ -168,9 +168,9 @@ instance Pretty CActor where
 
 instance Pretty Debug where
   pretty = \case
-    ShowEnv -> "%e"
+    ShowEnv -> "%E"
     ShowStack -> "%S"
-    ShowStore -> "%m"
+    ShowStore -> "%M"
 
 instance Pretty Directive where
   pretty = \case

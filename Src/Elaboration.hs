@@ -734,8 +734,8 @@ spatBase isSub desc rest (VarP r v) = during (PatternVariableElaboration v) $ do
     Just mk -> throwComplaint r (NotAValidPatternVariable v mk)
     Nothing -> do
       (ovs, asot) <- thickenedASOT r th desc
-      v <- pure (getVariable v)
-      let pat = MP (ActorMeta (spassport (Scrutinised unknown) isSub) v) (ones $ scopeSize ovs)
+      v <- isFresh v
+      let pat = MP (ActorMeta (spassport (Scrutinised unknown) isSub) v) th
       pure (Nothing, pat, ds :< (v, ActVar isSub asot), hs)
 spatBase isSub desc rest (UnderscoreP r) = do
   let mr = case isSub of

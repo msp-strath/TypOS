@@ -21,7 +21,7 @@ unwind@p = p?tm. p?stk. case stk
     { ['Lam \x.b] ->
        -- stack is empty: evaluate under a binder with a placeholder variable
        \x. env |- x -> ['Variable x].
-           krivine@q. q!b. q![]. q?res. p!['Lam \x.res].
+       krivine@q. q!b. q![]. q?res. p!['Lam \x.res].
     ; _ -> p!tm.
     }
   ; [a | as] -> case tm
@@ -38,18 +38,29 @@ unwind@p = p?tm. p?stk. case stk
 
 krivine@p = p?tm. p?stk.
   case (lookup env tm)
-  { ['Just ['Argument val]] -> krivine@q. q!val. q!stk. q?res. p!res.
-  ; ['Just ['Variable var]] -> unwind@q. q!var. q!stk. q?res. p!res.
+  { ['Just ['Argument val]] -> krivine@q. q!val. q!stk. q?res. p!res.        -- compute (val stk)
+  ; ['Just ['Variable var]] -> unwind@q. q!var. q!stk. q?res. p!res.  -- return (var $$ stk)
   ; 'Nothing -> case tm
     { ['App f t] -> 'Term?vt.
          ( krivine@q. q!t. q![]. q?res. res ~ vt
          | krivine@q. q!f. q![vt|stk]. q?res. p!res.
          )
-    ; _ -> unwind@q. q!tm. q!stk. q?res. p!res.
+    ; ['Lam \x.body] -> unwind@q. q!tm. q!stk. q?res. p!res.
     }
   }
 
+
 exec krivine@p.
-  p!['App ['Lam \f. ['Lam \x. ['App f ['App f x]]]]
-          ['Lam \g. ['Lam \y. ['App g ['App g y]]]]].
+  p!['App ['Lam \f. f]   -- id
+          ['Lam \g. g]]. -- id
+  p![]. p?v. PRINTF "%i" v.
+
+exec krivine@p.
+  p!['App ['Lam \f. ['Lam \x.['App f ['App f x]]]]   -- id
+          ['Lam \g. g]]. -- id
+  p![]. p?v. PRINTF "%i" v.
+
+exec krivine@p.
+  p!['App ['Lam \f. ['Lam \x. ['App f ['App f x]]]]   -- 2
+          ['Lam \g. ['Lam \y. ['App g ['App g y]]]]]. -- 2
   p![]. p?v. PRINTF "%i" v .
