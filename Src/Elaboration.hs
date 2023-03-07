@@ -46,6 +46,8 @@ import GHC.Stack.Types (HasCallStack)
 type CPattern = PATTERN Concrete
 type APattern = PATTERN Abstract
 
+dmesg = const id
+
 isSubject :: EScrutinee -> IsSubject' ()
 isSubject SubjectVar{} = IsSubject ()
 isSubject _ = IsNotSubject
@@ -133,8 +135,7 @@ svar usage mdesc' x = do
   let r = getRange x
   ovs <- asks objVars
   res <- resolve x
-  {- trace ("Looking at " ++ show x ++ ", objvars: " ++ show ovs) $ -}
-  case res of
+  dmesg ("Looking at " ++ show x ++ ", objvars: " ++ show ovs) $ case res of
     Just (ADeclaration k) -> case k of
       ActVar isSub (sc :=> desc) -> do
         logUsage (getVariable x) usage
@@ -300,9 +301,6 @@ sscrutinee (Term r t) = during (ScrutineeTermElaboration t) $ do
   t <- stm (MatchedOn r) desc t
   pure (Term r desc, Term r t)
 
-
-satom :: String -> Elab ACTm
-satom at = atom at <$> asks (scopeSize . objVars)
 
 sty :: CSemanticsDesc -> Elab ASemanticsDesc
 sty t = do
@@ -611,6 +609,10 @@ stm usage desc rt = do
             s <- sty s
             t <- elabUnder (x, s) $ sty t
             pure ("Pi" #%+ [s, t])
+          (At _ "Cons", Cons _ s (Cons _ t (At _ ""))) -> do
+            s <- sty s
+            t <- sty t
+            pure ("Cons" #%+ [s, t])
           _ -> throwComplaint r (ExpectedASemanticsGot rt)
         _ -> throwComplaint r (SyntaxError desc rt)
       Lam r (Scope (Hide x) sc) -> do
@@ -893,7 +895,7 @@ guessDesc b (Cons _ p q) = do
     (Known d1, Known d2) -> pure (Known $ Semantics.contract (Semantics.VCons d1 d2))
     _ -> pure Unknown
 -- might need better guess for the scope than 0
-guessDesc True (At _ "") = pure (Known $ Semantics.contract (Semantics.VNil 0))
+guessDesc True (At _ "") = Known <$> satom "Nil"
 guessDesc _ _ = pure Unknown
 
 compatibleChannels :: Range
@@ -972,9 +974,7 @@ sact = \case
     ch <- isChannel ch
     -- Check the channel is in sending mode, & step it
     (m, desc) <- steppingChannel r ch $ \ dir -> \case
-      (m, desc) : p | whatComm m dir == SEND ->
-         do scp <- asks (scopeSize . objVars)
-            pure ((m, weaks scp desc), p)
+      (m, desc) : p | whatComm m dir == SEND -> pure ((m, desc), p)
       _ -> throwComplaint r (InvalidSend ch tm)
 
     (usage, gd) <- do
@@ -997,7 +997,9 @@ sact = \case
       --   3. thx is the thinning embedding sc back into ovs
       -- => setObjVars would be legitimate because xyz is a valid scope
       let (thx, xyz, thy) = lintersection (getObjVars sc) (getObjVars ovs)
-      (*^ thx) <$> local (setObjVars' $ ObjVars xyz) (stm usage desc tm)
+      let ovs = ObjVars xyz
+      desc <- pure (weaks (scopeSize ovs) desc)
+      (*^ thx) <$> local (setObjVars' ovs) (stm usage desc tm)
 
     a <- sact a
     pure $ Send r ch gd tm a
@@ -1007,9 +1009,7 @@ sact = \case
 
     -- Check the channel is in receiving mode & step it
     (m, cat) <- steppingChannel r ch $ \ dir -> \case
-      (m, cat) : p | whatComm m dir == RECV ->
-         do scp <- asks (scopeSize . objVars)
-            pure ((m, weaks scp cat), p)
+      (m, cat) : p | whatComm m dir == RECV -> pure ((m, cat), p)
       _ -> throwComplaint r (InvalidRecv ch p)
 
     -- TODO: m contains a SyntaxDesc when it's a subject position
@@ -1025,6 +1025,7 @@ sact = \case
 
     -- Further actor
     sc <- channelScope ch
+    cat <- pure (weaks (scopeSize sc) cat)
     (a, All canwin) <- local (declare av (ActVar isSub (sc :=> cat))) -- GOTO
            $ listen
            $ sact

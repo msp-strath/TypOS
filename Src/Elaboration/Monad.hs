@@ -123,8 +123,11 @@ infoExpand dat table s = case Semantics.expand table dat s of
   Just (VWildcard _) -> Unknown
   Just a -> Known a
 
+satom :: String -> Elab ACTm
+satom at = atom at <$> asks (scopeSize . objVars)
+
 fromInfo :: Range -> Info ASemanticsDesc -> Elab ASemanticsDesc
-fromInfo r Unknown = pure (atom "Wildcard" 0)
+fromInfo r Unknown = satom "Wildcard"
 fromInfo r (Known desc) = pure desc
 -- I believe this last case is currently unreachable because this
 -- may only arise from a call to (<>) and this is only used in two
