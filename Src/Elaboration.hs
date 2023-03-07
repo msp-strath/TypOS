@@ -39,8 +39,9 @@ import Control.Applicative ((<|>))
 import Operator
 import Operator.Eval
 import Semantics
-import Debug.Trace (traceShow, traceShowId)
+import Debug.Trace (traceShow, traceShowId, trace)
 import Data.Bifunctor (bimap)
+import GHC.Stack.Types (HasCallStack)
 
 type CPattern = PATTERN Concrete
 type APattern = PATTERN Abstract
@@ -132,6 +133,7 @@ svar usage mdesc' x = do
   let r = getRange x
   ovs <- asks objVars
   res <- resolve x
+  {- trace ("Looking at " ++ show x ++ ", objvars: " ++ show ovs) $ -}
   case res of
     Just (ADeclaration k) -> case k of
       ActVar isSub (sc :=> desc) -> do
@@ -166,7 +168,7 @@ spop r = do
 
 ssyntaxdesc :: [SyntaxCat] -> Raw -> Elab SyntaxDesc
 ssyntaxdesc syndecls syn = do
-  let desc = catToDesc "Syntax"
+  desc <- satom "Syntax"
   syn <- withSyntax (syntaxDesc syndecls) $ stm DontLog desc syn
   case isMetaFree syn of
     Nothing -> error "Impossible in ssyntaxdesc" -- this should be impossible, since parsed in empty context
@@ -434,7 +436,7 @@ spatSemantics desc rest rp = do
       LamP r (Scope v@(Hide x) p) -> do
         (s, desc) <- case vdesc of
           VWildcard _ -> pure (desc, weak desc)
-          VBind cat desc -> pure (Semantics.catToDesc cat, weak desc)
+          VBind cat desc -> (, weak desc) <$> satom cat
           VPi s (y, t) -> pure (s, t)
           _ -> throwComplaint r (SyntaxPError desc rp)
         elabUnder (x, s) $
@@ -614,17 +616,21 @@ stm usage desc rt = do
       Lam r (Scope (Hide x) sc) -> do
         (s, desc) <- case vdesc of
           VWildcard i -> pure (desc, weak desc)
-          VBind cat desc -> pure (catToDesc cat, weak desc)
+          VBind cat desc -> (,weak desc) <$> satom cat
           VPi s (y, t) -> pure (s, t)
           _ -> throwComplaint r (SyntaxError desc rt)
         elabUnder (x, s) $ stm usage desc sc
       Op{} -> do
         (tdesc, t) <- itm usage rt
-        compatibleInfos (getRange rt) (Known tdesc) (Known desc)
+        compatibleInfos (getRange rt) (Known desc) (Known tdesc)
         pure t
 
-elabUnder :: Show a => Dischargeable a => (Binder Variable, ASemanticsDesc) -> Elab a -> Elab a
+elabUnder :: HasCallStack => Show a => Dischargeable a => (Binder Variable, ASemanticsDesc) -> Elab a -> Elab a
 elabUnder (x, desc) ma = do
+  scp <- asks (scopeSize . objVars)
+  unless (scp == scope desc) $ do
+    st <- asks stackTrace
+    error ("The IMPOSSIBLE has happened when binding " ++ show x ++ show st)
   x <- case x of
         Used x -> isFresh x
         Unused -> pure "_"
@@ -784,7 +790,7 @@ spatBase isSub desc rest rp = do
       LamP r (Scope v@(Hide x) p) -> do
         (s, desc) <- case vdesc of
           VWildcard _ -> pure (desc, weak desc)
-          VBind cat desc -> pure (Semantics.catToDesc cat, weak desc)
+          VBind cat desc -> (, weak desc) <$> satom cat
           VPi s (y, t) -> pure (s, t)
           _ -> throwComplaint r (SyntaxPError desc rp)
 
@@ -845,9 +851,9 @@ steppingChannel r ch step = do
   nm <- getName
   (dir, pnm, p) <- gets (fromJust . channelLookup ch)
   unless (pnm `isPrefixOf` nm) $ throwComplaint r (NonLinearChannelUse ch)
-  (cat, p) <- step dir p
+  (a, p) <- step dir p
   modify (channelInsert ch (dir, nm, p))
-  pure cat
+  pure a
 
 open :: Direction -> Channel -> AProtocol -> Elab ()
 open dir ch (Protocol p) = do
@@ -966,7 +972,9 @@ sact = \case
     ch <- isChannel ch
     -- Check the channel is in sending mode, & step it
     (m, desc) <- steppingChannel r ch $ \ dir -> \case
-      (m, desc) : p | whatComm m dir == SEND -> pure ((m, desc), p)
+      (m, desc) : p | whatComm m dir == SEND ->
+         do scp <- asks (scopeSize . objVars)
+            pure ((m, weaks scp desc), p)
       _ -> throwComplaint r (InvalidSend ch tm)
 
     (usage, gd) <- do
@@ -999,7 +1007,9 @@ sact = \case
 
     -- Check the channel is in receiving mode & step it
     (m, cat) <- steppingChannel r ch $ \ dir -> \case
-      (m, cat) : p | whatComm m dir == RECV -> pure ((m, cat), p)
+      (m, cat) : p | whatComm m dir == RECV ->
+         do scp <- asks (scopeSize . objVars)
+            pure ((m, weaks scp cat), p)
       _ -> throwComplaint r (InvalidRecv ch p)
 
     -- TODO: m contains a SyntaxDesc when it's a subject position
@@ -1091,9 +1101,9 @@ sact = \case
     pure $ Match r sc cls
 
   Push r stk (rp, (), t) a -> do
-    (stk, stkTy) <- traceShowId <$> isContextStack stk
-    (desc, p) <- traceShowId <$> isObjVar rp
-    compatibleInfos (getRange rp) (Known desc) (Known $ asSemantics (keyDesc stkTy))
+    (stk, stkTy) <- {- traceShowId <$> -} isContextStack stk
+    (desc, p) <- {- traceShowId <$> -} isObjVar rp
+    compatibleInfos (getRange rp) (Known $ asSemantics (keyDesc stkTy)) (Known desc)
     t <- during (PushTermElaboration t) $ stm (Pushed r) (valueDesc stkTy) t
     a <- sact a
     pure $ Push r stk (p, valueDesc stkTy, t) a
@@ -1163,8 +1173,8 @@ sclause esc (rp, a) = do
   ovs <- asks objVars
   (mr, p, ds, hs) <- lift $ during (MatchBranchElaboration rp) $ spat esc (initRestriction ovs) rp
   let pats = takez ds (length ds - length ds0)
-
-  traceShow hs $ coverageCheckClause rp p
+  {- traceShow hs $ -}
+  coverageCheckClause rp p
   (a, me) <- lift $ during (MatchBranchElaboration rp) $
                local (setDecls ds . setHints hs) $ sbranch (getRange rp) pats a
   lift $ modify (\ st -> st { actvarStates = avs })

@@ -45,8 +45,8 @@ type@p = p?ty. case $ty
       )
   }
 
-check@p = p?ty. p?tm. case tm
-  { ['Lam \x. body@['Lam \y._]] ->
+check@p = p?ty. p?tm. case $tm
+  { ['Lam \x. body] ->
       'Type?S T.
       ( ty ~ ['Arr S T]
       | 'Synth\x.

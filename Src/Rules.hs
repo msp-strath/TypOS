@@ -61,7 +61,7 @@ data PLACEKIND (ph :: Phase)
 
 mkSubjectPlace :: SYNTAXDESC Concrete -> Maybe (SEMANTICSDESC Concrete)
                -> PLACEKIND Concrete
-mkSubjectPlace syn = SubjectPlace syn . fromMaybe syn  
+mkSubjectPlace syn = SubjectPlace syn . fromMaybe syn
 
 data CJudgementForm = JudgementForm
   { jrange :: Range

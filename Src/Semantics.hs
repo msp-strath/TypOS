@@ -102,7 +102,7 @@ contract' w = \case
   VNil sc -> atom "Nil" sc
   VCons s t -> "Cons" #%+ [s, t]
   VNilOrCons s t -> "NilOrCons" #%+ [s, t]
-  VBind cat s -> "Bind" #%+ [catToDesc cat, s]
+  VBind cat s -> "Bind" #%+ [atom cat (scope s), s]
   VEnumOrTag sc es ts -> "EnumOrTag" #%+
     [enums sc (\ s -> atom s sc) es, enums sc ( \ (t, s) -> (t,0) #% s) ts]
   VWildcard sc -> atom "Wildcard" sc
@@ -117,10 +117,6 @@ contract' w = \case
 
 contract :: VSemanticsDesc -> ASemanticsDesc
 contract = contract' No
-
-
-catToDesc :: SyntaxCat -> ASemanticsDesc
-catToDesc c = atom c 0
 
 validate :: Show m => SyntaxTable -> Bwd SyntaxCat -> ASemanticsDesc -> CdB (Tm m) -> Bool
 validate table = undefined -- TODO REVERT

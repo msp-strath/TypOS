@@ -185,7 +185,10 @@ instance Pretty (WithRange Complaint) where
     InconsistentSyntaxDesc -> "Inconsistent syntactic descriptions"
     InvalidSyntaxDesc d -> hsep ["Invalid syntax desc", pretty d]
     IncompatibleSemanticsDescs desc desc' ->
-      hsep ["Incompatible semantics descriptions", {-prettyPrec 1-} pretty (show desc), "and", {-prettyPrec 1-} pretty (show desc')]
+      hsep [ "Incompatible semantics descriptions, expected"
+           , {-prettyPrec 1-} pretty (show desc)
+           , "but got"
+           , {-prettyPrec 1-} pretty (show desc')]
     IncompatibleSyntaxInfos info1 info2 ->
       hsep ["Syntax infos", pretty info1, "and", pretty info2, "are incompatible"]
     GotBarredAtom a as -> hsep
