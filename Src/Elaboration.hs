@@ -56,6 +56,7 @@ checkSendableSubject tm = do
   localVars <- asks (getObjVars . objVars)
   go (fmap objVarName localVars) tm
   where
+  -- TODO: move this check to *after* elaboration? Might be easier.
   go :: Bwd String -> Raw -> Elab (Maybe ActorVar)
   go localVars x = case x of
     Var r v -> resolve v >>= \case
@@ -67,17 +68,16 @@ checkSendableSubject tm = do
         Just localVars -> go localVars x
     _ -> Nothing <$ raiseWarning tm (SentSubjectNotASubjectVar tm)
   isInvertible :: Bwd String -> Bwd Assign -> Maybe (Bwd String)
-  isInvertible = undefined
-  {-
   isInvertible lvz B0 = pure lvz
+{-
   isInvertible (lvz :< w) (sz :< Keep _ v) | getVariable v == w
     = (:< w) <$> isInvertible lvz sz
   isInvertible (lvz :< w) (sz :< Drop _ v) | getVariable v == w
     = isInvertible lvz sz
+-}
   isInvertible lvz (sz :< Assign _ v (Var _ w)) | Just (lz, x, ls) <- focus (getVariable w) lvz
     = (:< getVariable v) <$> isInvertible (lz <>< ls) sz
   isInvertible _ _ = Nothing
--}
 
 escrutinee :: EScrutinee -> ASemanticsDesc
 escrutinee = \case
