@@ -11,6 +11,8 @@ import Pretty (Pretty(..))
 import Location (Range)
 import Concrete.Base (Guard, Root)
 
+import GHC.Stack
+
 data Pairing = Cell | Oper
   deriving (Show, Eq, Ord)
 
@@ -128,7 +130,8 @@ sbstDom (sg :^^ w) = case sg of
  ST (CdB sg th :<>: t) -> sbstDom sg + 1 + w
 
 sbstSel
-  :: Th -- ga0 from ga
+  :: HasCallStack
+  => Th -- ga0 from ga
   -> Sbst m -- ga -> de
   -> CdB (Sbst m)
 sbstSel th (S0 :^^ w) = CdB (S0 :^^ weeEnd th) th -- w = bigEnd th
@@ -165,7 +168,7 @@ expand (CdB t th) = case t of
 (?:) :: CdB (Tm m) -> (Xn m -> a) -> a
 t ?: f = f (expand t)
 
-contract :: Xn m -> CdB (Tm m)
+contract :: HasCallStack => Xn m -> CdB (Tm m)
 contract t = case t of
   VX x ga -> CdB V (inx (x, ga))
   AX a ga -> CdB (A a) (none ga)
