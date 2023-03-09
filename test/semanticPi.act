@@ -1,0 +1,5 @@
+
+exec ['Pi 'Wildcard \_. 'Wildcard]?t. case t
+  { \ x. b -> PRINTF "%i" b.
+  ; y -> PRINTF "Not pi: %i" y.
+  }

@@ -208,6 +208,8 @@ instance Pretty (WithRange Complaint) where
     ExpectedAConsPGot p -> hsep ["Expected a pattern for a cons cell and got", pretty p]
     SyntaxError d t -> hsep ["Term", pretty t, "does not check against", pretty d]
     SyntaxPError d p -> hsep ["Pattern", pretty p, "does not check against", pretty d]
+    CantMatchOnPi d p -> hsep ["Cannot match pattern", pretty p, "at semantic Pi", pretty d]
+    DuplicatedTag t -> hsep ["Duplicated tag", pretty t]
     ExpectedAnOperator t -> hsep ["Expected an operator call but got", pretty t]
     ExpectedAnEmptyListGot a ds ->
        hsep ["Expected", pretty a, "to be a constant operator"

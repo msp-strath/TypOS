@@ -435,7 +435,7 @@ spatSemantics desc rest rp = do
         (s, desc) <- case vdesc of
           VWildcard _ -> pure (desc, weak desc)
           VBind cat desc -> (, weak desc) <$> satom cat
-          VPi s (y, t) -> pure (s, t)
+          VPi s (y, t) -> throwComplaint r (CantMatchOnPi desc rp)
           _ -> throwComplaint r (SyntaxPError desc rp)
         elabUnder (x, s) $
 --          local (addHint (getVariable <$> x) (Known s)) $
@@ -458,8 +458,12 @@ isList :: Raw -> Elab [Raw]
 isList (At r "") = pure []
 isList (At r a) = throwComplaint r (ExpectedNilGot a)
 isList (Cons r p q) = (p:) <$> isList q
-
 isList t = throwComplaint t (ExpectedAConsGot t)
+
+mkList :: [ACTm] -> Elab ACTm
+mkList ts = do
+  snil <- satom ""
+  pure (foldr (%) snil ts)
 
 -- Input: fully applied operator ready to operate
 -- Output: (abstract operator, raw parameters)
@@ -591,8 +595,7 @@ stm usage desc rt = do
           VNilOrCons{} -> unless (a == "") $ throwComplaint r (ExpectedNilGot a)
           VEnumOrTag _ es _ -> unless (a `elem` es) $ throwComplaint r (ExpectedEnumGot es a)
           VWildcard _ -> pure ()
-          VUniverse _ -> unless (a `elem` ("Atom" : "Nil" : "Wildcard" : "Semantics" : Map.keys table)) $ throwComplaint r (ExpectedASemanticsGot rt)
-             --  TODO we're probably missing semantics here
+          VUniverse _ -> unless (a `elem` ("Atom" : "Nil" : "Wildcard" : "Syntax" : "Semantics" : Map.keys table)) $ throwComplaint r (ExpectedASemanticsGot rt)
           _ -> throwComplaint r (SemanticsError desc rt)
         satom a
       Cons r p q -> case vdesc of
@@ -602,17 +605,28 @@ stm usage desc rt = do
         VEnumOrTag _ _ ds -> case p of
           At r a -> case lookup a ds of
             Nothing -> throwComplaint r (ExpectedTagGot (fst <$> ds) a)
-            Just descs -> (%) <$> stm usage (atom "Atom" 0) p <*> stms usage descs q
+            Just descs -> do
+              adesc <- satom "Atom"
+              (%) <$> stm usage adesc p <*> stms usage descs q
           _ -> throwComplaint r (SyntaxError desc rt)
         VUniverse _ -> case (p , q) of
           (At _ "Pi", Cons _ s (Cons _ (Lam _ (Scope (Hide x) t)) (At _ ""))) -> do
             s <- sty s
             t <- elabUnder (x, s) $ sty t
             pure ("Pi" #%+ [s, t])
-          (At _ "Cons", Cons _ s (Cons _ t (At _ ""))) -> do
+          (At _ a, Cons _ s (Cons _ t (At _ ""))) | a `elem` ["Cons", "NilOrCons", "Bind"] -> do
             s <- sty s
             t <- sty t
-            pure ("Cons" #%+ [s, t])
+            pure (a #%+ [s, t])
+          (At _ a, Cons _ es nil@(At _ "")) | a `elem` ["Enum", "AtomBar"] ->
+            senumortag r a es nil
+          (At _ "Tag", Cons _ tds nil@(At _ "")) ->
+            senumortag r "Tag" nil tds
+          (At _ "EnumOrTag", Cons _ es (Cons _ tds nil@(At _ ""))) ->
+            senumortag r "EnumOrTag" es tds
+          (At _ "Fix", Cons _ f (At _ "")) -> do
+            f <- stm usage (Semantics.contract (VBind "Semantics" desc)) f
+            pure ("Fix" #%+ [f])
           _ -> throwComplaint r (ExpectedASemanticsGot rt)
         _ -> throwComplaint r (SyntaxError desc rt)
       Lam r (Scope (Hide x) sc) -> do
@@ -626,6 +640,42 @@ stm usage desc rt = do
         (tdesc, t) <- itm usage rt
         compatibleInfos (getRange rt) (Known desc) (Known tdesc)
         pure t
+
+senumortag :: Range -> String -> Raw -> Raw -> Elab ACTm
+senumortag r a es tds = do
+  -- elaborate enums
+  es <- isList es
+  es <- forM es $ \case
+    (At _ a) -> do
+      e <- satom a
+      pure (a, e)
+    x -> do
+      adesc <- satom "Atom"
+      throwComplaint x (SyntaxError adesc x)
+  (as, es) <- do pure (unzip es)
+  whenLeft (allUnique as) $ \ a -> throwComplaint r (DuplicatedTag a)
+  es <- mkList es
+  -- elaborate tags
+  tds <- isList tds
+  tds <- forM tds $ \case
+    (Cons _ (At _ ra) args) -> do
+      args <- isList args
+      args <- traverse sty args
+      a <- satom ra
+      as <- mkList (a:args)
+      pure (ra, as)
+    x -> throwComplaint x (ExpectedAConsGot x)
+  (ts, tds) <- do pure (unzip tds)
+  whenLeft (allUnique ts) $ \ a -> throwComplaint r (DuplicatedTag a)
+  tds <- mkList tds
+  -- put things back together
+  case a of
+    "AtomBar" -> do
+      a <- satom a
+      mkList [a,es]
+    _ -> do
+      hd <- satom "EnumOrTag"
+      mkList [hd, es, tds]
 
 elabUnder :: HasCallStack => Show a => Dischargeable a => (Binder Variable, ASemanticsDesc) -> Elab a -> Elab a
 elabUnder (x, desc) ma = do
@@ -793,7 +843,7 @@ spatBase isSub desc rest rp = do
         (s, desc) <- case vdesc of
           VWildcard _ -> pure (desc, weak desc)
           VBind cat desc -> (, weak desc) <$> satom cat
-          VPi s (y, t) -> pure (s, t)
+          VPi s (y, t) -> throwComplaint r (CantMatchOnPi desc rp)
           _ -> throwComplaint r (SyntaxPError desc rp)
 
         elabUnder (x, s) $
@@ -886,7 +936,9 @@ guessDesc :: Bool -> -- is this in tail position?
              Raw -> Elab (Info ASemanticsDesc)
 guessDesc b (Var _ v) = resolve v >>= \case
   Just (AnObjVar desc i) -> pure (Known desc)
-  Just (ADeclaration (ActVar isSub (ObjVars B0 :=> desc))) -> pure $ Known desc
+  Just (ADeclaration (ActVar isSub (ObjVars B0 :=> desc))) -> do
+    scp <- asks (scopeSize . objVars)
+    pure $ Known (weaks scp desc)
   _ -> pure Unknown
 guessDesc b (Cons _ p q) = do
   dp <- guessDesc False p

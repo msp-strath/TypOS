@@ -200,8 +200,7 @@ t -% (o, []) = contract (t :-: atom o (scope t))
 t -% (o, ps) = contract (t :-: (o #%+ ps))
 
 (#%) :: (String, Int) -> [CdB (Tm m)] -> CdB (Tm m)
-(a, ga) #% ts = uncurry CdB $ case foldr (%) (nil ga) ts of
-  CdB t th -> (P Cell (atom a ga :<>: CdB t (ones (weeEnd th))), th)
+(a, ga) #% ts = foldr (%) (nil ga) (atom a ga:ts)
 
 (#%+) :: String -> [CdB (Tm m)] -> CdB (Tm m)
 a #%+ ts = let ga = scope (head ts) in (a, ga) #% ts

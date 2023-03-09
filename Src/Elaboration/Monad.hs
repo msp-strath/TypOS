@@ -504,6 +504,8 @@ data Complaint
   | ExpectedASemanticsPGot RawP
   | SyntaxError ASemanticsDesc Raw
   | SyntaxPError ASemanticsDesc RawP
+  | CantMatchOnPi ASemanticsDesc RawP
+  | DuplicatedTag String
   | ExpectedAnOperator Raw
   | ExpectedAnEmptyListGot String [SyntaxDesc]
   -- semanticsdesc validation
