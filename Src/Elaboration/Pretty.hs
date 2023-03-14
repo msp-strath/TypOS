@@ -138,12 +138,12 @@ instance Pretty (WithRange Complaint) where
     NotAValidOperator x -> hsep ["Invalid operator name", pretty x]
       -- operators
     AlreadyDeclaredOperator op -> hsep ["Not a valid operator name", pretty op]
-    InvalidOperatorArity op [] ops ->
-      hsep ["Invalid arity:", pretty (show $ length ops), "extra operator parameters for", pretty op]
-    InvalidOperatorArity op ds [] ->
-      hsep ["Invalid arity:", pretty (show $ length ds), "missing operator parameters for", pretty op]
-    InvalidOperatorArity op ds ps ->
-      hsep ["Invalid arity (the impossible happened)"]
+    ArityMismatchInOperator op n ->
+      let (k, number) = case compare n 0 of
+            LT -> (-n, "extra")
+            EQ -> error "the impossible happended in ArityMismatchInOperator"
+            GT -> (n, "missing")
+      in hsep ["Invalid arity:", pretty (show $ k), number, "operator parameters for", pretty op]
     -- protocol
     InvalidSend ch tm -> hsep ["Invalid send of", pretty tm, "on channel", pretty ch]
     InvalidRecv ch v -> hsep ["Invalid receive of", pretty v, "on channel", pretty ch]
@@ -230,7 +230,6 @@ instance Pretty (WithRange Complaint) where
     InferredDescMismatch p desc -> hsep [ "Inferred object description", pretty desc
                                         , "does not match pattern", pretty p ]
     DontKnowHowToInferDesc t -> hsep ["Do not know how to infer description for", pretty  t]
-    ArityMismatchInOperator -> "Arity mismatch in operator"
     SchematicVariableNotInstantiated -> "Schematic variable not instantiated"
     NotAValidContextRestriction x y -> "Not a valid context restriction"
     NotAValidDescriptionRestriction x y -> "Not a valid description restriction"

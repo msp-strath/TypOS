@@ -402,7 +402,7 @@ spatSemantics desc rest rp = do
           VNilOrCons{} -> unless (a == "") $ throwComplaint r (ExpectedNilGot a)
           VEnumOrTag sc es _ -> unless (a `elem` es) $ throwComplaint r (ExpectedEnumGot es a)
           VWildcard sc -> pure ()
-          VUniverse _ -> unless (a `elem` ("Semantics" : Map.keys table)) $ throwComplaint r (ExpectedASemanticsGot (At r a))
+          VUniverse _ -> unless (a `elem` ("Atom" : "Nil" : "Wildcard" : "Syntax" : "Semantics" : Map.keys table)) $ throwComplaint r (ExpectedASemanticsGot (At r a))
           _ -> throwComplaint r =<< syntaxPError desc rp
         pure (AP a, ds, atom a (bigEnd (restriction rest)))
       ConsP r p1 p2 -> do
@@ -505,12 +505,12 @@ itm usage (Op r rob rop) = do
   (AnOperator{..}, rps) <- sop rop
   dat <- matchObjType r objDesc (obDesc, ob)
   local (setHeadUpData dat) $ do
-    (desc, ps) <- itms r usage paramsDesc rps retDesc
+    (desc, ps) <- itms r (getOperator opName) usage paramsDesc rps retDesc
     pure (desc, ob -% (getOperator opName, ps))
 -- TODO?: annotated terms?
 itm _ t = throwComplaint t $ DontKnowHowToInferDesc t
 
-itms :: Range -> Usage
+itms :: Range -> String -> Usage
         -- Parameters types e.g. (_ : 'Nat\n. {m = n}p\ih. {m = ['Succ n]}p)
      -> [(Maybe ActorMeta, ASOT)]
         -- Raw parameters
@@ -520,13 +520,13 @@ itms :: Range -> Usage
         --
      -> Elab (ASemanticsDesc -- Instantiated return type
              , [ACTm])       -- Elaborated parameters
-itms r usage [] [] rdesc = (, []) <$> instantiateDesc r rdesc
-itms r usage ((binder, sot):bs) (rp:rps) rdesc = do
+itms r op usage [] [] rdesc = (, []) <$> instantiateDesc r rdesc
+itms r op usage ((binder, sot):bs) (rp:rps) rdesc = do
   (ovs :=> desc) <- instantiateSOT (getRange rp) sot
   (p, dat) <- sparam usage binder B0 (discharge ovs desc) rp
   local (setHeadUpData dat) $
-    fmap (p:) <$> itms r usage bs rps rdesc
-itms r usage bs rps rdesc = throwComplaint r $ ArityMismatchInOperator
+    fmap (p:) <$> itms r op usage bs rps rdesc
+itms r op usage bs rps rdesc = throwComplaint r $ ArityMismatchInOperator op ((length bs) - (length rps))
 
 sparam :: Usage
        -> Maybe ActorMeta -- Name of parameter

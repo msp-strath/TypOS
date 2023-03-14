@@ -1,11 +1,12 @@
 ret > ExitFailure 1
 out > Error
 out >
-out >  1 | success : ?'Wildcard. ?'Wildcard. !'Wildcard.
-out >  2 | success@p = p?f. p?t. p!f - ['app t].
-out >                              ^^^^^^^^^^^^
-out > operator-fail.act:2:24-36
-out > Inferred object description 'Wildcard does not match pattern ['Pi S \x. T]
-out > when elaborating p!f - ['app t]
-out > when elaborating the judgement definition for success
+out >  3 | 
+out >  4 | failure : ?['Pi 'Wildcard \_.'Wildcard]. ?'Wildcard. !'Wildcard.
+out >  5 | failure@p = p?f. p?t. p!f - 'app.
+out >                              ^^^^^^^^
+out > operator-fail.act:5:24-32
+out > Invalid arity: 1 missing operator parameters for app
+out > when elaborating p!f - 'app
+out > when elaborating the judgement definition for failure
 out >

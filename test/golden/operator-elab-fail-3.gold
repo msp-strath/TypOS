@@ -2,9 +2,9 @@ ret > ExitFailure 1
 out > Error
 out >
 out >  4 | 
-out >  5 | 'True - ['if l r] ~> l
-out >  6 | 'False - ['ifte l r] ~> r
-out >                ^^^^^
-out > operator-elab-fail-3.act:6:10-15
+out >  5 | 'True  : 'Bool - ['if l r] ~> l
+out >  6 | 'False : 'Bool - ['ifte l r] ~> r
+out >                        ^^^^^
+out > operator-elab-fail-3.act:6:18-23
 out > Invalid operator name ifte
 out >

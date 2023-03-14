@@ -2,9 +2,9 @@ ret > ExitFailure 1
 out > Error
 out >
 out >  4 | 
-out >  5 | 'True - ['if l r] ~> l
-out >  6 | 'False - ['if l m r] ~> r
-out >                        ^
-out > operator-elab-fail.act:6:18-19
+out >  5 | 'True  : 'Bool - ['if l r] ~> l
+out >  6 | 'False : 'Bool - ['if l m r] ~> r
+out >                        ^^^^^^^^^
+out > operator-elab-fail.act:6:18-27
 out > Invalid arity: 1 extra operator parameters for if
 out >

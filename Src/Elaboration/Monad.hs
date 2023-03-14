@@ -495,7 +495,7 @@ data Complaint
   | NotAValidOperator String
   -- operators
   | AlreadyDeclaredOperator String
-  | InvalidOperatorArity String [SyntaxDesc] [RawP]
+  | ArityMismatchInOperator String Int
   | ExpectedParameterBinding Raw
   -- protocol
   | InvalidSend Channel Raw
@@ -548,7 +548,6 @@ data Complaint
   -- desc inference
   | InferredDescMismatch (WithVarNames Pat) ESemanticsDesc
   | DontKnowHowToInferDesc Raw
-  | ArityMismatchInOperator
   | SchematicVariableNotInstantiated
   deriving (Show)
 

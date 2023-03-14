@@ -506,7 +506,7 @@ sopelims r opelimz (ty, t) ((op, args):opelims) = do
   dat <- matchObjType r (mb, opat) (ty, t)
   let r' = getRange op <> foldMap getRange args
   local (setHeadUpData dat) $ do
-    ((ty, decls), (pargs, args)) <- spats r' pdescs args rdesc
+    ((ty, decls), (pargs, args)) <- spats r' (getOperator opName) pdescs args rdesc
     local (setDecls decls) $
         sopelims (r <> r') (opelimz :< (opName, pargs)) (ty, t -% (getOperator opName, args)) opelims
 
@@ -537,17 +537,18 @@ sopelims r opelimz (ty, t) ((op, args):opelims) = do
 
     -- cf. itms
     spats :: Range
+          -> String
           -> [(Maybe ActorMeta, ASOT)]
           -> [CPattern]
           -> ASemanticsDesc
           -> Elab ((ASemanticsDesc, Decls), ([APattern], [ACTm]))
-    spats r [] [] rdesc = (,([], [])) <$> ((,) <$> instantiateDesc r rdesc <*> asks declarations)
-    spats r ((binder, sot) : bs) (rp:rps) rdesc = do
+    spats r op [] [] rdesc = (,([], [])) <$> ((,) <$> instantiateDesc r rdesc <*> asks declarations)
+    spats r op ((binder, sot) : bs) (rp:rps) rdesc = do
       (ovs :=> desc) <- instantiateSOT (getRange rp) sot
       ((p, t), decls, dat) <- sparamSemantics binder B0 (discharge ovs desc) rp
       local (setDecls decls . setHeadUpData dat) $
-        fmap (bimap (p:) (t:)) <$> spats r bs rps rdesc
-    spats r bs rps rdesc = throwComplaint r $ ArityMismatchInOperator
+        fmap (bimap (p:) (t:)) <$> spats r op bs rps rdesc
+    spats r op bs rps rdesc = throwComplaint r $ ArityMismatchInOperator op ((length bs) - (length rps))
 
 {-
 -- | sopargs desc cops
