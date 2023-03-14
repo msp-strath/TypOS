@@ -1,2 +1,5 @@
 source : !'Wildcard.
-source@p = \x. \y. source@q. q?t. let v : 'Wildcard = {y,x}t.
+source@p
+  = \x. \y. source@q. q?t.
+    let v : 'Wildcard = {y x}t.
+    p!v.

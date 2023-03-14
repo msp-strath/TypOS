@@ -86,7 +86,7 @@ instance HasGetRange Raw where
     Lam r _ -> r
     Sbst r _ _ -> r
     Op r _ _ -> r
-    Guarded _ _ -> unknown
+    Guarded _ t -> getRange t
     Thicken r _ _ -> r
 
 data Assign = Assign

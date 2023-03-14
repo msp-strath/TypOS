@@ -117,15 +117,16 @@ spassport :: Usage -> IsSubject -> Passport
 spassport u IsSubject{} | isBeingScrutinised u = ASubject
 spassport _ _ = ACitizen
 
-smeta :: Usage
+smeta :: Range
+      -> Usage
       -> ActorMeta {- eps -}
       -> ACTSbst {- delta -} {- gamma -}
       -> Telescopic ASemanticsDesc {- delta -} {- eps -}
       -> Elab ({- T :: -} ASemanticsDesc {- gamma -}, ACTm {- gamma -} {- T -})
-smeta usage am sg (Stop desc) = pure (desc //^ sg, am $: sg)
-smeta usage am sg (Tele desc (Scope (Hide x) tel)) = do
-  t <- stm usage (desc //^ sg) (Var unknown $ Variable unknown x)
-  smeta usage am (sbstT sg ((Hide x :=) $^ t)) tel
+smeta r usage am sg (Stop desc) = pure (desc //^ sg, am $: sg)
+smeta r usage am sg (Tele desc (Scope (Hide x) tel)) = do
+  t <- stm usage (desc //^ sg) (Var r $ Variable r x)
+  smeta r usage am (sbstT sg ((Hide x :=) $^ t)) tel
 
 svar :: Usage
      -> Maybe ASemanticsDesc
@@ -141,7 +142,7 @@ svar usage mdesc' x = do
         logUsage (getVariable x) usage
         let tel = discharge sc desc
         let am  = ActorMeta (spassport usage isSub) (getVariable x)
-        (desc, tm) <- smeta usage am (sbst0 $ scopeSize ovs) tel
+        (desc, tm) <- smeta r usage am (sbst0 $ scopeSize ovs) tel
         desc <- fmap (fromMaybe desc) $ flip traverse mdesc' $ \desc' -> do
           i <- compatibleInfos r (Known desc') (Known desc)
           fromInfo r i -- cannot possibly fail

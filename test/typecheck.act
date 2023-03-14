@@ -36,6 +36,6 @@ operator
   ; ['Pi a \x.b] -['apply2 (x : a)] : b
   }
 
-\x.b : ['Pi 'Nat \_.'Nat] -[ 'apply t ] ~> 'Zero
+f : ['Pi 'Nat \_.'Nat] -[ 'apply t ] ~> 'Zero
 
 exec PRINTF "Hurrah!".
