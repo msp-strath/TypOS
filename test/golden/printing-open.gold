@@ -1,0 +1,10 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  2 |   { a - 'id : a }
+out >  3 | 
+out >  4 | x : a - 'id ~> 'hello
+out >                     ^^^^^^
+out > printing-open.act:4:15-21
+out > 'hello does not match the semantics description a
+out >

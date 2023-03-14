@@ -1,0 +1,4 @@
+withOp : ?'Wildcard. ?'Wildcard.
+withOp@p = p?fun. p?res.
+  fun - ['app 'arg1] - ['app 'arg2]
+  ~ res

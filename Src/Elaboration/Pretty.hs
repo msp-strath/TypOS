@@ -17,6 +17,7 @@ import Data.List.NonEmpty (NonEmpty((:|)))
 import Rules
 import Syntax ()
 import Thin
+import Bwd (Bwd (..))
 
 instance Pretty Range where
   pretty r | r == unknown = ""
@@ -45,13 +46,13 @@ instance Pretty Resolved where
     AMacro t -> "a macro variable"  -- TODO: terminology?
 
 instance (Unelab a, Pretty (Unelabed a), UnelabEnv a ~ Naming)
-         => Pretty (CdB a) where
-  pretty (CdB a th)
-    | is0s th = pretty $ unsafeEvalUnelab initNaming (unelab a)
-    | otherwise = "_"
+         => Pretty (WithVarNames a) where
+  pretty (WithVarNames ovs a)
+    = let naming = (ovs, ones (length ovs), ovs) in
+      pretty $ unsafeEvalUnelab naming (unelab a)
 
 instance Pretty AProtocol where
-  pretty (Protocol ps) = foldMap (\ x -> pretty x <> ". ") ps
+  pretty (Protocol ps) = foldMap (\ x -> pretty (WithVarNames B0 <$> x) <> ". ") ps
 
 instance Pretty CFormula where
   pretty (CFormula a) = these pretty pretty (const pretty) a
@@ -152,11 +153,14 @@ instance Pretty (WithRange Complaint) where
     InconsistentCommunication -> hsep ["Inconsistent communication"]
     DoomedBranchCommunicated a -> hsep ["Doomed branch communicated", pretty a]
     ProtocolsNotDual ps qs -> hsep ["Protocols", pretty ps, "and", pretty qs, "are not dual"]
-    IncompatibleModes m1 m2 -> hsep ["Modes", pretty m1, "and", pretty m2, "are incompatible"]
+    IncompatibleModes m1 m2 -> hsep ["Modes", pretty (WithVarNames B0 <$> m1)
+                                    , "and", pretty (WithVarNames B0 <$> m2), "are incompatible"]
     IncompatibleChannelScopes sc1 sc2 ->
       hsep [ "Channels scopes", pretty sc1
            , "and", pretty sc2, "are incompatible"]
-    WrongDirection m1 dir m2 -> hsep ["Wrong direction", pretty (show dir), "between", pretty m1, "and", pretty m2]
+    WrongDirection m1 dir m2 -> hsep ["Wrong direction", pretty (show dir)
+                                     , "between", pretty (WithVarNames B0 <$> m1)
+                                     , "and", pretty (WithVarNames B0 <$> m2)]
 
     -- judgementforms
     JudgementWrongArity name (Protocol protocol) fms ->
@@ -183,14 +187,16 @@ instance Pretty (WithRange Complaint) where
 
   -- syntaxdesc validation
     InconsistentSyntaxDesc -> "Inconsistent syntactic descriptions"
-    InvalidSyntaxDesc d -> hsep ["Invalid syntax desc", pretty d]
+    InvalidSyntaxDesc d -> hsep ["Invalid syntax desc", pretty (WithVarNames B0 d)]
     IncompatibleSemanticsDescs desc desc' ->
       hsep [ "Incompatible semantics descriptions, expected"
-           , {-prettyPrec 1-} pretty (show desc)
+           , prettyPrec 1 desc
            , "but got"
-           , {-prettyPrec 1-} pretty (show desc')]
+           , prettyPrec 1 desc']
     IncompatibleSyntaxInfos info1 info2 ->
-      hsep ["Syntax infos", pretty info1, "and", pretty info2, "are incompatible"]
+      hsep ["Syntax infos" , pretty (WithVarNames B0 <$> info1)
+           , "and", pretty (WithVarNames B0 <$> info2)
+           , "are incompatible"]
     GotBarredAtom a as -> hsep
       [ squote <> pretty a, "is one of the barred atoms", collapse (map pretty as) ]
     ExpectedNilGot at -> hsep ["Expected [] and got", squote <> pretty at]
@@ -213,16 +219,16 @@ instance Pretty (WithRange Complaint) where
     ExpectedAnOperator t -> hsep ["Expected an operator call but got", pretty t]
     ExpectedAnEmptyListGot a ds ->
        hsep ["Expected", pretty a, "to be a constant operator"
-            , "but it takes arguments of type:", collapse (pretty <$> ds)]
-    -- TODO : learn to print the semantics desc
-    InvalidSemanticsDesc sem -> "Invalid semantics description"
-    SemanticsError sem t -> hsep [pretty t, "does not match the semantics description"]
+            , "but it takes arguments of type:", collapse (pretty . WithVarNames B0 <$> ds)]
+    InvalidSemanticsDesc sem -> hsep ["Invalid semantics description", pretty sem]
+    SemanticsError sem t -> hsep [pretty t, "does not match the semantics description", pretty sem]
     IncompatibleSemanticsInfos isem isem' ->
       hsep ["Incompatible semantics description infos", prettyPrec 1 isem, "and", prettyPrec 1 isem']
     AsPatternCannotHaveSubjects p -> hsep ["As pattern", pretty p, "duplicates a subject variable"]
     -- desc inference
     -- TODO : add more info
-    InferredDescMismatch -> "Inferred object description does not match pattern"
+    InferredDescMismatch p desc -> hsep [ "Inferred object description", pretty desc
+                                        , "does not match pattern", pretty p ]
     DontKnowHowToInferDesc t -> hsep ["Do not know how to infer description for", pretty  t]
     ArityMismatchInOperator -> "Arity mismatch in operator"
     SchematicVariableNotInstantiated -> "Schematic variable not instantiated"

@@ -1,0 +1,3 @@
+typecheck \X x.x : ['Pi 'Semantics \A. ['Pi A \_.A]]
+
+typecheck \X x.X : ['Pi 'Semantics \A. ['Pi A \_.A]]

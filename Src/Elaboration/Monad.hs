@@ -136,6 +136,26 @@ fromInfo r (Known desc) = pure desc
 -- 2. `compatibleInfos` where the error is handled locally
 fromInfo r Inconsistent = throwComplaint r InconsistentSyntaxDesc
 
+incompatibleSemanticsDescs :: ASemanticsDesc -> ASemanticsDesc -> Elab Complaint
+incompatibleSemanticsDescs desc desc' = do
+  vars <- withVarNames ()
+  pure $ IncompatibleSemanticsDescs (desc <$ vars) (desc' <$ vars)
+
+incompatibleSemanticsInfos :: Info ASemanticsDesc -> Info ASemanticsDesc -> Elab Complaint
+incompatibleSemanticsInfos desc desc' = do
+  vars <- withVarNames ()
+  pure $ IncompatibleSemanticsInfos (fmap (<$ vars) desc) (fmap (<$ vars) desc')
+
+syntaxError :: ASemanticsDesc -> Raw -> Elab Complaint
+syntaxError desc t = do
+  desc <- withVarNames desc
+  pure (SyntaxError desc t)
+
+syntaxPError :: ASemanticsDesc -> RawP -> Elab Complaint
+syntaxPError desc p = do
+  desc <- withVarNames desc
+  pure (SyntaxPError desc p)
+
 compatibleInfos :: Range
                 -> Info ASemanticsDesc
                 -> Info ASemanticsDesc
@@ -146,9 +166,9 @@ compatibleInfos r desc desc' = do
   let de = infoExpand dat table =<< desc
   let de' = infoExpand dat table =<< desc'
   case de <> de' of
-    Inconsistent -> throwComplaint r $ case (desc, desc') of
-      (Known desc, Known desc') -> IncompatibleSemanticsDescs desc desc'
-      _ -> IncompatibleSemanticsInfos desc desc'
+    Inconsistent -> throwComplaint r =<< case (desc, desc') of
+      (Known desc, Known desc') -> incompatibleSemanticsDescs desc desc'
+      _ -> incompatibleSemanticsInfos desc desc'
     d -> pure $ case (desc, desc') of
       (Known (CdB (A _) _), _) -> desc
       (_, Known (CdB (A _) _)) -> desc'
@@ -240,6 +260,16 @@ instance Selable Restriction where
   ph ^? Restriction ls th = Restriction (ph ^? ls) (ph ^? th)
 
 data ElabMode = Definition | Execution deriving (Eq, Show)
+
+data WithVarNames a = WithVarNames
+  { varNames :: Bwd String
+  , scopedValue :: a
+  } deriving (Show, Functor)
+
+withVarNames :: t -> Elab (WithVarNames t)
+withVarNames t = do
+  ovs <- asks (fmap objVarName . getObjVars . objVars)
+  pure (WithVarNames ovs t)
 
 initContext :: Options -> Context
 initContext opts = Context
@@ -442,6 +472,8 @@ data ContextualInfo
   | JudgementFormElaboration Variable
   deriving (Show)
 
+type ESemanticsDesc = WithVarNames ASemanticsDesc
+
 data Complaint
   -- scope
   = OutOfScope Variable
@@ -451,7 +483,7 @@ data Complaint
   | NotTopVariable Variable Variable
   | IncompatibleChannelScopes ObjVars ObjVars
   | NotAValidContextRestriction Th ObjVars
-  | NotAValidDescriptionRestriction Th ASemanticsDesc
+  | NotAValidDescriptionRestriction Th ESemanticsDesc
   -- kinding
   | NotAValidTermVariable Variable Kind
   | NotAValidPatternVariable Variable Resolved
@@ -490,7 +522,7 @@ data Complaint
   | InconsistentSyntaxDesc
   | InvalidSyntaxDesc SyntaxDesc
   | IncompatibleSyntaxInfos (Info SyntaxDesc) (Info SyntaxDesc)
-  | IncompatibleSemanticsDescs ASemanticsDesc ASemanticsDesc
+  | IncompatibleSemanticsDescs ESemanticsDesc ESemanticsDesc
   | GotBarredAtom String [String]
   | ExpectedASemanticsGot Raw
   | ExpectedNilGot String
@@ -501,20 +533,20 @@ data Complaint
   | ExpectedAConsGot Raw
   | ExpectedAConsPGot RawP
   | ExpectedASemanticsPGot RawP
-  | SyntaxError ASemanticsDesc Raw
-  | SyntaxPError ASemanticsDesc RawP
-  | CantMatchOnPi ASemanticsDesc RawP
+  | SyntaxError ESemanticsDesc Raw
+  | SyntaxPError ESemanticsDesc RawP
+  | CantMatchOnPi ESemanticsDesc RawP
   | DuplicatedTag String
   | ExpectedAnOperator Raw
   | ExpectedAnEmptyListGot String [SyntaxDesc]
   -- semanticsdesc validation
-  | InvalidSemanticsDesc ASemanticsDesc
-  | SemanticsError ASemanticsDesc Raw
-  | IncompatibleSemanticsInfos (Info ASemanticsDesc) (Info ASemanticsDesc)
+  | InvalidSemanticsDesc ESemanticsDesc
+  | SemanticsError ESemanticsDesc Raw
+  | IncompatibleSemanticsInfos (Info ESemanticsDesc) (Info ESemanticsDesc)
   -- subjects and citizens
   | AsPatternCannotHaveSubjects RawP
   -- desc inference
-  | InferredDescMismatch
+  | InferredDescMismatch (WithVarNames Pat) ESemanticsDesc
   | DontKnowHowToInferDesc Raw
   | ArityMismatchInOperator
   | SchematicVariableNotInstantiated

@@ -1,0 +1,11 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  1 | typecheck \X x.x : ['Pi 'Semantics \A. ['Pi A \_.A]]
+out >  2 | 
+out >  3 | typecheck \X x.X : ['Pi 'Semantics \A. ['Pi A \_.A]]
+out >                     ^
+out > printing-open2.act:3:15-16
+out > Incompatible semantics descriptions, expected X but got 'Semantics
+out > when elaborating the term variable X
+out >

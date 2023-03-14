@@ -1,0 +1,12 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  1 | withOp : ?'Wildcard. ?'Wildcard.
+out >  2 | withOp@p = p?fun. p?res.
+out >  3 |   fun - ['app 'arg1] - ['app 'arg2]
+out >        ^^^^^^^^^^^^^^^^^^
+out > app-operator-fail.act:3:2-20
+out > Inferred object description 'Wildcard does not match pattern ['Pi S \x. T]
+out > when elaborating a constraint involving fun - ['app 'arg1] - ['app 'arg2]
+out > when elaborating the judgement definition for withOp
+out >

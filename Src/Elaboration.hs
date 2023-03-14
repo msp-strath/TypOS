@@ -348,7 +348,7 @@ vconsDesc r desc rp vdesc = case vdesc of
   VWildcard _ -> pure (ConsCell desc desc)
   VEnumOrTag _ _ ds -> pure (ConsEnum ds)
   VUniverse _ -> pure ConsUniverse
-  _ -> throwComplaint r (SyntaxPError desc rp)
+  _ -> throwComplaint r =<< syntaxPError desc rp
 
 spatSemantics :: ASemanticsDesc {- gamma -}
               -> {- r :: -} Restriction {- gamma -}
@@ -392,7 +392,7 @@ spatSemantics desc rest rp = do
   dat <- asks headUpData
   ds <- asks declarations
   case Semantics.expand table dat desc of
-    Nothing -> throwComplaint rp (InvalidSemanticsDesc desc)
+    Nothing -> throwComplaint rp . InvalidSemanticsDesc =<< withVarNames desc
     Just vdesc -> case rp of
       AtP r a -> do
         case vdesc of
@@ -403,7 +403,7 @@ spatSemantics desc rest rp = do
           VEnumOrTag sc es _ -> unless (a `elem` es) $ throwComplaint r (ExpectedEnumGot es a)
           VWildcard sc -> pure ()
           VUniverse _ -> unless (a `elem` ("Semantics" : Map.keys table)) $ throwComplaint r (ExpectedASemanticsGot (At r a))
-          _ -> throwComplaint r (SyntaxPError desc rp)
+          _ -> throwComplaint r =<< syntaxPError desc rp
         pure (AP a, ds, atom a (bigEnd (restriction rest)))
       ConsP r p1 p2 -> do
         -- take vdesc apart and decide what needs to be checked
@@ -421,7 +421,7 @@ spatSemantics desc rest rp = do
                 (p1, ds, t1) <- spatSemantics at rest p1
                 (p2, ds, t2) <- local (setDecls ds) (spatSemanticss descs rest p2)
                 pure (PP p1 p2, ds, t1 % t2)
-            _ -> throwComplaint r (SyntaxPError desc rp)
+            _ -> throwComplaint r =<< syntaxPError desc rp
           ConsUniverse -> case (p1 , p2) of
             (AtP _ "Pi", ConsP _ s (ConsP _ (LamP _ (Scope (Hide x) t)) (AtP _ ""))) -> do
               (ps, ds, ts) <- spatSemantics desc rest s
@@ -438,8 +438,8 @@ spatSemantics desc rest rp = do
         (s, desc) <- case vdesc of
           VWildcard _ -> pure (desc, weak desc)
           VBind cat desc -> (, weak desc) <$> satom cat
-          VPi s (y, t) -> throwComplaint r (CantMatchOnPi desc rp)
-          _ -> throwComplaint r (SyntaxPError desc rp)
+          VPi s (y, t) -> throwComplaint r =<< CantMatchOnPi <$> withVarNames desc <*> pure rp
+          _ -> throwComplaint r =<< syntaxPError desc rp
         elabUnder (x, s) $
 --          local (addHint (getVariable <$> x) (Known s)) $
             spatSemantics desc (extend rest (getVariable <$> x)) p
@@ -488,7 +488,7 @@ matchObjType r (mb , oty) (obDesc, ob) = do
     dat <- asks headUpData
     let hnf = headUp dat
     env <- case snd $ match hnf initMatching (Problem B0 oty obDesc) of
-      Left e -> throwComplaint r $ InferredDescMismatch
+      Left e -> throwComplaint r =<< InferredDescMismatch <$> withVarNames oty <*> withVarNames obDesc
       Right m -> pure $ matchingToEnv m (huEnv dat)
     env <- case mb of
       Nothing -> pure env
@@ -586,7 +586,7 @@ stm usage desc (Thicken r th t) = do
   let rest = initRestriction ovs
   th <- sth rest th
   desc <- case thickenCdB th desc of
-    Nothing -> throwComplaint r (NotAValidDescriptionRestriction th desc)
+    Nothing -> throwComplaint r . NotAValidDescriptionRestriction th =<< withVarNames desc
     Just desc -> pure desc
   ovs <- case thickenObjVars th ovs of
     Nothing -> throwComplaint r (NotAValidContextRestriction th ovs)
@@ -599,7 +599,7 @@ stm usage desc rt = do
   table <- gets syntaxCats
   dat <- asks headUpData
   case Semantics.expand table dat desc of
-    Nothing -> throwComplaint rt (InvalidSemanticsDesc desc)
+    Nothing -> throwComplaint rt =<< InvalidSemanticsDesc <$> withVarNames desc
     Just vdesc -> case rt of
       At r a -> do
         case vdesc of
@@ -610,7 +610,7 @@ stm usage desc rt = do
           VEnumOrTag _ es _ -> unless (a `elem` es) $ throwComplaint r (ExpectedEnumGot es a)
           VWildcard _ -> pure ()
           VUniverse _ -> unless (a `elem` ("Atom" : "Nil" : "Wildcard" : "Syntax" : "Semantics" : Map.keys table)) $ throwComplaint r (ExpectedASemanticsGot rt)
-          _ -> throwComplaint r (SemanticsError desc rt)
+          _ -> throwComplaint r =<< SemanticsError <$> withVarNames desc <*> pure rt
         satom a
       Cons r p q -> case vdesc of
         VNilOrCons d1 d2 -> (%) <$> stm usage d1 p <*> stm usage d2 q
@@ -622,7 +622,7 @@ stm usage desc rt = do
             Just descs -> do
               adesc <- satom "Atom"
               (%) <$> stm usage adesc p <*> stms usage descs q
-          _ -> throwComplaint r (SyntaxError desc rt)
+          _ -> throwComplaint r =<< syntaxError desc rt
         VUniverse _ -> case (p , q) of
           (At _ "Pi", Cons _ s (Cons _ (Lam _ (Scope (Hide x) t)) (At _ ""))) -> do
             s <- sty s
@@ -642,13 +642,13 @@ stm usage desc rt = do
             f <- stm usage (Semantics.contract (VBind "Semantics" desc)) f
             pure ("Fix" #%+ [f])
           _ -> throwComplaint r (ExpectedASemanticsGot rt)
-        _ -> throwComplaint r (SyntaxError desc rt)
+        _ -> throwComplaint r =<< syntaxError desc rt
       Lam r (Scope (Hide x) sc) -> do
         (s, desc) <- case vdesc of
           VWildcard i -> pure (desc, weak desc)
           VBind cat desc -> (,weak desc) <$> satom cat
           VPi s (y, t) -> pure (s, t)
-          _ -> throwComplaint r (SyntaxError desc rt)
+          _ -> throwComplaint r =<< syntaxError desc rt
         elabUnder (x, s) $ stm usage desc sc
       Op{} -> do
         (tdesc, t) <- itm usage rt
@@ -665,7 +665,7 @@ senumortag r a es tds = do
       pure (a, e)
     x -> do
       adesc <- satom "Atom"
-      throwComplaint x (SyntaxError adesc x)
+      throwComplaint x =<< syntaxError adesc x
   (as, es) <- do pure (unzip es)
   whenLeft (allUnique as) $ \ a -> throwComplaint r (DuplicatedTag a)
   es <- mkList es
@@ -747,7 +747,7 @@ spat esc@(Pair r esc1 esc2) rest rp = case rp of
     (mr1, p, ds, hs) <- spat esc1 rest p
     (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spat esc2 rest q)
     pure (mr1 <|> mr2, PP p q, ds, hs)
-  _ -> throwComplaint rp (SyntaxPError (escrutinee esc) rp)
+  _ -> throwComplaint rp =<< syntaxPError (escrutinee esc) rp
 spat (SubjectVar r desc) rest rp = spatBase (IsSubject Pattern) desc rest rp
 spat esc@(Lookup _ _ av) rest rp@(ConsP r (AtP _ "Just") (ConsP _ _ (AtP _ ""))) = do
   logUsage av (SuccessfullyLookedUp r)
@@ -763,7 +763,7 @@ thickenedASOT r th desc = do
     Nothing -> throwComplaint r (NotAValidContextRestriction th ovs)
     Just ovs -> pure ovs
   desc <- case thickenCdB th desc of
-    Nothing -> throwComplaint r (NotAValidDescriptionRestriction th desc)
+    Nothing -> throwComplaint r . NotAValidDescriptionRestriction th  =<< withVarNames desc
     Just desc -> pure desc
   pure (ovs, ovs :=> desc)
 
@@ -810,7 +810,7 @@ spatBase isSub desc rest rp = do
   table <- gets syntaxCats
   dat <- asks headUpData
   case Semantics.expand table dat desc of
-    Nothing -> throwComplaint rp (InvalidSemanticsDesc desc)
+    Nothing -> throwComplaint rp . InvalidSemanticsDesc =<< withVarNames desc
     Just vdesc -> case rp of
       AtP r a -> do
         case vdesc of
@@ -820,7 +820,7 @@ spatBase isSub desc rest rp = do
           VNilOrCons{} -> unless (a == "") $ throwComplaint r (ExpectedNilGot a)
           VEnumOrTag sc es _ -> unless (a `elem` es) $ throwComplaint r (ExpectedEnumGot es a)
           VWildcard sc -> pure ()
-          _ -> throwComplaint r (SyntaxPError desc rp)
+          _ -> throwComplaint r =<< syntaxPError desc rp
         (Nothing, AP a,,) <$> asks declarations <*> asks binderHints
 
       ConsP r p q -> do
@@ -838,7 +838,7 @@ spatBase isSub desc rest rp = do
                 (mr1, p, ds, hs) <- spatBase isSub (atom "Atom" 0) rest p
                 (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spats isSub descs rest q)
                 pure (mr1 <|> mr2, PP p q, ds, hs)
-            _ -> throwComplaint r (SyntaxPError desc rp)
+            _ -> throwComplaint r =<< syntaxPError desc rp
           ConsUniverse -> case (isSub, p, q) of
             (IsNotSubject, AtP _ "Pi", ConsP _ s (ConsP _ (LamP _ (Scope (Hide x) t)) (AtP _ ""))) -> do
               (ps, ds, s) <- spatSemantics desc rest s
@@ -857,8 +857,8 @@ spatBase isSub desc rest rp = do
         (s, desc) <- case vdesc of
           VWildcard _ -> pure (desc, weak desc)
           VBind cat desc -> (, weak desc) <$> satom cat
-          VPi s (y, t) -> throwComplaint r (CantMatchOnPi desc rp)
-          _ -> throwComplaint r (SyntaxPError desc rp)
+          VPi s (y, t) -> throwComplaint r =<< CantMatchOnPi <$> withVarNames desc <*> pure rp
+          _ -> throwComplaint r =<< syntaxPError desc rp
 
         elabUnder (x, s) $
 --          local (addHint (getVariable <$> x) (Known s)) $
@@ -971,7 +971,7 @@ compatibleChannels :: Range
                    -> Elab Int
 compatibleChannels r (dp, []) dir (dq, []) = pure 0
 compatibleChannels r (dp, p@(m, s) : ps) dir (dq, q@(n, t) : qs) = do
-  unless (s == t) $ throwComplaint r (IncompatibleSemanticsDescs s t)
+  unless (s == t) $ throwComplaint r =<< incompatibleSemanticsDescs s t
   let (cp , cq) = (whatComm m dp, whatComm n dq)
   when (cp == cq) $ throwComplaint r (IncompatibleModes p q)
   case (cp, dir) of

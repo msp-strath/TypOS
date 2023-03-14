@@ -1,11 +1,14 @@
 ret > ExitFailure 1
 out > Error
 out >
-out >  1 | source : !'Wildcard.
-out >  2 | source@p = \x. \y. source@q. q?t. let v : 'Wildcard = {y,x}t.
-out >                                                               ^
-out > spop-top-fail.act:2:57-58
-out > Expected x to be the top variable but found y instead
-out > when elaborating the substitution {y, x}
+out >  3 |   = \x. \y. source@q. q?t.
+out >  4 |     let v : 'Wildcard = {y x}t.
+out >  5 |     p!v.
+out >            ^
+out > spop-top-fail.act:5:6-7
+out > Out of scope variable x
+out > when elaborating the term variable x
+out > when elaborating the term variable v
+out > when elaborating p!v
 out > when elaborating the judgement definition for source
 out >

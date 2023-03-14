@@ -54,8 +54,10 @@ pTM = withRange $
   where
 
   more :: Raw -> Parser Raw
-  more t = withRange $
-    ((Op unknown t <$ punc "-" <*> ptm) >>= more)
+  more t =
+    (do punc "-"
+        tm <- ptm
+        more (Op (getRange t <> getRange tm) t tm))
     <|> pure t
 
 ptm :: Parser Raw
