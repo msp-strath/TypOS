@@ -6,7 +6,7 @@ out >  6 |   ; ['Nat 'Nat] -> PRINTF "Happy Nats".
 out >  7 |   ; 'Nat -> -- correctly rejected
 out >          ^^^^
 out > case-tuples-failing.act:7:4-8
-out > Pattern 'Nat does not match ['Cons 'Type ['Cons 'Type 'Nil]]
+out > Pattern 'Nat does not check against ['Cons 'Type ['Cons 'Type 'Nil]]
 out > when elaborating a case branch handling the pattern 'Nat
 out > when elaborating the judgement definition for typeEq
 out >

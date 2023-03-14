@@ -255,6 +255,8 @@ ssbst usage (sg :< sgc) = case sgc of
 
 sth :: Restriction -> (Bwd Variable, ThDirective) -> Elab Th
 sth (Restriction ovs th) (xz, b) = do
+  whenLeft (isAll ((`elem` ovs) . getVariable) (xz <>> [])) $ \ x ->
+    throwComplaint x (OutOfScope x)
   let th = which (`elem` (getVariable <$> xz)) ovs
   pure $ case b of
     ThKeep -> th
