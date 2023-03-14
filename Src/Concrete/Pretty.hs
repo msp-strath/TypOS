@@ -38,6 +38,7 @@ instance Pretty Raw where
     Sbst _ sg t -> parenthesise (d > 0) $ hsep [ pretty sg, pretty t ]
     Op _ s t -> parenthesise (d > 0) $ hsep [ pretty s, "-", prettyPrec 1 t ]
     Guarded g t -> hsep [ "<", pretty t , ">"]
+    Thicken _ (thxz, thd) t -> braces (hsep (pretty <$> thxz <>> []) <> pretty thd) <+> pretty t
 
 instance Pretty (Bwd Assign) where
   pretty sg = encloseSep lbrace rbrace ", " $ pretty <$> sg <>> []

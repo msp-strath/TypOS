@@ -49,6 +49,7 @@ pTM = withRange $
   (ptm >>= more)
   <|> pscoped Lam pbinder pTM
   <|> Sbst unknown <$ pch (== '{') <* pspc <*> ppes (punc ",") passign <* punc "}" <*> pTM
+  <|> Thicken unknown <$ pch (== '{') <* pspc <*> pth <* punc "}" <*> pTM
 
   where
 

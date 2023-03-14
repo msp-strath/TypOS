@@ -578,9 +578,20 @@ stm :: Usage -> ASemanticsDesc -> Raw -> Elab ACTm
 stm usage desc (Var r v) = during (TermVariableElaboration v) $ do
   (_, _, t) <- svar usage (Just desc) v
   pure t
+stm usage desc (Thicken r th t) = do
+  ovs <- asks objVars
+  let rest = initRestriction ovs
+  th <- sth rest th
+  desc <- case thickenCdB th desc of
+    Nothing -> throwComplaint r (NotAValidDescriptionRestriction th desc)
+    Just desc -> pure desc
+  ovs <- case thickenObjVars th ovs of
+    Nothing -> throwComplaint r (NotAValidContextRestriction th ovs)
+    Just ovs -> pure ovs
+  fmap (*^ th) $ local (setObjVars' ovs) $ stm usage desc t
 stm usage desc (Sbst r sg t) = do
-    ms <- during (SubstitutionElaboration sg) $ ssbst (sg <>> [])
-    local (setMacros ms) (stm usage desc t)
+  ms <- during (SubstitutionElaboration sg) $ ssbst (sg <>> [])
+  local (setMacros ms) (stm usage desc t)
 stm usage desc rt = do
   table <- gets syntaxCats
   dat <- asks headUpData

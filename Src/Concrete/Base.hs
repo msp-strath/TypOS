@@ -53,6 +53,7 @@ data Raw
   | Sbst Range (Bwd Assign) Raw
   | Op Range Raw Raw
   | Guarded Guard Raw
+  | Thicken Range (Bwd Variable, ThDirective) Raw
   deriving (Show)
 
 instance HasSetRange Raw where
@@ -63,6 +64,8 @@ instance HasSetRange Raw where
     Lam _ sc -> Lam r sc
     Sbst _ sg t -> Sbst r sg t
     Op _ s t -> Op r s t
+    t@Guarded{} -> t
+    Thicken _ th t -> Thicken r th t
 
 instance Eq Raw where
   Var _ v == Var _ w = v == w
@@ -71,6 +74,8 @@ instance Eq Raw where
   Lam _ sc == Lam _ bd = sc == bd
   Sbst _ cs t == Sbst _ ds u = cs == ds && t == u
   Op _ s t == Op _ a b = s == a && t == b
+  Guarded g t == Guarded h u = (g, t) == (h, u)
+  Thicken _ th t == Thicken _ ph u = (th, t) == (ph, u)
   _ == _ = False
 
 instance HasGetRange Raw where
@@ -81,6 +86,8 @@ instance HasGetRange Raw where
     Lam r _ -> r
     Sbst r _ _ -> r
     Op r _ _ -> r
+    Guarded _ _ -> unknown
+    Thicken r _ _ -> r
 
 data Assign = Assign
   { assignRange :: Range
@@ -131,7 +138,7 @@ instance HasGetRange RawP where
     Irrefutable r p -> r
 
 data ThDirective = ThKeep | ThDrop
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Mode a = Input | Subject a | Output
   deriving (Show, Eq, Functor, Foldable, Traversable)

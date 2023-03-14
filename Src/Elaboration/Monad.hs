@@ -239,8 +239,7 @@ extend (Restriction ls th) Unused = Restriction ls (th -? False)
 instance Selable Restriction where
   ph ^? Restriction ls th = Restriction (ph ^? ls) (ph ^? th)
 
-data ElabMode = Definition | Execution
-              deriving (Eq, Show)
+data ElabMode = Definition | Execution deriving (Eq, Show)
 
 initContext :: Options -> Context
 initContext opts = Context
