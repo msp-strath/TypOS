@@ -12,7 +12,8 @@ import Concrete.Pretty()
 import Elaboration.Monad
 import Location
 import Pretty
-import Unelaboration (unsafeEvalUnelab, unelab, initNaming, Unelab, Unelabed, UnelabEnv, Naming)
+import Unelaboration.Monad (unsafeEvalUnelab, unelab, initNaming, Unelab, Unelabed, UnelabEnv, Naming)
+import Unelaboration ()
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Rules
 import Syntax ()

@@ -12,7 +12,8 @@ import Display
 import Pretty
 import Term.Display ()
 import Thin
-import Unelaboration (DAEnv, nameOn)
+import Unelaboration.Monad (nameOn)
+import Unelaboration (DAEnv)
 
 instance Display Env where
   type DisplayEnv Env = ()

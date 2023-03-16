@@ -16,7 +16,7 @@ import Data.Maybe (fromMaybe, catMaybes)
 import Data.Traversable (for)
 import Data.These
 import Data.Either
-import Data.Foldable (fold)
+import Data.Foldable (fold, asum)
 
 import Actor
 import Actor.Display ()
@@ -40,7 +40,8 @@ import Rules
 import Syntax
 import Info
 import Term.Base
-import Unelaboration(Unelab(..), subunelab, withEnv, initDAEnv, Naming, declareChannel)
+import Unelaboration.Monad (Unelab(..), Naming, subunelab, withEnv)
+import Unelaboration (initDAEnv, declareChannel)
 import Location
 import Utils
 
@@ -183,13 +184,7 @@ instance Display ACommand where
   display = viaPretty
 
 pmachinestep :: Parser MachineStep
-pmachinestep =
-  MachineRecv <$ plit "recv"
-  <|> MachineSend <$ plit "send"
-  <|> MachineExec <$ plit "exec"
-  <|> MachineMove <$ plit "move"
-  <|> MachineUnify <$ plit "unify"
-  <|> MachineBreak <$ plit "break"
+pmachinestep = asum $ map (\ s -> s <$ plit (render $ pretty s)) [minBound..maxBound]
 
 pjudgeat :: Parser (Variable, (), Variable)
 pjudgeat = (,,) <$> pvariable <*> punc "@" <*> pvariable

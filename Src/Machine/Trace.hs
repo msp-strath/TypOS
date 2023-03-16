@@ -29,7 +29,8 @@ import Pretty
 import Syntax (SyntaxDesc, SyntaxTable, expand, VSyntaxDesc'(..), contract)
 import Semantics (embed)
 import Term.Base
-import Unelaboration
+import Unelaboration.Monad
+import Unelaboration ()
 import Data.String (fromString)
 import Data.Functor ((<&>))
 

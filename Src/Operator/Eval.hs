@@ -13,6 +13,7 @@ import Concrete.Base
 import Operator
 import Options
 import Actor
+import Unelaboration.Monad (UnelabMeta)
 
 dependencySet :: StoreF i d -> Guard -> Set Guard
 dependencySet st@Store{..} g = case Map.lookup g guards of
@@ -45,7 +46,7 @@ type HeadUpData = HeadUpData' Meta
 -- Expanding the term using the information currently available:
 -- + meta solutions
 -- + operator clauses
-headUp :: forall m . Show m => HeadUpData' m -> Term' m -> Term' m
+headUp :: forall m . (Show m, UnelabMeta m) => HeadUpData' m -> Term' m -> Term' m
 headUp dat@HeadUpData{..} term = case expand term of
   m :$: sg | Just t <- whatIs m
     -> headUp dat (t //^ sg)
@@ -65,5 +66,3 @@ headUp dat@HeadUpData{..} term = case expand term of
   operate op tps = case runClause (opTable op) huOptions (headUp dat) huEnv tps of
     Left (t, ps) -> t -% (getOperator op, ps)
     Right t -> headUp dat t
-
-

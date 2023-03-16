@@ -25,12 +25,13 @@ import Syntax (SyntaxDesc)
 import Data.Bifunctor (Bifunctor(first))
 
 import Machine.Matching
-import Debug.Trace (trace)
-import Display (unsafeDocDisplayClosed)
+import Debug.Trace (trace, traceShow)
+import Display (unsafeDocDisplay)
 import ANSI hiding (withANSI)
 import Pretty
 import Operator
 import Operator.Eval
+import Unelaboration.Monad (Naming, UnelabMeta)
 
 
 newtype Date = Date Int
@@ -181,32 +182,30 @@ unOp t = case expand t of
     pure (Operator op, ps)
   _ -> Nothing
 
-toClause :: forall m . Show m => Pat -> Bwd (Operator, [Pat]) -> ACTm
+toClause :: forall m. (Show m, UnelabMeta m) => Pat -> Bwd (Operator, [Pat]) -> ACTm
          -> Options
          -> (Term' m -> Term' m) -- head normaliser
          -> Env' m
          -> (Term' m, [Term' m]) -- object & parameters
          -> Either (Term' m, [Term' m]) (Term' m)
 toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
-  let msg result = "" in
-{- TODO: reinstate:
-let msg result = flush $ vcat
+  let msg result = flush $ vcat
         [ hsep ( "Matching"
-               : withANSI [SetColour Background Green] (unsafeDocDisplayClosed opts t)
+               : withANSI [SetColour Background Green] (unsafeDocDisplay opts naming t)
                : "-"
                : [let opdoc = pretty (getOperator (fst op)) in case args of
                       [] -> "'" <> opdoc
-                      _ -> "['" <> hsep (opdoc : map (unsafeDocDisplayClosed opts) args) <> "]"]
+                      _ -> "['" <> hsep (opdoc : map (unsafeDocDisplay opts naming) args) <> "]"]
                )
         , hsep ( "against"
-               : unsafeDocDisplayClosed opts pobj
+               : unsafeDocDisplay opts naming pobj
                : flip map (ops <>> [op]) (\ (Operator op, ps) -> "- " <> case ps of
                      [] -> "'" <> pretty op
-                     _ -> "['" <> hsep (pretty op : map (unsafeDocDisplayClosed opts) ps) <> "]")
+                     _ -> "['" <> hsep (pretty op : map (unsafeDocDisplay opts naming) ps) <> "]")
                )
-               <> " ~> " <> unsafeDocDisplayClosed opts rhs
+               <> " ~> " <> unsafeDocDisplay opts naming rhs
         , result ] in
--}
+
   let ((t, ts), res) = loop initMatching ops op targs in case res of
     Right mtch | Just val <- mangleActors opts (matchingToEnv mtch env) rhs
       -> whenClause opts (msg (withANSI [SetColour Background Green] "Success!")) $ pure val
@@ -214,6 +213,9 @@ let msg result = flush $ vcat
     Left err -> whenClause opts (msg (withANSI [SetColour Background Red] $ "Failure " <> pretty err)) $ Left (t, ts)
 
   where
+
+  naming :: Naming
+  naming = let scp = currentScope env in (scp, ones (length scp), scp)
 
   whenClause :: Options -> Doc Annotations -> a -> a
   whenClause opts doc a
@@ -239,8 +241,7 @@ let msg result = flush $ vcat
                 case loop mtch lops (lop, lps) (ltops, ltps) of
                   ((ltops, ltps), res) -> (ltops -% (getOperator lop, ltps), res)
               _ -> (contract (ltops :-: loptpsnf), Left Mismatch) -- Careful: could be a stuck meta
-            _ -> (topsnf, Left (whenClause opts "not an operator application" Mismatch))
---            _ -> (topsnf, Left (whenClause opts (unsafeDocDisplayClosed unsafeOptions topsnf <+> "not an operator application") Mismatch))
+            _ -> (topsnf, Left (whenClause opts (unsafeDocDisplay opts naming topsnf <+> "not an operator application") Mismatch))
     in case leftnested of
       (tops, Left err) -> ((tops, tps), Left err)
       (tops, Right mtch) -> first (tops,) $ matches mtch ps tps
@@ -320,4 +321,3 @@ tracing = fromMaybe [] . tracingOption . options
 instance (Show s, Show (t Frame)) => Show (Process log s t) where
   show (Process opts stack root env store actor _ geas) =
    unwords ["Process ", show opts, show stack, show root, show env, show store, show actor, show geas]
-

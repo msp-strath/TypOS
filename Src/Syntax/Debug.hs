@@ -5,14 +5,15 @@ import Data.Maybe (fromJust)
 import qualified Data.Map as Map
 import Display (display, unsafeEvalDisplay)
 import Machine.Display()
-import Unelaboration (initNaming)
+import Unelaboration.Monad (initNaming)
+import Text.PrettyPrint.Compact (render)
 
 printIt = putStrLn $ unlines
   [ show validateIt
   , "==="
-  , show (unsafeEvalDisplay initNaming $ display (syntaxDesc ["Syntax"]))
+  , render (unsafeEvalDisplay initNaming $ display (syntaxDesc ["Syntax"]))
   , "==="
-  , show (unsafeEvalDisplay initNaming $ display $ Syntax.contract (fromJust (Syntax.expand (Map.singleton "Syntax" (syntaxDesc ["Syntax"])) (syntaxDesc ["Syntax"]))))]
+  , render (unsafeEvalDisplay initNaming $ display $ Syntax.contract (fromJust (Syntax.expand (Map.singleton "Syntax" (syntaxDesc ["Syntax"])) (syntaxDesc ["Syntax"]))))]
 
 {-
 ['EnumOrTag

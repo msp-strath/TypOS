@@ -20,7 +20,8 @@ import Options
 import Pretty
 import Term
 import Term.Display ()
-import Unelaboration (DAEnv, initDAEnv, Naming, nameOn, initNaming)
+import Unelaboration.Monad (Naming, nameOn, initNaming)
+import Unelaboration (DAEnv, initDAEnv)
 import qualified Unelaboration as A
 import Operator.Eval (StoreF (..))
 

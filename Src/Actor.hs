@@ -101,8 +101,11 @@ initEnv gamma = Env
   , alphaRenamings = Map.empty
   }
 
+currentScope :: Env' m -> Bwd String
+currentScope env = globalScope env <> localScope env
+
 childEnv :: Env -> Env
-childEnv parentEnv = initEnv (globalScope parentEnv <> localScope parentEnv)
+childEnv parentEnv = initEnv (currentScope parentEnv)
 
 newActorVar :: ActorMeta -> EnvImg' m -> Env' m -> Env' m
 newActorVar x defn env = env { actorVars = Map.insert x defn (actorVars env) }

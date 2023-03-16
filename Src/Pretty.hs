@@ -88,5 +88,3 @@ instance Collapse Cursor where
         , withANSI [SetColour Foreground Red, SetWeight Bold] ":<+>:"
         , collapse rstrs
         ]
-
-instance Show (Doc Annotations) where show = render

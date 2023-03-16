@@ -526,8 +526,8 @@ Since `'app` and `'when` are builtin operators, they do not need to be declared,
 this is how we would declare our own copies of them:
 ```
 operator
-  { 'Wildcard - ['myApp 'Wildcard] ~> 'Wildcard
-  ; 'Wildcard - ['myWhen ['Enum ['True 'False]]] ~> 'Wildcard
+  { 'Wildcard - ['myApp 'Wildcard] : 'Wildcard
+  ; 'Wildcard - ['myWhen ['Enum ['True 'False]]] : 'Wildcard
   }
 ```
 In the future, we might check more interesting semantic notions, but for now,
@@ -548,9 +548,9 @@ with pattern variables appropriately instantiated. For example, to
 match the builtin behaviour of `'app` and `'when`, we can declare the
 following reduction rules:
 ```
-(\ x. t) - ['myApp s] ~> {x=s}t
+(\ x. t) : 'Wildcard - ['myApp s] ~> {x=s}t
 
-t - ['myWhen 'True] ~> t
+t : 'Wildcard - ['myWhen 'True] ~> t
 ```
 Multiple rules may be given for the same operator. We do not currently
 check if overlapping rules are confluent, so it is up to the rule

@@ -4,7 +4,7 @@ module Machine.Exec where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (fromJust)
-import Unelaboration (nameSel)
+import Unelaboration.Monad (nameSel)
 
 import Control.Monad.Reader
 
@@ -233,7 +233,7 @@ format ann p@Process{..} fmt
   = renderWith (renderOptions options)
   $ unsafeEvalDisplay (frDisplayEnv stack)
   $ fmap (withANSI ann)
-  $ subdisplay
+  $ withForget . viaPretty
   $ insertDebug p
   $ map (followDirectives $ mkHeadUpData p) fmt
 

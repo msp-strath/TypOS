@@ -75,6 +75,7 @@ library
                        Term.Mangler,
                        Term.Substitution,
                        Thin,
+                       Unelaboration.Monad,
                        Unelaboration,
                        Utils,
                        Vector

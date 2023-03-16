@@ -17,6 +17,7 @@ import Term hiding (contract, expand)
 import qualified Term
 import Syntax (SyntaxTable, SyntaxCat, WithSyntaxCat(..))
 import Operator.Eval
+import Unelaboration.Monad()
 
 embed :: Int -> ASyntaxDesc -> ASemanticsDesc
 embed sc syn = (fmap absurd $^ syn) *^ none sc

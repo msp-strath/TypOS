@@ -15,7 +15,7 @@ import Hide
 import Scope
 import Thin
 import Pretty
-
+import Unelaboration.Monad (UnelabMeta)
 
 {-
   1. No subst in parsing phase.
@@ -125,7 +125,7 @@ type instance OPERATOR Abstract = Operator
 
 newtype Clause = Clause
   { runClause :: forall m
-  .  Show m => Options
+  .  (Show m, UnelabMeta m) => Options
   -> (Term' m -> Term' m) -- head normaliser
   -> Env' m
   -> (Term' m, [Term' m]) -- object & parameters

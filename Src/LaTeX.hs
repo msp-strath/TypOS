@@ -14,7 +14,8 @@ import Hide
 import Syntax
 import Scope
 
-import Unelaboration
+import Unelaboration.Monad
+import Unelaboration ()
 
 newtype LaTeXM a = LaTeXM { runLaTeXM :: Reader SyntaxTable a }
   deriving (Functor, Applicative, Monad, MonadReader SyntaxTable)
