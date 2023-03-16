@@ -1,4 +1,4 @@
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances,  OverloadedStrings #-}
 module Rules where
 
 import Control.Applicative
@@ -15,6 +15,9 @@ import Term.Base
 import Parse
 import Location
 import Concrete.Parse
+
+import Pretty
+import Concrete.Pretty
 
 type family FORMULA (ph :: Phase) :: *
 type instance FORMULA Concrete = CFormula
@@ -134,3 +137,10 @@ pjudgementform = withRange $ JudgementForm unknown <$ pkeyword KwJudgementForm <
                 <* pspc <*> pextractmode <*> pvariable
                 <* pspc <*> psep pspc pplace
                 <* pspc <*> pcurlies (psep (punc ";") (Left <$> pjudgement <|> Right <$> panoperator))
+
+instance Pretty (JUDGEMENT Concrete) where
+  pretty (Judgement _ jname fms) = hsep (pretty jname:map pretty fms)
+
+instance Pretty CFormula where
+  pretty (CFormula fm) = mergeTheseWith pretty pretty const fm
+  pretty (CCitizen pat tm) = hsep [pretty pat, "=>", pretty tm]

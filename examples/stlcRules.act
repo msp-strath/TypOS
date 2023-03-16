@@ -65,7 +65,7 @@ judgementform
 rule
   {}
   type 'Nat => 'Nat
-  {'Nat : 'Type - 'Value ~> 'Natural}
+  {'Nat - 'Value ~> 'Natural}
 
 
 rule
@@ -73,7 +73,7 @@ rule
   ------------------------
   type ['Arr S T] => ['Arr S T]
 -- Global assumption: 'Semantics comes with Pi builtin
-  {['Arr S T] : 'Type - 'Value ~> ['Pi (S - 'Value) \_. (T - 'Value)]}
+  {['Arr S T] - 'Value ~> ['Pi (S - 'Value) \_. (T - 'Value)]}
 
 -- Invariant: the subject in a premise is always something with a name
 -- payoff - the name BECOMES the name of the citizen

@@ -151,9 +151,9 @@ instance Pretty CCommand where
                                                      , prettyCds posts]
     Go a -> keyword "exec" <+> pretty a
     Trace ts -> keyword "trace" <+> collapse (BracesList $ map pretty ts)
-    -- DeclJudgementForm j -> keyword "judgementform" <+> collapse (BracesList $ pretty <$> jpreconds j)
-    --                    <+> hsep (pretty (jname j) : map pretty (jplaces j))
-    --                    <+> collapse (BracesList $ either pretty pretty <$> jpostconds j)
+    DeclJudgementForm j -> keyword "judgementform" <+> collapse (BracesList $ pretty <$> jpreconds j)
+                        <+> hsep (pretty (jname j) : map pretty (jplaces j))
+                        <+> collapse (BracesList $ either pretty pretty <$> jpostconds j)
     Typecheck t ty -> keyword "typecheck" <+> pretty t <+> ":" <+> pretty ty
 
 instance Unelab ACommand where
@@ -344,6 +344,9 @@ scommand = \case
   Go a -> during ExecElaboration $ (,) . Go <$> local (setElabMode Execution) (sact a) <*> asks globals
   Trace ts -> (Trace ts,) <$> asks globals
   DeclOp ops -> first DeclOp <$> sdeclOps ops
+  DeclJudgementForm j -> do
+    (j , gs) <- sjudgementform j
+    pure (DeclJudgementForm j, gs)
   Typecheck t ty -> do
     ty <- sty ty
     t <- stm DontLog ty t
@@ -382,11 +385,6 @@ scommand = \case
 
 --    trace (unwords [getOperator op, "-[", '\'':show p, show opargs, "~>", show rhs]) (pure ())
 -}
-
-
---  DeclJudgementForm j -> do
---    (j , gs) <- sjudgementform j
---    pure (DeclJudgementForm j, gs)
 
 checkCompatiblePlaces :: [PLACE Concrete] ->
                     [(Variable, ASemanticsDesc)] ->
@@ -432,7 +430,6 @@ then use s => c clauses ub rules to constrain the citizen
 the parent sent with the subject syntax.
 -}
 
-{-
 sjudgementform :: JUDGEMENTFORM Concrete -> Elab (JUDGEMENTFORM Abstract, Globals)
 sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
   inputs <- concat <$> traverse subjects jpreconds  -- TODO: should really be the closure of this info
@@ -472,7 +469,7 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
       SubjectPlace rsyn sem -> do
         syndecls <- gets (Map.keys . syntaxCats)
         syn <- ssyntaxdesc syndecls rsyn
-        sem <- ssemanticsdesc sem
+        sem <- sty sem
         pure ((Subject syn, sem), Map.singleton name rsyn)
 
     kindify :: Map Variable CSyntaxDesc -> CAnOperator -> Elab CAnOperator
@@ -480,7 +477,6 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
       | Var _ x <- objDesc op
       , Just syn <- Map.lookup x m = pure (op { objDesc = syn})
       | otherwise = throwComplaint (objDesc op) (MalformedPostOperator (theValue (opName op)) (Map.keys m))
--}
 
 sopelims0 :: Range
           -> (ASemanticsDesc, ACTm)

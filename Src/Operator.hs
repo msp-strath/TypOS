@@ -1,7 +1,8 @@
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances, OverloadedStrings #-}
 module Operator where
 
 import Control.Applicative
+import Data.Foldable
 
 import Concrete.Base
 import Concrete.Parse
@@ -15,6 +16,7 @@ import Hide
 import Scope
 import Thin
 import Pretty
+import Concrete.Pretty
 import Unelaboration.Monad (UnelabMeta)
 
 {-
@@ -72,8 +74,17 @@ scopeSize = length . getObjVars
 --    - S has a SOT, binding nothing
 --    - T has a SOT, binding x with type S[]
 type family SOT (ph :: Phase) :: *
-type instance SOT Concrete = ([(Raw, Variable)], Raw)
+type instance SOT Concrete = CSOT
 type instance SOT Abstract = ASOT
+
+data CSOT = CSOT
+  { sotBinders :: [(Raw, Variable)] -- sort1 \ variable1 . sort2\ variable2. ...
+  , sotType :: Raw
+  }
+  deriving (Show)
+-- For the example above:
+-- S has CSOT [] 'Semantics
+-- T has CSOT [(S,x)] 'Semantics
 
 -- TODO: conversion function to telescope
 -- ObjVars are in scope for the ACTm
@@ -177,8 +188,32 @@ panoperator = do
   punc "-"
   (opname, params) <- poperator $ pBinders $ pmaybeNamed psemanticsdecl
   punc ":"
-  AnOperator obj opname params <$> psemanticsdecl
+  AnOperator obj opname (fmap (fmap $ uncurry CSOT) params) <$> psemanticsdecl
  where
   pmaybeNamed :: Parser a -> Parser (Maybe (ACTORVAR Concrete), a)
   pmaybeNamed p = pparens ((,) . Just <$> pvariable <* punc ":" <*> p)
                  <|> (Nothing,) <$> p
+
+instance Pretty CAnOperator where
+  pretty (AnOperator obj (WithRange _ opName) paramsDesc retDesc) =
+    hsep [ prettyNamed obj, args, ":", pretty retDesc ]
+      where
+        args = case paramsDesc of
+          [] -> "-'" <> pretty opName
+          xs -> hsep (("-['" <> pretty opName):map prettyNamed paramsDesc) <> "]"
+        prettyNamed :: (Pretty a, Pretty b) => (Maybe a, b) -> Doc Annotations
+        prettyNamed (Nothing, b) = pretty b
+        prettyNamed (Just a, b) = parens $ hsep [pretty a, ":", pretty b]
+
+instance Pretty CSOT where
+  pretty (CSOT binders typ) = hsep ((map prettyBinders binders) ++ [pretty typ])
+    where
+      prettyBinders (sort, x) = fold [pretty sort, "\\", pretty x, "."]
+
+{-
+    {- (p : ['Sig a \x.b]) -} { objDesc    :: (Maybe (ACTORVAR ph), PATTERN ph) -- add ([ACTORVar ph], TERM ph)?
+ {- -[ 'snd             -} , opName     :: OPERATOR ph
+ {-  ]                  -} , paramsDesc :: [(Maybe (ACTORVAR ph), SOT ph)]
+ {-  : {x = p -'fst} b  -} , retDesc    :: SEMANTICSDESC ph
+                           }
+-}

@@ -55,10 +55,6 @@ instance (Unelab a, Pretty (Unelabed a), UnelabEnv a ~ Naming)
 instance Pretty AProtocol where
   pretty (Protocol ps) = foldMap (\ x -> pretty (WithVarNames B0 <$> x) <> ". ") ps
 
-instance Pretty CFormula where
-  pretty (CFormula a) = these pretty pretty (const pretty) a
-  pretty (CCitizen p t) = hsep [pretty p, "=>", pretty t]
-
 instance Pretty (WithRange Warning) where
   pretty (WithRange r w) = (withANSI [ SetColour Background Yellow ] "Warning:" <+> pretty r) $$ go w where
 

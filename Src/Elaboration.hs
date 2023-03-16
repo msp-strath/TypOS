@@ -310,14 +310,14 @@ sty t = do
   sem <- satom "Semantics"
   stm DontLog sem t
 
-ssot :: SOT 'Concrete -> Elab ASOT
-ssot ([], ty) = (:=>) <$> asks objVars <*> sty ty
-ssot ((desc, x) : xs, ty) = do
+ssot :: CSOT -> Elab ASOT
+ssot (CSOT [] ty) = (:=>) <$> asks objVars <*> sty ty
+ssot (CSOT ((desc, x) : xs) ty) = do
   desc <- sty desc
   x <- isFresh x
-  local (declareObjVar (x, desc)) $ ssot (xs, ty)
+  local (declareObjVar (x, desc)) $ ssot (CSOT xs ty)
 
-sparamdescs :: [(Maybe Variable, ([(Raw, Variable)], Raw))]
+sparamdescs :: [(Maybe Variable, CSOT)]
             -> Elab ([(Maybe ActorMeta, ASOT)], Decls)
 sparamdescs [] = ([],) <$> asks declarations
 sparamdescs ((mx , sot):ps) = do
