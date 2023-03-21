@@ -1,0 +1,11 @@
+syntax { 'Bool = ['Enum ['T 'F]] }
+syntax { 'Type = ['EnumOrTag ['Nat] [['Prod 'Type 'Type]]] }
+
+judgementform
+  {}
+  type (T : 'Type => 'Semantics)
+  { T - 'inhabitant : T
+  ; T -['isInhabitant (_ : T)] : 'Bool
+  }
+
+exec 'Type?T. PRINTF "%n" T - 'inhabitant.

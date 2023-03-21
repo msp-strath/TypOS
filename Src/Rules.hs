@@ -59,13 +59,15 @@ type CPlace = PLACE Concrete
 
 data PLACEKIND (ph :: Phase)
   = CitizenPlace
-  | SubjectPlace (SYNTAXCAT ph) (SEMANTICSDESC ph)
+  | SubjectPlace (SYNTAXCAT ph) (SEMANTICSDESC ph, Maybe (PATTERN ph))
 
-mkSubjectPlace :: SYNTAXCAT Concrete -> Maybe (SEMANTICSDESC Concrete)
+mkSubjectPlace :: SYNTAXCAT Concrete
+               -> Maybe (SEMANTICSDESC Concrete, Maybe (PATTERN Concrete))
                -> PLACEKIND Concrete
 mkSubjectPlace syn
   = SubjectPlace syn
-  . fromMaybe (At (getRange syn) (theValue syn))
+  . fromMaybe ( At (getRange syn) (theValue syn)
+              , Just (AtP (getRange syn) (theValue syn)))
 
 data CJudgementForm = JudgementForm
   { jrange :: Range
@@ -106,7 +108,8 @@ deriving instance
 
 deriving instance
   ( Show (SYNTAXCAT ph)
-  , Show (SEMANTICSDESC ph)) =>
+  , Show (SEMANTICSDESC ph)
+  , Show (PATTERN ph)) =>
   Show (PLACEKIND ph)
 
 pformula :: Parser CFormula
@@ -129,10 +132,16 @@ prule :: Parser (RULE Concrete)
 prule = RULE <$ pkeyword KwRule <* pspc <*> pcurlies (psep (punc ";") ppremise)
       <* pspc <*> pjudgement <* pspc <*> pcurlies (psep (punc ";") pdefnop)
 
+psubjectSem :: Parser (SEMANTICSDESC Concrete, Maybe (PATTERN Concrete))
+psubjectSem = pthese pTM ppat >>= \case
+  This sem -> pure (sem, Nothing)
+  These sem pat -> pure (sem, Just pat)
+  That pat -> pfail
+
 pplace :: Parser (PLACE Concrete)
-pplace = (,CitizenPlace) <$> pvariable
-       <|> pparens ((,) <$> pvariable <* punc ":"
-                        <*> (mkSubjectPlace <$> psyntaxcat <*> optional (id <$ punc "=>" <*> pTM)))
+pplace = (,CitizenPlace) <$> pvariable <|> pparens ((,) <$> pvariable <* punc ":"
+                        <*> (mkSubjectPlace <$> psyntaxcat
+                        <*> optional (id <$ punc "=>" <*> psubjectSem)))
 
 pjudgementform :: Parser CJudgementForm
 pjudgementform = withRange $ JudgementForm unknown

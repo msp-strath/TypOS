@@ -47,7 +47,7 @@ judgementform
   type (T : 'Type) -- no '=> B' means the citizen version is the same
   {T - 'Value : 'Semantics}
 
--- exec 'Wildcard?a. PRINTF "%n" a -'Value.
+exec 'Type?a. (a ~ 'Nat | PRINTF "%n" a -'Value.)
 
 judgementform
   {type T}
@@ -57,7 +57,7 @@ judgementform
 judgementform
   {}
   synth (e : 'Synth => S - 'Value) S
-  {type S}
+  {type S; e -'Quote : 'Check}
 
 exec 'Synth?e.
   PRINTF "Spawning synth".

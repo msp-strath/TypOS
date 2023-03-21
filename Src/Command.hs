@@ -128,7 +128,7 @@ instance Pretty CStatement where
 
 instance Pretty (PLACE Concrete) where
   pretty (v, CitizenPlace) = pretty v
-  pretty (v, SubjectPlace (WithRange _ syntaxcat) semanticsdesc) =
+  pretty (v, SubjectPlace (WithRange _ syntaxcat) (semanticsdesc, _)) =
     parens $ hsep $ [ pretty v, ":", pretty syntaxcat ]
       ++ (("=>" <+> pretty semanticsdesc)
           <$ guard (At unknown syntaxcat /= semanticsdesc))
@@ -450,12 +450,12 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
         (CFormula (These _ (Var r x)), sem) -> pure (x, sem)
         (x, _) -> throwComplaint r $ UnexpectedNonSubject x
 
-    citizenJudgements :: Map Variable SyntaxCat
+    citizenJudgements :: Map Variable RawP
                       -> [(Variable, ASemanticsDesc)]
                       -> [(Variable, ASemanticsDesc)]
                       -> [CPlace]
                       -> Elab ( [AProtocolEntry]
-                              , Map Variable SyntaxCat
+                              , Map Variable RawP
                               , Decls )
     citizenJudgements mp inputs outputs [] = ([], mp,) <$> asks declarations
     citizenJudgements mp inputs outputs ((name, place) : plcs) = case place of
@@ -475,22 +475,22 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
             pure ((Output, osem) : ps, mp, ds)
           _  -> error "Impossible in citizenJudgement"
 
-      SubjectPlace (WithRange r rsyn) sem -> do
+      SubjectPlace (WithRange r rsyn) (sem, msempat) -> do
         syndecls <- gets (Map.keys . syntaxCats)
         unless (rsyn `elem` syndecls) $
             throwComplaint r undefined
         syn <- satom rsyn
-        mp <- pure (Map.insert name rsyn mp)
+        mp <- pure (Map.insert name (fromMaybe (UnderscoreP unknown) msempat) mp)
         (ps, mp, ds) <- citizenJudgements mp inputs outputs plcs
         sem <- local (setDecls ds) $ sty sem
         pure ((Subject syn, sem) : ps, mp, ds)
 
-    kindify :: Map Variable SyntaxCat -> CAnOperator -> Elab CAnOperator
+    kindify :: Map Variable RawP -> CAnOperator -> Elab CAnOperator
     kindify m op
-      | (Used x, pat) <- objDesc op
-      , Just syn <- Map.lookup x m
-      = -- check pat is compatible with syn
-        pure (op { objDesc = (Used x, AtP (getRange x) syn)})
+      | (Used x, _) <- objDesc op
+      , Just sempat <- Map.lookup x m
+      = -- check pat is compatible with sempat
+        pure (op { objDesc = (Used x, sempat) })
       | otherwise = throwComplaint (snd $ objDesc op)
                   $ MalformedPostOperator (theValue (opName op)) (Map.keys m)
 
