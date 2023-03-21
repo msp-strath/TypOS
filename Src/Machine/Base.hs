@@ -20,12 +20,10 @@ import Term
 import qualified Term.Substitution as Substitution
 import Thin
 import Concrete.Base
-import Syntax (SyntaxDesc)
-
 import Data.Bifunctor (Bifunctor(first))
 
 import Machine.Matching
-import Debug.Trace (trace, traceShow)
+import Debug.Trace (trace)
 import Display (unsafeDocDisplay)
 import ANSI hiding (withANSI)
 import Pretty

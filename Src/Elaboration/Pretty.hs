@@ -3,7 +3,6 @@
 module Elaboration.Pretty where
 
 import Data.Foldable
-import Data.These
 
 import ANSI hiding (withANSI)
 import Actor (ActorMeta'(..), ActorMeta, Channel(..), Stack(..), AProtocol)
@@ -12,10 +11,9 @@ import Concrete.Pretty()
 import Elaboration.Monad
 import Location
 import Pretty
-import Unelaboration.Monad (unsafeEvalUnelab, unelab, initNaming, Unelab, Unelabed, UnelabEnv, Naming)
+import Unelaboration.Monad (unsafeEvalUnelab, unelab, Unelab, Unelabed, UnelabEnv, Naming)
 import Unelaboration ()
 import Data.List.NonEmpty (NonEmpty((:|)))
-import Rules
 import Syntax ()
 import Thin
 import Bwd (Bwd (..))

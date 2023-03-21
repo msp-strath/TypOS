@@ -16,7 +16,7 @@ import Hide
 import Scope
 import Thin
 import Pretty
-import Concrete.Pretty
+import Concrete.Pretty()
 import Unelaboration.Monad (UnelabMeta)
 
 {-

@@ -16,7 +16,7 @@ import Actor
 import Bwd
 import Concrete.Base
 import Location (HasGetRange(..), Range, WithRange (..))
-import Syntax (SyntaxCat, SyntaxDesc, VSyntaxDesc, SyntaxTable)
+import Syntax (SyntaxCat, SyntaxDesc, SyntaxTable)
 import Thin
 import Term.Base
 import Utils
@@ -29,7 +29,6 @@ import Operator.Eval
 import Options
 import Semantics
 import Data.Void (absurd)
-import Data.Bifunctor (bimap)
 
 ------------------------------------------------------------------------------
 -- Elaboration Monad

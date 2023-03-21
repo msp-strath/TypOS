@@ -17,7 +17,6 @@ import Location
 import Concrete.Parse
 
 import Pretty
-import Concrete.Pretty
 
 type family FORMULA (ph :: Phase) :: *
 type instance FORMULA Concrete = CFormula

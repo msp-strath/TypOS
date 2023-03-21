@@ -29,7 +29,6 @@ import Machine.Matching
 
 import Elaboration.Monad
 import Term.Base
-import qualified Term.Base as Term
 import Term.Substitution
 import Pattern as P hiding (match)
 import Location
@@ -39,7 +38,7 @@ import Control.Applicative ((<|>))
 import Operator
 import Operator.Eval
 import Semantics
-import Debug.Trace (traceShow, traceShowId, trace)
+-- import Debug.Trace (traceShow, traceShowId, trace)
 import Data.Bifunctor (bimap)
 import GHC.Stack.Types (HasCallStack)
 

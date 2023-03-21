@@ -16,7 +16,7 @@ import Data.List (partition)
 import Data.List.NonEmpty (NonEmpty ((:|)), fromList, toList)
 import Data.Maybe (fromJust, mapMaybe)
 
-import Concrete.Base (RawP(..), Binder (..), Variable (..), ASyntaxDesc, ASemanticsDesc)
+import Concrete.Base (RawP(..), Binder (..), Variable (..), ASemanticsDesc)
 import Location (unknown)
 import Pattern (Pat'(..))
 import Scope (Scope(..))
@@ -312,7 +312,7 @@ missing dat table desc = fmap (`evalState` names) (start desc) where
     in fromList (concatMap toList (enums ++ tagged))
   go (VWildcard _)= (pure $ UnderscoreP unknown) :| []
   go (VSyntaxCat _ _) = (VarP unknown . Variable unknown <$> freshName) :| []
-{- TODO: fill in, neutral case might be impossible 
-  go (VNeutral _) = _ 
+{- TODO: fill in, neutral case might be impossible
+  go (VNeutral _) = _
   go (VUniverse _) = (pure $ AtP unknown "Semantics") :| []
   go (VPi _ _) = _ -}

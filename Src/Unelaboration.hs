@@ -9,8 +9,6 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Void
 
-import GHC.Stack
-
 import Actor
 import Bwd
 import Concrete.Base
