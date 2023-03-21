@@ -317,18 +317,15 @@ ssot (CSOT ((desc, x) : xs) ty) = do
   x <- isFresh x
   local (declareObjVar (x, desc)) $ ssot (CSOT xs ty)
 
-sparamdescs :: [(Maybe Variable, CSOT)]
-            -> Elab ([(Maybe ActorMeta, ASOT)], Decls)
+sparamdescs :: [(Binder Variable, CSOT)]
+            -> Elab ([(Binder ActorMeta, ASOT)], Decls)
 sparamdescs [] = ([],) <$> asks declarations
-sparamdescs ((mx , sot):ps) = do
+sparamdescs ((bd , sot):ps) = do
   sot <- ssot sot
-  (mx, binder) <- case mx of
-    Nothing -> pure (Nothing, Unused)
-    Just x -> do
-      x <- isFresh x
-      pure (Just (ActorMeta ACitizen x) , Used x)
+  binder <- traverse isFresh bd
+  let bd = ActorMeta ACitizen <$> binder
   (ps, ds) <- local (declare binder (ActVar IsNotSubject sot)) $ sparamdescs ps
-  pure ((mx , sot):ps, ds)
+  pure ((bd , sot):ps, ds)
 
 spatSemantics0 :: ASemanticsDesc -> CPattern -> Elab (APattern, Decls, ACTm)
 spatSemantics0 desc p = do
@@ -481,7 +478,7 @@ sop (Cons rp (At ra a) ps) = do
 sop ro = throwComplaint ro (ExpectedAnOperator ro)
 
 matchObjType :: Range
-             -> (Maybe ActorMeta, Pat) -- (p : ['Sig S \x.T]) -'snd
+             -> (Binder ActorMeta, Pat) -- (p : ['Sig S \x.T]) -'snd
              -> (ACTm, ASemanticsDesc) -- ['MkSig a b] : ['Sig A \y.B]
              -> Elab (HeadUpData' ActorMeta) -- environment extended by: (S = A, \x.T = \y.B, p = ['MkSig a b])
 matchObjType r (mb , oty) (ob, obDesc) = do
@@ -491,8 +488,8 @@ matchObjType r (mb , oty) (ob, obDesc) = do
       Left e -> throwComplaint r =<< InferredDescMismatch <$> withVarNames oty <*> withVarNames obDesc
       Right m -> pure $ matchingToEnv m (huEnv dat)
     env <- case mb of
-      Nothing -> pure env
-      Just v  -> pure $ newActorVar v (localScope env <>> [], ob) env
+      Unused -> pure env
+      Used v  -> pure $ newActorVar v (localScope env <>> [], ob) env
     pure dat{huEnv = env}
 
 itm :: Usage -> Raw -> Elab (ASemanticsDesc, ACTm)
@@ -512,7 +509,7 @@ itm _ t = throwComplaint t $ DontKnowHowToInferDesc t
 
 itms :: Range -> String -> Usage
         -- Parameters types e.g. (_ : 'Nat\n. {m = n}p\ih. {m = ['Succ n]}p)
-     -> [(Maybe ActorMeta, ASOT)]
+     -> [(Binder ActorMeta, ASOT)]
         -- Raw parameters
      -> [Raw]
         -- Return type
@@ -529,7 +526,7 @@ itms r op usage ((binder, sot):bs) (rp:rps) rdesc = do
 itms r op usage bs rps rdesc = throwComplaint r $ ArityMismatchInOperator op ((length bs) - (length rps))
 
 sparam :: Usage
-       -> Maybe ActorMeta -- Name of parameter
+       -> Binder ActorMeta -- Name of parameter
        -> Bwd String      -- Names of formal parameters of the parameter
        -> Telescopic ASemanticsDesc -- Type of the parameter
        -> Raw             -- Raw term naming the actual parameters
@@ -540,8 +537,8 @@ sparam usage binder namez (Stop pdesc) rp = do
   dat <- do
     dat <- asks headUpData
     pure $ case binder of
-      Nothing -> dat
-      Just v  ->
+      Unused -> dat
+      Used v  ->
         let env = huEnv dat
             env' = newActorVar v (namez <>> [], p) env
         in dat {huEnv = env'}

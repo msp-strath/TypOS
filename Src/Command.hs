@@ -279,18 +279,15 @@ sdeclOps [] = ([],) <$> asks globals
 --              (                 pZ : {m = 'Zero} p)
 --              ('Nat\m. {m}p\ih. pS : {m = ['Succ m]} p)
 --       ] : {m = n} p
-sdeclOps ((AnOperator (objName, objDescPat) (WithRange r opname) paramDescs retDesc) : ops) = do
+sdeclOps ((AnOperator (objBinder, objDescPat) (WithRange r opname) paramDescs retDesc) : ops) = do
   opname <- do
     ctxt <- ask
     when (Map.member opname (operators ctxt)) $
       throwComplaint r (AlreadyDeclaredOperator opname)
     pure (Operator opname)
   syndecls <- gets (Map.keys . syntaxCats)
-  (objName, objBinder) <- case objName of
-     Nothing -> pure (Nothing, Unused)
-     Just objName -> do
-       objName <- isFresh objName
-       pure (Just (ActorMeta ACitizen objName), Used objName)
+  objBinder <- traverse isFresh objBinder
+  let objName = ActorMeta ACitizen <$> objBinder
   ovs <- asks objVars
   sem <- satom "Semantics"
   (descPat, ds, objDesc) <- spatSemantics0 sem objDescPat
@@ -505,7 +502,7 @@ sopelims r opelimz (ty, t) ((op, args):opelims) = do
 
 
     -- cf. sparam
-    sparamSemantics :: Maybe ActorMeta
+    sparamSemantics :: Binder ActorMeta
                     -> Bwd String
                     -> Telescopic ASemanticsDesc
                     -> RawP
@@ -515,8 +512,8 @@ sopelims r opelimz (ty, t) ((op, args):opelims) = do
       dat <- do
         dat <- asks headUpData
         pure $ case binder of
-          Nothing -> dat
-          Just v  ->
+          Unused -> dat
+          Used v  ->
            let env = huEnv dat
                env' = newActorVar v (namez <>> [], t) env
            in dat {huEnv = env'}
@@ -529,7 +526,7 @@ sopelims r opelimz (ty, t) ((op, args):opelims) = do
     -- cf. itms
     spats :: Range
           -> String
-          -> [(Maybe ActorMeta, ASOT)]
+          -> [(Binder ActorMeta, ASOT)]
           -> [CPattern]
           -> ASemanticsDesc
           -> Elab ((ASemanticsDesc, Decls), ([APattern], [ACTm]))

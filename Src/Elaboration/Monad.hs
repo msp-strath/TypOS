@@ -279,11 +279,11 @@ initContext opts = Context
   , operators = Map.fromList
     [ ("app", AnOperator
         { opName = Operator "app"
-        , objDesc = (Nothing, PP (AP "Pi")
+        , objDesc = (Unused, PP (AP "Pi")
                               $ PP (MP (am "S") (ones 0))
                                 $ PP (BP (Hide "x")
                                   $ MP (am "T") (ones 1)) $ AP "")
-        , paramsDesc = [(Just (am "s"), ObjVars B0 :=> (am "S" $: sbstI 0))]
+        , paramsDesc = [(Used (am "s"), ObjVars B0 :=> (am "S" $: sbstI 0))]
         , retDesc = am "T" $: topSbst "x" (am "s" $: sbstI 0)
         })
     ]

@@ -110,9 +110,9 @@ discharge (ObjVars oz) a = go oz (ones (length oz)) (Stop a)
 -- Operators
 
 data ANOPERATOR (ph :: Phase) = AnOperator
- {- (p : ['Sig a \x.b]) -} { objDesc    :: (Maybe (ACTORVAR ph), PATTERN ph) -- add ([ACTORVar ph], TERM ph)?
+ {- (p : ['Sig a \x.b]) -} { objDesc    :: (Binder (ACTORVAR ph), PATTERN ph) -- add ([ACTORVar ph], TERM ph)?
  {- -[ 'snd             -} , opName     :: OPERATOR ph
- {-  ]                  -} , paramsDesc :: [(Maybe (ACTORVAR ph), SOT ph)]
+ {-  ]                  -} , paramsDesc :: [(Binder (ACTORVAR ph), SOT ph)]
  {-  : {x = p -'fst} b  -} , retDesc    :: SEMANTICSDESC ph
                            }
 
@@ -186,27 +186,25 @@ panoperator :: Parser CAnOperator
 panoperator = do
   obj <- pmaybeNamed ppat
   punc "-"
-  (opname, params) <- poperator $ pBinders $ pmaybeNamed psemanticsdecl
+  (opname, params) <- poperator $ pBinders (pmaybeNamed psemanticsdecl)
   punc ":"
   AnOperator obj opname (fmap (fmap $ uncurry CSOT) params) <$> psemanticsdecl
  where
-  pmaybeNamed :: Parser a -> Parser (Maybe (ACTORVAR Concrete), a)
-  pmaybeNamed p = pparens ((,) . Just <$> pvariable <* punc ":" <*> p)
-                 <|> (Nothing,) <$> p
+  pmaybeNamed :: Parser a -> Parser (Binder (ACTORVAR Concrete), a)
+  pmaybeNamed p = pparens ((,) <$> pbinder <* punc ":" <*> p)
 
 instance Pretty CAnOperator where
   pretty (AnOperator obj (WithRange _ opName) paramsDesc retDesc) =
-    hsep [ prettyNamed obj, args, ":", pretty retDesc ]
+    hsep [ prettyNamed obj , args, ":", pretty retDesc ]
       where
         args = case paramsDesc of
           [] -> "-'" <> pretty opName
           xs -> hsep (("-['" <> pretty opName):map prettyNamed paramsDesc) <> "]"
-        prettyNamed :: (Pretty a, Pretty b) => (Maybe a, b) -> Doc Annotations
-        prettyNamed (Nothing, b) = pretty b
-        prettyNamed (Just a, b) = parens $ hsep [pretty a, ":", pretty b]
+        prettyNamed :: (Pretty a, Pretty b) => (Binder a, b) -> Doc Annotations
+        prettyNamed (a, b) = parens $ hsep [pretty a, ":", pretty b]
 
 instance Pretty CSOT where
-  pretty (CSOT binders typ) = hsep ((map prettyBinders binders) ++ [pretty typ])
+  pretty (CSOT binders typ) = hsep (map prettyBinders binders ++ [pretty typ])
     where
       prettyBinders (sort, x) = fold [pretty sort, "\\", pretty x, "."]
 
