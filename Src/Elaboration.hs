@@ -506,7 +506,7 @@ itm usage (Op r rob rop) = do
   dat <- matchObjType r objDesc (ob, obDesc)
   local (setHeadUpData dat) $ do
     (desc, ps) <- itms r (getOperator opName) usage paramsDesc rps retDesc
-    pure (desc, ob -% (getOperator opName, ps))
+    pure (desc, ob {- TODO: store obDesc too -} -% (getOperator opName, ps))
 -- TODO?: annotated terms?
 itm _ t = throwComplaint t $ DontKnowHowToInferDesc t
 
