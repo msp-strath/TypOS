@@ -59,6 +59,15 @@ judgementform
   synth (e : 'Synth => S - 'Value) S
   {type S}
 
+exec 'Synth?e.
+  PRINTF "Spawning synth".
+  synth@p.
+  p!e.
+  PRINTF "About to get stuck".
+  p?S.
+  PRINTF "%r" S.
+
+{-
 -- Open question in the above: will it always be the subject that's fed to an operator?
 -- Note: the "T - 'Value" is in 'Semantics and that T is the citizen, not the subject
 

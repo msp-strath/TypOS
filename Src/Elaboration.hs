@@ -1036,7 +1036,11 @@ sact = \case
     ch <- isChannel ch
     -- Check the channel is in sending mode, & step it
     (m, desc) <- steppingChannel r ch $ \ dir -> \case
-      (m, desc) : p | whatComm m dir == SEND -> pure ((m, desc), p)
+      (m, desc) : p | whatComm m dir == SEND -> do
+        desc <- pure $ case m of
+          Subject desc -> asSemantics desc
+          _ -> desc
+        pure ((m, desc), p)
       _ -> throwComplaint r (InvalidSend ch tm)
 
     (usage, gd) <- do

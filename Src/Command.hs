@@ -16,7 +16,7 @@ import Data.Maybe (fromMaybe, catMaybes)
 import Data.Traversable (for)
 import Data.These
 import Data.Either
-import Data.Foldable (fold, asum)
+import Data.Foldable (asum)
 
 import Actor
 import Actor.Display ()
@@ -422,18 +422,19 @@ then use s => c clauses ub rules to constrain the citizen
 the parent sent with the subject syntax.
 -}
 
-sjudgementform :: JUDGEMENTFORM Concrete -> Elab (JUDGEMENTFORM Abstract, Globals)
+sjudgementform :: JUDGEMENTFORM Concrete
+               -> Elab (JUDGEMENTFORM Abstract, Globals)
 sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
   inputs <- concat <$> traverse subjects jpreconds  -- TODO: should really be the closure of this info
   let (outputs, operators) = partitionEithers jpostconds
   outputs <- concat <$> traverse subjects outputs
   checkCompatiblePlaces jplaces inputs outputs
-  (protocol, subjectKinds)  <- bimap Protocol fold . unzip
-    <$> traverse (citizenJudgement inputs outputs) jplaces
+  (ps, subjectKinds, _) <- citizenJudgements Map.empty inputs outputs jplaces
+  let protocol = Protocol ps
   jname <- isFresh jname
   local (declare (Used jname) (AJudgement jextractmode protocol)) $ do
-      (operators, gs) <- sdeclOps =<< traverse (kindify subjectKinds) operators
-      pure ((jextractmode, jname, protocol), gs)
+    (operators, gs) <- sdeclOps =<< traverse (kindify subjectKinds) operators
+    pure ((jextractmode, jname, protocol), gs)
 
 
   where
@@ -449,13 +450,29 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
         (CFormula (These _ (Var r x)), sem) -> pure (x, sem)
         (x, _) -> throwComplaint r $ UnexpectedNonSubject x
 
-    citizenJudgement :: [(Variable, ASemanticsDesc)] -> [(Variable, ASemanticsDesc)]
-                     -> CPlace -> Elab (PROTOCOLENTRY Abstract, Map Variable CSyntaxDesc)
-    citizenJudgement inputs outputs (name, place) = case place of
-      CitizenPlace ->
+    citizenJudgements :: Map Variable SyntaxCat
+                      -> [(Variable, ASemanticsDesc)]
+                      -> [(Variable, ASemanticsDesc)]
+                      -> [CPlace]
+                      -> Elab ( [AProtocolEntry]
+                              , Map Variable SyntaxCat
+                              , Decls )
+    citizenJudgements mp inputs outputs [] = ([], mp,) <$> asks declarations
+    citizenJudgements mp inputs outputs ((name, place) : plcs) = case place of
+      CitizenPlace -> do
+        bd <- Used <$> isFresh name
+        th <- asks (ones . scopeSize . objVars)
         case (lookup name inputs, lookup name outputs) of
-          (Just isem, Nothing) -> pure ((Input, isem), Map.empty)
-          (Nothing, Just osem) -> pure ((Output, osem), Map.empty)
+          (Just isem, Nothing) -> do
+            (_, asot) <- thickenedASOT (getRange name) th isem
+            (ps, mp, ds) <- local (declare bd (ActVar IsNotSubject asot)) $
+              citizenJudgements mp inputs outputs plcs
+            pure ((Input, isem) : ps, mp, ds)
+          (Nothing, Just osem) -> do
+            (_, asot) <- thickenedASOT (getRange name) th osem
+            (ps, mp, ds) <- local (declare bd (ActVar IsNotSubject asot)) $
+              citizenJudgements mp inputs outputs plcs
+            pure ((Output, osem) : ps, mp, ds)
           _  -> error "Impossible in citizenJudgement"
 
       SubjectPlace (WithRange r rsyn) sem -> do
@@ -463,8 +480,10 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
         unless (rsyn `elem` syndecls) $
             throwComplaint r undefined
         syn <- satom rsyn
-        sem <- sty sem
-        pure ((Subject syn, sem), Map.singleton name rsyn)
+        mp <- pure (Map.insert name rsyn mp)
+        (ps, mp, ds) <- citizenJudgements mp inputs outputs plcs
+        sem <- local (setDecls ds) $ sty sem
+        pure ((Subject syn, sem) : ps, mp, ds)
 
     kindify :: Map Variable SyntaxCat -> CAnOperator -> Elab CAnOperator
     kindify m op
