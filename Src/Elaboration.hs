@@ -480,11 +480,11 @@ sop (Cons rp (At ra a) ps) = do
   pure (op, es)
 sop ro = throwComplaint ro (ExpectedAnOperator ro)
 
--- e.g.  (p : ['Sig S \x.T]) -'snd
---       ['MkSig a b] : ['Sig A \y.B]
--- Then we want an environment extended by: (S = A, \x.T = \y.B, p = ['MkSig a b])
-matchObjType :: Range -> (Maybe ActorMeta, Pat) -> (ASemanticsDesc, ACTm) -> Elab (HeadUpData' ActorMeta)
-matchObjType r (mb , oty) (obDesc, ob) = do
+matchObjType :: Range
+             -> (Maybe ActorMeta, Pat) -- (p : ['Sig S \x.T]) -'snd
+             -> (ACTm, ASemanticsDesc) -- ['MkSig a b] : ['Sig A \y.B]
+             -> Elab (HeadUpData' ActorMeta) -- environment extended by: (S = A, \x.T = \y.B, p = ['MkSig a b])
+matchObjType r (mb , oty) (ob, obDesc) = do
     dat <- asks headUpData
     let hnf = headUp dat
     env <- case snd $ match hnf initMatching (Problem B0 oty obDesc) of
@@ -503,7 +503,7 @@ itm usage (Var r v) = do
 itm usage (Op r rob rop) = do
   (obDesc, ob) <- itm usage rob
   (AnOperator{..}, rps) <- sop rop
-  dat <- matchObjType r objDesc (obDesc, ob)
+  dat <- matchObjType r objDesc (ob, obDesc)
   local (setHeadUpData dat) $ do
     (desc, ps) <- itms r (getOperator opName) usage paramsDesc rps retDesc
     pure (desc, ob -% (getOperator opName, ps))
