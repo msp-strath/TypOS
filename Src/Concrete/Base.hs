@@ -147,6 +147,8 @@ isSubjectMode :: Mode a -> Bool
 isSubjectMode (Subject _) = True
 isSubjectMode _           = False
 
+type family SYNTAXCAT (ph :: Phase) :: *
+
 type family SYNTAXDESC (ph :: Phase) :: *
 type instance SYNTAXDESC Concrete = Raw
 type CSyntaxDesc = SYNTAXDESC Concrete

@@ -184,14 +184,18 @@ pBinders p = fmap . (,) <$> many ((,) <$> pTM <* punc "\\" <*> pvariable <* pspc
 
 panoperator :: Parser CAnOperator
 panoperator = do
-  obj <- pmaybeNamed ppat
+  obj <- pmaybeNamed ppat (withRange $ pure $ UnderscoreP unknown)
   punc "-"
-  (opname, params) <- poperator $ pBinders (pmaybeNamed psemanticsdecl)
+  (opname, params) <- poperator $ pBinders (pmaybeNamed psemanticsdecl pfail)
   punc ":"
   AnOperator obj opname (fmap (fmap $ uncurry CSOT) params) <$> psemanticsdecl
  where
-  pmaybeNamed :: Parser a -> Parser (Binder (ACTORVAR Concrete), a)
-  pmaybeNamed p = pparens ((,) <$> pbinder <* punc ":" <*> p)
+  pmaybeNamed :: Parser a -- if binder
+              -> Parser a -- if no binder
+              -> Parser (Binder (ACTORVAR Concrete), a)
+  pmaybeNamed p q
+    = pparens ((,) <$> pbinder <* punc ":" <*> p)
+    <|> ((,) . Used <$> pvariable <*> q)
 
 instance Pretty CAnOperator where
   pretty (AnOperator obj (WithRange _ opName) paramsDesc retDesc) =

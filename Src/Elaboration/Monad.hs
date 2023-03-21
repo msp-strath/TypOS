@@ -122,7 +122,7 @@ infoExpand dat table s = case Semantics.expand table dat s of
   Just (VWildcard _) -> Unknown
   Just a -> Known a
 
-satom :: String -> Elab ACTm
+satom :: String -> Elab (CdB (Tm m))
 satom at = atom at <$> asks (scopeSize . objVars)
 
 fromInfo :: Range -> Info ASemanticsDesc -> Elab ASemanticsDesc

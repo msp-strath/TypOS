@@ -15,7 +15,7 @@ import Term.Base
 import Parse
 import Location
 import Concrete.Parse
-
+import Syntax (psyntaxcat)
 import Pretty
 
 type family FORMULA (ph :: Phase) :: *
@@ -59,11 +59,13 @@ type CPlace = PLACE Concrete
 
 data PLACEKIND (ph :: Phase)
   = CitizenPlace
-  | SubjectPlace (SYNTAXDESC ph) (SEMANTICSDESC ph)
+  | SubjectPlace (SYNTAXCAT ph) (SEMANTICSDESC ph)
 
-mkSubjectPlace :: SYNTAXDESC Concrete -> Maybe (SEMANTICSDESC Concrete)
+mkSubjectPlace :: SYNTAXCAT Concrete -> Maybe (SEMANTICSDESC Concrete)
                -> PLACEKIND Concrete
-mkSubjectPlace syn = SubjectPlace syn . fromMaybe syn
+mkSubjectPlace syn
+  = SubjectPlace syn
+  . fromMaybe (At (getRange syn) (theValue syn))
 
 data CJudgementForm = JudgementForm
   { jrange :: Range
@@ -103,7 +105,7 @@ deriving instance
   Show (RULE ph)
 
 deriving instance
-  ( Show (SYNTAXDESC ph)
+  ( Show (SYNTAXCAT ph)
   , Show (SEMANTICSDESC ph)) =>
   Show (PLACEKIND ph)
 
@@ -129,13 +131,16 @@ prule = RULE <$ pkeyword KwRule <* pspc <*> pcurlies (psep (punc ";") ppremise)
 
 pplace :: Parser (PLACE Concrete)
 pplace = (,CitizenPlace) <$> pvariable
-       <|> pparens ((,) <$> pvariable <* punc ":" <*> (mkSubjectPlace <$> psyntaxdecl <*> optional (id <$ punc "=>" <*> pTM)))
+       <|> pparens ((,) <$> pvariable <* punc ":"
+                        <*> (mkSubjectPlace <$> psyntaxcat <*> optional (id <$ punc "=>" <*> pTM)))
 
 pjudgementform :: Parser CJudgementForm
-pjudgementform = withRange $ JudgementForm unknown <$ pkeyword KwJudgementForm <* pspc <*> pcurlies (psep (punc ";") pjudgement)
-                <* pspc <*> pextractmode <*> pvariable
-                <* pspc <*> psep pspc pplace
-                <* pspc <*> pcurlies (psep (punc ";") (Left <$> pjudgement <|> Right <$> panoperator))
+pjudgementform = withRange $ JudgementForm unknown
+  <$ pkeyword KwJudgementForm
+  <* pspc <*> pcurlies (psep (punc ";") pjudgement)
+  <* pspc <*> pextractmode <*> pvariable
+  <* pspc <*> psep pspc pplace
+  <* pspc <*> pcurlies (psep (punc ";") (Left <$> pjudgement <|> Right <$> panoperator))
 
 instance Pretty (JUDGEMENT Concrete) where
   pretty (Judgement _ jname fms) = hsep (pretty jname:map pretty fms)

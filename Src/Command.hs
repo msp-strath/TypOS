@@ -38,7 +38,6 @@ import Parse
 import Pretty
 import Rules
 import Syntax
-import Info
 import Term.Base
 import Unelaboration.Monad (Unelab(..), Naming, subunelab, withEnv)
 import Unelaboration (initDAEnv, declareChannel)
@@ -48,15 +47,10 @@ import Utils
 import Data.Char (isSpace)
 import qualified Data.Set as Set
 import Operator
-import Elaboration.Monad (clock)
 import Thin
 import Operator.Eval (HeadUpData' (..))
 import Hide (Hide(..))
 import Scope (Scope(..))
-
-type family SYNTAXCAT (ph :: Phase) :: *
-type instance SYNTAXCAT Concrete = WithRange SyntaxCat
-type instance SYNTAXCAT Abstract = SyntaxCat
 
 type family DEFNPROTOCOL (ph :: Phase) :: *
 type instance DEFNPROTOCOL Concrete = ()
@@ -134,9 +128,10 @@ instance Pretty CStatement where
 
 instance Pretty (PLACE Concrete) where
   pretty (v, CitizenPlace) = pretty v
-  pretty (v, SubjectPlace syntaxdesc semanticsdesc) =
-    parens $ hsep $ [ pretty v, ":", pretty syntaxdesc ]
-      ++ (("=>" <+> pretty semanticsdesc) <$ guard (syntaxdesc /= semanticsdesc))
+  pretty (v, SubjectPlace (WithRange _ syntaxcat) semanticsdesc) =
+    parens $ hsep $ [ pretty v, ":", pretty syntaxcat ]
+      ++ (("=>" <+> pretty semanticsdesc)
+          <$ guard (At unknown syntaxcat /= semanticsdesc))
 
 instance Pretty CCommand where
   pretty = let prettyCds cds = collapse (BracesList $ pretty <$> cds) in \case
@@ -463,17 +458,22 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
           (Nothing, Just osem) -> pure ((Output, osem), Map.empty)
           _  -> error "Impossible in citizenJudgement"
 
-      SubjectPlace rsyn sem -> do
+      SubjectPlace (WithRange r rsyn) sem -> do
         syndecls <- gets (Map.keys . syntaxCats)
-        syn <- ssyntaxdesc syndecls rsyn
+        unless (rsyn `elem` syndecls) $
+            throwComplaint r undefined
+        syn <- satom rsyn
         sem <- sty sem
         pure ((Subject syn, sem), Map.singleton name rsyn)
 
-    kindify :: Map Variable CSyntaxDesc -> CAnOperator -> Elab CAnOperator
+    kindify :: Map Variable SyntaxCat -> CAnOperator -> Elab CAnOperator
     kindify m op
-      | Var _ x <- objDesc op
-      , Just syn <- Map.lookup x m = pure (op { objDesc = syn})
-      | otherwise = throwComplaint (objDesc op) (MalformedPostOperator (theValue (opName op)) (Map.keys m))
+      | (Used x, pat) <- objDesc op
+      , Just syn <- Map.lookup x m
+      = -- check pat is compatible with syn
+        pure (op { objDesc = (Used x, AtP (getRange x) syn)})
+      | otherwise = throwComplaint (snd $ objDesc op)
+                  $ MalformedPostOperator (theValue (opName op)) (Map.keys m)
 
 sopelims0 :: Range
           -> (ASemanticsDesc, ACTm)

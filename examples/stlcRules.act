@@ -47,6 +47,8 @@ judgementform
   type (T : 'Type) -- no '=> B' means the citizen version is the same
   {T - 'Value : 'Semantics}
 
+-- exec 'Wildcard?a. PRINTF "%n" a -'Value.
+
 judgementform
   {type T}
   check T (t : 'Check => T - 'Value)

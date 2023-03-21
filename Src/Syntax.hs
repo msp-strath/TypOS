@@ -8,11 +8,20 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Bwd
-import Concrete.Base (SYNTAXDESC, Phase(..), ASyntaxDesc)
+import Concrete.Base (SYNTAXCAT, SYNTAXDESC, Phase(..), ASyntaxDesc)
 import Thin (CdB(..), DB(..), weak, scope, lsb)
 import Term hiding (contract, expand)
+import Location (WithRange)
+import Parse (Parser, pwithRange, patom)
 
 type SyntaxCat = String
+
+type instance SYNTAXCAT Concrete = WithRange SyntaxCat
+type instance SYNTAXCAT Abstract = SyntaxCat
+
+psyntaxcat :: Parser (SYNTAXCAT Concrete)
+psyntaxcat = pwithRange patom
+
 type SyntaxDesc = CdB (Tm Void)
 type SyntaxTable = Map SyntaxCat SyntaxDesc
 
