@@ -22,6 +22,7 @@ import Thin
 import Concrete.Base
 import Data.Bifunctor (Bifunctor(first))
 
+import Machine.Steps
 import Machine.Matching
 import Debug.Trace (trace)
 import Display (unsafeDocDisplay)

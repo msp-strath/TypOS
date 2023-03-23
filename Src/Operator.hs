@@ -164,9 +164,9 @@ type instance DEFNOP Concrete = ((PATTERN Concrete, PATTERN Concrete) -- object 
 type instance DEFNOP Abstract = (Operator, Clause)
 
 pdefnop :: Parser (DEFNOP Concrete)
-pdefnop =  (,,) <$> ((,) <$> ppat <* punc ":" <*> ppat)
-                <*> some (punc "-" *> poperator ppat)
-                <*  punc "~>"
+pdefnop =  (,,) <$> ((,) <$> ppat <* ppunc ":" <*> ppat)
+                <*> some (ppunc "-" *> poperator ppat)
+                <*  ppunc "~>"
                 <*> pTM
 
 type COpPattern = OPPATTERN Concrete
@@ -180,21 +180,21 @@ poperator ph =
   <|> (,) <$ pch (== '[') <* pspc <*> pwithRange patom <*> many (id <$ pspc <*> ph) <* pspc <* pch (== ']')
 
 pBinders :: Parser (a, b) -> Parser (a, ([(Raw, Variable)], b))
-pBinders p = fmap . (,) <$> many ((,) <$> pTM <* punc "\\" <*> pvariable <* pspc <* pch ('.' ==)) <*> p
+pBinders p = fmap . (,) <$> many ((,) <$> pTM <* ppunc "\\" <*> pvariable <* pspc <* pch ('.' ==)) <*> p
 
 panoperator :: Parser CAnOperator
 panoperator = do
   obj <- pmaybeNamed ppat (withRange $ pure $ UnderscoreP unknown)
-  punc "-"
+  ppunc "-"
   (opname, params) <- poperator $ pBinders (pmaybeNamed psemanticsdecl pfail)
-  punc ":"
+  ppunc ":"
   AnOperator obj opname (fmap (fmap $ uncurry CSOT) params) <$> psemanticsdecl
  where
   pmaybeNamed :: Parser a -- if binder
               -> Parser a -- if no binder
               -> Parser (Binder (ACTORVAR Concrete), a)
   pmaybeNamed p q
-    = pparens ((,) <$> pbinder <* punc ":" <*> p)
+    = pparens ((,) <$> pbinder <* ppunc ":" <*> p)
     <|> ((,) . Used <$> pvariable <*> q)
 
 instance Pretty CAnOperator where

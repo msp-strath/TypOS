@@ -28,6 +28,7 @@ import Actor
 import Machine.Base
 import Machine.Display
 import Machine.Matching
+import Machine.Steps
 import Machine.Trace
 
 import System.IO.Unsafe

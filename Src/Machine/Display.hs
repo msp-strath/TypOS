@@ -16,7 +16,7 @@ import Elaboration.Pretty()
 import Forget
 import Format
 import Machine.Base
-import Options
+import Machine.Steps
 import Pretty
 import Term
 import Term.Display ()

@@ -117,7 +117,7 @@ pformula = pcitizen
          <|> CFormula <$> pthese ppat ptm
   where
     pcitizen = pparens pcitizen
-             <|> CCitizen <$> ppat <* punc "=>" <*> ptm
+             <|> CCitizen <$> ppat <* ppunc "=>" <*> ptm
 
 pjudgement :: Parser (JUDGEMENT Concrete)
 pjudgement = withRange $ Judgement unknown <$> pvariable <*> many (id <$ pspc <*> pformula)
@@ -125,12 +125,12 @@ pjudgement = withRange $ Judgement unknown <$> pvariable <*> many (id <$ pspc <*
 ppremise :: Parser (PREMISE Concrete)
 ppremise = pscoped Binding pbinder ppremise
         <|> (pjudgement >>=
-               \ j -> ((Hypothetical j <$ punc "|-" <*> ppremise) <|> (pure $ Premise j)))
-        <|> Constraint <$> ptm <* punc "=" <*> ptm
+               \ j -> ((Hypothetical j <$ ppunc "|-" <*> ppremise) <|> (pure $ Premise j)))
+        <|> Constraint <$> ptm <* ppunc "=" <*> ptm
 
 prule :: Parser (RULE Concrete)
-prule = RULE <$ pkeyword KwRule <* pspc <*> pcurlies (psep (punc ";") ppremise)
-      <* pspc <*> pjudgement <* pspc <*> pcurlies (psep (punc ";") pdefnop)
+prule = RULE <$ pkeyword KwRule <*> pcurlies (psep (ppunc ";") ppremise)
+      <* pspc <*> pjudgement <*> pcurlies (psep (ppunc ";") pdefnop)
 
 psubjectSem :: Parser (SEMANTICSDESC Concrete, Maybe (PATTERN Concrete))
 psubjectSem = pthese pTM ppat >>= \case
@@ -139,17 +139,17 @@ psubjectSem = pthese pTM ppat >>= \case
   That pat -> pfail
 
 pplace :: Parser (PLACE Concrete)
-pplace = (,CitizenPlace) <$> pvariable <|> pparens ((,) <$> pvariable <* punc ":"
+pplace = (,CitizenPlace) <$> pvariable <|> pparens ((,) <$> pvariable <* ppunc ":"
                         <*> (mkSubjectPlace <$> psyntaxcat
-                        <*> optional (id <$ punc "=>" <*> psubjectSem)))
+                        <*> optional (id <$ ppunc "=>" <*> psubjectSem)))
 
 pjudgementform :: Parser CJudgementForm
 pjudgementform = withRange $ JudgementForm unknown
   <$ pkeyword KwJudgementForm
-  <* pspc <*> pcurlies (psep (punc ";") pjudgement)
+  <*> pcurlies (psep (ppunc ";") pjudgement)
   <* pspc <*> pextractmode <*> pvariable
   <* pspc <*> psep pspc pplace
-  <* pspc <*> pcurlies (psep (punc ";") (Left <$> pjudgement <|> Right <$> panoperator))
+  <*> pcurlies (psep (ppunc ";") (Left <$> pjudgement <|> Right <$> panoperator))
 
 instance Pretty (JUDGEMENT Concrete) where
   pretty (Judgement _ jname fms) = hsep (pretty jname:map pretty fms)

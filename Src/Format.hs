@@ -1,23 +1,42 @@
 module Format where
+{- Description: various utilities for nicely "format strings" that
+ - can direct how to print terms, debugging info and just plain text
+ 
+ In particular:
+ For terms
+  - %r - Raw
+  - %i - Instantiate
+  - %n - Normalize
+  - %s - Show
+ For Debugging:
+  - %E - show environment
+  - %S - show stack
+  - %M - show store
+-}
 
-import Bwd
-import Parse
-import Location
+import Bwd (Bwd(..), (<>>))
+import Parse (Parser(Parser), Source(Source), parseError, ErrorLocation(Precise), here, notHere)
+import Location (Location, tick, ticks)
 
--- | dir is a directive controlling the printing of terms
---   dbg is the type of debugging info available
+-- | Format specifiction, where
+-- - dir is a directive controlling the printing of terms
+-- - dbg is the type of debugging info available
+-- - t is the actual term
 data Format dir dbg t
-  = TermPart dir t
-  | DebugPart dbg
-  | StringPart String
+  = TermPart dir t    -- for formatting terms
+  | DebugPart dbg     -- for debugging
+  | StringPart String -- for random stuff?
   deriving (Show, Eq, Functor, Foldable, Traversable)
 
+-- | When printing terms, what to do with them when doing so
 data Directive = Normalise | Instantiate | Raw | ShowT
  deriving (Show, Eq)
 
+-- | When printing debug information, what to dump
 data Debug = ShowStack | ShowStore | ShowEnv
   deriving (Show, Eq)
 
+-- | Parse format specification, for but terms and debug
 pformat :: Parser [Format Directive Debug ()]
 pformat = Parser $ \ (Source str loc) -> case str of
   '"':str -> here (go str (tick loc '"') B0)

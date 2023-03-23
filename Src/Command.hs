@@ -32,6 +32,7 @@ import Elaboration.Pretty()
 import Machine.Base
 import Machine.Display (Store)
 import Machine.Exec
+import Machine.Steps
 import Machine.Trace (Shots)
 import Options
 import Parse
@@ -182,34 +183,34 @@ pmachinestep :: Parser MachineStep
 pmachinestep = asum $ map (\ s -> s <$ plit (render $ pretty s)) [minBound..maxBound]
 
 pjudgeat :: Parser (Variable, (), Variable)
-pjudgeat = (,,) <$> pvariable <*> punc "@" <*> pvariable
+pjudgeat = (,,) <$> pvariable <*> ppunc "@" <*> pvariable
 
 psyntax :: Parser (WithRange SyntaxCat, Raw)
-psyntax = (,) <$> pwithRange patom <* punc "=" <*> psyntaxdecl
+psyntax = (,) <$> pwithRange patom <* ppunc "=" <*> psyntaxdecl
 
 pstatement :: Parser CStatement
 pstatement = Statement <$> pvariable <*> many (id <$ pspc <*> pvariable)
 
 pconditions :: Parser [CStatement]
-pconditions = pcurlies (psep (punc ",") pstatement)
+pconditions = pcurlies (psep (ppunc ",") pstatement)
 
 pcommand :: Parser CCommand
 pcommand
-    = DeclJudge <$> pextractmode <*> pvariable <* punc ":" <*> pprotocol
-  <|> DefnJudge <$> pjudgeat <* punc "=" <*> pACT
+    = DeclJudge <$> pextractmode <*> pvariable <* ppunc ":" <*> pprotocol
+  <|> DefnJudge <$> pjudgeat <* ppunc "=" <*> pACT
   <|> ContractJudge <$> pconditions <* pspc <*> pstatement <* pspc <*> pconditions
-  <|> DeclSyntax <$ plit "syntax" <* pspc <*> pcurlies (psep (punc ";") psyntax)
-  <|> DeclStack <$> pvariable <* punc "|-" <*> pcontextstack
+  <|> DeclSyntax <$ plit "syntax" <*> pcurlies (psep (ppunc ";") psyntax)
+  <|> DeclStack <$> pvariable <* ppunc "|-" <*> pcontextstack
   <|> ContractStack <$> pconditions <* pspc
-                    <*> ((,,) <$> pvariable <* punc "|-" <*> pvariable <* punc "->" <*> pvariable)
+                    <*> ((,,) <$> pvariable <* ppunc "|-" <*> pvariable <* ppunc "->" <*> pvariable)
                     <* pspc <*> pconditions
   <|> Go <$ plit "exec" <* pspc <*> pACT
-  <|> Trace <$ plit "trace" <* pspc <*> pcurlies (psep (punc ",") pmachinestep)
-  <|> DeclOp <$ plit "operator" <* pspc <*> pcurlies (psep (punc ";") panoperator)
+  <|> Trace <$ plit "trace" <*> pcurlies (psep (ppunc ",") pmachinestep)
+  <|> DeclOp <$ plit "operator" <*> pcurlies (psep (ppunc ";") panoperator)
   <|> DefnOp <$> pdefnop
   <|> DeclJudgementForm <$> pjudgementform
   <|> DeclRule <$> prule
-  <|> Typecheck <$ plit "typecheck" <* pspc <*> pTM <* punc ":" <*> pTM
+  <|> Typecheck <$ plit "typecheck" <* pspc <*> pTM <* ppunc ":" <*> pTM
 
 pfile :: Parser [CCommand]
 pfile = id <$ pspc <*> psep pspc pcommand <* pspc
