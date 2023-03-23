@@ -30,7 +30,9 @@
    + [ ] Unique names for subactors
    + [ ] block terms on names
    + [ ] Blocking wrapper evaporates when named thing is `Done`
-+ [x] PRINTF argument for model-based normalisation
+* [x] PRINTF argument for model-based normalisation
+* [ ] PRINTF argument for type of
+
 
 ### VM
 
