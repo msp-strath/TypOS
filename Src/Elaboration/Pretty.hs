@@ -176,7 +176,13 @@ instance Pretty (WithRange Complaint) where
       let message = case cands of [x] -> "the subject"
                                   _   -> "a subject among" in
       hsep $ ["Malformed operator", pretty op <> "; expected it to act on", message] ++ punctuate ", " (map pretty cands)
-
+    MismatchedObjectPattern op got expected ->
+      vcat [ hsep ["Mismatched object type pattern in operator declaration of ", pretty op <> "."]
+           , hsep ["Expected", pretty expected, "but got", pretty got]
+           ]
+    InvalidSubjectSyntaxCat got known -> vcat [hsep ["Invalid subject syntax category", pretty got]
+                                              , hsep ("Expected one among" : punctuate ", " (map pretty known))
+                                              ]
     -- syntaxes
     AlreadyDeclaredSyntaxCat x -> hsep ["The syntactic category", pretty x, "is already defined"]
 

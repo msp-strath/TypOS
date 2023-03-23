@@ -478,7 +478,7 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
       SubjectPlace (WithRange r rsyn) (sem, msempat) -> do
         syndecls <- gets (Map.keys . syntaxCats)
         unless (rsyn `elem` syndecls) $
-            throwComplaint r undefined
+            throwComplaint r $ InvalidSubjectSyntaxCat rsyn syndecls
         syn <- satom rsyn
         mp <- pure (Map.insert name (fromMaybe (UnderscoreP unknown) msempat) mp)
         (ps, mp, ds) <- citizenJudgements mp inputs outputs plcs
@@ -487,10 +487,13 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
 
     kindify :: Map Variable RawP -> CAnOperator -> Elab CAnOperator
     kindify m op
-      | (Used x, _) <- objDesc op
+      | (Used x, pat) <- objDesc op
       , Just sempat <- Map.lookup x m
-      = -- check pat is compatible with sempat
-        pure (op { objDesc = (Used x, sempat) })
+      = do
+          case pat of
+            UnderscoreP _ -> pure ()
+            _ -> when (pat /= sempat) $ throwComplaint pat $ MismatchedObjectPattern (theValue (opName op)) pat sempat
+          pure (op { objDesc = (Used x, sempat) })
       | otherwise = throwComplaint (fst $ objDesc op)
                   $ MalformedPostOperator (theValue (opName op)) (Map.keys m)
 

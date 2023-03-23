@@ -41,7 +41,7 @@ type Gripe = String
 
 type instance JUDGEMENTNAME Abstract = JudgementName
 type instance CHANNEL Abstract = Channel
-type instance BINDER Abstract = (Binder ActorMeta)
+type instance BINDER Abstract = Binder ActorMeta
 type instance ACTORVAR Abstract = ActorMeta
 type instance TERMVAR Abstract = DB
 type instance TERM Abstract = ACTm

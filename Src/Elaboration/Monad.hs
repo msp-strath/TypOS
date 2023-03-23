@@ -515,6 +515,8 @@ data Complaint
   | BothInputOutput Variable
   | ProtocolCitizenSubjectMismatch Variable (Mode ())
   | MalformedPostOperator String [Variable]
+  | MismatchedObjectPattern String RawP RawP
+  | InvalidSubjectSyntaxCat SyntaxCat [SyntaxCat]
   -- syntaxes
   | AlreadyDeclaredSyntaxCat SyntaxCat
   -- syntaxdesc validation

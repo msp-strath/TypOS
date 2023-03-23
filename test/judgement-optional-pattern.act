@@ -1,0 +1,12 @@
+syntax { 'Type = ['Enum ['Nat 'Bool]] }
+
+sem : $'Wildcard.
+
+judgementform
+  {sem A; sem B}
+  judge A B (t : 'Type => ['Pi A \x.B])
+  {t {-: ['Pi A \x.B]-} -['action (x : A)] : B}
+
+f : ['Pi A \x.B] -['action x] ~> f -['app x]
+
+exec ['Pi 'Type \_.'Type]?f. (f ~ \ X. X | PRINTF "%n" f -['action 'Nat].)

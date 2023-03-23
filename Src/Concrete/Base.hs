@@ -6,6 +6,7 @@ import Data.Function (on)
 import Bwd
 import Format
 import Scope
+import Hide
 import Location
 import Data.Bifunctor (Bifunctor (..))
 
@@ -34,6 +35,11 @@ data Binder x
   = Used x
   | Unused Range
   deriving (Show, Functor, Foldable, Traversable)
+
+instance Eq x => Eq (Binder x) where
+  Used x == Used x' = x == x'
+  Unused _ == Unused _ = True
+  _ == _ = False
 
 instance HasSetRange x => HasSetRange (Binder x) where
   setRange r (Used x) = Used (setRange r x)
@@ -79,7 +85,7 @@ instance Eq Raw where
   Var _ v == Var _ w = v == w
   At _ a == At _ b = a == b
   Cons _ p q == Cons _ s t = p == s && q == t
-  Lam _ sc == Lam _ bd = sc == bd
+  Lam _ (Scope (Hide x) p) == Lam _ (Scope (Hide x') p') = (x, p) == (x', p')
   Sbst _ cs t == Sbst _ ds u = cs == ds && t == u
   Op _ s t == Op _ a b = s == a && t == b
   Guarded g t == Guarded h u = (g, t) == (h, u)
@@ -122,6 +128,18 @@ data RawP
   | UnderscoreP Range
   | Irrefutable Range RawP
   deriving (Show)
+
+instance Eq RawP where
+  AsP _ v p == AsP _ v' p' = (v, p) == (v', p')
+  VarP _ v == VarP _ v' = v == v'
+  AtP _ a == AtP _ a' = a == a'
+  ConsP _ p q == ConsP _ p' q' = (p, q) == (p', q')
+  LamP _ (Scope (Hide x) p) == LamP _ (Scope (Hide x') p') = (x, p) == (x', p')
+  ThP _ th t == ThP _ th' t' = (th, t) == (th', t')
+  UnderscoreP _ == UnderscoreP _ = True
+  Irrefutable _ p == Irrefutable _ p' = p == p'
+  _ == _ = False
+
 
 instance HasSetRange RawP where
   setRange r = \case
