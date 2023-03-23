@@ -66,7 +66,7 @@ instance Pretty (WithRange Warning) where
           $ map pretty (toList pats)
       -- Subject analysis
       SentSubjectNotASubjectVar raw -> hsep ["Sent subject", pretty raw, "is not a subject variable"]
-      RecvSubjectNotScrutinised ch Unused -> hsep ["Ignored received subject on channel", pretty ch]
+      RecvSubjectNotScrutinised ch (Unused _) -> hsep ["Ignored received subject on channel", pretty ch]
       RecvSubjectNotScrutinised ch (Used x) -> hsep ["Received subject", pretty x,"on channel", pretty ch, "and did not scrutinise it"]
       PatternSubjectNotScrutinised x -> hsep ["Pattern subject", pretty x, "did not get scrutinised"]
       UnderscoreOnSubject -> hsep ["Subject pattern thrown away using an underscore"]

@@ -19,7 +19,7 @@ instance Pretty Variable where
 
 instance Pretty x => Pretty (Binder x) where
   pretty (Used v) = pretty v
-  pretty Unused = "_"
+  pretty (Unused _) = "_"
 
 multiBind :: Bwd (Hide (Binder Variable)) -> Raw -> Doc Annotations
 multiBind xs (Lam _ (Scope x t)) = multiBind (xs :< x) t

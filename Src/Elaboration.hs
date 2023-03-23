@@ -186,7 +186,7 @@ smacro xz (Cons r t u) = do
   smacro xz u
 smacro xz (Lam r (Scope (Hide x) sc)) = do
   xz <- case x of
-    Unused -> pure xz
+    Unused _ -> pure xz
     Used x -> do x <- isFresh x
                  pure (xz :< x)
   smacro xz sc
@@ -487,7 +487,7 @@ matchObjType r (mb , oty) (ob, obDesc) = do
       Left e -> throwComplaint r =<< InferredDescMismatch <$> withVarNames oty <*> withVarNames obDesc
       Right m -> pure $ matchingToEnv m (huEnv dat)
     env <- case mb of
-      Unused -> pure env
+      Unused _ -> pure env
       Used v  -> pure $ newActorVar v (localScope env <>> [], ob) env
     pure dat{huEnv = env}
 
@@ -536,7 +536,7 @@ sparam usage binder namez (Stop pdesc) rp = do
   dat <- do
     dat <- asks headUpData
     pure $ case binder of
-      Unused -> dat
+      Unused _ -> dat
       Used v  ->
         let env = huEnv dat
             env' = newActorVar v (namez <>> [], p) env
@@ -695,7 +695,7 @@ elabUnder (x, desc) ma = do
     error ("The IMPOSSIBLE has happened when binding " ++ show x ++ show st)
   x <- case x of
         Used x -> isFresh x
-        Unused -> pure "_"
+        Unused _ -> pure "_"
   (x \\) {-. (\ x -> traceShow x x) -} <$> local (declareObjVar (x, desc)) ma
 
 spats :: IsSubject -> [ASemanticsDesc] -> Restriction -> RawP -> Elab (Maybe Range, Pat, Decls, Hints)
@@ -980,7 +980,7 @@ compatibleChannels r (_,ps) _ (_,qs) = throwComplaint r (ProtocolsNotDual (Proto
 sirrefutable :: String -> IsSubject -> RawP -> Elab (Binder String, Maybe (CScrutinee, RawP))
 sirrefutable nm isSub = \case
   VarP _ v -> (, Nothing) . Used <$> isFresh v
-  UnderscoreP _ -> pure (Unused, Nothing)
+  UnderscoreP r -> pure (Unused r, Nothing)
   p -> do ctxt <- ask
           -- this should be a unique name & is not user-writable
           let r = getRange p
@@ -992,7 +992,7 @@ sirrefutable nm isSub = \case
           pure (Used av, Just (sc, p))
 
 checkScrutinised :: Binder String -> Elab Bool
-checkScrutinised Unused = pure False
+checkScrutinised (Unused _) = pure False
 checkScrutinised (Used nm) = do
   avs <- gets actvarStates
   b <- case Map.lookup nm avs of

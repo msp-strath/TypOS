@@ -1,6 +1,6 @@
 syntax { 'Bool = ['Enum ['False 'True]] }
 
-operator { X - ['if 'Bool] : X }
+operator { (x : X) - ['if (b : 'Bool)] : X }
 
 t : Y - ['if 'True] ~> t
 

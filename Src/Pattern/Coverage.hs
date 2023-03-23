@@ -303,7 +303,7 @@ missing dat table desc = fmap (`evalState` names) (start desc) where
     qs <- start cb'
     pure (ConsP unknown <$> ps <*> qs)
   go (VNilOrCons cb cb') = go (VNil $ scope cb)  <> go (VCons cb cb')
-  go (VBind s cb) = fmap (LamP unknown . Scope (Hide Unused)) <$> start cb
+  go (VBind s cb) = fmap (LamP unknown . Scope (Hide (Unused unknown))) <$> start cb
   go (VEnumOrTag _ ss ts) =
     let enums = map (\ s -> (pure $ AtP unknown s) :| []) ss
         tagged = ts <&> \ (s, ds) -> do

@@ -1,4 +1,4 @@
-operator { A - ['if ['Enum ['True]]] : A }
+operator { (y : A) - ['if (b : ['Enum ['True]])] : A }
 
 x : X - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
 

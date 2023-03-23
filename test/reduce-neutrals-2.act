@@ -1,6 +1,6 @@
 operator
-  { A - ['fst ['Enum ['True]]] : A
-  ; B - ['snd ['Enum ['True]]] : B
+  { (x : A) - ['fst (b : ['Enum ['True]])] : A
+  ; (x : B) - ['snd (b : ['Enum ['True]])] : B
   }
 
 x : X - ['fst b1] - ['snd b2] ~> x - ['fst b1 - ['snd b2]]

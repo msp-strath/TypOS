@@ -375,7 +375,7 @@ recv ch x p@Process { stack = B0 :<+>: fs, ..}
 recv ch x p@Process { stack = zf :< Sent q gd y :<+>: fs, ..}
   | ch == q
   = let env' = case x of
-                 Unused -> env
+                 Unused _ -> env
                  Used x -> case x of
                    ActorMeta ASubject v -> guardSubject v y geas $ newActorVar x y env
                    ActorMeta ACitizen v -> newActorVar x y env

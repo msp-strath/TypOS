@@ -3,11 +3,11 @@ syntax { 'Nat = ['EnumOrTag ['zero] [['succ 'Nat]]] }
 
 operator
   { (x : A) - 'id : A
-  ; 'Wildcard - ['myApp 'Wildcard] : 'Wildcard
-  ; A - ['when 'Bool] : A
-  ; 'Bool - ['if 'Wildcard 'Wildcard] : 'Wildcard
-  ; 'Nat - ['plus 'Nat] : 'Nat
-  ; 'Nat - ['mult 'Nat] : 'Nat
+  ; (f : 'Wildcard) - ['myApp (t : 'Wildcard)] : 'Wildcard
+  ; (a : A) - ['when (b : 'Bool)] : A
+  ; (b : 'Bool) - ['if (t : 'Wildcard) (e : 'Wildcard)] : 'Wildcard
+  ; (n : 'Nat) - ['plus (m : 'Nat)] : 'Nat
+  ; (n : 'Nat) - ['mult (m : 'Nat)] : 'Nat
   -- TODO:
   -- ; (p : ['Sg a \x.b]) - 'fst : a
   -- ; (p : ['Sg a \x.b]) - 'snd : {x=p - 'fst} b

@@ -65,7 +65,7 @@ instance LaTeX x => LaTeX (Hide x) where
 instance LaTeX a => LaTeX (Binder a) where
   type Format (Binder a) = Format a
   toLaTeX d = \case
-    Unused -> pure "\\_"
+    Unused _ -> pure "\\_"
     Used x -> toLaTeX d x
 
 instance LaTeX Variable where

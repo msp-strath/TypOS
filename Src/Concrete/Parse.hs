@@ -42,7 +42,7 @@ pvariable = do
 
 pbinder :: Parser (Binder Variable)
 pbinder = Used <$> pvariable
-      <|> Unused <$ plit "_"
+      <|> withRange (Unused unknown <$ plit "_")
 
 pTM :: Parser Raw
 pTM = withRange $

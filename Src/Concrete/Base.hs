@@ -32,11 +32,19 @@ type Guard = Root
 
 data Binder x
   = Used x
-  | Unused
+  | Unused Range
   deriving (Show, Functor, Foldable, Traversable)
 
+instance HasSetRange x => HasSetRange (Binder x) where
+  setRange r (Used x) = Used (setRange r x)
+  setRange r (Unused _) = Unused r
+
+instance HasGetRange x => HasGetRange (Binder x) where
+  getRange (Used x) = getRange x
+  getRange (Unused r) = r
+
 mkBinder :: Variable -> Binder Variable
-mkBinder (Variable r "_") = Unused
+mkBinder (Variable r "_") = Unused r
 mkBinder v = Used v
 
 {-

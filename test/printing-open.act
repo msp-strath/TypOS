@@ -1,4 +1,6 @@
 operator
-  { a - 'id : a }
+  { (x : a) - 'id : a }
+
+x : a - 'id ~>  x
 
 x : a - 'id ~> 'hello

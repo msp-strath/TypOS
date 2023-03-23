@@ -15,7 +15,7 @@ import Data.Maybe (fromMaybe)
 import Actor
 import Bwd
 import Concrete.Base
-import Location (HasGetRange(..), Range, WithRange (..))
+import Location (HasGetRange(..), Range, WithRange (..), unknown)
 import Syntax (SyntaxCat, SyntaxDesc, SyntaxTable)
 import Thin
 import Term.Base
@@ -253,7 +253,7 @@ extend :: Restriction {- gamma -}
        -> {- x :: -} Binder String
        -> Restriction {- gamma , x -}
 extend (Restriction ls th) (Used x) = Restriction (ls :< x) (th -? True)
-extend (Restriction ls th) Unused = Restriction ls (th -? False)
+extend (Restriction ls th) (Unused _) = Restriction ls (th -? False)
 
 instance Selable Restriction where
   ph ^? Restriction ls th = Restriction (ph ^? ls) (ph ^? th)
@@ -278,7 +278,7 @@ initContext opts = Context
   , operators = Map.fromList
     [ ("app", AnOperator
         { opName = Operator "app"
-        , objDesc = (Unused, PP (AP "Pi")
+        , objDesc = (Unused unknown, PP (AP "Pi")
                               $ PP (MP (am "S") (ones 0))
                                 $ PP (BP (Hide "x")
                                   $ MP (am "T") (ones 1)) $ AP "")
@@ -350,7 +350,7 @@ instance Selable Context where
 -}
 
 declare :: Binder String -> Kind -> Context -> Context
-declare Unused k ctx = ctx
+declare (Unused _) k ctx = ctx
 declare (Used x) k ctx = ctx { declarations = declarations ctx :< (x, k) }
 
 setDecls :: Decls -> Context -> Context
@@ -394,7 +394,7 @@ setHints hs ctx = ctx { binderHints = hs }
 
 -- TODO: hints should be ASOTs
 addHint :: Binder String -> Info ASemanticsDesc -> Context -> Context
-addHint Unused cat ctx = ctx
+addHint (Unused _) cat ctx = ctx
 addHint (Used str) cat ctx =
   let hints = binderHints ctx
       hints' = case Map.lookup str hints of

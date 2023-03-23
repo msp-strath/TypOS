@@ -53,7 +53,7 @@ instance UnelabMeta m => Unelab (Tm m) where
     P Cell (s :<>: t) -> Cons unknown <$> unelab s <*> unelab t
     P Oper (s :<>: t) -> Op unknown <$> unelab s <*> unelab t
     (x := b) :. t -> Lam unknown . uncurry (Scope . Hide) <$> case b of
-            False -> (Unused,) <$> unelab t
+            False -> (Unused unknown,) <$> unelab t
             True -> do
               na <- ask
               let y = freshen (unhide x) na
@@ -144,7 +144,7 @@ instance Forget DAEnv Naming where
 instance Unelab (Binder ActorMeta) where
   type UnelabEnv (Binder ActorMeta) = ()
   type Unelabed (Binder ActorMeta) = RawP
-  unelab Unused = pure (UnderscoreP unknown)
+  unelab (Unused r) = pure (UnderscoreP r)
   unelab (Used av) = VarP unknown <$> unelab av
 
 instance Unelab Channel where

@@ -1,7 +1,7 @@
 ret > ExitFailure 1
 out > Error
 out >
-out >  3 | operator { 'Bool - ['if 'Wildcard 'Wildcard] : 'Wildcard }
+out >  3 | operator { (b : 'Bool) - ['if (t : 'Wildcard) (e : 'Wildcard)] : 'Wildcard }
 out >  4 | 
 out >  5 | 'True : 'Bool - ['if l] ~> l
 out >                       ^^^^^

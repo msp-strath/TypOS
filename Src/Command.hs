@@ -491,7 +491,7 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
       , Just sempat <- Map.lookup x m
       = -- check pat is compatible with sempat
         pure (op { objDesc = (Used x, sempat) })
-      | otherwise = throwComplaint (snd $ objDesc op)
+      | otherwise = throwComplaint (fst $ objDesc op)
                   $ MalformedPostOperator (theValue (opName op)) (Map.keys m)
 
 sopelims0 :: Range
@@ -510,7 +510,7 @@ sopelims r opelimz (ty, t) ((op, args):opelims) = do
   -- We need to worry about freshening up names in operator
   -- declarations when checking definitions to avoid clashes
   (AnOperator (mb, opat) opName pdescs rdesc) <- freshenOp =<< soperator op
-  dat <- matchObjType r (mb, opat) (ty, t)
+  dat <- matchObjType r (mb, opat) (t, ty)
   let r' = getRange op <> foldMap getRange args
   local (setHeadUpData dat) $ do
     ((ty, decls), (pargs, args)) <- spats r' (getOperator opName) pdescs args rdesc
@@ -531,7 +531,7 @@ sopelims r opelimz (ty, t) ((op, args):opelims) = do
       dat <- do
         dat <- asks headUpData
         pure $ case binder of
-          Unused -> dat
+          Unused _ -> dat
           Used v  ->
            let env = huEnv dat
                env' = newActorVar v (namez <>> [], t) env

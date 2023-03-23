@@ -16,8 +16,8 @@ typecheck ['Pi 'Semantics \X.['Pi X \_.X]] : 'Semantics
 typecheck \X x.x : ['Pi 'Semantics \X.['Pi X \_.X]]
 
 operator
-  { 'Nat -[ 'add 'Nat ] : 'Nat
-  ; 'Nat -[ 'mul 'Nat ] : 'Nat
+  { (n : 'Nat) -[ 'add (m : 'Nat) ] : 'Nat
+  ; (n : 'Nat) -[ 'mul (m : 'Nat) ] : 'Nat
   }
 
 -- TODO: improve error message for:
@@ -32,8 +32,8 @@ m : 'Nat -['add n ] -['mul p ]
   ~> (m -['mul p]) -['add (n -['mul p ])]
 
 operator
-  { ['Pi a \x.b] -['apply  (t : a)] : {x=t}b
-  ; ['Pi a \x.b] -['apply2 (x : a)] : b
+  { (f : ['Pi a \x.b]) -['apply  (t : a)] : {x=t}b
+  ; (f : ['Pi a \x.b]) -['apply2 (x : a)] : b
   }
 
 f : ['Pi 'Nat \_.'Nat] -[ 'apply t ] ~> 'Zero
