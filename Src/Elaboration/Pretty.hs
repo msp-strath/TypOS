@@ -216,6 +216,7 @@ instance Pretty (WithRange Complaint) where
     SyntaxError d t -> hsep ["Term", pretty t, "does not check against", pretty d]
     SyntaxPError d p -> hsep ["Pattern", pretty p, "does not check against", pretty d]
     CantMatchOnPi d p -> hsep ["Cannot match pattern", pretty p, "at semantic Pi", pretty d]
+    CantMatchOnSemantics p -> hsep ["Cannot match on semantics in case", pretty p]
     DuplicatedTag t -> hsep ["Duplicated tag", pretty t]
     ExpectedAnOperator t -> hsep ["Expected an operator call but got", pretty t]
     ExpectedAnEmptyListGot a ds ->

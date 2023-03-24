@@ -537,6 +537,7 @@ data Complaint
   | SyntaxError ESemanticsDesc Raw
   | SyntaxPError ESemanticsDesc RawP
   | CantMatchOnPi ESemanticsDesc RawP
+  | CantMatchOnSemantics RawP
   | DuplicatedTag String
   | ExpectedAnOperator Raw
   | ExpectedAnEmptyListGot String [SyntaxDesc]

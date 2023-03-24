@@ -398,7 +398,9 @@ spatSemantics desc rest rp = do
           VNilOrCons{} -> unless (a == "") $ throwComplaint r (ExpectedNilGot a)
           VEnumOrTag sc es _ -> unless (a `elem` es) $ throwComplaint r (ExpectedEnumGot es a)
           VWildcard sc -> pure ()
-          VUniverse _ -> unless (a `elem` ("Atom" : "Nil" : "Wildcard" : "Syntax" : "Semantics" : Map.keys table)) $ throwComplaint r (ExpectedASemanticsGot (At r a))
+          VUniverse _ ->
+            unless (a `elem` ("Atom" : "Nil" : "Wildcard" : "Syntax" : "Semantics" : Map.keys table)) $
+              throwComplaint r (ExpectedASemanticsGot (At r a))
           _ -> throwComplaint r =<< syntaxPError desc rp
         pure (AP a, ds, atom a (bigEnd (restriction rest)))
       ConsP r p1 p2 -> do
@@ -816,6 +818,7 @@ spatBase isSub desc rest rp = do
           VNilOrCons{} -> unless (a == "") $ throwComplaint r (ExpectedNilGot a)
           VEnumOrTag sc es _ -> unless (a `elem` es) $ throwComplaint r (ExpectedEnumGot es a)
           VWildcard sc -> pure ()
+          VUniverse _ -> throwComplaint r (CantMatchOnSemantics rp)
           _ -> throwComplaint r =<< syntaxPError desc rp
         (Nothing, AP a,,) <$> asks declarations <*> asks binderHints
 
@@ -835,20 +838,7 @@ spatBase isSub desc rest rp = do
                 (mr2, q, ds, hs) <- local (setDecls ds . setHints hs) (spats isSub descs rest q)
                 pure (mr1 <|> mr2, PP p q, ds, hs)
             _ -> throwComplaint r =<< syntaxPError desc rp
-          ConsUniverse -> case (isSub, p, q) of
-            (IsNotSubject, AtP _ "Pi", ConsP _ s (ConsP _ (LamP _ (Scope (Hide x) t)) (AtP _ ""))) -> do
-              (ps, ds, s) <- spatSemantics desc rest s
-              (mr, pt, ds, hs) <-
-                local (setDecls ds) $
-                  elabUnder (x, s) $
---                    local (addHint (getVariable <$> x) (Known desc)) $
-                      spatBase isSub (weak desc) (extend rest (getVariable <$> x)) q
-              pure ( mr
-                   , PP (AP "Pi") (PP ps (PP pt (AP "")))
-                   , ds
-                   , hs)
-            (IsSubject{}, _, _) -> throwComplaint r undefined
-            _ -> throwComplaint r (ExpectedASemanticsPGot rp)
+          ConsUniverse -> throwComplaint r (CantMatchOnSemantics rp)
       LamP r (Scope v@(Hide x) p) -> do
         (s, desc) <- case vdesc of
           VWildcard _ -> pure (desc, weak desc)
