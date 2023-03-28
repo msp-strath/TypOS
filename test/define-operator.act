@@ -24,7 +24,7 @@ x : A - ['when 'True] ~> x
 'zero : 'Nat - ['plus n] ~> n
 ['succ m] : 'Nat - ['plus n] ~> ['succ (m - ['plus n])]
 m : 'Nat - ['plus 'zero] ~> m
-m : 'Nat - ['plus n] - ['plus x] ~> m - ['plus (n - ['plus x])]
+m : 'Nat - ['plus n] : 'Nat - ['plus x] ~> m - ['plus (n - ['plus x])]
 
 -- parsed as m [(plus, [n]), (plus, [x])]
 
@@ -34,7 +34,7 @@ m : 'Nat - ['mult 'zero] ~> 'zero
 -- (unless we manage to get plus to be commutative)
 ['succ m] : 'Nat - ['mult n] ~> n - ['plus (m - ['mult n])]
 m : 'Nat - ['mult ['succ n]] ~> m - ['plus (m - ['mult n])]
-m : 'Nat - ['plus n] - ['mult p] ~> (m - ['mult p]) - ['plus (n - ['mult p])]
+m : 'Nat - ['plus n] : 'Nat - ['mult p] ~> (m - ['mult p]) - ['plus (n - ['mult p])]
 
 -- parsed as m [(plus, [n]), (mult, [p])]
 

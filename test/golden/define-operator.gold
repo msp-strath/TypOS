@@ -1,5 +1,5 @@
 ret > ExitSuccess
-out > 'test - 'id
+out > 'test : 'Atom - 'id
 out > 'True
 out > Warning: Unsolved metas (m:9, n:10, p:11)
 out >

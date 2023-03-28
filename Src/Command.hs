@@ -348,36 +348,15 @@ scommand = \case
 
   -- Sig S \x.T - 'fst ~> S
   -- (p : Sig S \x.T) - 'snd ~> {x=[ p - 'fst ]}T
-  DefnOp ((rp, pty), opelims, rhs) -> do
-    -- p : pty -[ opelim0 ] -[ opelim1 ] ... -[ opelimn ] ~> rhs
-    sem <- satom "Semantics"
-    (_, decls, ty) <- spatSemantics0 sem pty
-    (p, decls, t) <- local (setDecls decls) $ spatSemantics0 ty rp
-    (opelimz, decls, lhsTy) <- local (setDecls decls) $ sopelims0 (getRange rp <> getRange pty) (ty, t) opelims
+  DefnOp (rp, opelims@((rpty,_,_):_), rhs) -> do
+    -- p : pty0 -[ opelim0 ] : pty1 -[ opelim1 ] ... : ptyn -[ opelimn ] ~> rhs
+    (p, opelimz, decls, lhsTy) <- sopelims0 (getRange rp <> getRange rpty) rp opelims
     rhs <- local (setDecls decls) $ stm DontLog lhsTy rhs
     -- this is the outer op being extended
-    let op = case opelimz of (_ :< (op, _)) -> op
-    let cl = Clause (toClause p opelimz rhs)
+    let op = case opelimz of (_ :< (_, op, _)) -> op
+    let cl = toClause p opelimz rhs
     (DefnOp (op, cl),) <$> asks globals
 
-{-
-    ovs <- asks objVars
-    let scp = scopeSize ovs
-
-    ((p, opargs), ret, decls, hints) <- do
-      -- this is the op applied to the object, not the outer op being extended
-      let op = fst (head opelims)
-      (AnOperator op (mb, opat{-, odesc-}) pdescs rdesc) <- soperator op
-      let rest = initRestriction ovs
-      (opat, decls, otm) <- spatSemantics (atom "Semantics" scp) rest opat
-      (mr1, p, decls, hints) <- spat (Term unknown otm) rest p
-      (opargs, decls, hints) <- local (setDecls decls . setHints hints) $
-                                sopargs obj opargs
-      pure ((p, opargs), ret, decls, hints)
-    rhs <- local (setDecls decls . setHints hints) $ stm DontLog ret rhs
-
---    trace (unwords [getOperator op, "-[", '\'':show p, show opargs, "~>", show rhs]) (pure ())
--}
 
 checkCompatiblePlaces :: [PLACE Concrete] ->
                     [(Variable, ASemanticsDesc)] ->
@@ -481,6 +460,7 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
         unless (rsyn `elem` syndecls) $
             throwComplaint r $ InvalidSubjectSyntaxCat rsyn syndecls
         syn <- satom rsyn
+        -- TODO: we use underScore here if the type is not a valid pattern, eg a stuck neutral. It would be good to do better.
         mp <- pure (Map.insert name (fromMaybe (UnderscoreP unknown) msempat) mp)
         (ps, mp, ds) <- citizenJudgements mp inputs outputs plcs
         sem <- local (setDecls ds) $ sty sem
@@ -499,27 +479,39 @@ sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
                   $ MalformedPostOperator (theValue (opName op)) (Map.keys m)
 
 sopelims0 :: Range
-          -> (ASemanticsDesc, ACTm)
-          -> [(OPERATOR Concrete, [RawP])]
-          -> Elab (Bwd (OPERATOR Abstract, [Pat]), Decls, ASemanticsDesc)
-sopelims0 r = sopelims r B0
+          -> RawP
+          -> [(RawP, OPERATOR Concrete, [RawP])]
+          -> Elab (Pat, Bwd (Pat, OPERATOR Abstract, [Pat]), Decls, ASemanticsDesc)
+sopelims0 r = sopelims r B0 . Left
 
 sopelims :: Range
-         -> Bwd (OPERATOR Abstract, [Pat])
-         -> (ASemanticsDesc, ACTm)
-         -> [(OPERATOR Concrete, [RawP])]
-         -> Elab (Bwd (OPERATOR Abstract, [Pat]), Decls, ASemanticsDesc)
-sopelims r opelimz (ty, t) [] = (opelimz,,ty) <$> asks declarations
-sopelims r opelimz (ty, t) ((op, args):opelims) = do
+         -> Bwd (Pat, OPERATOR Abstract, [Pat])
+         -> Either RawP (Pat, (ASemanticsDesc, ACTm))
+         -> [(RawP, OPERATOR Concrete, [RawP])]
+         -> Elab (Pat, Bwd (Pat, OPERATOR Abstract, [Pat]), Decls, ASemanticsDesc)
+sopelims r opelimz (Right (p, (inty, t))) [] = (p,opelimz,,inty) <$> asks declarations
+sopelims r opelimz acc ((rpty, op, args):opelims) = do
   -- We need to worry about freshening up names in operator
   -- declarations when checking definitions to avoid clashes
   (AnOperator (mb, opat) opName pdescs rdesc) <- freshenOp =<< soperator op
-  dat <- matchObjType r (mb, opat) (t, ty)
+  sem <- satom "Semantics"
+  (pty, decls, inty) <- spatSemantics0 sem rpty
+  (decls, (p,(inty, t))) <- local (setDecls decls) $ case acc of
+    Left rp -> do
+      (p, decls, t) <- spatSemantics0 inty rp
+      pure (decls, (p, (inty, t)))
+    Right x -> do
+      -- TODO: check that the type in x matches pty
+      pure (decls, x)
+
+  -- TODO: check that pty is compatible with opat
+  dat <- matchObjType r (mb, opat) (t, inty)
   let r' = getRange op <> foldMap getRange args
-  local (setHeadUpData dat) $ do
-    ((ty, decls), (pargs, args)) <- spats r' (getOperator opName) pdescs args rdesc
-    local (setDecls decls) $
-        sopelims (r <> r') (opelimz :< (opName, pargs)) (ty, t -% (getOperator opName, args)) opelims
+  local (setDecls decls . setHeadUpData dat) $ do
+    ((outty, decls), (pargs, args)) <- spats r' (getOperator opName) pdescs args rdesc
+    local (setDecls decls) $ do
+        let acc = Right (p, (outty, rad t inty -% (getOperator opName, args)))
+        sopelims (r <> r') (opelimz :< (pty, opName, pargs)) acc opelims
 
   where
 

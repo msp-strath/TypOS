@@ -52,6 +52,7 @@ instance UnelabMeta m => Unelab (Tm m) where
     A a -> pure (At unknown a)
     P Cell (s :<>: t) -> Cons unknown <$> unelab s <*> unelab t
     P Oper (s :<>: t) -> Op unknown <$> unelab s <*> unelab t
+    P Radi (s :<>: t) -> Rad unknown <$> unelab s <*> unelab t
     (x := b) :. t -> Lam unknown . uncurry (Scope . Hide) <$> case b of
             False -> (Unused unknown,) <$> unelab t
             True -> do

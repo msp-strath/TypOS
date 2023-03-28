@@ -134,14 +134,14 @@ type family OPERATOR (ph :: Phase) :: *
 type instance OPERATOR Concrete = WithRange String
 type instance OPERATOR Abstract = Operator
 
-newtype Clause = Clause
-  { runClause :: forall m
-  .  (Show m, UnelabMeta m) => Options
+type AClause m = (Show m, UnelabMeta m)
+  => Options
   -> (Term' m -> Term' m) -- head normaliser
   -> Env' m
-  -> (Term' m, [Term' m]) -- object & parameters
-  -> Either (Term' m, [Term' m]) (Term' m)
-  }
+  -> ((Term' m, Term' m), [Term' m]) -- (object, object type) & parameters
+  -> Either ((Term' m, Term' m), [Term' m]) (Term' m)
+
+newtype Clause = Clause { runClause :: forall m . AClause m }
 
 instance Semigroup Clause where
   (<>) = mappend
@@ -155,17 +155,19 @@ instance Monoid Clause where
 instance Show Clause where
   show _ = "<fun>"
 
-type OPPATTERN ph = (OPERATOR ph, [PATTERN ph])
+type OPPATTERN ph = (PATTERN ph     -- type acted on
+                    , OPERATOR ph   -- operator
+                    , [PATTERN ph]) -- parameters
 
 type family DEFNOP (ph :: Phase) :: *
-type instance DEFNOP Concrete = ((PATTERN Concrete, PATTERN Concrete) -- object and its type
-                                , [OPPATTERN Concrete]                -- spine
-                                , TERM Concrete)                      -- right hand side
+type instance DEFNOP Concrete = (PATTERN Concrete       -- object
+                                , [OPPATTERN Concrete]  -- spine (must be non-empty)
+                                , TERM Concrete)        -- right hand side
 type instance DEFNOP Abstract = (Operator, Clause)
 
 pdefnop :: Parser (DEFNOP Concrete)
-pdefnop =  (,,) <$> ((,) <$> ppat <* ppunc ":" <*> ppat)
-                <*> some (ppunc "-" *> poperator ppat)
+pdefnop =  (,,) <$> ppat
+                <*> some ((\a (b,c) -> (a, b, c)) <$ ppunc ":" <*> ppat <* ppunc "-" <*> poperator ppat)
                 <*  ppunc "~>"
                 <*> pTM
 

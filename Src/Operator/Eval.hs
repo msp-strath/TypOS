@@ -50,19 +50,19 @@ headUp :: forall m . (Show m, UnelabMeta m) => HeadUpData' m -> Term' m -> Term'
 headUp dat@HeadUpData{..} term = case expand term of
   m :$: sg | Just t <- whatIs m
     -> headUp dat (t //^ sg)
-  t :-: o -> case expand o of
-    AX op i -> operate (Operator op) (t, [])
-    o@(CdB (A op) th :%: wargs) ->
-      case asList (\ ps -> pure $ operate (Operator op) (t, ps)) wargs of
-        Nothing -> contract (t :-: contract o)
+  tty :-: o -> case (expand tty, expand o) of
+    (t ::: ty, AX op i) -> operate (Operator op) ((t,ty), [])
+    (t ::: ty, o@(CdB (A op) th :%: wargs)) ->
+      case asList (\ ps -> pure $ operate (Operator op) ((t, ty), ps)) wargs of
+        Nothing -> contract (tty :-: contract o)
         Just t -> t
-    o -> contract (t :-: contract o)
+    (t, o) -> contract (tty :-: contract o)
   GX g t | Set.null (dependencySet metaStore g) -> headUp dat t
   _ -> term
 
   where
 
-  operate :: Operator -> (Term' m, [Term' m]) -> Term' m
+  operate :: Operator -> ((Term' m, Term' m), [Term' m]) -> Term' m
   operate op tps = case runClause (opTable op) huOptions (headUp dat) huEnv tps of
-    Left (t, ps) -> t -% (getOperator op, ps)
+    Left ((t, ty), ps) -> rad t ty -% (getOperator op, ps)
     Right t -> headUp dat t

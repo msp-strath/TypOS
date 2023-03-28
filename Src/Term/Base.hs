@@ -13,7 +13,7 @@ import Concrete.Base (Guard, Root)
 
 import GHC.Stack
 
-data Pairing = Cell | Oper
+data Pairing = Cell | Oper | Radi
   deriving (Show, Eq, Ord)
 
 data Tm m
@@ -150,6 +150,7 @@ data Xn m
   | AX String Int -- how many free variables?
   | CdB (Tm m) :%: CdB (Tm m) -- pairing
   | CdB (Tm m) :-: CdB (Tm m) -- operator
+  | CdB (Tm m) ::: CdB (Tm m) -- radical
   | String :.: CdB (Tm m) -- abstraction
   | m :$: CdB (Sbst m) -- meta + sbst
   | GX Guard (CdB (Tm m))
@@ -161,6 +162,7 @@ expand (CdB t th) = case t of
   A a -> AX a (bigEnd th)
   P Cell (s :<>: t) -> (s *^ th) :%: (t *^ th)
   P Oper (s :<>: t) -> (s *^ th) :-: (t *^ th)
+  P Radi (s :<>: t) -> (s *^ th) ::: (t *^ th)
   (str := b) :. t -> unhide str :.: CdB t (th -? b)
   f :$ sg -> f :$: CdB sg th
   G g t -> GX g (CdB t th)
@@ -174,6 +176,7 @@ contract t = case t of
   AX a ga -> CdB (A a) (none ga)
   s :%: t -> P Cell $^ (s <&> t)
   s :-: t -> P Oper $^ (s <&> t)
+  s ::: t -> P Radi $^ (s <&> t)
   x :.: CdB t th -> case thun th of
     (th, b) -> CdB ((Hide x := b) :. t) th
   m :$: sg -> (m :$) $^ sg
@@ -193,6 +196,9 @@ nil = atom ""
 infixr 4 %
 (%) :: CdB (Tm m) -> CdB (Tm m) -> CdB (Tm m)
 s % t = contract (s :%: t)
+
+rad :: CdB (Tm m) -> CdB (Tm m) -> CdB (Tm m)
+rad s t = contract (s ::: t)
 
 infixl 4 -%
 (-%) :: CdB (Tm m) -> (String, [CdB (Tm m)]) -> CdB (Tm m)

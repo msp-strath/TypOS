@@ -28,7 +28,7 @@ operator
 
 'Zero : 'Nat -[ 'mul n ] ~> 'Zero
 ['Suc m] : 'Nat -[ 'mul n ] ~> n -['add m -['mul n]]
-m : 'Nat -['add n ] -['mul p ]
+m : 'Nat -['add n ] : 'Nat -['mul p ]
   ~> (m -['mul p]) -['add (n -['mul p ])]
 
 operator

@@ -140,6 +140,7 @@ mangleActors opts rho tm = go tm where
     AX a de -> pure (atom a (ga + de))
     a :%: b -> (%) <$> go a <*> go b
     t :-: o -> Term.contract <$> ((:-:) <$> go t <*> go o)
+    t ::: o -> Term.contract <$> ((:::) <$> go t <*> go o)
     x :.: t -> (tryAlpha rho x \\) <$> go t
     m :$: sg -> do
       t <- noisyLookupVar m

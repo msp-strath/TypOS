@@ -47,8 +47,6 @@ judgementform
   type (T : 'Type) -- no '=> B' means the citizen version is the same
   {T - 'Value : 'Semantics}
 
-exec 'Type?a. (a ~ 'Nat | PRINTF "%n" a -'Value.)
-
 judgementform
   {type T}
   check T (t : 'Check => T - 'Value)
@@ -59,14 +57,7 @@ judgementform
   synth (e : 'Synth => S - 'Value) S
   {type S; e -'Quote : 'Check}
 
-exec 'Synth?e.
-  PRINTF "Spawning synth".
-  synth@p.
-  p!e.
-  PRINTF "About to get stuck".
-  p?S.
-  PRINTF "%r" S.
-
+exec 'Type?a. (a ~ 'Nat | PRINTF "%n" a -'Bla.)
 {-
 -- Open question in the above: will it always be the subject that's fed to an operator?
 -- Note: the "T - 'Value" is in 'Semantics and that T is the citizen, not the subject

@@ -66,6 +66,7 @@ data Raw
   | Lam Range (Scope (Binder Variable) Raw)
   | Sbst Range (Bwd Assign) Raw
   | Op Range Raw Raw
+  | Rad Range Raw Raw
   | Guarded Guard Raw
   | Thicken Range (Bwd Variable, ThDirective) Raw
   deriving (Show)
@@ -78,6 +79,7 @@ instance HasSetRange Raw where
     Lam _ sc -> Lam r sc
     Sbst _ sg t -> Sbst r sg t
     Op _ s t -> Op r s t
+    Rad _ s t -> Rad r s t
     t@Guarded{} -> t
     Thicken _ th t -> Thicken r th t
 
@@ -88,6 +90,7 @@ instance Eq Raw where
   Lam _ (Scope (Hide x) p) == Lam _ (Scope (Hide x') p') = (x, p) == (x', p')
   Sbst _ cs t == Sbst _ ds u = cs == ds && t == u
   Op _ s t == Op _ a b = s == a && t == b
+  Rad _ s t == Rad _ a b = s == a && t == b
   Guarded g t == Guarded h u = (g, t) == (h, u)
   Thicken _ th t == Thicken _ ph u = (th, t) == (ph, u)
   _ == _ = False
@@ -100,6 +103,7 @@ instance HasGetRange Raw where
     Lam r _ -> r
     Sbst r _ _ -> r
     Op r _ _ -> r
+    Rad r _ _ -> r
     Guarded _ t -> getRange t
     Thicken r _ _ -> r
 
