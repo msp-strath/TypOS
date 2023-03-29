@@ -1,0 +1,6 @@
+ret > ExitSuccess
+out > The type of ?[("b",[1])] is 'Bool
+out > Warning: Unsolved meta (b:1)
+out >
+err >
+err >
