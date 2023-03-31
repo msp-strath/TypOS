@@ -167,7 +167,10 @@ type instance DEFNOP Abstract = (Operator, Clause)
 
 pdefnop :: Parser (DEFNOP Concrete)
 pdefnop =  (,,) <$> ppat
-                <*> some ((\a (b,c) -> (a, b, c)) <$ ppunc ":" <*> ppat <* ppunc "-" <*> poperator ppat)
+                <*> some ((\a (b,c) -> (a, b, c))
+                       <$> withRange (id <$ ppunc ":" <*> ppat
+                                      <|> pure (UnderscoreP unknown))
+                        <* ppunc "-" <*> poperator ppat)
                 <*  ppunc "~>"
                 <*> pTM
 

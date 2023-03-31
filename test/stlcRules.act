@@ -50,7 +50,7 @@ judgementform
 judgementform
   {type T}
   check T (t : 'Check => T - 'Value)
-  {}
+  {t - 'Bla : 'Semantics}
 
 judgementform
   {}
@@ -68,11 +68,12 @@ rule
   type 'Nat
   {'Nat - 'Value ~> 'Natural}
 
-{-
+
 rule
   {type S; type T}
   ------------------------
-  type ['Arr S T]
+  type ['Arr S T] => ['Arr S T]
+-- Global assumption: 'Semantics comes with Pi builtin
   {['Arr S T] - 'Value ~> ['Pi (S - 'Value) \_. (T - 'Value)]}
 
 -- Invariant: the subject in a premise is always something with a name
