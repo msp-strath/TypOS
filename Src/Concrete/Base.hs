@@ -218,15 +218,13 @@ data ExtractMode
   deriving (Show, Eq)
 
 data Keyword
-  = KwSyntax | KwRule | KwJudgementForm | KwExec | KwTrace
+  = KwSyntax | KwExec | KwTrace
   | KwLet | KwCase | KwLookup | KwCompare
   | KwBREAK | KwPRINT | KwPRINTF
   deriving (Enum, Bounded)
 
 instance Show Keyword where
   show KwSyntax = "syntax"
-  show KwRule = "rule"
-  show KwJudgementForm = "judgementform"
   show KwExec = "exec"
   show KwTrace = "trace"
   show KwLet = "let"

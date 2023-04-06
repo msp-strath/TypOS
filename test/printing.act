@@ -2,7 +2,7 @@ syntax { 'Bool = ['Enum ['False 'True]] }
 
 operator { (x : X) - ['if (b : 'Bool)] : X }
 
-t : Y - ['if 'True] ~> t
+operator { t : Y - ['if 'True] ~> t }
 
 strict : $'Bool.
 strict@p = p?b. case $b

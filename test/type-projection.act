@@ -1,6 +1,7 @@
-operator { (x : c) - 'typeOf : 'Semantics }
-
-x : a - 'typeOf ~> a
+operator
+  { (x : c) - 'typeOf : 'Semantics
+  ; x : a - 'typeOf ~> a
+  }
 
 syntax { 'Bool = ['Enum ['T 'F]] }
 

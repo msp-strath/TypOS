@@ -8,14 +8,9 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Bifunctor (bimap, first)
-import Data.Function (on)
-import Data.List (sort, sortBy)
-import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe, catMaybes)
+import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
-import Data.These
-import Data.Either
 import Data.Foldable (asum)
 
 import Actor
@@ -37,16 +32,13 @@ import Machine.Trace (Shots)
 import Options
 import Parse
 import Pretty
-import Rules
 import Syntax
 import Term.Base
 import Unelaboration.Monad (Unelab(..), Naming, subunelab, withEnv)
 import Unelaboration (initDAEnv, declareChannel)
 import Location
-import Utils
 
 import Data.Char (isSpace)
-import qualified Data.Set as Set
 import Operator
 import Thin
 import Operator.Eval (HeadUpData' (..))
@@ -60,6 +52,19 @@ type instance DEFNPROTOCOL Abstract = AProtocol
 data STATEMENT (ph :: Phase)
   = Statement (JUDGEMENTNAME ph) [Variable]
 
+data OPENTRY (ph :: Phase)
+  = DeclOp (ANOPERATOR ph)
+  | DefnOp (DEFNOP ph)
+
+deriving instance
+  ( Show (OPERATOR ph)
+  , Show (SEMANTICSDESC ph)
+  , Show (ACTORVAR ph)
+  , Show (PATTERN ph)
+  , Show (SOT ph)
+  , Show (DEFNOP ph)
+  ) => Show (OPENTRY ph)
+
 data COMMAND (ph :: Phase)
   = DeclJudge ExtractMode (JUDGEMENTNAME ph) (PROTOCOL ph)
   | DefnJudge (JUDGEMENTNAME ph, DEFNPROTOCOL ph, CHANNEL ph) (ACTOR ph)
@@ -69,10 +74,7 @@ data COMMAND (ph :: Phase)
   | ContractStack [STATEMENT ph] (STACK ph, Variable, Variable) [STATEMENT ph]
   | Go (ACTOR ph)
   | Trace [MachineStep]
-  | DeclOp [ANOPERATOR ph]
-  | DefnOp (DEFNOP ph)
-  | DeclJudgementForm (JUDGEMENTFORM ph)
-  | DeclRule (RULE ph)
+  | OpBlock [OPENTRY ph]
   | Typecheck (TERM ph) (SEMANTICSDESC ph)
 
 deriving instance
@@ -97,8 +99,6 @@ deriving instance
   , Show (DEFNPROTOCOL ph)
   , Show (LOOKEDUP ph)
   , Show (DEFNOP ph)
-  , Show (JUDGEMENTFORM ph)
-  , Show (RULE ph)
   , Show (GUARD ph)) =>
   Show (COMMAND ph)
 
@@ -127,13 +127,6 @@ instance Display AProtocol where
 instance Pretty CStatement where
   pretty (Statement jd vars) = hsep $ pretty jd : (pretty <$> vars)
 
-instance Pretty (PLACE Concrete) where
-  pretty (v, CitizenPlace) = pretty v
-  pretty (v, SubjectPlace (WithRange _ syntaxcat) (semanticsdesc, _)) =
-    parens $ hsep $ [ pretty v, ":", pretty syntaxcat ]
-      ++ (("=>" <+> pretty semanticsdesc)
-          <$ guard (At unknown syntaxcat /= semanticsdesc))
-
 instance Pretty CCommand where
   pretty = let prettyCds cds = collapse (BracesList $ pretty <$> cds) in \case
     DeclJudge em jd p -> hsep [pretty em <> pretty jd, colon, pretty p]
@@ -147,9 +140,6 @@ instance Pretty CCommand where
                                                      , prettyCds posts]
     Go a -> keyword "exec" <+> pretty a
     Trace ts -> keyword "trace" <+> collapse (BracesList $ map pretty ts)
-    DeclJudgementForm j -> keyword "judgementform" <+> collapse (BracesList $ pretty <$> jpreconds j)
-                        <+> hsep (pretty (jname j) : map pretty (jplaces j))
-                        <+> collapse (BracesList $ either pretty pretty <$> jpostconds j)
     Typecheck t ty -> keyword "typecheck" <+> pretty t <+> ":" <+> pretty ty
 
 instance Unelab ACommand where
@@ -206,10 +196,8 @@ pcommand
                     <* pspc <*> pconditions
   <|> Go <$ plit "exec" <* pspc <*> pACT
   <|> Trace <$ plit "trace" <*> pcurlies (psep (ppunc ",") pmachinestep)
-  <|> DeclOp <$ plit "operator" <*> pcurlies (psep (ppunc ";") panoperator)
-  <|> DefnOp <$> pdefnop
-  <|> DeclJudgementForm <$> pjudgementform
-  <|> DeclRule <$> prule
+  <|> OpBlock <$ plit "operator"
+              <*> pcurlies (psep (ppunc ";") (DeclOp <$> panoperator <|> DefnOp <$> pdefnop))
   <|> Typecheck <$ plit "typecheck" <* pspc <*> pTM <* ppunc ":" <*> pTM
 
 pfile :: Parser [CCommand]
@@ -264,8 +252,7 @@ globals = (,) <$> asks declarations <*> asks operators
 setGlobals :: Globals -> Context -> Context
 setGlobals (decls, ops) = setDecls decls . setOperators ops
 
-sdeclOps :: [CAnOperator] -> Elab ([AAnOperator], Globals)
-sdeclOps [] = ([],) <$> asks globals
+sdeclOp :: CAnOperator -> Elab (AAnOperator, Globals)
 -- (objName : objDescPat) -[ opname (p0 : paramDesc0) ... ] : retDesc
 -- e.g.
 -- 1. (p : ['Sig a \x.b]) -[ 'snd ]         : {x = p -[ 'fst ]} b
@@ -275,7 +262,7 @@ sdeclOps [] = ([],) <$> asks globals
 --              (                 pZ : {m = 'Zero} p)
 --              ('Nat\m. {m}p\ih. pS : {m = ['Succ m]} p)
 --       ] : {m = n} p
-sdeclOps ((AnOperator (objBinder, objDescPat) (WithRange r opname) paramDescs retDesc) : ops) = do
+sdeclOp (AnOperator (objBinder, objDescPat) (WithRange r opname) paramDescs retDesc) = do
   opname <- do
     ctxt <- ask
     when (Map.member opname (operators ctxt)) $
@@ -291,9 +278,7 @@ sdeclOps ((AnOperator (objBinder, objDescPat) (WithRange r opname) paramDescs re
     (paramDescs, ds) <- sparamdescs paramDescs
     retDesc <- local (setDecls ds) $ sty retDesc
     pure $ AnOperator (objName, descPat) opname paramDescs retDesc
-  -- Process the rest of the declarations, in the original context
-  (ops, decls) <- local (addOperator op) $ sdeclOps ops
-  pure (op : ops, decls)
+  local (addOperator op) $ (op,) <$> asks globals
 
 scommand :: CCommand -> Elab (ACommand, Globals)
 scommand = \case
@@ -336,10 +321,6 @@ scommand = \case
     (ContractStack pres (stk, lhs, rhs) posts,) <$> asks globals
   Go a -> during ExecElaboration $ (,) . Go <$> local (setElabMode Execution) (sact a) <*> asks globals
   Trace ts -> (Trace ts,) <$> asks globals
-  DeclOp ops -> first DeclOp <$> sdeclOps ops
-  DeclJudgementForm j -> do
-    (j , gs) <- sjudgementform j
-    pure (DeclJudgementForm j, gs)
   Typecheck t ty -> do
     ty <- sty ty
     t <- stm DontLog ty t
@@ -348,135 +329,23 @@ scommand = \case
 
   -- Sig S \x.T - 'fst ~> S
   -- (p : Sig S \x.T) - 'snd ~> {x=[ p - 'fst ]}T
-  DefnOp (rp, opelims@((rpty,_,_):_), rhs) -> do
-    -- p : pty0 -[ opelim0 ] : pty1 -[ opelim1 ] ... : ptyn -[ opelimn ] ~> rhs
-    (p, opelimz, decls, lhsTy) <- sopelims0 (getRange rp <> getRange rpty) rp opelims
-    rhs <- local (setDecls decls) $ stm DontLog lhsTy rhs
-    -- this is the outer op being extended
-    let op = case opelimz of (_ :< (_, op, _)) -> op
-    let cl = toClause p opelimz rhs
-    (DefnOp (op, cl),) <$> asks globals
+  OpBlock ops -> first OpBlock <$> sopBlock ops
 
-
-checkCompatiblePlaces :: [PLACE Concrete] ->
-                    [(Variable, ASemanticsDesc)] ->
-                    [(Variable, ASemanticsDesc)] ->
-                    Elab ()
-checkCompatiblePlaces places inputs outputs = do
-  -- Make sure subject protocol can be found unambiguously
-  let names = map fst places
-  let citizenNames = [x | (x, CitizenPlace) <- places]
-  let inputNames = map fst inputs
-  let outputNames = map fst outputs
-  whenLeft (allUnique names) $ \ a -> throwComplaint a $ DuplicatedPlace a
-  inputNamesSet <- case allUnique inputNames of
-    Left a -> throwComplaint a $ DuplicatedInput a
-    Right as -> pure as
-  outputNamesSet <- case allUnique outputNames of
-    Left a -> throwComplaint a $ DuplicatedOutput a
-    Right as -> pure as
-  whenCons (Set.toList (Set.intersection inputNamesSet outputNamesSet)) $ \ a _ ->
-    throwComplaint a $ BothInputOutput a
-  whenCons (mismatch citizenNames inputNames outputNames) $ \ (v, m) _ ->
-    throwComplaint v (ProtocolCitizenSubjectMismatch v m)
-  where
-    mismatch :: [Variable]
-             -> [Variable]
-             -> [Variable]
-             -> [(Variable, Mode ())]
-    mismatch cs is os =
-      catMaybes $ alignWith check (sort cs)
-                $ sortBy (compare `on` fst)
-                $ map (, Input) is ++ map (, Output) os
-
-    check :: These Variable (Variable, Mode ()) -> Maybe (Variable, Mode ())
-    check (These a b) = (a, Subject ()) <$ guard (a /= fst b)
-    check t = Just (mergeThese const (first (, Subject ()) t))
-
-
-{-
-Do not use operators to compute citizens from subjects.
-Rather, transmit glued subject-citizen pairs,
-when matching a subject, glue metavars to pattern vars
-then use s => c clauses ub rules to constrain the citizen
-the parent sent with the subject syntax.
--}
-
-sjudgementform :: JUDGEMENTFORM Concrete
-               -> Elab (JUDGEMENTFORM Abstract, Globals)
-sjudgementform JudgementForm{..} = during (JudgementFormElaboration jname) $ do
-  inputs <- concat <$> traverse subjects jpreconds  -- TODO: should really be the closure of this info
-  let (outputs, operators) = partitionEithers jpostconds
-  outputs <- concat <$> traverse subjects outputs
-  checkCompatiblePlaces jplaces inputs outputs
-  (ps, subjectKinds, _) <- citizenJudgements Map.empty inputs outputs jplaces
-  let protocol = Protocol ps
-  jname <- isFresh jname
-  local (declare (Used jname) (AJudgement jextractmode protocol)) $ do
-    (operators, gs) <- sdeclOps =<< traverse (kindify subjectKinds) operators
-    pure ((jextractmode, jname, protocol), gs)
-
-
-  where
-    subjects :: JUDGEMENT Concrete -> Elab [(Variable, ASemanticsDesc)]
-    subjects (Judgement r name fms) = do
-      IsJudgement{..} <- isJudgement name
-      xs <- case halfZip (getProtocol judgementProtocol) fms of
-        Just xs -> pure xs
-        Nothing -> throwComplaint r $ JudgementWrongArity judgementName judgementProtocol fms
-      let ys = [ (fm, sem) | ((Subject _, sem), fm) <- xs ]
-      forM ys $ \case
-        -- TODO: should use something like `isSendableSubject`
-        (CFormula (These _ (Var r x)), sem) -> pure (x, sem)
-        (x, _) -> throwComplaint r $ UnexpectedNonSubject x
-
-    citizenJudgements :: Map Variable RawP
-                      -> [(Variable, ASemanticsDesc)]
-                      -> [(Variable, ASemanticsDesc)]
-                      -> [CPlace]
-                      -> Elab ( [AProtocolEntry]
-                              , Map Variable RawP
-                              , Decls )
-    citizenJudgements mp inputs outputs [] = ([], mp,) <$> asks declarations
-    citizenJudgements mp inputs outputs ((name, place) : plcs) = case place of
-      CitizenPlace -> do
-        bd <- Used <$> isFresh name
-        th <- asks (ones . scopeSize . objVars)
-        case (lookup name inputs, lookup name outputs) of
-          (Just isem, Nothing) -> do
-            (_, asot) <- thickenedASOT (getRange name) th isem
-            (ps, mp, ds) <- local (declare bd (ActVar IsNotSubject asot)) $
-              citizenJudgements mp inputs outputs plcs
-            pure ((Input, isem) : ps, mp, ds)
-          (Nothing, Just osem) -> do
-            (_, asot) <- thickenedASOT (getRange name) th osem
-            (ps, mp, ds) <- local (declare bd (ActVar IsNotSubject asot)) $
-              citizenJudgements mp inputs outputs plcs
-            pure ((Output, osem) : ps, mp, ds)
-          _  -> error "Impossible in citizenJudgement"
-
-      SubjectPlace (WithRange r rsyn) (sem, msempat) -> do
-        syndecls <- gets (Map.keys . syntaxCats)
-        unless (rsyn `elem` syndecls) $
-            throwComplaint r $ InvalidSubjectSyntaxCat rsyn syndecls
-        syn <- satom rsyn
-        -- TODO: we use underScore here if the type is not a valid pattern, eg a stuck neutral. It would be good to do better.
-        mp <- pure (Map.insert name (fromMaybe (UnderscoreP unknown) msempat) mp)
-        (ps, mp, ds) <- citizenJudgements mp inputs outputs plcs
-        sem <- local (setDecls ds) $ sty sem
-        pure ((Subject syn, sem) : ps, mp, ds)
-
-    kindify :: Map Variable RawP -> CAnOperator -> Elab CAnOperator
-    kindify m op
-      | (Used x, pat) <- objDesc op
-      , Just sempat <- Map.lookup x m
-      = do
-          case pat of
-            UnderscoreP _ -> pure ()
-            _ -> when (pat /= sempat) $ throwComplaint pat $ MismatchedObjectPattern (theValue (opName op)) pat sempat
-          pure (op { objDesc = (Used x, sempat) })
-      | otherwise = throwComplaint (fst $ objDesc op)
-                  $ MalformedPostOperator (theValue (opName op)) (Map.keys m)
+sopBlock :: [OPENTRY Concrete] -> Elab ([OPENTRY Abstract], Globals)
+sopBlock [] = ([],) <$> asks globals
+sopBlock (DefnOp (rp, opelims@((rpty,_,_):_), rhs) : rest) = do
+  -- p : pty0 -[ opelim0 ] : pty1 -[ opelim1 ] ... : ptyn -[ opelimn ] ~> rhs
+  (p, opelimz, decls, lhsTy) <- sopelims0 (getRange rp <> getRange rpty) rp opelims
+  rhs <- local (setDecls decls) $ stm DontLog lhsTy rhs
+  -- this is the outer op being extended
+  let op = case opelimz of (_ :< (_, op, _)) -> op
+  let cl = toClause p opelimz rhs
+  (bl , gl) <- sopBlock rest
+  pure (DefnOp (op, cl) : bl, gl)
+sopBlock (DeclOp op : rest) = do
+  (op, gl) <- sdeclOp op
+  (bl, gl) <- local (setGlobals gl) $ sopBlock rest
+  pure (DeclOp op : bl, gl)
 
 sopelims0 :: Range
           -> RawP
@@ -627,5 +496,10 @@ run opts p@Process{..} (c : cs) = case c of
   Trace xs -> let trac = guard (not $ quiet opts) >> fromMaybe (xs ++ tracing p) (tracingOption opts)
                   newOpts = opts { tracingOption = Just trac }
               in run newOpts (p { options = newOpts }) cs
-  DefnOp (op, cl) -> run opts (p { stack = stack :< Extended op cl }) cs
+  OpBlock ops ->
+    let clauses = flip concatMap ops $ \case
+          DefnOp (op, cl) -> [Extended op cl]
+          DeclOp{} -> [] in
+    let stack' = stack <>< clauses in
+    run opts (p { stack = stack' }) cs
   _ -> run opts p cs

@@ -21,7 +21,6 @@ import Thin
 import Term.Base
 import Utils
 import Operator
-import Rules
 import Info
 import Pattern
 import Hide
@@ -506,17 +505,6 @@ data Complaint
   | ProtocolsNotDual AProtocol AProtocol
   | IncompatibleModes AProtocolEntry AProtocolEntry
   | WrongDirection AProtocolEntry Ordering AProtocolEntry
-  -- judgementforms
-  | JudgementWrongArity JudgementName AProtocol [CFormula]
-  | UnexpectedNonSubject CFormula
-  | DuplicatedPlace Variable
-  | DuplicatedInput Variable
-  | DuplicatedOutput Variable
-  | BothInputOutput Variable
-  | ProtocolCitizenSubjectMismatch Variable (Mode ())
-  | MalformedPostOperator String [Variable]
-  | MismatchedObjectPattern String RawP RawP
-  | InvalidSubjectSyntaxCat SyntaxCat [SyntaxCat]
   -- syntaxes
   | AlreadyDeclaredSyntaxCat SyntaxCat
   -- syntaxdesc validation

@@ -65,7 +65,6 @@ library
                        Pattern,
                        Pattern.Coverage,
                        Pretty,
-                       Rules,
                        Scope,
                        Semantics,
                        Syntax,
