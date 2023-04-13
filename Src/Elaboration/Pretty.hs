@@ -156,7 +156,6 @@ instance Pretty (WithRange Complaint) where
     WrongDirection m1 dir m2 -> hsep ["Wrong direction", pretty (show dir)
                                      , "between", pretty (WithVarNames B0 <$> m1)
                                      , "and", pretty (WithVarNames B0 <$> m2)]
-
     -- judgementforms
     JudgementWrongArity name (Protocol protocol) fms ->
         let applied = (if length protocol > length fms then "under" else "over") <> "-applied" in
