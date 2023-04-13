@@ -1,35 +1,46 @@
+{- Description: Thinnings. Used as co-de Bruijn indices for syntax with binding.
+
+ Note that this is largely standalone, depending only on Bwd (snoc lists).
+
+ While Thinnings are conceptually about what things are used by what, they can
+ adequately be represented by sequences of bits.
+-}
 module Thin where
 
-import Data.Bits
-import Control.Monad
+import Data.Bits (Bits(bit), xor, shiftL, shiftR, complement, zeroBits, (.&.),
+  testBit, (.|.), popCount)
+import Control.Monad (guard)
 
-import GHC.Stack
+import GHC.Stack (HasCallStack) -- for nicer debuggin
 
-import Bwd
+import Bwd (Bwd(B0,(:<))) -- note how we only use the type itself
 
+-- | de Bruijn index
 newtype DB = DB { dbIndex :: Int }
   deriving (Show, Eq, Ord)
 
+-- | Predecessor on DB indices - can fail.
 prd :: HasCallStack => DB -> DB
 prd (DB i) | i <= 0 = error ("Took the prdecessor of DB index " ++ show i)
 prd (DB i) = DB (i - 1)
 
+-- | Successor on DB indices
 scc :: DB -> DB
 scc (DB i) = DB (i + 1)
 
+-- | Thinning representation.
 data Th = Th
-  { thinning :: Integer
-  , bigEnd   :: Int  -- must be non-negative
+  { thinning :: Integer -- the actual bit representation of the thinning
+  , bigEnd   :: Int     -- (the representation of) its size, must be non-negative
   }
 
+-- | 'Thinnable' with a shorter name.
 class Thable t where
   (*^) :: HasCallStack => t -> Th -> t
 
+-- | 'Selectable' with a shorter name
 class Selable t where
   (^?) :: HasCallStack => Th -> t -> t
-
-instance Thable (CdB a) where
-  CdB a th *^ ph = CdB a (th *^ ph)
 
 {-
 thinning composition is diagrammatic
@@ -43,6 +54,51 @@ o----->o----->o
 o----->o----->o
 -}
 
+-- | 'full' thinning, i.e. 2^(i-1), which is a remarkably well behaved thing
+full :: Bits a => Int -> a
+full i = xor (shiftL ones i) ones where ones = complement zeroBits
+
+-- | frequent pattern: getting the 'bits' for the lower part of a thinning
+theBits :: Th -> Integer
+theBits (Th th i) = th .&. full i
+
+-- | Two thinnings are equal when they are of the same size, and have the 
+-- pattern of bits at that size.
+instance Eq Th where
+  x == y = bigEnd x == bigEnd y && theBits x == theBits y
+  -- Th th i == Th ph j = (i == j) && ((th .&. full i) == (ph .&. full j))
+
+-- | Order two thinings by first comparing their size, then their bit patterns
+instance Ord Th where
+  -- compare (Th th i) (Th ph j) = compare (i, th .&. full i) (j, ph .&. full j)
+  compare x y = compare (bigEnd x, theBits x) (bigEng y, theBits y)
+
+-- | Number of set bits in the part we care about
+weeEnd :: Th -> Int
+weeEnd = popCount . theBits
+
+-- | Particular thinnings (at a given size): all used, none used.
+ones, none :: Int -> Th
+ones i = Th (full i) i
+none i = Th 0 i
+
+-- | Is this the thinning where everything is used?
+is1s :: Th -> Bool
+is1s th = th == ones (bigEnd th)
+
+-- | (-?) is snoc for thinnings-as-bits
+(-?) :: Th -> Bool -> Th
+Th th i -? b = Th (go b) (i+1) where
+  th' = shiftL th 1
+  go True  = th' .|. bit 0
+  go False = th'
+
+-- | thun inverts snoc, i.e. pulls off the lower-order bit
+thun :: HasCallStack => Th -> (Th, Bool)
+thun (Th th i) | i <= 0 = error $ "thun with i = " ++ show i
+thun (Th th i) = (Th (shiftR th 1) (i-1), testBit th 0)
+
+-- Thinnigs are thinnable...
 instance Thable Th where
   _  *^ Th _  0 = none 0
   th *^ ph = case thun ph of
@@ -60,39 +116,6 @@ instance Thable DB where
     (th, True) -> case i of
       DB 0 -> DB 0
       i -> scc (prd i *^ th)
-
--- 2^(i-1), which is a remarkably well behaved thing
-full :: Bits a => Int -> a
-full i = xor (shiftL ones i) ones where ones = complement zeroBits
-
-instance Eq Th where
-  Th th i == Th ph j = (i == j) && ((th .&. full i) == (ph .&. full j))
-
-instance Ord Th where
-  compare (Th th i) (Th ph j) = compare (i, th .&. full i) (j, ph .&. full j)
-
-weeEnd :: Th -> Int
-weeEnd (Th th i) = popCount (th .&. full i)
-
-ones, none :: Int -> Th
-ones i = Th (full i) i
-none i = Th 0 i
-
-is0s, is1s :: Th -> Bool
-is0s th = th == none (bigEnd th)
-is1s th = th == ones (bigEnd th)
-
--- snoc for bits
-(-?) :: Th -> Bool -> Th
-Th th i -? b = Th (go b) (i+1) where
-  th' = shiftL th 1
-  go True  = th' .|. bit 0
-  go False = th'
-
--- inverts snoc
-thun :: HasCallStack => Th -> (Th, Bool)
-thun (Th th i) | i <= 0 = error $ "thun with i = " ++ show i
-thun (Th th i) = (Th (shiftR th 1) (i-1), testBit th 0)
 
 instance Show Th where
   show th@(Th _ i) = "[" ++ go i th "]" where
@@ -149,6 +172,9 @@ chopTh w th = case thun th of
 -- from support to scope
 data CdB a = CdB a Th
   deriving (Show, Eq, Ord)
+
+instance Thable (CdB a) where
+  CdB a th *^ ph = CdB a (th *^ ph)
 
 weak :: CdB a -> CdB a
 weak (CdB t th) = CdB t (th -? False)
