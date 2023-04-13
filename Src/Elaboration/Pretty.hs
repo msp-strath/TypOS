@@ -192,7 +192,8 @@ instance Pretty (WithRange Complaint) where
       hsep [ "Incompatible semantics descriptions, expected"
            , prettyPrec 1 desc
            , "but got"
-           , prettyPrec 1 desc']
+           , prettyPrec 1 desc'
+           ]
     IncompatibleSyntaxInfos info1 info2 ->
       hsep ["Syntax infos" , pretty (WithVarNames B0 <$> info1)
            , "and", pretty (WithVarNames B0 <$> info2)

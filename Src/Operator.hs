@@ -184,23 +184,22 @@ poperator ph =
   (,[]) <$> pwithRange patom
   <|> (,) <$ pch (== '[') <* pspc <*> pwithRange patom <*> many (id <$ pspc <*> ph) <* pspc <* pch (== ']')
 
-pBinders :: Parser (a, b) -> Parser (a, ([(Raw, Variable)], b))
-pBinders p = fmap . (,) <$> many ((,) <$> pTM <* ppunc "\\" <*> pvariable <* pspc <* pch ('.' ==)) <*> p
+pBinders :: Parser a -> Parser ([(Raw, Variable)], a)
+pBinders p = (,) <$> many ((,) <$> pTM <* ppunc "\\" <*> pvariable <* ppunc ".") <*> p
 
 panoperator :: Parser CAnOperator
 panoperator = do
   obj <- pmaybeNamed ppat (withRange $ pure $ UnderscoreP unknown)
   ppunc "-"
-  (opname, params) <- poperator $ pBinders (pmaybeNamed psemanticsdecl pfail)
+  (opname, params) <- poperator $ pmaybeNamed (pBinders psemanticsdecl) pfail
   ppunc ":"
   AnOperator obj opname (fmap (fmap $ uncurry CSOT) params) <$> psemanticsdecl
- where
-  pmaybeNamed :: Parser a -- if binder
+  where
+    pmaybeNamed :: Parser a -- if binder
               -> Parser a -- if no binder
-              -> Parser (Binder (ACTORVAR Concrete), a)
-  pmaybeNamed p q
-    = pparens ((,) <$> pbinder <* ppunc ":" <*> p)
-    <|> ((,) . Used <$> pvariable <*> q)
+              -> Parser (Binder Variable, a)
+    pmaybeNamed p q = pparens ((,) <$> pbinder <* ppunc ":" <*> p)
+                 <|> ((,) . Used <$> pvariable <*> q)
 
 instance Pretty CAnOperator where
   pretty (AnOperator obj (WithRange _ opName) paramsDesc retDesc) =

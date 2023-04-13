@@ -310,10 +310,19 @@ declareObjVar :: ( {- x :: -} String
               -> Context {- gamma, x :: S -}
 declareObjVar (x, sem) ctx =
     -- We store semantics descs ready to be deployed at use sites
-    let scp = getObjVars (objVars ctx) :< ObjVar x sem in
+    let scp = getObjVars (objVars ctx) :< ObjVar x sem
+        dat = headUpData ctx
+    in
     ctx { objVars = ObjVars (fmap weak <$> scp)
         , binderHints = fmap weak <$> binderHints ctx
+        , headUpData = dat { huEnv = weakenEnvWith x (huEnv dat) }
         }
+  where
+    -- we extend the global scope so that mangleActors will bring the
+    -- operator types into local scope during instantiation
+    weakenEnvWith :: String -> Env' m -> Env' m
+    weakenEnvWith x env = env { globalScope = globalScope env :< x}
+
 
 -- Careful! The new ovs better be a valid scope
 -- i.e. all the objvars mentioned in the SemanticsDesc of

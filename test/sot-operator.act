@@ -1,0 +1,32 @@
+syntax { 'Nat = ['EnumOrTag ['Zero] [['Succ 'Nat]]] }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+operator
+  { (n : 'Nat) -['elim (P : 'Nat\x.'Semantics)
+                       (base : {x='Zero}P)
+                       (step : 'Nat\y.{x=y}P\ih.{x=['Succ y]}P) ] : {x=n}P
+  }
+
+
+operator
+  {
+  'Zero : 'Nat -['elim \x.P base \y ih.step] ~> base ;
+  ['Succ n] : 'Nat -['elim \x.P base \y ih.step]
+      ~> {y = n, ih = n -['elim \x.P base \y ih.step]}step
+  }
