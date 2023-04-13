@@ -408,7 +408,7 @@ normSynthWorker@p = p?e.
              | \y.  ctxt |- y  -> S.
                \ys. ctxt |- ys -> fty.
                \ih. ctxt |- ih -> {xs = ys}T.
-               checkNorm@u. u!{xs = ['Rad ['Plus ['Sing ['Emb y 'Id]] ['Emb ys 'Id]] fty]}T. u!c. u?nc1. nc ~ {y*,ys*,ih*}\y ys ih.nc1
+               checkNorm@u. u!{xs = ['Rad ['Plus ['Sing ['Emb y 'Id]] ['Emb ys 'Id]] fty]}T. u!c. u?nc1. nc ~ {y ys ih*}\y ys ih.nc1
              | p!['App nf ['ListRec NT nn nc]]. p!{xs = nf}T.)
         ; _ -> #"Expected ListRec's; got %i" s
         }

@@ -1,0 +1,8 @@
+operator
+  { (x : c) - 'typeOf : 'Semantics
+  ; x : a - 'typeOf ~> a
+  }
+
+syntax { 'Bool = ['Enum ['T 'F]] }
+
+exec 'Bool?b. PRINTF "The type of %r is %n" b (b - 'typeOf).

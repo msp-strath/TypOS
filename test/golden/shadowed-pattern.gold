@@ -1,0 +1,13 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  5 | -- been evicted from the scope.
+out >  6 | a : ?'Wildcard.
+out >  7 | a@p = p?x. case x { (\ z . {z*}z) -> PRINTF "the body is %r" z. }
+out >                                     ^
+out > shadowed-pattern.act:7:31-32
+out > Out of scope variable z
+out > when elaborating the pattern variable z
+out > when elaborating a case branch handling the pattern \z. {z*} z
+out > when elaborating the judgement definition for a
+out >

@@ -3,22 +3,32 @@ out > Warning: Unsolved metas (b1:1, b2:2)
 out >
 out >
 err > 'at not an operator application
-err > Matching 'at - ['if ?[("b1",[1])] - ['if ?[("b2",[2])]]]
-err > against x - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
+err > Matching 'at - ['if ?[("b1",[1])] : ['EnumOrTag
+err >                                      ['True] []] - ['if ?[("b2",[2])]]]
+err > against x : X - ['if b1] : _3 - ['if b2] ~> x : X - ['if b1 : ['EnumOrTag
+err >                                                                ['True]
+err >                                                                []] - ['if b2]]
 err > Failure Mismatch
 err >
 err > 'at not an operator application
 err > Matching 'at - ['if ?[("b1",[1])]]
-err > against x - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
+err > against x : X - ['if b1] : _3 - ['if b2] ~> x : X - ['if b1 : ['EnumOrTag
+err >                                                                ['True]
+err >                                                                []] - ['if b2]]
 err > Failure Mismatch
 err >
-err > Matching 'at - ['if ?[("b1",[1])]] - ['if ?[("b2",[2])]]
-err > against x - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
+err > Matching 'at : 'Atom - ['if ?[("b1",[1])]] - ['if ?[("b2",[2])]]
+err > against x : X - ['if b1] : _3 - ['if b2] ~> x : X - ['if b1 : ['EnumOrTag
+err >                                                                ['True]
+err >                                                                []] - ['if b2]]
 err > Success!
 err >
 err > 'at not an operator application
-err > Matching 'at - ['if ?[("b1",[1])] - ['if ?[("b2",[2])]]]
-err > against x - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
+err > Matching 'at - ['if ?[("b1",[1])] : ['EnumOrTag
+err >                                      ['True] []] - ['if ?[("b2",[2])]]]
+err > against x : X - ['if b1] : _3 - ['if b2] ~> x : X - ['if b1 : ['EnumOrTag
+err >                                                                ['True]
+err >                                                                []] - ['if b2]]
 err > Failure Mismatch
 err >
 err >

@@ -1,5 +1,5 @@
-success : ?'Wildcard. ?'Wildcard. !'Wildcard.
+success : ?['Pi 'Wildcard \_.'Wildcard]. ?'Wildcard. !'Wildcard.
 success@p = p?f. p?t. p!f - ['app t].
 
-failure : ?'Wildcard. ?'Wildcard. !'Wildcard.
+failure : ?['Pi 'Wildcard \_.'Wildcard]. ?'Wildcard. !'Wildcard.
 failure@p = p?f. p?t. p!f - 'app.

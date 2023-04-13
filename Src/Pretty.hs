@@ -97,13 +97,9 @@ instance Collapse Cursor where
         , collapse rstrs
         ]
 
-------------------------------------------------------------------
--- 'BracesList' is a marker for printing something in braces
+-- | 'BracesList' is a marker for printing something in braces
 newtype BracesList t = BracesList { unBracesList :: [t] }
 
 -- | print 'BracesList' as lists with braces...
 instance Collapse BracesList where
   collapse (BracesList ds) = encloseSep "{" "}" "; " ds
-
--- | Can 'show' a 'Doc' via 'render'
-instance Show (Doc Annotations) where show = render

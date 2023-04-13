@@ -6,12 +6,14 @@ out >  5 | test :
 out >  6 | test@p = 'Tic?a. 'Tac?b. [a b] ~ [b a]
 out >                               ^^^^^^^^^^^^^
 out > syntaxcat-fail.act:6:25-38
-out > Syntax infos Known ['Cons
-out >                     'Tic ['Cons
-out >                           'Tac 'Nil]] and Known ['Cons
-out >                                                  'Tac ['Cons
-out >                                                        'Tic
-out >                                                        'Nil]] are incompatible
+out > Incompatible semantics descriptions, expected ['Cons
+out >                                                'Tic ['Cons
+out >                                                      'Tac
+out >                                                      'Nil]] but got ['Cons
+out >                                                                      'Tac
+out >                                                                      ['Cons
+out >                                                                       'Tic
+out >                                                                       'Nil]]
 out > when guessing syntactic categories for [a b] [b a]
 out > when elaborating the judgement definition for test
 out >

@@ -19,7 +19,7 @@ instance Pretty Variable where
 
 instance Pretty x => Pretty (Binder x) where
   pretty (Used v) = pretty v
-  pretty Unused = "_"
+  pretty (Unused _) = "_"
 
 multiBind :: Bwd (Hide (Binder Variable)) -> Raw -> Doc Annotations
 multiBind xs (Lam _ (Scope x t)) = multiBind (xs :< x) t
@@ -37,9 +37,11 @@ instance Pretty Raw where
     Sbst _ B0 t -> prettyPrec d t
     Sbst _ sg t -> parenthesise (d > 0) $ hsep [ pretty sg, pretty t ]
     Op _ s t -> parenthesise (d > 0) $ hsep [ pretty s, "-", prettyPrec 1 t ]
+    Rad _ s t -> parenthesise (d > 0) $ hsep [ pretty s, ":", pretty t ]
     Guarded g t -> hsep [ "<", pretty t , ">"]
+    Thicken _ (thxz, thd) t -> braces (hsep (pretty <$> thxz <>> []) <> pretty thd) <+> pretty t
 
-instance Pretty (Bwd SbstC) where
+instance Pretty (Bwd Assign) where
   pretty sg = encloseSep lbrace rbrace ", " $ pretty <$> sg <>> []
 
 prettyCdr :: Raw -> [Doc Annotations]
@@ -48,10 +50,8 @@ prettyCdr = \case
   Cons _ p q -> pretty p : prettyCdr q
   p -> [pipe, pretty p]
 
-instance Pretty SbstC where
+instance Pretty Assign where
   pretty = \case
-    Keep _ x -> pretty x
-    Drop _ x -> pretty x <> "*"
     Assign _ x t -> pretty x <> equals <> pretty t
 
 instance Pretty ThDirective where
@@ -119,7 +119,7 @@ prettyact = go B0 B0 where
     Recv r ch (av, a) -> go ls (l `add` [pretty ch, "?", pretty av, dot]) a
     FreshMeta r syn (av, a) -> freshMetas ls l syn (B0 :< av) a
     Let r av syn t a -> go (ls :< fold (l `add` [hsep ["let", pretty av, ":", pretty syn, "=", pretty t] <> dot])) B0 a
-    Under r (Scope x a) -> unders ls l (B0 :< x) a
+    Under r mty (Scope x a) -> unders ls l mty (B0 :< x) a
     Note r a -> go ls (l `add` ["!", dot]) a
     Push r stk (x, _, t) a ->
       let push = hsep [pretty stk, "|-", pretty x, "->", pretty t] <> dot in
@@ -141,9 +141,14 @@ prettyact = go B0 B0 where
 
   unders :: Bwd (Doc Annotations) -> -- lines above us
             Bwd (Doc Annotations) -> -- part of the line on our left
+            Maybe Raw -> -- Type annotation
             Bwd (Hide Variable) -> CActor -> [Doc Annotations]
-  unders ls l xs (Under _ (Scope x a)) = unders ls l (xs :< x) a
-  unders ls l xs a = go ls (l `add` [backslash , hsep (pretty <$> xs <>> []), dot]) a
+  unders ls l mty xs (Under _ mty' (Scope x a))
+       | mty == mty' = unders ls l mty (xs :< x) a
+  unders ls l mty xs a
+    = go ls (l `add` [ maybe id (\ ty r -> pretty ty <+> r) mty backslash
+                     , hsep (pretty <$> xs <>> [])
+                     , dot]) a
 
 
 instance Pretty CActor where
@@ -165,9 +170,9 @@ instance Pretty CActor where
 
 instance Pretty Debug where
   pretty = \case
-    ShowEnv -> "%e"
+    ShowEnv -> "%E"
     ShowStack -> "%S"
-    ShowStore -> "%m"
+    ShowStore -> "%M"
 
 instance Pretty Directive where
   pretty = \case
@@ -203,15 +208,18 @@ instance Pretty (RawP, CActor) where
      let pp = pretty p; pa = sep (prettyact a) in
      hang 2 (hsep [pp, "->"]) pa
 
-instance Pretty Mode where
+instance Pretty (Mode a) where
   pretty Input   = "?"
-  pretty Subject = "$"
+  pretty (Subject _) = "$"
   pretty Output  = "!"
 
-instance Pretty t => Pretty (Protocol t) where
-  pretty = foldMap $ \ (m, d) -> fold [pretty m, pretty d, ". "]
+instance Pretty t => Pretty (Mode a, t) where
+  pretty (m, desc) = hsep [ pretty m, prettyPrec 1 desc ]
 
-instance Pretty t => Pretty (ContextStack t) where
+instance Pretty CProtocol where
+  pretty (Protocol ps) = foldMap (\ x -> pretty x <> ". ") ps
+
+instance (Pretty k, Pretty v) => Pretty (ContextStack k v) where
   pretty stk = hsep [pretty (keyDesc stk), "->", pretty (valueDesc stk)]
 
 instance Pretty CConnect where

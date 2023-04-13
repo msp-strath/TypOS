@@ -5,7 +5,7 @@ module Term.Display where
 import Display
 import Term
 import Thin
-import Unelaboration
+import Unelaboration.Monad
 
 instance (Show m, UnelabMeta m) => Display (Tm m) where
   type DisplayEnv (Tm m) = Naming

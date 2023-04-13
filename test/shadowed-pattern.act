@@ -1,0 +1,9 @@
+
+
+-- This should probably be rejected, because it is confusing: the z in
+-- the body is a pattern variable, because the z from the lambda has
+-- been evicted from the scope.
+a : ?'Wildcard.
+a@p = p?x. case x { (\ z . {z*}z) -> PRINTF "the body is %r" z. }
+
+exec a@p. p!(\ x . 'bbb).

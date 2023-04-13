@@ -1,4 +1,4 @@
 ret > ExitFailure 1
 out > Parse error near location: no-space.act:19:21
-out > Expected '!', '?', '~', '<->', ':', '|-', '@', or '-'.
+out > Expected '!', '?', '-', '~', '<->', ':', '@', or '|-'.
 out >

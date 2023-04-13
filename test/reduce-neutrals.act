@@ -1,5 +1,7 @@
-operator { 'Wildcard - ['if ['Enum ['True]]] ~> 'Wildcard }
+trace { clause }
 
-x - ['if b1] - ['if b2] ~> x - ['if b1 - ['if b2]]
+operator { (y : A) - ['if (b : ['Enum ['True]])] : A }
 
-exec ('Wildcard?b1 b2. 'at - ['if b1] - ['if b2] ~ 'at - ['if b1 - ['if b2]])
+operator { x : X - ['if b1] : _ - ['if b2] ~> x - ['if b1 - ['if b2]] }
+
+exec (['Enum ['True]]?b1 b2. let a : 'Atom = 'at. a - ['if b1] - ['if b2] ~ a - ['if b1 - ['if b2]])

@@ -42,19 +42,22 @@ pvariable = do
 
 pbinder :: Parser (Binder Variable)
 pbinder = Used <$> pvariable
-      <|> Unused <$ plit "_"
+      <|> withRange (Unused unknown <$ plit "_")
 
 pTM :: Parser Raw
 pTM = withRange $
   (ptm >>= more)
   <|> pscoped Lam pbinder pTM
-  <|> Sbst unknown <$ pch (== '{') <* pspc <*> ppes (ppunc ",") psbstC <* ppunc "}" <*> pTM
+  <|> Sbst unknown <$ pch (== '{') <* pspc <*> ppes (ppunc ",") passign <* ppunc "}" <*> pTM
+  <|> Thicken unknown <$ pch (== '{') <* pspc <*> pth <* ppunc "}" <*> pTM
 
   where
 
   more :: Raw -> Parser Raw
-  more t = withRange $
-    ((Op unknown t <$ ppunc "-" <*> ptm) >>= more)
+  more t =
+    (do ppunc "-"
+        tm <- ptm
+        more (Op (getRange t <> getRange tm) t tm))
     <|> pure t
 
 ptm :: Parser Raw
@@ -65,11 +68,9 @@ ptm = withRange $
   <|> id <$ pch (== '[') <* pspc <*> plisp
   <|> pparens pTM
 
-psbstC :: Parser SbstC
-psbstC = withRange $ pvariable >>= \ x ->
+passign :: Parser Assign
+passign = withRange $ pvariable >>= \ x ->
   Assign unknown x <$ ppunc "=" <*> pTM
-  <|> Drop unknown x <$ pspc <* pch (== '*')
-  <|> pure (Keep unknown x)
 
 instance Lisp RawP where
   mkNil = AtP unknown ""
@@ -87,26 +88,33 @@ ppat = withRange $
   <|> pscoped LamP pbinder ppat
   <|> ThP unknown <$ pch (== '{') <* pspc <*> pth <* ppunc "}" <*> ppat
   <|> UnderscoreP unknown <$ pch (== '_')
+  <|> Irrefutable unknown <$ pch (== '~') <* pspc <*> ppat
 
 pth :: Parser (Bwd Variable, ThDirective)
 pth = (,) <$> ppes pspc pvariable
           <*> (ThDrop <$ pspc <* pch ('*' ==) <|> pure ThKeep)
 
-pmode :: Parser Mode
+pmode :: Parser (Mode ())
 pmode = Input <$ pch (== '?')
-    <|> Subject <$ pch (== '$')
+    <|> Subject () <$ pch (== '$')
     <|> Output <$ pch (== '!')
 
-pprotocol :: Parser (Protocol Raw)
-pprotocol = psep pspc
-  ((,) <$> pmode <* pspc
+pprotocol :: Parser CProtocol
+pprotocol = Protocol <$> psep pspc
+  (mkp <$> pmode <* pspc
        <*> pmustwork "Expected a syntax declaration" psyntaxdecl
        <* pspc <* plit ".")
+  where
+    mkp :: Mode () -> Raw -> PROTOCOLENTRY Concrete
+    mkp m s = (s <$ m, s)
 
 psyntaxdecl :: Parser Raw
 psyntaxdecl = pTM
 
-pcontextstack :: Parser (ContextStack Raw)
+psemanticsdecl :: Parser Raw
+psemanticsdecl = pTM
+
+pcontextstack :: Parser CContextStack
 pcontextstack = ContextStack
   <$> psyntaxdecl
   <* ppunc "->"
@@ -131,6 +139,7 @@ withVars con px str pa = do
     pure (xs, a)
   pure $ foldr (curry (con r)) a xs
 
+-- Warning: breaks convention and consumes trailing space
 pextractmode :: Parser ExtractMode
 pextractmode
     = TopLevelExtract <$ pch (== '/') <* pspc
@@ -159,7 +168,7 @@ pscrutinee = withRange $ do
 
 pact :: Parser CActor
 pact = withRange $
-  pscoped Under pvariable pact
+  do { ty <- optional pTM; pscoped (flip Under ty) pvariable pact }
   <|> Send unknown <$> pvariable <*> pure () <* ppunc "!" <*> pmustwork "Expected a term" pTM <* ppunc "." <*> pact
   <|> do tm <- pTM
          ppunc "?"

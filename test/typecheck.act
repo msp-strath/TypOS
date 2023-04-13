@@ -1,0 +1,44 @@
+typecheck 'Semantics : 'Semantics
+
+syntax {
+  'Nat = ['EnumOrTag ['Zero] [['Suc 'Nat]]]
+}
+
+typecheck 'Nat : 'Semantics
+typecheck 'Zero : 'Nat
+typecheck ['Suc 'Zero] : 'Nat
+
+typecheck ['Pi 'Nat \_.'Nat] : 'Semantics
+typecheck \x.x : ['Pi 'Nat \_.'Nat]
+typecheck \x.'Zero : ['Pi 'Nat \_.'Nat]
+
+typecheck ['Pi 'Semantics \X.['Pi X \_.X]] : 'Semantics
+typecheck \X x.x : ['Pi 'Semantics \X.['Pi X \_.X]]
+
+operator
+  { (n : 'Nat) -[ 'add (m : 'Nat) ] : 'Nat
+  ; (n : 'Nat) -[ 'mul (m : 'Nat) ] : 'Nat
+  }
+
+-- TODO: improve error message for:
+-- \x.'Zero : ['Pi 'Nat \_.'Nat] -[ 'mul m ] ~> 'Zero
+
+operator
+  { 'Zero : 'Nat -[ 'add n ] ~> n
+  ; ['Suc m] : 'Nat -[ 'add n ] ~> ['Suc m -['add n]]
+
+  ; 'Zero : 'Nat -[ 'mul n ] ~> 'Zero
+  ; ['Suc m] : 'Nat -[ 'mul n ] ~> n -['add m -['mul n]]
+  ; m : 'Nat -['add n ] : 'Nat -['mul p ]
+    ~> (m -['mul p]) -['add (n -['mul p ])]
+  }
+
+operator
+  { (f : ['Pi a \x.b]) -['apply  (t : a)] : {x=t}b
+  ; (f : ['Pi a \x.b]) -['apply2 (x : a)] : b
+  }
+
+operator
+  { f : ['Pi 'Nat \_.'Nat] -[ 'apply t ] ~> 'Zero }
+
+exec PRINTF "Hurrah!".

@@ -16,14 +16,16 @@ import Data.List (partition)
 import Data.List.NonEmpty (NonEmpty ((:|)), fromList, toList)
 import Data.Maybe (fromJust, mapMaybe)
 
-import Concrete.Base (RawP(..), Binder (..), Variable (..))
+import Concrete.Base (RawP(..), Binder (..), Variable (..), ASemanticsDesc)
 import Location (unknown)
 import Pattern (Pat'(..))
 import Scope (Scope(..))
-import Syntax ( SyntaxDesc, VSyntaxDesc'(..), WithSyntaxCat(..), SyntaxTable, VSyntaxDesc, SyntaxCat
-              , expand', contract, expand)
-import Thin (is1s)
+import Thin (is1s, scope)
 import Hide (Hide(Hide))
+import Semantics
+import Operator.Eval (HeadUpData')
+import Actor (ActorMeta(..))
+import Syntax (SyntaxTable, SyntaxCat, WithSyntaxCat(..))
 
 ------------------------------------------------------------------------------
 -- RESULTS
@@ -69,7 +71,7 @@ data Covering' sd
       [sd] -- what is left to cover
   deriving (Functor)
 
-type Covering = Covering' SyntaxDesc
+type Covering = Covering' ASemanticsDesc
 
 ------------------------------------------------------------------------------
 -- Views
@@ -139,16 +141,16 @@ combine covs = case partition (isAlreadyCovered . snd) covs of
 -- Postcondition:
 --   If `shrinkBy table desc pat` is `PartiallyCovering ps qs` then
 --   `desc` is morally equivalent to the sum (ps + qs)
-shrinkBy :: forall s. SyntaxTable -> SyntaxDesc -> Pat' s -> Covering
-shrinkBy table = start where
+shrinkBy :: forall s. HeadUpData' ActorMeta -> SyntaxTable -> ASemanticsDesc -> Pat' s -> Covering
+shrinkBy dat table = start where
 
-  start :: SyntaxDesc -> Pat' s -> Covering
-  start desc = go (desc, fromJust (expand table desc))
+  start :: ASemanticsDesc -> Pat' s -> Covering
+  start desc = go (desc, fromJust (expand table dat desc))
 
-  starts :: [SyntaxDesc] -> Pat' s -> Covering' [SyntaxDesc]
-  starts descs = gos (map (\ d -> (d, fromJust (expand table d))) descs)
+  starts :: [ASemanticsDesc] -> Pat' s -> Covering' [ASemanticsDesc]
+  starts descs = gos (map (\ d -> (d, fromJust (expand table dat d))) descs)
 
-  gos :: [(SyntaxDesc, VSyntaxDesc)] -> Pat' s -> Covering' [SyntaxDesc]
+  gos :: [(ASemanticsDesc, VSemanticsDesc)] -> Pat' s -> Covering' [ASemanticsDesc]
   gos [] (AP "") = Covering
   gos (d:ds) (PP p ps) = case (go d p, gos ds ps) of
     (Covering, Covering) -> Covering
@@ -165,22 +167,26 @@ shrinkBy table = start where
       PartiallyCovering (map (fst d :) p2) (map (fst d :) p2s)
   gos _ _ = error "Impossible"
 
-  go :: (SyntaxDesc, VSyntaxDesc) -> Pat' s -> Covering
+  go :: (ASemanticsDesc, VSemanticsDesc) -> Pat' s -> Covering
   go desc (AT s pat) = go desc pat
   go (desc, _) (VP db) = PartiallyCovering [] [desc] -- TODO: handle bound variables too
   go (desc, vdesc) (AP s) = contract <$> case vdesc of
-    VAtom -> PartiallyCovering [VEnumOrTag [s] []] [VAtomBar [s]]
-    VAtomBar ss | s `notElem` ss ->
-      PartiallyCovering [VEnumOrTag [s] []] [VAtomBar (s:ss)]
-    VNil | null s -> Covering
-    VNilOrCons cb cb' | null s -> PartiallyCovering [VNil] [VCons cb cb']
-    VEnumOrTag ss ts ->
+    VAtom sc -> PartiallyCovering [VEnumOrTag sc [s] []] [VAtomBar sc [s]]
+    VAtomBar sc ss | s `notElem` ss ->
+      PartiallyCovering [VEnumOrTag sc [s] []] [VAtomBar sc (s:ss)]
+    VNil _ | null s -> Covering
+    VNilOrCons cb cb' | null s -> PartiallyCovering [VNil $ scope cb] [VCons cb cb']
+    VEnumOrTag sc ss ts ->
       let (matches, ss') = partition (s ==) ss in
       case (ss', ts) of
         _ | null matches -> AlreadyCovered
         ([], []) -> Covering
-        _ -> PartiallyCovering [VEnumOrTag matches []] [VEnumOrTag ss' ts]
-    VWildcard -> PartiallyCovering [] [VWildcard]
+        _ -> PartiallyCovering [VEnumOrTag sc matches []] [VEnumOrTag sc ss' ts]
+    VWildcard sc -> PartiallyCovering [] [VWildcard sc]
+    -- TODO : fix
+    VNeutral _ -> undefined
+    VUniverse sc -> undefined
+    VPi s (n, t) -> undefined
     _ -> AlreadyCovered
   go (desc, vdesc) (PP pat pat') = case vdesc of
     VCons cb cb' -> contract <$> case (start cb pat, start cb' pat') of
@@ -216,23 +222,23 @@ shrinkBy table = start where
         PartiallyCovering (map (VCons cb) p2) (map (VCons cb) p2s)
 
     VNilOrCons cb cb' -> contract <$> case (start cb pat, start cb' pat') of
-      (Covering, Covering) -> PartiallyCovering [VCons cb cb'] [VNil]
+      (Covering, Covering) -> PartiallyCovering [VCons cb cb'] [VNil $ scope cb]
       (AlreadyCovered, _) -> AlreadyCovered
       (_, AlreadyCovered) -> AlreadyCovered
       (PartiallyCovering p1 p1s, PartiallyCovering p2 p2s) ->
         PartiallyCovering (VCons <$> p1 <*> p2) $ concat
-          [ [VNil]
+          [ [VNil $ scope cb]
           , VCons <$> p1  <*> p2s
           , VCons <$> p1s <*> p2
           , VCons <$> p1s <*> p2s ]
       (PartiallyCovering p1 p1s, Covering) ->
         PartiallyCovering (map (`VCons` cb') p1)
-          (VNil : map (`VCons` cb') p1s)
+          ((VNil $ scope cb) : map (`VCons` cb') p1s)
       (Covering, PartiallyCovering p2 p2s) ->
         PartiallyCovering (map (VCons cb) p2)
-          (VNil : map (VCons cb) p2s)
+          ((VNil $ scope cb) : map (VCons cb) p2s)
 
-    VEnumOrTag ss ts -> case pat of
+    VEnumOrTag sc ss ts -> case pat of
       AP s ->
         let (matches, ts') = partition ((s ==) . fst) ts in
         contract <$> case combine $ map (\ (_, ds) -> (ds, starts ds pat')) matches of
@@ -240,22 +246,23 @@ shrinkBy table = start where
           Covering | null ss && null ts' -> Covering
           Covering ->
             PartiallyCovering
-              [VEnumOrTag [] matches]
-              [VEnumOrTag ss ts']
+              [VEnumOrTag sc [] matches]
+              [VEnumOrTag sc ss ts']
           AlreadyCovered -> AlreadyCovered
           PartiallyCovering p ps ->
             PartiallyCovering
-               [VEnumOrTag [] (map (s,) p)]
-               [VEnumOrTag ss (map (s,) ps ++ ts')]
+               [VEnumOrTag sc [] (map (s,) p)]
+               [VEnumOrTag sc ss (map (s,) ps ++ ts')]
       _ -> error "Impossible"
-    VWildcard -> contract <$> PartiallyCovering [] [VWildcard]
+    VWildcard sc -> contract <$> PartiallyCovering [] [VWildcard sc]
+    -- TODO : what about Neutral, Universe, Pi
     _ -> error "Impossible"
   go (desc, vdesc) (BP hi pat) = case vdesc of
     VBind s d -> contract <$> case start d pat of
       Covering -> Covering
       AlreadyCovered -> AlreadyCovered
       PartiallyCovering p ps -> PartiallyCovering (VBind s <$> p) (VBind s <$> ps)
-    VWildcard -> contract <$> PartiallyCovering [] [VWildcard]
+    VWildcard sc -> contract <$> PartiallyCovering [] [VWildcard sc]
     _ -> error "Impossible"
   go (desc, vdesc) (MP s th)
     | is1s th = Covering
@@ -263,14 +270,14 @@ shrinkBy table = start where
   go (desc, vdesc) GP = PartiallyCovering [] [desc]
   go _ HP = Covering
 
-missing :: SyntaxTable -> SyntaxDesc -> NonEmpty RawP
-missing table desc = fmap (`evalState` names) (start desc) where
+missing :: HeadUpData' ActorMeta -> SyntaxTable -> ASemanticsDesc -> NonEmpty RawP
+missing dat table desc = fmap (`evalState` names) (start desc) where
 
   -- Each solution is a computation using its own name supply because
   -- there is no reason for us not to reuse the same name in independent
   -- patterns e.g. ['Leaf a] and ['Node a b c].
-  start :: SyntaxDesc -> NonEmpty (State [String] RawP)
-  start = go . fromJust . expand' Yes table
+  start :: ASemanticsDesc -> NonEmpty (State [String] RawP)
+  start = go . fromJust . expand' Yes table dat
 
   -- "a", "b", ..., "z", "a1", "b1", ...
   names :: [String]
@@ -287,21 +294,25 @@ missing table desc = fmap (`evalState` names) (start desc) where
     put ns
     pure n
 
-  go :: VSyntaxDesc' SyntaxCat -> NonEmpty (State [String] RawP)
-  go VAtom = (pure $ UnderscoreP unknown) :| []
-  go (VAtomBar ss) = (pure $ UnderscoreP unknown) :| []
-  go VNil = (pure $ AtP unknown "") :| []
+  go :: VSemanticsDesc' SyntaxCat -> NonEmpty (State [String] RawP)
+  go (VAtom _) = (pure $ UnderscoreP unknown) :| []
+  go (VAtomBar _ ss) = (pure $ UnderscoreP unknown) :| []
+  go (VNil _) = (pure $ AtP unknown "") :| []
   go (VCons cb cb') = do
     ps <- start cb
     qs <- start cb'
     pure (ConsP unknown <$> ps <*> qs)
-  go (VNilOrCons cb cb') = go VNil <> go (VCons cb cb')
-  go (VBind s cb) = fmap (LamP unknown . Scope (Hide Unused)) <$> start cb
-  go (VEnumOrTag ss ts) =
+  go (VNilOrCons cb cb') = go (VNil $ scope cb)  <> go (VCons cb cb')
+  go (VBind s cb) = fmap (LamP unknown . Scope (Hide (Unused unknown))) <$> start cb
+  go (VEnumOrTag _ ss ts) =
     let enums = map (\ s -> (pure $ AtP unknown s) :| []) ss
         tagged = ts <&> \ (s, ds) -> do
           args <- traverse start ds
           pure $ ConsP unknown (AtP unknown s) . foldr (ConsP unknown) (AtP unknown "") <$> sequence args
     in fromList (concatMap toList (enums ++ tagged))
-  go VWildcard = (pure $ UnderscoreP unknown) :| []
-  go (VSyntaxCat _) = (VarP unknown . Variable unknown <$> freshName) :| []
+  go (VWildcard _)= (pure $ UnderscoreP unknown) :| []
+  go (VSyntaxCat _ _) = (VarP unknown . Variable unknown <$> freshName) :| []
+{- TODO: fill in, neutral case might be impossible
+  go (VNeutral _) = _
+  go (VUniverse _) = (pure $ AtP unknown "Semantics") :| []
+  go (VPi _ _) = _ -}

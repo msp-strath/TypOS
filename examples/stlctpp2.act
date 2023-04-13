@@ -88,7 +88,7 @@ synth@p = p?tm .
 
 checkEval@p = p?ty. p?tm. case tm
   { ['Lam \x.body] -> case ty
-    { ['Arr s t] -> \yy. evalCtxt |- yy -> [yy | s].
+    { ['Arr s t] -> 'Synth\yy. evalCtxt |- yy -> [yy | s].
                         checkEval@q. q!t. q!{x=yy}body.
                         q?nf. p!['Lam \z.{yy=z}nf].
     ; _ -> #"Expected a function type"

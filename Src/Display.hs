@@ -15,8 +15,9 @@ import Options
 import Pretty (Doc, Annotations, Pretty(..), renderWith)
 import Thin
 
-import Unelaboration (Unelab(..), evalUnelab, Naming)
-import qualified Unelaboration
+import Unelaboration.Monad (Unelab(..), evalUnelab, Naming)
+import qualified Unelaboration.Monad as Unelaboration
+import Unelaboration ()
 
 import GHC.Stack
 
@@ -88,12 +89,12 @@ instance Display Void where
 instance Display DB where
   type DisplayEnv DB = Naming
   display = viaPretty
-
+{-
 instance (Show t, Unelab t, Pretty (Unelabed t)) =>
   Display [Format () (Doc Annotations) t] where
   type DisplayEnv [Format () (Doc Annotations) t] = UnelabEnv t
   display = viaPretty
-
+-}
 instance (Show t, Unelab t, Pretty (Unelabed t)) =>
   Display [Format Directive Debug t] where
   type DisplayEnv [Format Directive Debug t] = UnelabEnv t
@@ -103,10 +104,20 @@ instance Display Pat where
   type DisplayEnv Pat = Naming
   display = viaPretty
 
+unsafeDocDisplay :: (DisplayEnv a ~ Naming, Display a) => Options -> Naming -> a -> Doc Annotations
+unsafeDocDisplay opts naming t
+  = unsafeEvalDisplay naming
+  $ display t
+
 unsafeDocDisplayClosed :: (DisplayEnv a ~ Naming, Display a) => Options -> a -> Doc Annotations
 unsafeDocDisplayClosed opts t
   = unsafeEvalDisplay Unelaboration.initNaming
   $ display t
+
+unsafeDisplay :: (DisplayEnv a ~ Naming, Display a) => Options -> Naming -> a -> String
+unsafeDisplay opts naming t
+  = renderWith (renderOptions opts)
+  $ unsafeDocDisplay opts naming t
 
 unsafeDisplayClosed :: (DisplayEnv a ~ Naming, Display a) => Options -> a -> String
 unsafeDisplayClosed opts t

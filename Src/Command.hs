@@ -7,10 +7,11 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 
-import Data.Bifunctor (first)
+import Data.Bifunctor (bimap, first)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
+import Data.Foldable (asum)
 
 import Actor
 import Actor.Display ()
@@ -33,47 +34,59 @@ import Parse
 import Pretty
 import Syntax
 import Term.Base
-import Unelaboration(Unelab(..), subunelab, withEnv, initDAEnv, Naming, declareChannel)
+import Unelaboration.Monad (Unelab(..), Naming, subunelab, withEnv)
+import Unelaboration (initDAEnv, declareChannel)
 import Location
+
 import Data.Char (isSpace)
+import Operator
+import Thin
+import Operator.Eval (HeadUpData' (..))
+import Hide (Hide(..))
+import Scope (Scope(..))
 
-type family SYNTAXCAT (ph :: Phase) :: *
-type instance SYNTAXCAT Concrete = WithRange SyntaxCat
-type instance SYNTAXCAT Abstract = SyntaxCat
-
-type family PROTOCOL (ph :: Phase) :: *
-type instance PROTOCOL Concrete = ()
-type instance PROTOCOL Abstract = AProtocol
-
-type OPPATTERN ph = (OPERATOR ph, [PATTERN ph])
+type family DEFNPROTOCOL (ph :: Phase) :: *
+type instance DEFNPROTOCOL Concrete = ()
+type instance DEFNPROTOCOL Abstract = AProtocol
 
 data STATEMENT (ph :: Phase)
-  = Statement (JUDGEMENTFORM ph) [Variable]
+  = Statement (JUDGEMENTNAME ph) [Variable]
 
-type family DEFNOP (ph :: Phase) :: *
-type instance DEFNOP Concrete = (PATTERN Concrete, [OPPATTERN Concrete], TERM Concrete)
-type instance DEFNOP Abstract = (Operator, Clause)
-
-data COMMAND (ph :: Phase)
-  = DeclJudge ExtractMode (JUDGEMENTFORM ph) (Protocol (SYNTAXDESC ph))
-  | DefnJudge (JUDGEMENTFORM ph, PROTOCOL ph, CHANNEL ph) (ACTOR ph)
-  | ContractJudge [STATEMENT ph] (STATEMENT ph) [STATEMENT ph]
-  | DeclSyntax [(SYNTAXCAT ph, SYNTAXDESC ph)]
-  | DeclStack (STACK ph) (ContextStack (SYNTAXDESC ph))
-  | ContractStack [STATEMENT ph] (STACK ph, Variable, Variable) [STATEMENT ph]
-  | Go (ACTOR ph)
-  | Trace [MachineStep]
-  | DeclOp [ANOPERATOR ph]
+data OPENTRY (ph :: Phase)
+  = DeclOp (ANOPERATOR ph)
   | DefnOp (DEFNOP ph)
 
 deriving instance
-  ( Show (JUDGEMENTFORM ph)
+  ( Show (OPERATOR ph)
+  , Show (SEMANTICSDESC ph)
+  , Show (ACTORVAR ph)
+  , Show (PATTERN ph)
+  , Show (SOT ph)
+  , Show (DEFNOP ph)
+  ) => Show (OPENTRY ph)
+
+data COMMAND (ph :: Phase)
+  = DeclJudge ExtractMode (JUDGEMENTNAME ph) (PROTOCOL ph)
+  | DefnJudge (JUDGEMENTNAME ph, DEFNPROTOCOL ph, CHANNEL ph) (ACTOR ph)
+  | ContractJudge [STATEMENT ph] (STATEMENT ph) [STATEMENT ph]
+  | DeclSyntax [(SYNTAXCAT ph, SYNTAXDESC ph)]
+  | DeclStack (STACK ph) (ContextStack (SYNTAXDESC ph) (SEMANTICSDESC ph))
+  | ContractStack [STATEMENT ph] (STACK ph, Variable, Variable) [STATEMENT ph]
+  | Go (ACTOR ph)
+  | Trace [MachineStep]
+  | OpBlock [OPENTRY ph]
+  | Typecheck (TERM ph) (SEMANTICSDESC ph)
+
+deriving instance
+  ( Show (JUDGEMENTNAME ph)
   , Show (CHANNEL ph)
   , Show (BINDER ph)
   , Show (ACTORVAR ph)
   , Show (SCRUTINEEVAR ph)
   , Show (SCRUTINEETERM ph)
   , Show (SYNTAXDESC ph)
+  , Show (SEMANTICSDESC ph)
+  , Show (SOT ph)
   , Show (TERMVAR ph)
   , Show (TERM ph)
   , Show (PATTERN ph)
@@ -83,38 +96,32 @@ deriving instance
   , Show (SYNTAXCAT ph)
   , Show (OPERATOR ph)
   , Show (PROTOCOL ph)
+  , Show (DEFNPROTOCOL ph)
   , Show (LOOKEDUP ph)
   , Show (DEFNOP ph)
   , Show (GUARD ph)) =>
   Show (COMMAND ph)
 
 deriving instance
-  (Show (JUDGEMENTFORM ph)) =>
+  (Show (JUDGEMENTNAME ph)) =>
   Show (STATEMENT ph)
 
 type CCommand = COMMAND Concrete
 type ACommand = COMMAND Abstract
 type CStatement = STATEMENT Concrete
 type AStatement = STATEMENT Abstract
-type COpPattern = OPPATTERN Concrete
-type AOpPattern = OPPATTERN Abstract
-type COperator = OPERATOR Concrete
-type AOperator = OPERATOR Abstract
-type CPattern = PATTERN Concrete
-type APattern = PATTERN Abstract
 
-instance Display Mode where
-  type DisplayEnv Mode = ()
+instance (Show a, Unelab a, Pretty (Unelabed a)) => Display (Mode a) where
+  type DisplayEnv (Mode a) = UnelabEnv a
   display = viaPretty
 
-instance (Show t, Unelab t, Pretty (Unelabed t)) =>
-  Display (ContextStack t) where
-  type DisplayEnv (ContextStack t) = UnelabEnv t
+instance (Show k, Show v, Unelab k, Unelab v, UnelabEnv k ~ UnelabEnv v, Pretty (Unelabed k), Pretty (Unelabed v)) =>
+  Display (ContextStack k v) where
+  type DisplayEnv (ContextStack k v) = UnelabEnv k
   display = viaPretty
 
-instance (Show t, Unelab t, Pretty (Unelabed t)) =>
-  Display (Protocol t) where
-  type DisplayEnv (Protocol t) = UnelabEnv t
+instance Display AProtocol where
+  type DisplayEnv AProtocol = Naming
   display = viaPretty
 
 instance Pretty CStatement where
@@ -133,7 +140,7 @@ instance Pretty CCommand where
                                                      , prettyCds posts]
     Go a -> keyword "exec" <+> pretty a
     Trace ts -> keyword "trace" <+> collapse (BracesList $ map pretty ts)
-
+    Typecheck t ty -> keyword "typecheck" <+> pretty t <+> ":" <+> pretty ty
 
 instance Unelab ACommand where
   type UnelabEnv ACommand = Naming
@@ -145,12 +152,13 @@ instance Unelab ACommand where
     ContractJudge pres stm posts -> ContractJudge <$> traverse subunelab pres <*> subunelab stm
                                     <*> traverse subunelab posts
     DeclSyntax s -> DeclSyntax . map (first (WithRange unknown)) <$> traverse (traverse unelab) s
-    DeclStack stk stkTy -> DeclStack <$> subunelab stk <*> traverse unelab stkTy
+    DeclStack stk stkTy -> DeclStack <$> subunelab stk <*> unelab stkTy
     ContractStack pres (stk, lhs, rhs) posts -> ContractStack <$> traverse subunelab pres
                                                 <*> fmap (, lhs, rhs) (subunelab stk)
                                                 <*> traverse subunelab posts
     Go a -> Go <$> withEnv initDAEnv (unelab a)
     Trace ts -> pure $ Trace ts
+    Typecheck t ty -> Typecheck <$> unelab t <*> unelab ty
 
 instance Unelab AStatement where
   type UnelabEnv AStatement = ()
@@ -162,13 +170,7 @@ instance Display ACommand where
   display = viaPretty
 
 pmachinestep :: Parser MachineStep
-pmachinestep =
-  MachineRecv <$ plit "recv"
-  <|> MachineSend <$ plit "send"
-  <|> MachineExec <$ plit "exec"
-  <|> MachineMove <$ plit "move"
-  <|> MachineUnify <$ plit "unify"
-  <|> MachineBreak <$ plit "break"
+pmachinestep = asum $ map (\ s -> s <$ plit (render $ pretty s)) [minBound..maxBound]
 
 pjudgeat :: Parser (Variable, (), Variable)
 pjudgeat = (,,) <$> pvariable <*> ppunc "@" <*> pvariable
@@ -182,20 +184,6 @@ pstatement = Statement <$> pvariable <*> many (id <$ pspc <*> pvariable)
 pconditions :: Parser [CStatement]
 pconditions = pcurlies (psep (ppunc ",") pstatement)
 
-poperator :: Parser a -> Parser (WithRange String, [a])
-poperator ph =
-  (,[]) <$> pwithRange patom
-  <|> (,) <$ pch (== '[') <* pspc <*> pwithRange patom <*> many (id <$ pspc <*> ph) <* pspc <* pch (== ']')
-
-panoperator :: Parser CAnOperator
-panoperator = do
-  obj <- psyntaxdecl
-  ppunc "-"
-  (opname, params) <- poperator psyntaxdecl
-  ppunc "~>"
-  ret <- psyntaxdecl
-  pure (AnOperator opname obj params ret)
-
 pcommand :: Parser CCommand
 pcommand
     = DeclJudge <$> pextractmode <*> pvariable <* ppunc ":" <*> pprotocol
@@ -208,8 +196,9 @@ pcommand
                     <* pspc <*> pconditions
   <|> Go <$ plit "exec" <* pspc <*> pACT
   <|> Trace <$ plit "trace" <*> pcurlies (psep (ppunc ",") pmachinestep)
-  <|> DeclOp <$ plit "operator" <*> pcurlies (psep (ppunc ";") panoperator)
-  <|> DefnOp <$> ((,,) <$> ppat <*> some (ppunc "-" *> poperator ppat) <* ppunc "~>" <*> pTM)
+  <|> OpBlock <$ plit "operator"
+              <*> pcurlies (psep (ppunc ";") (DeclOp <$> panoperator <|> DefnOp <$> pdefnop))
+  <|> Typecheck <$ plit "typecheck" <* pspc <*> pTM <* ppunc ":" <*> pTM
 
 pfile :: Parser [CCommand]
 pfile = id <$ pspc <*> psep pspc pcommand <* pspc
@@ -263,21 +252,33 @@ globals = (,) <$> asks declarations <*> asks operators
 setGlobals :: Globals -> Context -> Context
 setGlobals (decls, ops) = setDecls decls . setOperators ops
 
-sdeclOps :: [CAnOperator] -> Elab ([AAnOperator], Globals)
-sdeclOps [] = ([],) <$> asks globals
-sdeclOps ((AnOperator (WithRange r opname) objDesc paramDescs retDesc) : ops) = do
+sdeclOp :: CAnOperator -> Elab (AAnOperator, Globals)
+-- (objName : objDescPat) -[ opname (p0 : paramDesc0) ... ] : retDesc
+-- e.g.
+-- 1. (p : ['Sig a \x.b]) -[ 'snd ]         : {x = p -[ 'fst ]} b
+-- 2. (f : ['Pi a \x.b])  -[ 'app (t : a) ] : {x = t} b
+-- 3. (n : 'Nat)
+--      -[ 'rec ('Nat\m.          p  : 'Semantics)
+--              (                 pZ : {m = 'Zero} p)
+--              ('Nat\m. {m}p\ih. pS : {m = ['Succ m]} p)
+--       ] : {m = n} p
+sdeclOp (AnOperator (objBinder, objDescPat) (WithRange r opname) paramDescs retDesc) = do
   opname <- do
     ctxt <- ask
     when (Map.member opname (operators ctxt)) $
-      throwError (AlreadyDeclaredOperator r opname)
+      throwComplaint r (AlreadyDeclaredOperator opname)
     pure (Operator opname)
   syndecls <- gets (Map.keys . syntaxCats)
-  objDesc <- ssyntaxdesc syndecls objDesc
-  paramDescs <- traverse (ssyntaxdesc syndecls) paramDescs
-  retDesc <- ssyntaxdesc syndecls retDesc
-  let op = AnOperator opname objDesc paramDescs retDesc
-  (ops, decls) <- local (addOperator op) $ sdeclOps ops
-  pure (op : ops, decls)
+  objBinder <- traverse isFresh objBinder
+  let objName = ActorMeta ACitizen <$> objBinder
+  ovs <- asks objVars
+  sem <- satom "Semantics"
+  (descPat, ds, objDesc) <- spatSemantics0 sem objDescPat
+  op <- local (declare objBinder (ActVar IsNotSubject (ovs :=> objDesc)) . setDecls ds) $ do
+    (paramDescs, ds) <- sparamdescs paramDescs
+    retDesc <- local (setDecls ds) $ sty retDesc
+    pure $ AnOperator (objName, descPat) opname paramDescs retDesc
+  local (addOperator op) $ (op,) <$> asks globals
 
 scommand :: CCommand -> Elab (ACommand, Globals)
 scommand = \case
@@ -320,29 +321,114 @@ scommand = \case
     (ContractStack pres (stk, lhs, rhs) posts,) <$> asks globals
   Go a -> during ExecElaboration $ (,) . Go <$> local (setElabMode Execution) (sact a) <*> asks globals
   Trace ts -> (Trace ts,) <$> asks globals
-  DeclOp ops -> first DeclOp <$> sdeclOps ops
-  DefnOp (p, opargs, rhs) -> do
-    ((p, opargs), ret, decls, hints) <- do
-      -- this is the op applied to the object, not the outer op being extended
-      let op = fst (head opargs)
-      (AnOperator op obj _ ret) <- soperator op
-      (mr1, p, decls, hints) <- spat (Term unknown obj) p
-      (opargs, decls, hints) <- local (setDecls decls . setHints hints) $
-                                sopargs obj opargs
-      pure ((p, opargs), ret, decls, hints)
-    rhs <- local (setDecls decls . setHints hints) $ stm DontLog ret rhs
-    -- this is the outer op being extended
-    let op = fst (last opargs)
---    trace (unwords [getOperator op, "-[", '\'':show p, show opargs, "~>", show rhs]) (pure ())
-    let cl = Clause (toClause p (B0 <>< opargs) rhs)
-    (DefnOp (op, cl),) <$> asks globals
+  Typecheck t ty -> do
+    ty <- sty ty
+    t <- stm DontLog ty t
+    g <- asks globals
+    pure (Typecheck t ty, g)
 
+  -- Sig S \x.T - 'fst ~> S
+  -- (p : Sig S \x.T) - 'snd ~> {x=[ p - 'fst ]}T
+  OpBlock ops -> first OpBlock <$> sopBlock ops
+
+sopBlock :: [OPENTRY Concrete] -> Elab ([OPENTRY Abstract], Globals)
+sopBlock [] = ([],) <$> asks globals
+sopBlock (DefnOp (rp, opelims@((rpty,_,_):_), rhs) : rest) = do
+  -- p : pty0 -[ opelim0 ] : pty1 -[ opelim1 ] ... : ptyn -[ opelimn ] ~> rhs
+  (p, opelimz, decls, lhsTy) <- sopelims0 (getRange rp <> getRange rpty) rp opelims
+  rhs <- local (setDecls decls) $ stm DontLog lhsTy rhs
+  -- this is the outer op being extended
+  let op = case opelimz of (_ :< (_, op, _)) -> op
+  let cl = toClause p opelimz rhs
+  (bl , gl) <- sopBlock rest
+  pure (DefnOp (op, cl) : bl, gl)
+sopBlock (DeclOp op : rest) = do
+  (op, gl) <- sdeclOp op
+  (bl, gl) <- local (setGlobals gl) $ sopBlock rest
+  pure (DeclOp op : bl, gl)
+
+sopelims0 :: Range
+          -> RawP
+          -> [(RawP, OPERATOR Concrete, [RawP])]
+          -> Elab (Pat, Bwd (Pat, OPERATOR Abstract, [Pat]), Decls, ASemanticsDesc)
+sopelims0 r = sopelims r B0 . Left
+
+sopelims :: Range
+         -> Bwd (Pat, OPERATOR Abstract, [Pat])
+         -> Either RawP (Pat, (ASemanticsDesc, ACTm))
+         -> [(RawP, OPERATOR Concrete, [RawP])]
+         -> Elab (Pat, Bwd (Pat, OPERATOR Abstract, [Pat]), Decls, ASemanticsDesc)
+sopelims r opelimz (Right (p, (inty, t))) [] = (p,opelimz,,inty) <$> asks declarations
+sopelims r opelimz acc ((rpty, op, args):opelims) = do
+  -- We need to worry about freshening up names in operator
+  -- declarations when checking definitions to avoid clashes
+  (AnOperator (mb, opat) opName pdescs rdesc) <- freshenOp =<< soperator op
+  sem <- satom "Semantics"
+  (pty, decls, inty) <- spatSemantics0 sem rpty
+  (decls, (p,(inty, t))) <- local (setDecls decls) $ case acc of
+    Left rp -> do
+      (p, decls, t) <- spatSemantics0 inty rp
+      pure (decls, (p, (inty, t)))
+    Right x -> do
+      -- TODO: check that the type in x matches pty
+      pure (decls, x)
+
+  -- TODO: check that pty is compatible with opat
+  dat <- matchObjType r (mb, opat) (t, inty)
+  let r' = getRange op <> foldMap getRange args
+  local (setDecls decls . setHeadUpData dat) $ do
+    ((outty, decls), (pargs, args)) <- spats r' (getOperator opName) pdescs args rdesc
+    local (setDecls decls) $ do
+        let acc = Right (p, (outty, rad t inty -% (getOperator opName, args)))
+        sopelims (r <> r') (opelimz :< (pty, opName, pargs)) acc opelims
+
+  where
+
+
+    -- cf. sparam
+    sparamSemantics :: Binder ActorMeta
+                    -> Bwd String
+                    -> Telescopic ASemanticsDesc
+                    -> RawP
+                    -> Elab ((Pat, ACTm), Decls, HeadUpData' ActorMeta)
+    sparamSemantics binder namez (Stop pdesc) rp = do
+      (p, decls, t) <- spatSemantics0 pdesc rp
+      dat <- do
+        dat <- asks headUpData
+        pure $ case binder of
+          Unused _ -> dat
+          Used v  ->
+           let env = huEnv dat
+               env' = newActorVar v (namez <>> [], t) env
+           in dat {huEnv = env'}
+      pure ((p, t), decls, dat)
+    sparamSemantics binder namez
+      (Tele desc (Scope (Hide name) tele))
+      (LamP r (Scope (Hide x) rp)) =
+      elabUnder (x, desc) $ sparamSemantics binder (namez :< name) tele rp
+
+    -- cf. itms
+    spats :: Range
+          -> String
+          -> [(Binder ActorMeta, ASOT)]
+          -> [CPattern]
+          -> ASemanticsDesc
+          -> Elab ((ASemanticsDesc, Decls), ([APattern], [ACTm]))
+    spats r op [] [] rdesc = (,([], [])) <$> ((,) <$> instantiateDesc r rdesc <*> asks declarations)
+    spats r op ((binder, sot) : bs) (rp:rps) rdesc = do
+      (ovs :=> desc) <- instantiateSOT (getRange rp) sot
+      ((p, t), decls, dat) <- sparamSemantics binder B0 (discharge ovs desc) rp
+      local (setDecls decls . setHeadUpData dat) $
+        fmap (bimap (p:) (t:)) <$> spats r op bs rps rdesc
+    spats r op bs rps rdesc = throwComplaint r $ ArityMismatchInOperator op ((length bs) - (length rps))
+
+{-
 -- | sopargs desc cops
 -- | desc: description of the object the cops are applied to
 sopargs :: SyntaxDesc -> [COpPattern] -> Elab ([AOpPattern], Decls, Hints)
 sopargs desc [] = ([],,) <$> asks declarations <*> asks binderHints
 sopargs desc ((rop, args):xs) = do
-  (AnOperator op obj ps ret) <- soperator rop
+  (AnOperator obj op ps ret) <- soperator rop
   compatibleInfos (theRange rop) (Known desc) (Known obj)
   (args, decls, hints) <- splat (getRange rop <> foldMap getRange args) ps args
   (rest, decls, hints) <- local (setDecls decls . setHints hints) $ sopargs ret xs
@@ -358,14 +444,30 @@ sopargs desc ((rop, args):xs) = do
     r <- pure $ case (ds, ps) of
            ([], (_:_)) -> foldMap getRange ps
            _ -> r
-    throwError (InvalidOperatorArity r (theValue rop) ds ps)
+    throwComplaint r (InvalidOperatorArity (theValue rop) ds ps)
+-}
+
+freshenOp :: AAnOperator -> Elab AAnOperator
+freshenOp (AnOperator (mp, p) opName pdesc rdesc) = do
+  n <- gets clock
+  modify (\ st -> st { clock = 1+n })
+  let tick = ((show n ++) <$>)
+  let tickCdB = ((tick <$>) $^)
+  let tick' (ObjVars ovs :=> t) =
+        ObjVars (fmap (tickCdB <$>) ovs) :=> tickCdB t
+  pure $ AnOperator
+    { objDesc = (tick <$> mp, tick <$> p)
+    , opName
+    , paramsDesc = map (bimap (tick <$>) tick') pdesc
+    , retDesc = tickCdB rdesc
+    }
 
 soperator :: COperator -> Elab AAnOperator
 soperator (WithRange r tag) = do
   ops <- asks operators
   case Map.lookup tag ops of
-    Nothing -> throwError (NotAValidOperator r tag)
-    Just (obj, params, ret) -> pure (AnOperator (Operator tag) obj params ret)
+    Nothing -> throwComplaint r (NotAValidOperator tag)
+    Just anop -> pure anop
 
 scommands :: [CCommand] -> Elab [ACommand]
 scommands [] = pure []
@@ -374,8 +476,10 @@ scommands (c:cs) = do
   cs <- local (setGlobals ds) $ scommands cs
   pure (c:cs)
 
-elaborate :: [CCommand] -> Either (WithStackTrace Complaint) ([WithStackTrace Warning], [ACommand], SyntaxTable)
-elaborate ccs = evalElab $ do
+elaborate :: Options -> [CCommand]
+          -> Either (WithStackTrace (WithRange Complaint))
+                    ([WithStackTrace (WithRange Warning)], [ACommand], SyntaxTable)
+elaborate opts ccs = evalElab opts $ do
   acs <- scommands ccs
   st <- get
   pure (warnings st <>> [], acs, syntaxCats st)
@@ -392,5 +496,10 @@ run opts p@Process{..} (c : cs) = case c of
   Trace xs -> let trac = guard (not $ quiet opts) >> fromMaybe (xs ++ tracing p) (tracingOption opts)
                   newOpts = opts { tracingOption = Just trac }
               in run newOpts (p { options = newOpts }) cs
-  DefnOp (op, cl) -> run opts (p { stack = stack :< Extended op cl }) cs
+  OpBlock ops ->
+    let clauses = flip concatMap ops $ \case
+          DefnOp (op, cl) -> [Extended op cl]
+          DeclOp{} -> [] in
+    let stack' = stack <>< clauses in
+    run opts (p { stack = stack' }) cs
   _ -> run opts p cs

@@ -7,9 +7,10 @@ import Control.Monad (when, ap)
 import Data.Bifunctor (first, bimap)
 import Data.Char (isSpace, isAlphaNum, isAlpha, isDigit)
 import Data.Function (on)
+import Data.These (These(..))
 
 import Bwd (Bwd(..),(<><), unzipWith, nub, (<>>))
-import Location (Location, HasRange, WithRange(WithRange), tick, ticks, addRange, unknown)
+import Location (Location, HasSetRange, WithRange(WithRange), tick, ticks, addRange, unknown)
 import System.IO.Unsafe (unsafePerformIO)
 import System.Exit (exitFailure)
 import Data.List (intercalate)
@@ -127,7 +128,7 @@ desc <!> p = Parser $ \ src ->
 plit :: String -> Parser ()
 plit cs = Expected ("'" ++ cs ++ "'") <!> mapM_ (pch . (==)) cs
 
--- | Returns whether a comment was found, and leave lots of 
+-- | Returns whether a comment was found, and leave lots of
 -- information about the comment in the location
 pcom :: Parser Bool
 pcom = Parser $ \ i@(Source str loc) -> here $ case str of
@@ -260,7 +261,7 @@ ploc = Parser $ \ i@(Source str loc) -> here (loc, i)
 
 -- | Given a parser of things that have ranges, make sure
 -- to reify those when parsing.
-withRange :: HasRange t => Parser t -> Parser t
+withRange :: HasSetRange t => Parser t -> Parser t
 withRange p = do
    start <- ploc
    x <- p
@@ -315,12 +316,22 @@ class Lisp t where
   mkCons :: t -> t -> t
   pCar   :: Parser t
 
--- Parse a lispy language, with an optional transformer
-plisp :: (Lisp t, HasRange t) => Parser t
+-- | Parse a lispy language, with an optional transformer
+plisp :: (Lisp t, HasSetRange t) => Parser t
 plisp = withRange $
   mkNil <$ plit "]"
   <|> id <$ plit "|" <* pspc <*> pCar <* pspc <* plit "]"
   <|> mkCons <$> pCar <* pspc <*> plisp
+
+-- | Attempt to parse an input as two things
+pthese :: Parser a -> Parser b -> Parser (These a b)
+pthese pa pb = Parser $ \ i -> case (parser pa i, parser pb i) of
+  ((c, [(a, rest)]), (_, [])) -> (c, [(This a, rest)])
+  ((_, []), (c, [(b, rest)])) -> (c, [(That b, rest)])
+  ((c1, [(a, rest1)]), (c2, [(b, rest2)])) | location rest1 == location rest2 ->
+    (c1 <> c2, [(These a b, rest1)])
+  ((c1, as), (c2, bs)) -> (c1 <> c2, [ (This a, rs) | (a, rs) <- as] ++ [ (That b, rs) | (b, rs) <- bs])
+
 {-
 plisp :: (Lisp t, HasRange t) => Maybe (Parser t -> Parser t) -> Parser t
 plisp tr = maybe (doit id) (doit) tr

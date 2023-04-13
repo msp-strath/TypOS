@@ -15,7 +15,7 @@ import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
 
 import ANSI (Colour(..), Layer(..), Annotation(..))
-import Actor (JudgementForm)
+import Actor (JudgementName)
 import Bwd (Bwd(..), (<>>), (<><))
 import Concrete.Base
 import Concrete.Pretty()
@@ -23,11 +23,14 @@ import Format
 import LaTeX
 import Location (unknown)
 import Machine.Base
+import Operator.Eval
 import Options
 import Pretty
 import Syntax (SyntaxDesc, SyntaxTable, expand, VSyntaxDesc'(..), contract)
+import Semantics (embed)
 import Term.Base
-import Unelaboration
+import Unelaboration.Monad
+import Unelaboration ()
 import Data.String (fromString)
 import Data.Functor ((<&>))
 
@@ -55,8 +58,8 @@ type instance ITERM Abstract = Term
 type instance ITERM Concrete = Raw
 
 data ARGUMENT (ph :: Phase) f ann = Argument
-  { argMode :: Mode
-  , argDesc :: SyntaxDesc
+  { argMode :: Mode ()
+  , argDesc :: ASemanticsDesc
   , argTerm :: f (ITERM ph) ann
   }
 
@@ -85,8 +88,8 @@ instance Bifunctor f => Instantiable (AArgument f ann) where
 data STEP (ph :: Phase) f ann
   = BindingStep Variable
   | NotedStep
-  | PushingStep (STACK ph) (TERMVAR ph) (SyntaxDesc, f (ITERM ph) ann)
-  | CallingStep (f () (ann, Bool)) (JUDGEMENTFORM ph) [ARGUMENT ph f ann]
+  | PushingStep (STACK ph) (TERMVAR ph) (ASemanticsDesc, f (ITERM ph) ann)
+  | CallingStep (f () (ann, Bool)) (JUDGEMENTNAME ph) [ARGUMENT ph f ann]
 
 deriving instance
   ( Functor (f (ITERM ph))
@@ -284,10 +287,10 @@ instance Bitraversable f => Unelab (ATrace f ann) where
 instance Pretty (CArgument Simple ()) where
   pretty (Argument m _ t) = withANSI [ SetColour Background bg, SetColour Foreground fg ] (pretty t) where
     (bg, fg) = pick m
-    pick :: Mode -> (Colour, Colour) -- background, foreground
-    pick Input   = (Blue, White)
-    pick Subject = (White, Blue)
-    pick Output  = (Red, White)
+    pick :: Mode a -> (Colour, Colour) -- background, foreground
+    pick Input       = (Blue, White)
+    pick (Subject _) = (White, Blue)
+    pick Output      = (Red, White)
 
 instance Pretty (CStep Simple ()) where
   pretty = \case
@@ -320,14 +323,14 @@ instance AnnotateLaTeX () where
 instance AnnotateLaTeX Int where
   annotateLaTeX n d = call False (fromString ("visible<" ++ show n ++ "->")) [d]
 
-instance (LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ SyntaxDesc) =>
+instance (LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ ASemanticsDesc) =>
          LaTeX (CArgument f ann) where
   type Format (CArgument f ann) = ()
   toLaTeX _ (Argument m d t) = do
     t <- toLaTeX d t
     pure $ call False (fromString $ "typos" ++ show m) [t]
 
-instance ( LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ SyntaxDesc
+instance ( LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ ASemanticsDesc
          , LaTeX (f () (ann, Bool)), LaTeX.Format (f () (ann, Bool)) ~ ()) =>
          LaTeX (CStep f ann) where
   type Format (CStep f ann) = ()
@@ -357,7 +360,7 @@ instance LaTeX CError where
       pure $ call False "typosStuckUnifying" [s, t]
     Failed s -> call False "typosFailed" . pure <$> toLaTeX () s
 
-instance ( LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ SyntaxDesc
+instance ( LaTeX (f Raw ann), LaTeX.Format (f Raw ann) ~ ASemanticsDesc
          , LaTeX (f () (ann, Bool)), LaTeX.Format (f () (ann, Bool)) ~ ()
          , AnnotateLaTeX ann) => LaTeX (CTrace f ann) where
   type Format (CTrace f ann) = ()
@@ -406,14 +409,14 @@ extract mkF a = go where
       Node a (AStep extractionMode
              $ CallingStep  (mkF () (a, isDone (store p)))
                  judgeName
-                 (zipWith toArgument judgeProtocol (traffic <>> [])))
+                 (zipWith toArgument (getProtocol judgeProtocol) (traffic <>> [])))
                  (go fs)
       : go (stack p) ++ findFailures p
     Spawner Interface{..} -> let p = fst spawnee in
       Node a (AStep extractionMode
              $ CallingStep (mkF () (a, isDone (store p)))
                   judgeName
-                  (zipWith toArgument judgeProtocol (traffic <>> [])))
+                  (zipWith toArgument (getProtocol judgeProtocol) (traffic <>> [])))
                   (go (stack p)
                   ++ findFailures p)
       : go fs
@@ -423,8 +426,10 @@ extract mkF a = go where
     Noted -> Node a (AStep AlwaysExtract NotedStep) [] : go fs
     _ -> go fs
 
-  toArgument :: (Mode, SyntaxDesc) -> Term -> AArgument f ann
-  toArgument (mode, desc) term = Argument mode desc (mkF term a)
+  toArgument :: AProtocolEntry -> Term -> AArgument f ann
+  toArgument (Subject desc, _) term = Argument (Subject ()) (embed 0 desc) (mkF term a) --- TOOD: Fix embed call
+  toArgument (Input, desc) term = Argument Input desc (mkF term a)
+  toArgument (Output, desc) term = Argument Output desc (mkF term a)
 
   findFailures :: Process log Status [] -> [ATrace f ann]
   findFailures p@Process{..}
@@ -440,7 +445,7 @@ cleanup :: [ATrace f ann] -> [ATrace f ann]
 cleanup = snd . go False [] where
 
   go :: Bool            -- ^ is the parent suppressable?
-     -> [JudgementForm] -- ^ list of toplevel judgements already seen
+     -> [JudgementName] -- ^ list of toplevel judgements already seen
      -> [ATrace f ann] -> (Any, [ATrace f ann])
   go supp seen [] = pure []
   go supp seen (Node a (AStep em i@(CallingStep b jd tr)) ts : ats)
@@ -502,7 +507,7 @@ syntaxPreamble table = concatMap (pure . render)
 
 
 judgementPreamble :: Frame -> [Doc ()]
-judgementPreamble (Rules jd jp _)
+judgementPreamble (Rules jd (Protocol jp) _)
   = [text $ mkNewCommand ("calling" ++ jd) (length jp)
           $ "\\textsc{" ++ jd ++ "}" ++ unwords (nArgs (length jp))
     ]
@@ -512,7 +517,7 @@ ldiagnostic :: SyntaxTable -> HeadUpData -> [Frame] -> String
 ldiagnostic table dat fs =
   let ats = cleanup $ extract Simple () fs in
   let iats = normalise dat ats in
-  ldiagnostic' standalone table fs iats
+  undefined --TODO!!!: ldiagnostic' standalone table fs iats
 
 adiagnostic :: SyntaxTable -> HeadUpData -> [Frame] -> Shots -> String
 adiagnostic table dat fs trs =
@@ -529,7 +534,7 @@ adiagnostic table dat fs trs =
         --    with its position in the sorted array.
         fmap (\ i -> fromMaybe (error "Impossible") (elemIndex i as)) at
   -- we can now render the beamer
-  in ldiagnostic' beamer table fs res
+  in undefined -- TODO!!!: ldiagnostic' beamer table fs res
 
 data LaTeXConfig = LaTeXConfig
   { documentClass :: String
@@ -556,7 +561,7 @@ beamer = LaTeXConfig
 ldiagnostic' :: AnnotateLaTeX ann
              => Bitraversable f
              => LaTeX (f Raw ann)
-             => LaTeX.Format (f Raw ann) ~ SyntaxDesc
+             => LaTeX.Format (f Raw ann) ~ ASemanticsDesc
              => LaTeX (f () (ann, Bool))
              => LaTeX.Format (f () (ann, Bool)) ~ ()
              => LaTeXConfig
@@ -640,7 +645,7 @@ combineArg (Argument mode0 desc0 term0) (Argument mode1 desc1 term1)
   | otherwise = error "Impossible"
 
 combineStep :: Eq (STACK ph)
-            => Eq (JUDGEMENTFORM ph)
+            => Eq (JUDGEMENTNAME ph)
             => Eq (TERMVAR ph)
             => STEP ph Simple ann
             -> STEP ph Series ann

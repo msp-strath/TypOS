@@ -20,8 +20,10 @@ import Machine.Steps
 import Pretty
 import Term
 import Term.Display ()
-import Unelaboration (DAEnv, initDAEnv, Naming, nameOn, initNaming)
+import Unelaboration.Monad (Naming, nameOn, initNaming)
+import Unelaboration (DAEnv, initDAEnv)
 import qualified Unelaboration as A
+import Operator.Eval (StoreF (..))
 
 instance Display Date where
   type DisplayEnv Date = ()
@@ -57,7 +59,7 @@ instance Forget DEnv DEnv where
   forget = id
 
 initChildDEnv :: Channel -> DEnv -> DEnv
-initChildDEnv ch de = de { daEnv = A.declareChannel ch $ initDAEnv }
+initChildDEnv ch de = de { daEnv = A.declareChannel ch initDAEnv }
 
 declareChannel :: Channel -> DEnv -> DEnv
 declareChannel ch de@DEnv{..} = de { daEnv = A.declareChannel ch daEnv }
@@ -71,8 +73,7 @@ instance ( Display c, Forget DEnv (DisplayEnv c)
     pch' <- subdisplay pch
     p <- local (declareChannel pch) $ subdisplay p
     pure $ hang 1 c
-         $ hang 1 (hsep [ "@", cch', pipe, pch', collapse (pretty <$> xs), "@"])
-         $ p
+         $ hang 1 (hsep [ "@", cch', pipe, pch', collapse (pretty <$> xs), "@"]) p
 
 instance Display Frame where
   type DisplayEnv Frame = DEnv
@@ -141,7 +142,7 @@ displayProcess' Process{..} = do
       put (de `frameOn` f)
       pure dis
 
-type Store = StoreF Naming
+type Store = StoreF Naming Date
 
 instance Display Store where
   type DisplayEnv Store = ()
@@ -181,8 +182,7 @@ frDisplayEnv = foldl frameOn initDEnv
 
 insertDebug :: (Traversable t, Collapse t, Display0 s)
             => Process log s t -> [Format dir Debug a] -> [Format dir (Doc Annotations) a]
-insertDebug p fmt = map go fmt where
-
+insertDebug p = map go where
   (fs, st, en, _) = unsafeEvalDisplay initDEnv (displayProcess' p)
   go = \case
     TermPart d t -> TermPart d t

@@ -1,87 +1,55 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ExistentialQuantification #-}
-
+{-# LANGUAGE UndecidableInstances #-}
 module Machine.Base where
 
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Maybe
+import Data.Maybe (fromMaybe)
 import Control.Monad.State
 
 import Actor
 import Actor.Display()
 
 import Bwd
+import Vector
 import Format
 import Options
 import Term
 import qualified Term.Substitution as Substitution
 import Thin
-import Concrete.Base (Root, Guard, ExtractMode, ACTOR (..), Operator(..))
-import Syntax (SyntaxDesc)
+import Concrete.Base
 import Data.Bifunctor (Bifunctor(first))
 
 import Machine.Steps
 import Machine.Matching
 import Debug.Trace (trace)
-import Display (unsafeDocDisplayClosed)
+import Display (unsafeDocDisplay)
 import ANSI hiding (withANSI)
 import Pretty
+import Operator
+import Operator.Eval
+import Unelaboration.Monad (Naming)
+
 
 newtype Date = Date Int
   deriving (Show, Eq, Ord, Num)
 
--- | i stores extra information, typically a naming
-data StoreF i = Store
-  { solutions :: Map Meta (i, Maybe Term)
-  , guards :: Map Guard (Set Guard) -- key is conjunction of values; acyclic!
-  , today :: Date
-  } deriving (Show)
-
-initStore :: StoreF i
+initStore :: StoreF i Date
 initStore = Store Map.empty Map.empty 0
 
-tick :: StoreF i -> StoreF i
+tick :: StoreF i Date -> StoreF i Date
 tick st@Store{..} = st { today = today + 1 }
 
-declareMeta :: Meta -> i -> StoreF i -> StoreF i
+declareMeta :: Meta -> i -> StoreF i d -> StoreF i d
 declareMeta m i st@Store{..} = st
   { solutions = Map.insert m (i, Nothing) solutions }
 
-updateStore :: Meta -> Term -> StoreF i -> StoreF i
+updateStore :: Meta -> Term -> StoreF i Date -> StoreF i Date
 updateStore m t st@Store{..} = tick $ st
   { solutions = Map.adjust (Just t <$) m solutions }
-
-defineGuard :: Guard -> Set Guard -> StoreF i -> StoreF i
-defineGuard g gs = execState (compressGuards g gs)
-
-compressGuards :: Guard -> Set Guard -> State (StoreF i) (Set Guard)
-compressGuards g gs = do
-  gs <- foldMap (\ g -> fromMaybe (Set.singleton g) <$> dependencySetCompression g) gs
-  modify (\ st -> st { guards = Map.insert g gs (guards st) })
-  pure gs
-
-dependencySetCompression :: Guard -> State (StoreF i) (Maybe (Set Guard))
-dependencySetCompression g = do
-  gtable <- gets guards
-  case Map.lookup g gtable of
-    Nothing -> pure Nothing
-    Just gs -> Just <$> compressGuards g gs
-
-dependencySet :: StoreF i -> Guard -> Set Guard
-dependencySet st@Store{..} g = case Map.lookup g guards of
-  Nothing -> Set.singleton g
-  Just gs -> foldMap (dependencySet st) gs
-
-data HeadUpData = forall i. HeadUpData
-  { opTable :: Operator -> Clause
-  , metaStore :: StoreF i
-  , huOptions :: Options
-  , huEnv :: Env
-  }
 
 mkOpTable :: Bwd Frame -> Operator -> Clause
 mkOpTable _ (Operator "app") = appClause
@@ -90,30 +58,21 @@ mkOpTable fs op = flip foldMap fs $ \case
   Extended op' cl | op == op' -> cl
   _ -> mempty
 
--- Expanding the term using the information currently available:
--- + meta solutions
--- + operator clauses
-headUp :: HeadUpData -> Term -> Term
-headUp dat@HeadUpData{..} term = case expand term of
-  m :$: sg | Just (_, Just t) <- Map.lookup m (solutions metaStore)
-    -> headUp dat (t //^ sg)
-  t :-: o -> case expand o of
-    AX op i -> operate (Operator op) (t, [])
-    o@(CdB (A op) th :%: wargs) ->
-      case asList (\ ps -> pure $ operate (Operator op) (t, ps)) wargs of
-        Nothing -> contract (t :-: contract o)
-        Just t -> t
-    o -> contract (t :-: contract o)
-  GX g t -> if Set.null (dependencySet metaStore g) then headUp dat t else term
-  _ -> term
+defineGuard :: Guard -> Set Guard -> StoreF i d -> StoreF i d
+defineGuard g gs = execState (compressGuards g gs)
 
-  where
+compressGuards :: Guard -> Set Guard -> State (StoreF i d) (Set Guard)
+compressGuards g gs = do
+  gs <- foldMap (\ g -> fromMaybe (Set.singleton g) <$> dependencySetCompression g) gs
+  modify (\ st -> st { guards = Map.insert g gs (guards st) })
+  pure gs
 
-  operate :: Operator -> (Term, [Term]) -> Term
-  operate op tps = case runClause (opTable op) huOptions (headUp dat) huEnv tps of
-    Left (t, ps) -> t -% (getOperator op, ps)
-    Right t -> headUp dat t
-
+dependencySetCompression :: Guard -> State (StoreF i d) (Maybe (Set Guard))
+dependencySetCompression g = do
+  gtable <- gets guards
+  case Map.lookup g gtable of
+    Nothing -> pure Nothing
+    Just gs -> Just <$> compressGuards g gs
 
 compareUp :: HeadUpData -> Term -> Term -> Maybe Ordering
 compareUp dat s t = case (expand (headUp dat s), expand (headUp dat t)) of
@@ -142,12 +101,12 @@ comparesUp dat sg sg' = compareUp dat (toTerm sg) (toTerm sg') where
 
 class Instantiable t where
   type Instantiated t
-  instantiate :: StoreF i -> t -> Instantiated t
+  instantiate :: StoreF i d -> t -> Instantiated t
   normalise :: HeadUpData -> t -> Instantiated t
 
 class Instantiable1 t where
   type Instantiated1 t :: * -> *
-  instantiate1 :: StoreF i -> t a -> Instantiated1 t a
+  instantiate1 :: StoreF i d -> t a -> Instantiated1 t a
   normalise1 :: HeadUpData -> t a -> Instantiated1 t a
 
 instance Instantiable Term where
@@ -157,8 +116,9 @@ instance Instantiable Term where
     AX{}     -> term
     s :%: t  -> instantiate store s % instantiate store t
     s :-: t  -> contract (instantiate store s :-: instantiate store t)
+    s ::: t  -> contract (instantiate store s ::: instantiate store t)
     x :.: b  -> x \\ instantiate store b
-    m :$: sg -> case join $ fmap snd $ Map.lookup m (solutions store) of
+    m :$: sg -> case snd =<< Map.lookup m (solutions store) of
       Nothing -> m $: sg -- TODO: instantiate sg
       Just tm -> instantiate store (tm //^ sg)
     GX g t    -> contract (GX g (instantiate store t))
@@ -167,13 +127,14 @@ instance Instantiable Term where
     AX{}     -> tnf
     s :%: t  -> normalise dat s % normalise dat t
     s :-: t  -> contract (normalise dat s :-: normalise dat t)
+    s ::: t  -> contract (normalise dat s ::: normalise dat t)
     x :.: b  -> x \\ normalise dat b
     m :$: sg -> m $: sg -- TODO: instantiate sg
     GX g t   -> tnf -- don't compute under guards
 
 followDirectives :: (Show t, Instantiable t, Instantiated t ~ t)
        => HeadUpData -> Format Directive dbg t -> Format () dbg t
-followDirectives dat@(HeadUpData _ store _ _) = \case
+followDirectives dat@(HeadUpData _ store _ _ _) = \case
     TermPart Instantiate t -> TermPart () (instantiate store t)
     TermPart Normalise t -> TermPart () (normalise dat t)
     TermPart Raw t -> TermPart () t
@@ -192,7 +153,7 @@ data Hole = Hole deriving Show
 data Interface c p = Interface
   { spawnee :: (c, Channel)
   , spawner :: ((Channel, [String]), p)
-  , judgeName :: JudgementForm
+  , judgeName :: JudgementName
   , judgeProtocol :: AProtocol
   , extractionMode :: ExtractMode
   , traffic :: Bwd Term
@@ -223,30 +184,31 @@ unOp t = case expand t of
     pure (Operator op, ps)
   _ -> Nothing
 
-toClause :: Pat -> Bwd (Operator, [Pat]) -> ACTm
-         -> Options
-         -> (Term -> Term) -- head normaliser
-         -> Env
-         -> (Term, [Term]) -- object & parameters
-         -> Either (Term, [Term]) Term
-toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
-  let msg = \ result -> flush $ vcat
+toClause :: Pat -- (obj, ty), eg `['Pair p q] : ['Sigma A \x.B]`
+         -> Bwd (Pat, Operator, [Pat]) -- parameter patterns
+         -> ACTm -- RHS
+         -> Clause
+toClause pobj (ops :< op@(_, opname, _)) rhs = Clause $ toClause' where
+ toClause' :: forall m. AClause m
+ toClause' opts hnf env targs@((t, ty), args) =
+  let msg result = flush $ vcat
         [ hsep ( "Matching"
-               : withANSI [SetColour Background Green] (unsafeDocDisplayClosed opts t)
+               : withANSI [SetColour Background Green] (unsafeDocDisplay opts naming t)
                : "-"
-               : [let opdoc = pretty (getOperator (fst op)) in case args of
+               : [let opdoc = pretty (getOperator opname) in case args of
                       [] -> "'" <> opdoc
-                      _ -> "['" <> hsep (opdoc : map (unsafeDocDisplayClosed opts) args) <> "]"]
+                      _ -> "['" <> hsep (opdoc : map (unsafeDocDisplay opts naming) args) <> "]"]
                )
         , hsep ( "against"
-               : unsafeDocDisplayClosed opts pobj
-               : flip map (ops <>> [op]) (\ (Operator op, ps) -> "- " <> case ps of
+               : unsafeDocDisplay opts naming pobj
+               : flip map (ops <>> [op]) (\ (ty, Operator op, ps) -> hsep [":", unsafeDocDisplay opts naming ty, "- "] <> case ps of
                      [] -> "'" <> pretty op
-                     _ -> "['" <> hsep (pretty op : map (unsafeDocDisplayClosed opts) ps) <> "]")
+                     _ -> "['" <> hsep (pretty op : map (unsafeDocDisplay opts naming) ps) <> "]")
                )
-               <> " ~> " <> unsafeDocDisplayClosed opts rhs
+               <> " ~> " <> unsafeDocDisplay opts naming rhs
         , result ] in
-  let ((t, ts), res) = loop initMatching ops op targs in case res of
+
+  let ((t, ts), res) = loop env initMatching ops op targs in case res of
     Right mtch | Just val <- mangleActors opts (matchingToEnv mtch env) rhs
       -> whenClause opts (msg (withANSI [SetColour Background Green] "Success!")) $ pure val
       | otherwise -> whenClause opts (msg (withANSI [SetColour Background Red] "Failure")) $ Left (t, ts)
@@ -254,82 +216,72 @@ toClause pobj (ops :< op) rhs opts hnf env targs@(t, args) =
 
   where
 
+  naming :: Naming
+  naming = let scp = currentScope env in (scp, ones (length scp), scp)
+
   whenClause :: Options -> Doc Annotations -> a -> a
   whenClause opts doc a
     | MachineClause `elem` fromMaybe [] (tracingOption opts)
     = trace (renderWith (renderOptions opts) doc) a
     | otherwise = a
 
-  loop :: Matching
-       -> Bwd (Operator, [Pat])  -- left nested operators
-       -> (Operator, [Pat])      -- current operator OP in focus
-       -> (Term, [Term])         -- current term (t -['OP | ts]) already taken apart
-       -> ( (Term, [Term])       -- evaluated (t,ts)
-          , Either Failure Matching)
-  loop mtch ops (op, ps) (tops, tps) =
+  loop :: Env' m
+       -> Matching' m
+       -> Bwd (Pat, Operator, [Pat])  -- left nested operators: object type, operator, parameters
+       -> (Pat, Operator, [Pat])      -- current operator OP in focus
+       -> ((Term' m, Term' m), [Term' m]) -- current term (t : ty -['OP | ts]) already taken apart
+       -> ( ((Term' m, Term' m), [Term' m])       -- evaluated ((t, ty),ts)
+          , Either Failure (Matching' m))
+  loop env mtch ops (pObjDesc, op, ps) ((tops, topsDesc), tps) =
     -- match tops against the left-nested (pobj -- ops)
     -- we don't care about the tps yet
     let leftnested = case ops of
-          B0 -> match hnf mtch (Problem (localScope env) pobj tops)
+          B0 -> matchN hnf mtch (Problem (localScope env) pobj tops :*
+                                 Problem (localScope env) pObjDesc topsDesc :*
+                                 V0)
           -- leftops + lop to the left of the op currently in focus
-          (lops :< (lop, lps)) -> let topsnf = hnf tops in case expand topsnf of
-            (ltops :-: loptps) -> let loptpsnf = hnf loptps in case unOp loptpsnf of
-              Just (lop', ltps) | lop == lop' ->
-                case loop mtch lops (lop, lps) (ltops, ltps) of
-                  ((ltops, ltps), res) -> (ltops -% (getOperator lop, ltps), res)
-              _ -> (contract (ltops :-: loptpsnf), Left Mismatch) -- Careful: could be a stuck meta
-            _ -> (topsnf, Left (whenClause opts (unsafeDocDisplayClosed unsafeOptions topsnf <+> "not an operator application") Mismatch))
+          (lops :< lop@(_, lopname, _)) -> first (\ t -> t :* topsDesc :* V0) $ let topsnf = hnf tops in case expand topsnf of
+            (ltops :-: loptps) -> case expand ltops of
+              (ltops ::: ltopsDesc) -> let loptpsnf = hnf loptps in case unOp loptpsnf of
+                Just (lop', ltps) | lopname == lop' ->
+                  case loop env mtch lops lop ((ltops, ltopsDesc), ltps) of
+                    (((ltops, ltopsDesc), ltps), res) -> (rad ltops ltopsDesc -% (getOperator lopname, ltps), res)
+                _ -> (contract (rad ltops ltopsDesc :-: loptpsnf), Left Mismatch) -- Careful: could be a stuck meta
+              _ -> (topsnf, Left (whenClause opts (unsafeDocDisplay opts naming ltops <+> "not a radical") Mismatch))
+            _ -> (topsnf, Left (whenClause opts (unsafeDocDisplay opts naming topsnf <+> "not an operator application") Mismatch))
     in case leftnested of
-      (tops, Left err) -> ((tops, tps), Left err)
-      (tops, Right mtch) -> first (tops,) $ matches mtch ps tps
+      (tops :* topsTy :* V0, Left err) -> (((tops, topsTy), tps), Left err)
+      (tops :* topsTy :* V0, Right mtch) -> first ((tops, topsTy),) $ matches mtch ps tps
 
-  matches :: Matching -> [Pat] -> [Term] -> ([Term], Either Failure Matching)
+  matches :: Matching' m -> [Pat] -> [Term' m] -> ([Term' m], Either Failure (Matching' m))
   matches mtch [] [] = ([], pure mtch)
   matches mtch (p:ps) (t:ts) = case match hnf mtch (Problem (localScope env) p t) of
     (t, Left err) -> (t:ts, Left err)
     (t, Right mtch) -> first (t:) $ matches mtch ps ts
   matches mtch  _ ts = (ts, Left Mismatch)
 
-newtype Clause = Clause { runClause
-  :: Options
-  -> (Term -> Term) -- head normaliser
-  -> Env
-  -> (Term, [Term]) -- object & parameters
-  -> Either (Term, [Term]) Term }
-
-instance Semigroup Clause where
-  (<>) = mappend
-
-instance Monoid Clause where
-  mempty = Clause $ \ _ _ _ -> Left
-  mappend cl1 cl2 = Clause $ \ opts hd env ops -> case runClause cl2 opts hd env ops of
-    Left ops -> runClause cl1 opts hd env ops
-    Right t -> Right t
-
-instance Show Clause where
-  show _ = "<fun>"
 
 appClause :: Clause
-appClause = Clause $ \ opts hd env (t, args) ->
+appClause = Clause $ \ opts hd env ((t, ty), args) ->
   case args of
     [arg] -> case expand (hd t) of
       x :.: b -> Right (b //^ topSbst x arg)
-      t -> Left (contract t, args)
-    _ -> Left (t, args)
+      t -> Left ((contract t, ty), args)
+    _ -> Left ((t, ty), args)
 
 tickClause :: Clause
-tickClause = Clause $ \ opts hd env (t, args) -> case args of
+tickClause = Clause $ \ opts hd env ((t, ty), args) -> case args of
   []-> (if not (quiet opts) then trace "Tick" else id) $ Right t
-  _ ->  Left (t, args)
+  _ ->  Left ((t, ty), args)
 
 data Frame
-  = Rules JudgementForm AProtocol (Channel, AActor)
+  = Rules JudgementName AProtocol (Channel, AActor)
   | LeftBranch Hole (Process () Status [])
   | RightBranch (Process () Status []) Hole
   | Spawnee (Interface Hole (Process () Status []))
   | Spawner (Interface (Process () Status []) Hole)
   | Sent Channel (Maybe Guard) ([String], Term)
-  | Pushed Stack (DB, SyntaxDesc, Term)
+  | Pushed Stack (DB, ASemanticsDesc, Term)
   | Extended Operator Clause
   | Binding String
   | UnificationProblem Date Term Term

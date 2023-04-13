@@ -1,5 +1,6 @@
 module Term.Base where
 
+import qualified Data.Map as Map
 import Data.Traversable
 import Data.Void
 
@@ -7,10 +8,12 @@ import Bwd
 import Thin
 import Hide
 import Pretty (Pretty(..))
-
+import Location (Range)
 import Concrete.Base (Guard, Root)
 
-data Pairing = Cell | Oper
+import GHC.Stack
+
+data Pairing = Cell | Oper | Radi
   deriving (Show, Eq, Ord)
 
 data Tm m
@@ -57,8 +60,11 @@ compressedMeta (Meta ms) = go (B0 :< "?[") ms where
 instance Pretty Meta where
   pretty = pretty . compressedMeta
 
-type Term = CdB (Tm Meta)
-type Subst = CdB (Sbst Meta)
+type Term' m = CdB (Tm m)
+type Subst' m = CdB (Sbst m)
+
+type Term  = Term' Meta
+type Subst = Subst' Meta
 
 initRoot :: Root
 initRoot = (B0, 0)
@@ -124,7 +130,8 @@ sbstDom (sg :^^ w) = case sg of
  ST (CdB sg th :<>: t) -> sbstDom sg + 1 + w
 
 sbstSel
-  :: Th -- ga0 from ga
+  :: HasCallStack
+  => Th -- ga0 from ga
   -> Sbst m -- ga -> de
   -> CdB (Sbst m)
 sbstSel th (S0 :^^ w) = CdB (S0 :^^ weeEnd th) th -- w = bigEnd th
@@ -143,6 +150,7 @@ data Xn m
   | AX String Int -- how many free variables?
   | CdB (Tm m) :%: CdB (Tm m) -- pairing
   | CdB (Tm m) :-: CdB (Tm m) -- operator
+  | CdB (Tm m) ::: CdB (Tm m) -- radical
   | String :.: CdB (Tm m) -- abstraction
   | m :$: CdB (Sbst m) -- meta + sbst
   | GX Guard (CdB (Tm m))
@@ -154,6 +162,7 @@ expand (CdB t th) = case t of
   A a -> AX a (bigEnd th)
   P Cell (s :<>: t) -> (s *^ th) :%: (t *^ th)
   P Oper (s :<>: t) -> (s *^ th) :-: (t *^ th)
+  P Radi (s :<>: t) -> (s *^ th) ::: (t *^ th)
   (str := b) :. t -> unhide str :.: CdB t (th -? b)
   f :$ sg -> f :$: CdB sg th
   G g t -> GX g (CdB t th)
@@ -161,12 +170,13 @@ expand (CdB t th) = case t of
 (?:) :: CdB (Tm m) -> (Xn m -> a) -> a
 t ?: f = f (expand t)
 
-contract :: Xn m -> CdB (Tm m)
+contract :: HasCallStack => Xn m -> CdB (Tm m)
 contract t = case t of
   VX x ga -> CdB V (inx (x, ga))
   AX a ga -> CdB (A a) (none ga)
   s :%: t -> P Cell $^ (s <&> t)
   s :-: t -> P Oper $^ (s <&> t)
+  s ::: t -> P Radi $^ (s <&> t)
   x :.: CdB t th -> case thun th of
     (th, b) -> CdB ((Hide x := b) :. t) th
   m :$: sg -> (m :$) $^ sg
@@ -187,14 +197,16 @@ infixr 4 %
 (%) :: CdB (Tm m) -> CdB (Tm m) -> CdB (Tm m)
 s % t = contract (s :%: t)
 
+rad :: CdB (Tm m) -> CdB (Tm m) -> CdB (Tm m)
+rad s t = contract (s ::: t)
+
 infixl 4 -%
 (-%) :: CdB (Tm m) -> (String, [CdB (Tm m)]) -> CdB (Tm m)
 t -% (o, []) = contract (t :-: atom o (scope t))
 t -% (o, ps) = contract (t :-: (o #%+ ps))
 
 (#%) :: (String, Int) -> [CdB (Tm m)] -> CdB (Tm m)
-(a, ga) #% ts = uncurry CdB $ case foldr (%) (nil ga) ts of
-  CdB t th -> (P Cell (atom a ga :<>: CdB t (ones (weeEnd th))), th)
+(a, ga) #% ts = foldr (%) (nil ga) (atom a ga:ts)
 
 (#%+) :: String -> [CdB (Tm m)] -> CdB (Tm m)
 a #%+ ts = let ga = scope (head ts) in (a, ga) #% ts
@@ -249,13 +261,41 @@ asAtomOrTagged :: OrBust x => ((String, Int) -> x) -> ((String, Int) -> CdB (Tm 
 asAtomOrTagged atom tagged t = t ?: \case
   AX s n -> atom (s, n)
   x :%: xs -> ($ x) $ asAtom (`tagged` xs)
+  _ -> bust
 
 asList :: OrBust x => ([CdB (Tm m)] -> x) -> CdB (Tm m) -> x
 asList f = asNilOrCons (f []) (\ x -> asList (f . (x:)))
 
 infixr 3 \\
-(\\) :: String -> CdB (Tm m) -> CdB (Tm m)
-x \\ t = contract (x :.: t)
+
+class Dischargeable a where
+  (\\) :: String -> a -> a
+
+instance Dischargeable (CdB (Tm m)) where
+  x \\ t = contract (x :.: t)
+
+instance Dischargeable () where
+  x \\ t = t
+
+instance Dischargeable Range where
+  _ \\ r = r
+
+instance Dischargeable a => Dischargeable (Maybe a) where
+  x \\ t = (x \\) <$> t
+
+instance (Dischargeable a, Dischargeable b) => Dischargeable (a, b) where
+  x \\ (s, t) = (x \\ s, x \\ t)
+
+instance (Dischargeable a, Dischargeable b, Dischargeable c) => Dischargeable (a, b, c) where
+  x \\ (s, t, u) = (x \\ s, x \\ t, x \\ u)
+
+instance ( Dischargeable a, Dischargeable b
+         , Dischargeable c, Dischargeable d) =>
+         Dischargeable (a, b, c, d) where
+  x \\ (s, t, u, v) = (x \\ s, x \\ t, x \\ u, x \\ v)
+
+instance Dischargeable (Map.Map x v) where
+  _ \\ m = m
 
 infixr 5 $:
 ($:) :: m -> CdB (Sbst m) -> CdB (Tm m)

@@ -17,15 +17,16 @@ common haskell
                        FlexibleContexts,
                        FlexibleInstances,
                        GeneralizedNewtypeDeriving,
+                       LambdaCase,
                        MultiParamTypeClasses,
                        NamedFieldPuns,
+                       RankNTypes,
                        RecordWildCards,
                        ScopedTypeVariables,
                        StandaloneDeriving,
                        TupleSections,
                        TypeFamilies,
-                       TypeSynonymInstances,
-                       LambdaCase
+                       TypeSynonymInstances
 
 library
   import:              haskell
@@ -46,6 +47,7 @@ library
                        Forget,
                        Format,
                        Hide,
+                       Info,
                        LaTeX,
                        Location,
                        Machine,
@@ -56,12 +58,15 @@ library
                        Machine.Steps,
                        Machine.Trace,
                        Main,
+                       Operator,
+                       Operator.Eval,
                        Options,
                        Parse,
                        Pattern,
                        Pattern.Coverage,
                        Pretty,
                        Scope,
+                       Semantics,
                        Syntax,
                        Syntax.Debug,
                        Term,
@@ -70,6 +75,7 @@ library
                        Term.Mangler,
                        Term.Substitution,
                        Thin,
+                       Unelaboration.Monad,
                        Unelaboration,
                        Utils,
                        Vector
@@ -81,6 +87,7 @@ library
                      , optparse-applicative
                      , pretty-compact
                      , terminal-size
+                     , these
   hs-source-dirs:      Src
   default-language:    Haskell2010
   ghc-options:         -Wunused-imports

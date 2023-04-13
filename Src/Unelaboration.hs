@@ -9,8 +9,6 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Void
 
-import GHC.Stack
-
 import Actor
 import Bwd
 import Concrete.Base
@@ -19,66 +17,12 @@ import Format
 import Hide
 import Pattern
 import Scope
+import Syntax()
+import Semantics()
 import Term.Base
 import Thin
 import Location (unknown)
-
-type Naming =
-  ( Bwd String  -- what's in the support
-  , Th          -- and how that was chosen from
-  , Bwd String  -- what's in scope
-  )
-
-initNaming :: Naming
-initNaming = (B0, ones 0, B0)
-
-nameOn :: Naming -> String -> Naming
-nameOn (xz, th, yz) x = (xz :< x, th -? True, yz :< x)
-
-nameSel :: Th -> Naming -> Naming
-nameSel th (xz, ph, yz) = (th ?< xz, th <^> ph, yz)
-
-freshen :: String -> Naming -> String
-freshen x (xz, _, _) = head [y | y <- ys, all (y /=) xz] where
-  ys = x : [x ++ show (i :: Integer) | i <- [0..]]
-
-data Complaint = UnexpectedEmptyThinning Naming
-               | VarOutOfScope Naming
-               | InvalidNaming Naming
-               | UnknownChannel String
-  deriving (Show)
-
-newtype UnelabM e a = Unelab
-  { runUnelab :: (ReaderT e
-                  (Either Complaint))
-                  a }
-  deriving ( Functor, Applicative, Monad
-           , MonadError Complaint
-           , MonadReader e)
-
-withEnv :: e' -> UnelabM e' a -> UnelabM e a
-withEnv rh (Unelab md) = Unelab (withReaderT (const rh) md)
-
-evalUnelab :: e -> UnelabM e a -> Either Complaint a
-evalUnelab e (Unelab m) = runReaderT m e
-
-unsafeEvalUnelab :: e -> UnelabM e a -> a
-unsafeEvalUnelab e m = either (error . show) id $ evalUnelab e m
-
-withForget :: Forget e e' => UnelabM e' a -> UnelabM e a
-withForget (Unelab md) = Unelab (withReaderT forget md)
-
-class Unelab t where
-  type UnelabEnv t
-  type Unelabed t
-
-  unelab :: HasCallStack => t -> UnelabM (UnelabEnv t) (Unelabed t)
-
-
-subunelab :: (Unelab t, Forget e (UnelabEnv t)) => t -> UnelabM e (Unelabed t)
-subunelab = withForget . unelab
-
-type UnelabMeta m = (Unelab m, UnelabEnv m ~ (), Unelabed m ~ Variable)
+import Unelaboration.Monad
 
 instance UnelabMeta m => Unelab (CdB (Tm m)) where
   type UnelabEnv (CdB (Tm m)) = Naming
@@ -108,8 +52,9 @@ instance UnelabMeta m => Unelab (Tm m) where
     A a -> pure (At unknown a)
     P Cell (s :<>: t) -> Cons unknown <$> unelab s <*> unelab t
     P Oper (s :<>: t) -> Op unknown <$> unelab s <*> unelab t
+    P Radi (s :<>: t) -> Rad unknown <$> unelab s <*> unelab t
     (x := b) :. t -> Lam unknown . uncurry (Scope . Hide) <$> case b of
-            False -> (Unused,) <$> unelab t
+            False -> (Unused unknown,) <$> unelab t
             True -> do
               na <- ask
               let y = freshen (unhide x) na
@@ -124,7 +69,7 @@ instance UnelabMeta m => Unelab (Tm m) where
 
 instance UnelabMeta m => Unelab (Sbst m) where
   type UnelabEnv (Sbst m) = Naming
-  type Unelabed (Sbst m) = Bwd SbstC
+  type Unelabed (Sbst m) = Bwd Assign
   unelab sg = do
     na@(_, th, _) <- ask
     case sg of
@@ -137,13 +82,15 @@ instance UnelabMeta m => Unelab (Sbst m) where
         (_, th, _) | bigEnd th <= 0 -> throwError (UnexpectedEmptyThinning na)
         (xz, th, yz :< y) -> case thun th of
          (th, False) -> do
+           local (const (xz, th, yz)) $ unelab (sg :^^ w)
+           {- TODO: bring back printing of Drop?
            sg <- local (const (xz, th, yz)) $ unelab (sg :^^ w)
            pure (sg :< Drop unknown (Variable unknown y))
+           -}
          (th, True) ->
            case xz of
              xz :< x -> do
-               sg <- local (const (xz, th, yz)) $ unelab (sg :^^ (w - 1))
-               pure (sg :< Keep unknown (Variable unknown x))
+               local (const (xz, th, yz)) $ unelab (sg :^^ (w - 1))
              _ -> throwError $ InvalidNaming na
         _ -> throwError $ InvalidNaming na
 
@@ -195,23 +142,11 @@ instance Forget DAEnv Naming where
   forget = daActorNaming
 
 
-instance Unelab Meta where
-  type UnelabEnv Meta = ()
-  type Unelabed Meta = Variable
-  unelab m = pure $ Variable unknown $ compressedMeta m
-
 instance Unelab (Binder ActorMeta) where
   type UnelabEnv (Binder ActorMeta) = ()
   type Unelabed (Binder ActorMeta) = RawP
-  unelab Unused = pure (UnderscoreP unknown)
+  unelab (Unused r) = pure (UnderscoreP r)
   unelab (Used av) = VarP unknown <$> unelab av
-
-instance Unelab ActorMeta where
-  type UnelabEnv ActorMeta = ()
-  type Unelabed ActorMeta = Variable
-  -- TODO: fixme
-  unelab (ActorMeta ASubject str) = pure (Variable unknown $ "$" ++ str)
-  unelab (ActorMeta _ str) = pure (Variable unknown str)
 
 instance Unelab Channel where
   type UnelabEnv Channel = ()
@@ -223,9 +158,9 @@ instance Unelab Stack where
   type Unelabed Stack = Variable
   unelab (Stack str) = pure (Variable unknown str)
 
-instance Unelab JudgementForm where
-  type UnelabEnv JudgementForm = ()
-  type Unelabed JudgementForm = Variable
+instance Unelab JudgementName where
+  type UnelabEnv JudgementName = ()
+  type Unelabed JudgementName = Variable
   unelab str = pure (Variable unknown str)
 
 instance Unelab Debug where
@@ -288,7 +223,9 @@ instance Unelab AActor where
     Recv r ch (av, a) -> Recv r <$> subunelab ch <*> ((,) <$> subunelab av <*> unelab a)
     FreshMeta r desc (av, a) -> FreshMeta r <$> subunelab desc <*> ((,) <$> subunelab av <*> unelab a)
     Let r av desc t a -> Let r <$> subunelab av <*> subunelab desc <*> subunelab t <*> unelab a
-    Under r (Scope x a) -> Under r. Scope x <$> local (updateNaming (`nameOn` getVariable (unhide x))) (unelab a)
+    Under r mty (Scope x a) ->
+      Under r <$> traverse subunelab mty
+              <*> (Scope x <$> local (updateNaming (`nameOn` getVariable (unhide x))) (unelab a))
     Push r stk (p, _, t) a -> Push r <$> subunelab stk <*> ((,(),) <$> subunelab p <*> subunelab t) <*> unelab a
     Match r tm pts -> Match r <$> subunelab tm <*> traverse unelab pts
     Constrain r s t -> Constrain r <$> subunelab s <*> subunelab t
@@ -299,22 +236,24 @@ instance Unelab AActor where
     Connect r cnnct -> Connect r <$> subunelab cnnct
     Note r a -> Note r <$> unelab a
 
-instance Unelab Mode where
-  type UnelabEnv Mode = ()
-  type Unelabed Mode = Mode
-  unelab = pure
+instance Unelab t => Unelab (Mode t) where
+  type UnelabEnv (Mode t) = UnelabEnv t
+  type Unelabed (Mode t) = Mode (Unelabed t)
+  unelab = traverse unelab
 
 instance Unelab () where
   type UnelabEnv () = ()
   type Unelabed () = ()
   unelab = pure
 
-instance Unelab t => Unelab (ContextStack t) where
-  type UnelabEnv (ContextStack t) = UnelabEnv t
-  type Unelabed (ContextStack t) = ContextStack (Unelabed t)
-  unelab = traverse unelab
+instance (Unelab k, Unelab v, UnelabEnv k ~ UnelabEnv v) => Unelab (ContextStack k v) where
+  type UnelabEnv (ContextStack k v) = UnelabEnv k
+  type Unelabed (ContextStack k v) = ContextStack (Unelabed k) (Unelabed v)
+  unelab (ContextStack k v) = ContextStack <$> unelab k <*> unelab v
 
-instance Unelab t => Unelab (Protocol t) where
-  type UnelabEnv (Protocol t) = UnelabEnv t
-  type Unelabed (Protocol t) = Protocol (Unelabed t)
-  unelab = traverse (traverse unelab)
+instance Unelab AProtocol where
+  type UnelabEnv AProtocol = Naming
+  type Unelabed AProtocol = CProtocol
+  unelab (Protocol ps) = Protocol <$> traverse f ps
+    where
+      f (m, s) = (,) <$> unelab m <*> unelab s

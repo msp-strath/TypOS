@@ -12,27 +12,38 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 
-import Actor (ActorVar, AContextStack, AProtocol, Channel)
+import Actor
 import Bwd
 import Concrete.Base
-import Location (HasGetRange(..), Range, WithRange (..))
-import Syntax (SyntaxCat, SyntaxDesc, VSyntaxDesc'(..), VSyntaxDesc, SyntaxTable, wildcard)
-import qualified Syntax
-import Thin (Selable(..), DB (..), CdB (..))
-import Term.Base (Tm(..), atom)
+import Location (HasGetRange(..), Range, WithRange (..), unknown)
+import Syntax (SyntaxCat, SyntaxDesc, SyntaxTable)
+import Thin
+import Term.Base
 import Utils
+import Operator
+import Info
+import Pattern
+import Hide
+import Operator.Eval
+import Options
+import Semantics
+import Data.Void (absurd)
 
 ------------------------------------------------------------------------------
 -- Elaboration Monad
+
+asSemantics :: ASyntaxDesc -> ASemanticsDesc
+asSemantics syn = fmap absurd $^ syn
 
 data ElabState = ElabState
   { channelStates :: ChannelStates
   , actvarStates  :: ActvarStates
   , syntaxCats    :: SyntaxTable
-  , warnings      :: Bwd (WithStackTrace Warning)
+  , warnings      :: Bwd (WithStackTrace (WithRange Warning))
+  , clock         :: Int
   }
 
-type ChannelState = (Direction, [Turn], AProtocol)
+type ChannelState = (Direction, [Turn], [AProtocolEntry])
 type ChannelStates = Map Channel ChannelState
 
 type ActvarStates = Map ActorVar (Bwd Usage)
@@ -71,90 +82,98 @@ data Direction = Rootwards
   deriving (Eq, Show)
 
 initElabState :: ElabState
-initElabState = ElabState Map.empty Map.empty Map.empty B0
+initElabState = ElabState Map.empty Map.empty Map.empty B0 0
 
 newtype Elab a = Elab
   { runElab :: StateT ElabState
                (ReaderT Context
                (WriterT All       -- Can we win?
-               (Either (WithStackTrace Complaint))))
+               (Either (WithStackTrace (WithRange Complaint)))))
                a }
   deriving ( Functor, Applicative, Monad
            , MonadReader Context
            , MonadState ElabState
            , MonadWriter All)
 
-instance MonadError Complaint Elab where
+instance MonadError (WithRange Complaint) Elab where
   throwError err = do
     stk <- asks stackTrace
     Elab (throwError (WithStackTrace stk err))
 
   catchError ma k = Elab (catchError (runElab ma) (runElab . k . theMessage))
 
-evalElab :: Elab a -> Either (WithStackTrace Complaint) a
-evalElab = fmap fst
+throwComplaint :: HasGetRange a => a -> Complaint -> Elab b
+throwComplaint r c = throwError (WithRange (getRange r) c)
+
+evalElab :: Options -> Elab a -> Either (WithStackTrace (WithRange Complaint)) a
+evalElab opts = fmap fst
          . runWriterT
-         . (`runReaderT` initContext)
+         . (`runReaderT` initContext opts)
          . (`evalStateT` initElabState)
          . runElab
 
 ------------------------------------------------------------------------------
 -- Partial Info
 
-data Info a = Unknown | Known a | Inconsistent
-  deriving (Show, Eq, Functor)
-
-instance Applicative Info where
-  pure = Known
-  (<*>) = ap
-
-instance Monad Info where
-  Unknown >>= f = Unknown
-  Known a >>= f = f a
-  Inconsistent >>= f = Inconsistent
-
-instance Eq a => Semigroup (Info a) where
-  Unknown <> y = y
-  x <> Unknown = x
-  Known x <> Known y | x == y = Known x
-  _ <> _ = Inconsistent
-
-instance Eq a => Monoid (Info a) where
-  mempty = Unknown
-
-infoExpand :: SyntaxTable -> SyntaxDesc -> Info VSyntaxDesc
-infoExpand table s = case Syntax.expand table s of
+infoExpand :: HeadUpData' ActorMeta -> SyntaxTable -> ASemanticsDesc -> Info VSemanticsDesc
+infoExpand dat table s = case Semantics.expand table dat s of
   Nothing -> Inconsistent
-  Just VWildcard -> Unknown
+  Just (VWildcard _) -> Unknown
   Just a -> Known a
 
-fromInfo :: Range -> Info SyntaxDesc -> Elab SyntaxDesc
-fromInfo r Unknown = pure (atom "Wildcard" 0)
+satom :: String -> Elab (CdB (Tm m))
+satom at = atom at <$> asks (scopeSize . objVars)
+
+fromInfo :: Range -> Info ASemanticsDesc -> Elab ASemanticsDesc
+fromInfo r Unknown = satom "Wildcard"
 fromInfo r (Known desc) = pure desc
 -- I believe this last case is currently unreachable because this
 -- may only arise from a call to (<>) and this is only used in two
 -- places:
 -- 1. `addHint` (and if we had a clash, that'd be a shadowing error)
 -- 2. `compatibleInfos` where the error is handled locally
-fromInfo r Inconsistent = throwError (InconsistentSyntaxDesc r)
+fromInfo r Inconsistent = throwComplaint r InconsistentSyntaxDesc
 
-compatibleInfos :: Range -> Info SyntaxDesc -> Info SyntaxDesc -> Elab (Info SyntaxDesc)
+incompatibleSemanticsDescs :: ASemanticsDesc -> ASemanticsDesc -> Elab Complaint
+incompatibleSemanticsDescs desc desc' = do
+  vars <- withVarNames ()
+  pure $ IncompatibleSemanticsDescs (desc <$ vars) (desc' <$ vars)
+
+incompatibleSemanticsInfos :: Info ASemanticsDesc -> Info ASemanticsDesc -> Elab Complaint
+incompatibleSemanticsInfos desc desc' = do
+  vars <- withVarNames ()
+  pure $ IncompatibleSemanticsInfos (fmap (<$ vars) desc) (fmap (<$ vars) desc')
+
+syntaxError :: ASemanticsDesc -> Raw -> Elab Complaint
+syntaxError desc t = do
+  desc <- withVarNames desc
+  pure (SyntaxError desc t)
+
+syntaxPError :: ASemanticsDesc -> RawP -> Elab Complaint
+syntaxPError desc p = do
+  desc <- withVarNames desc
+  pure (SyntaxPError desc p)
+
+compatibleInfos :: Range
+                -> Info ASemanticsDesc
+                -> Info ASemanticsDesc
+                -> Elab (Info ASemanticsDesc)
 compatibleInfos r desc desc' = do
   table <- gets syntaxCats
-  let de = infoExpand table =<< desc
-  let de' = infoExpand table =<< desc'
+  dat <- asks headUpData
+  let de = infoExpand dat table =<< desc
+  let de' = infoExpand dat table =<< desc'
   case de <> de' of
-    Inconsistent -> throwError (IncompatibleSyntaxInfos r desc desc')
+    Inconsistent -> throwComplaint r =<< case (desc, desc') of
+      (Known desc, Known desc') -> incompatibleSemanticsDescs desc desc'
+      _ -> incompatibleSemanticsInfos desc desc'
     d -> pure $ case (desc, desc') of
       (Known (CdB (A _) _), _) -> desc
       (_, Known (CdB (A _) _)) -> desc'
-      _ -> Syntax.contract <$> d
+      _ -> Semantics.contract <$> d
 
 ------------------------------------------------------------------------------
 -- Context
-
-type ObjVar = (String, Info SyntaxDesc)
-type ObjVars = Bwd ObjVar
 
 data Provenance = Parent | Pattern
   deriving (Show, Eq)
@@ -164,9 +183,9 @@ data IsSubject' a = IsSubject a | IsNotSubject
 
 type IsSubject = IsSubject' Provenance
 
-type instance SCRUTINEEVAR Elaboration = SyntaxDesc
-type instance SCRUTINEETERM Elaboration = SyntaxDesc
-type instance STACK Elaboration = SyntaxDesc
+type instance SCRUTINEEVAR Elaboration = ASemanticsDesc
+type instance SCRUTINEETERM Elaboration = ASemanticsDesc
+type instance STACK Elaboration = ASemanticsDesc
 type instance TERM Elaboration = ()
 type instance LOOKEDUP Elaboration = String
 
@@ -181,58 +200,166 @@ isSubjectFree = \case
   SubjectVar{} -> False
 
 data Kind
-  = ActVar IsSubject (Info SyntaxDesc) ObjVars
+  = ActVar IsSubject ASOT
   | AChannel ObjVars
   | AJudgement ExtractMode AProtocol
   | AStack AContextStack
   deriving (Show)
 
 type Decls = Bwd (String, Kind)
-type Operators = Map String (SyntaxDesc, [SyntaxDesc], SyntaxDesc)
+type Operators = Map String AAnOperator
+
+instance Dischargeable Decls where
+  x \\ ds = ds
+
+-- LexicalScope = ObjVars + Macros
+-- gives the meanings of things that look like variables.
+
+-- Crucially, only the ObjVars are in scope for the abstract syntax
+-- and their semantics desc is in the scope of the whole context,
+-- i.e. ObjVars are ready for lookup with no further weakening.
+-- Consequently, we must weaken them when we go under a binder.
+
+type Macros = Bwd (String, Raw)
+-- Macros are scope checked at definition site but not elaborated
+-- until use site. They cannot be recursive.
+-- The vars that occur in a Macro are CdBVars - we have checked they are
+-- in scope and if they are Macros, we have further expanded them.
 
 data Context = Context
   { objVars      :: ObjVars
+  , macros       :: Macros
   , declarations :: Decls
   , operators    :: Operators
   , location     :: Bwd Turn
   , binderHints  :: Hints
   , elabMode     :: ElabMode
   , stackTrace   :: StackTrace
+  , headUpData   :: HeadUpData' ActorMeta
   } deriving (Show)
 
-type Hints = Map String (Info SyntaxDesc)
+type Hints = Map String (Info ASemanticsDesc)
 
-data ElabMode = Definition | Execution
-              deriving (Eq, Show)
+data Restriction {- gamma -} = Restriction
+  { support :: Bwd String
+  , restriction :: Th {- support -} {- gamma -}
+  }
 
-initContext :: Context
-initContext = Context
-  { objVars = B0
+initRestriction :: ObjVars -> Restriction
+initRestriction ovs = Restriction (objVarName <$> getObjVars ovs) (ones (scopeSize ovs))
+
+extend :: Restriction {- gamma -}
+       -> {- x :: -} Binder String
+       -> Restriction {- gamma , x -}
+extend (Restriction ls th) (Used x) = Restriction (ls :< x) (th -? True)
+extend (Restriction ls th) (Unused _) = Restriction ls (th -? False)
+
+instance Selable Restriction where
+  ph ^? Restriction ls th = Restriction (ph ^? ls) (ph ^? th)
+
+data ElabMode = Definition | Execution deriving (Eq, Show)
+
+data WithVarNames a = WithVarNames
+  { varNames :: Bwd String
+  , scopedValue :: a
+  } deriving (Show, Functor)
+
+withVarNames :: t -> Elab (WithVarNames t)
+withVarNames t = do
+  ovs <- asks (fmap objVarName . getObjVars . objVars)
+  pure (WithVarNames ovs t)
+
+initContext :: Options -> Context
+initContext opts = Context
+  { objVars = ObjVars B0
+  , macros = B0
   , declarations = B0
   , operators = Map.fromList
-    [ ("app", (wildcard, [wildcard], wildcard))
+    [ ("app", AnOperator
+        { opName = Operator "app"
+        , objDesc = (Unused unknown, PP (AP "Pi")
+                              $ PP (MP (am "S") (ones 0))
+                                $ PP (BP (Hide "x")
+                                  $ MP (am "T") (ones 1)) $ AP "")
+        , paramsDesc = [(Used (am "s"), ObjVars B0 :=> (am "S" $: sbstI 0))]
+        , retDesc = am "T" $: topSbst "x" (am "s" $: sbstI 0)
+        })
     ]
   , location = B0
   , binderHints = Map.empty
   , elabMode = Definition
   , stackTrace = []
+  , headUpData = initHeadUpData
   }
+  where
+    am = ActorMeta ACitizen
 
-declareObjVar :: ObjVar -> Context -> Context
-declareObjVar x ctx = ctx { objVars = objVars ctx :< x }
+    initHeadUpData = HeadUpData
+      { opTable = const mempty
+      , metaStore = Store Map.empty Map.empty ()
+      , huOptions = opts
+      , huEnv = initEnv B0
+      , whatIs = const Nothing
+      }
 
+-- We have already checked the name is fresh
+declareObjVar :: ( {- x :: -} String
+                 , {- S :: -} ASemanticsDesc {- gamma -})
+              -> Context {- gamma -}
+              -> Context {- gamma, x :: S -}
+declareObjVar (x, sem) ctx =
+    -- We store semantics descs ready to be deployed at use sites
+    let scp = getObjVars (objVars ctx) :< ObjVar x sem in
+    ctx { objVars = ObjVars (fmap weak <$> scp)
+        , binderHints = fmap weak <$> binderHints ctx
+        }
+
+-- Careful! The new ovs better be a valid scope
+-- i.e. all the objvars mentioned in the SemanticsDesc of
+-- further vars need to be bound earlier in the telescope
+setObjVars' :: ObjVars -> Context -> Context
+setObjVars' ovs ctx = ctx { objVars = ovs }
+
+-- A Γ-context Δ gives Δ variables with Γ-types
+
+-- Thicken a context. It is the user's responsibility to
+-- evict all variables whose type depends on other evicted
+-- variables.
+thickenObjVars :: Th             -- Δ ≤ Γ
+               -> ObjVars        -- Γ-context Γ
+               -> Maybe ObjVars  -- Δ-context Δ
+thickenObjVars th (ObjVars ga) = ObjVars <$>
+  let de = th ^? ga in
+  traverse (traverse (thickenCdB th)) de
+
+{-
 setObjVars :: ObjVars -> Context -> Context
 setObjVars ovs ctx = ctx { objVars = ovs }
+-}
+
+setHeadUpData :: HeadUpData' ActorMeta -> Context -> Context
+setHeadUpData dat ctx = ctx { headUpData = dat}
+
+{-
+instance Selable ObjVars where
+  th ^? (ObjVars ovs) = ObjVars (th ^? ovs)
 
 instance Selable Context where
   th ^? ctxt = ctxt { objVars = th ^? objVars ctxt }
+-}
 
 declare :: Binder String -> Kind -> Context -> Context
-declare Unused k ctx = ctx
+declare (Unused _) k ctx = ctx
 declare (Used x) k ctx = ctx { declarations = declarations ctx :< (x, k) }
 
 setDecls :: Decls -> Context -> Context
 setDecls ds ctx = ctx { declarations = ds }
+
+setMacros :: Macros -> Context -> Context
+setMacros ms ctx = ctx { macros = ms }
+
+declareMacro :: (String, Raw) -> Context -> Context
+declareMacro xt ctx = ctx { macros = macros ctx :< xt }
 
 ------------------------------------------------------------------------------
 -- Hierarchical path names generation
@@ -251,31 +378,12 @@ turn t ds = ds { location = location ds :< t }
 ------------------------------------------------------------------------------
 -- Operators
 
-type family OPERATOR (ph :: Phase) :: *
-type instance OPERATOR Concrete = WithRange String
-type instance OPERATOR Abstract = Operator
-
-data ANOPERATOR (ph :: Phase) = AnOperator
-  { opName :: OPERATOR ph
-  , objDesc :: SYNTAXDESC ph
-  , paramDescs :: [SYNTAXDESC ph]
-  , retDesc :: SYNTAXDESC ph
-  }
-
-deriving instance
-  ( Show (OPERATOR ph)
-  , Show (SYNTAXDESC ph)
-  ) => Show (ANOPERATOR ph)
-
-type CAnOperator = ANOPERATOR Concrete
-type AAnOperator = ANOPERATOR Abstract
-
 setOperators :: Operators -> Context -> Context
 setOperators ops ctx = ctx { operators = ops }
 
 addOperator :: AAnOperator -> Context -> Context
-addOperator (AnOperator (Operator op) obj params ret) ctx =
-  ctx { operators = Map.insert op (obj, params, ret) (operators ctx) }
+addOperator op ctx =
+  ctx { operators = Map.insert (getOperator . opName $ op) op (operators ctx) }
 
 ------------------------------------------------------------------------------
 -- Hints
@@ -283,15 +391,17 @@ addOperator (AnOperator (Operator op) obj params ret) ctx =
 setHints :: Hints -> Context -> Context
 setHints hs ctx = ctx { binderHints = hs }
 
-addHint :: String -> Info SyntaxDesc -> Context -> Context
-addHint str cat ctx =
+-- TODO: hints should be ASOTs
+addHint :: Binder String -> Info ASemanticsDesc -> Context -> Context
+addHint (Unused _) cat ctx = ctx
+addHint (Used str) cat ctx =
   let hints = binderHints ctx
       hints' = case Map.lookup str hints of
                  Nothing -> Map.insert str cat hints
                  Just cat' -> Map.insert str (cat <> cat') hints
   in ctx { binderHints = hints' }
 
-getHint :: String -> Elab (Info SyntaxDesc)
+getHint :: String -> Elab (Info ASemanticsDesc)
 getHint str = do
   hints <- asks binderHints
   pure $ fromMaybe Unknown $ Map.lookup str hints
@@ -300,30 +410,22 @@ getHint str = do
 -- Warnings
 
 data Warning
-  = UnreachableClause Range RawP
-  | MissingClauses Range (NonEmpty RawP)
+  = UnreachableClause RawP
+  | MissingClauses (NonEmpty RawP)
   -- Subject tracking
-  | SentSubjectNotASubjectVar Range Raw
-  | RecvSubjectNotScrutinised Range Channel (Binder String)
-  | PatternSubjectNotScrutinised Range String
-  | UnderscoreOnSubject Range
-  | InconsistentScrutinisation Range
+  | SentSubjectNotASubjectVar Raw
+  | RecvSubjectNotScrutinised Channel (Binder String)
+  | PatternSubjectNotScrutinised String
+  | UnderscoreOnSubject
+  | InconsistentScrutinisation
+  -- Missing features
+  | IgnoredIrrefutable RawP
 
-instance HasGetRange Warning where
-  getRange = \case
-    UnreachableClause r _ -> r
-    MissingClauses r _ -> r
-    -- Subject analysis
-    SentSubjectNotASubjectVar r _ -> r
-    RecvSubjectNotScrutinised r _ _ -> r
-    PatternSubjectNotScrutinised r _ -> r
-    UnderscoreOnSubject r -> r
-    InconsistentScrutinisation r -> r
-
-raiseWarning :: Warning -> Elab ()
-raiseWarning w = do
+raiseWarning :: HasGetRange a => a -> Warning -> Elab ()
+raiseWarning a w = do
   stk <- asks stackTrace
-  modify (\ r -> r { warnings = warnings r :< WithStackTrace stk w })
+  let warning = WithStackTrace stk (WithRange (getRange a) w)
+  modify (\ st -> st { warnings = warnings st :< warning })
 
 ------------------------------------------------------------------------------
 -- Errors
@@ -356,7 +458,7 @@ data ContextualInfo
   | DefnJElaboration Variable
   | ExecElaboration
   | DeclaringSyntaxCat SyntaxCat
-  | SubstitutionElaboration (Bwd SbstC)
+  | SubstitutionElaboration (Bwd Assign)
   | PatternVariableElaboration Variable
   | TermVariableElaboration Variable
   | ProtocolElaboration CProtocol
@@ -365,112 +467,79 @@ data ContextualInfo
   | ScrutineeTermElaboration Raw
   | MatchScrutineeElaboration CScrutinee
   | CompareSyntaxCatGuess Raw Raw
+  | JudgementFormElaboration Variable
   deriving (Show)
+
+type ESemanticsDesc = WithVarNames ASemanticsDesc
 
 data Complaint
   -- scope
-  = OutOfScope Range Variable
-  | MetaScopeTooBig Range Variable ObjVars ObjVars
-  | VariableShadowing Range Variable
-  | EmptyContext Range
-  | NotTopVariable Range Variable Variable
-  | IncompatibleChannelScopes Range ObjVars ObjVars
+  = OutOfScope Variable
+  | MetaScopeTooBig Variable ObjVars ObjVars
+  | VariableShadowing Variable
+  | EmptyContext
+  | NotTopVariable Variable Variable
+  | IncompatibleChannelScopes ObjVars ObjVars
+  | NotAValidContextRestriction Th ObjVars
+  | NotAValidDescriptionRestriction Th ESemanticsDesc
   -- kinding
-  | NotAValidTermVariable Range Variable Kind
-  | NotAValidPatternVariable Range Variable Kind
-  | NotAValidJudgement Range Variable (Maybe Kind)
-  | NotAValidStack Range Variable (Maybe Kind)
-  | NotAValidChannel Range Variable (Maybe Kind)
-  | NotAValidBoundVar Range Variable
-  | NotAValidSubjectVar Range Variable
-  | NotAValidOperator Range String
+  | NotAValidTermVariable Variable Kind
+  | NotAValidPatternVariable Variable Resolved
+  | NotAValidJudgement Variable Resolved
+  | NotAValidStack Variable Resolved
+  | NotAValidChannel Variable Resolved
+  | NotAValidBoundVar Variable
+  | NotAValidSubjectVar Variable
+  | NotAValidOperator String
   -- operators
-  | AlreadyDeclaredOperator Range String
-  | InvalidOperatorArity Range String [SyntaxDesc] [RawP]
+  | AlreadyDeclaredOperator String
+  | ArityMismatchInOperator String Int
+  | ExpectedParameterBinding Raw
   -- protocol
-  | InvalidSend Range Channel Raw
-  | InvalidRecv Range Channel RawP
-  | NonLinearChannelUse Range Channel
-  | UnfinishedProtocol Range Channel AProtocol
-  | InconsistentCommunication Range
-  | DoomedBranchCommunicated Range CActor
-  | ProtocolsNotDual Range AProtocol AProtocol
-  | IncompatibleModes Range (Mode, SyntaxDesc) (Mode, SyntaxDesc)
-  | WrongDirection Range (Mode, SyntaxDesc) Ordering (Mode, SyntaxDesc)
+  | InvalidSend Channel Raw
+  | InvalidRecv Channel RawP
+  | NonLinearChannelUse Channel
+  | UnfinishedProtocol Channel AProtocol
+  | InconsistentCommunication
+  | DoomedBranchCommunicated CActor
+  | ProtocolsNotDual AProtocol AProtocol
+  | IncompatibleModes AProtocolEntry AProtocolEntry
+  | WrongDirection AProtocolEntry Ordering AProtocolEntry
   -- syntaxes
-  | AlreadyDeclaredSyntaxCat Range SyntaxCat
+  | AlreadyDeclaredSyntaxCat SyntaxCat
   -- syntaxdesc validation
-  | InconsistentSyntaxDesc Range
-  | InvalidSyntaxDesc Range SyntaxDesc
-  | IncompatibleSyntaxInfos Range (Info SyntaxDesc) (Info SyntaxDesc)
-  | IncompatibleSyntaxDescs Range SyntaxDesc SyntaxDesc
-  | GotBarredAtom Range String [String]
-  | ExpectedNilGot Range String
-  | ExpectedEnumGot Range [String] String
-  | ExpectedTagGot Range [String] String
-  | ExpectedANilGot Range Raw
-  | ExpectedANilPGot Range RawP
-  | ExpectedAConsGot Range Raw
-  | ExpectedAConsPGot Range RawP
-  | SyntaxError Range SyntaxDesc Raw
-  | SyntaxPError Range SyntaxDesc RawP
-  | ExpectedAnOperator Range Raw
-  | ExpectedAnEmptyListGot Range String [SyntaxDesc]
+  | InconsistentSyntaxDesc
+  | InvalidSyntaxDesc SyntaxDesc
+  | IncompatibleSyntaxInfos (Info SyntaxDesc) (Info SyntaxDesc)
+  | IncompatibleSemanticsDescs ESemanticsDesc ESemanticsDesc
+  | GotBarredAtom String [String]
+  | ExpectedASemanticsGot Raw
+  | ExpectedNilGot String
+  | ExpectedEnumGot [String] String
+  | ExpectedTagGot [String] String
+  | ExpectedANilGot Raw
+  | ExpectedANilPGot RawP
+  | ExpectedAConsGot Raw
+  | ExpectedAConsPGot RawP
+  | ExpectedASemanticsPGot RawP
+  | SyntaxError ESemanticsDesc Raw
+  | SyntaxPError ESemanticsDesc RawP
+  | CantMatchOnPi ESemanticsDesc RawP
+  | CantMatchOnSemantics RawP
+  | DuplicatedTag String
+  | ExpectedAnOperator Raw
+  | ExpectedAnEmptyListGot String [SyntaxDesc]
+  -- semanticsdesc validation
+  | InvalidSemanticsDesc ESemanticsDesc
+  | SemanticsError ESemanticsDesc Raw
+  | IncompatibleSemanticsInfos (Info ESemanticsDesc) (Info ESemanticsDesc)
   -- subjects and citizens
-  | AsPatternCannotHaveSubjects Range RawP
+  | AsPatternCannotHaveSubjects RawP
+  -- desc inference
+  | InferredDescMismatch (WithVarNames Pat) ESemanticsDesc
+  | DontKnowHowToInferDesc Raw
+  | SchematicVariableNotInstantiated
   deriving (Show)
-
-instance HasGetRange Complaint where
-  getRange = \case
-    OutOfScope r _ -> r
-    MetaScopeTooBig r _ _ _ -> r
-    VariableShadowing r _ -> r
-    EmptyContext r -> r
-    NotTopVariable r _ _ -> r
-    IncompatibleChannelScopes r _ _ -> r
-  -- kinding
-    NotAValidTermVariable r _ _ -> r
-    NotAValidPatternVariable r _ _ -> r
-    NotAValidJudgement r _ _ -> r
-    NotAValidStack r _ _ -> r
-    NotAValidChannel r _ _ -> r
-    NotAValidBoundVar r _ -> r
-    NotAValidSubjectVar r _ -> r
-    NotAValidOperator r _ -> r
-  -- operators
-    AlreadyDeclaredOperator r _ -> r
-    InvalidOperatorArity r _ _ _ -> r
-  -- protocol
-    InvalidSend r _ _ -> r
-    InvalidRecv r _ _ -> r
-    NonLinearChannelUse r _ -> r
-    UnfinishedProtocol r _ _ -> r
-    InconsistentCommunication r -> r
-    DoomedBranchCommunicated r _ -> r
-    ProtocolsNotDual r _ _ -> r
-    IncompatibleModes r _ _ -> r
-    WrongDirection r _ _ _ -> r
-  -- syntaxes
-    AlreadyDeclaredSyntaxCat r _ -> r
-  -- syntaxdesc validation
-    InconsistentSyntaxDesc r -> r
-    InvalidSyntaxDesc r _ -> r
-    IncompatibleSyntaxInfos r _ _ -> r
-    IncompatibleSyntaxDescs r _ _ -> r
-    GotBarredAtom r _ _ -> r
-    ExpectedNilGot r _ -> r
-    ExpectedEnumGot r _ _ -> r
-    ExpectedTagGot r _ _ -> r
-    ExpectedANilGot r _ -> r
-    ExpectedANilPGot r _ -> r
-    ExpectedAConsGot r _ -> r
-    ExpectedAConsPGot r _ -> r
-    SyntaxError r _ _ -> r
-    SyntaxPError r _ _ -> r
-    ExpectedAnOperator r _ -> r
-    ExpectedAnEmptyListGot r _ _ -> r
-    -- subjects and citizens
-    AsPatternCannotHaveSubjects r _ -> r
 
 ------------------------------------------------------------------------------
 -- Syntaxes
@@ -479,7 +548,7 @@ declareSyntax :: WithRange SyntaxCat -> SyntaxDesc -> Elab ()
 declareSyntax (WithRange r cat) desc = do
   st <- get
   whenJust (Map.lookup cat (syntaxCats st)) $ \ _ ->
-    throwError (AlreadyDeclaredSyntaxCat r cat)
+    throwComplaint r (AlreadyDeclaredSyntaxCat cat)
   put (st { syntaxCats = Map.insert cat desc (syntaxCats st) })
 
 withSyntax :: SyntaxDesc -> Elab a -> Elab a
@@ -505,16 +574,27 @@ channelDelete ch st = st { channelStates = Map.delete ch (channelStates st) }
 ------------------------------------------------------------------------------
 -- Variable lookup
 
-resolve :: Variable -> Elab (Maybe (Either Kind (Info SyntaxDesc, DB)))
+data Resolved
+  = ADeclaration Kind
+  | AnObjVar ASemanticsDesc DB
+  | AMacro Raw
+  deriving Show
+
+resolve :: Variable -> Elab (Maybe Resolved)
 resolve (Variable r x) = do
   ctx <- ask
   let ds  = declarations ctx
-  let ovs = objVars ctx
-  case focusBy (\ (y, k) -> k <$ guard (x == y)) ds of
-    Just (_, k, _) -> pure (Just $ Left k)
-    _ -> case focusBy (\ (y, desc) -> desc <$ guard (x == y)) ovs of
-      Just (xz, desc, xs) -> pure (Just $ Right (desc, DB $ length xs))
-      Nothing -> pure Nothing
+  let ovs = getObjVars . objVars $ ctx
+  let mcs = macros ctx
+  pure $ case focusBy (\ (y, k) -> k <$ guard (x == y)) ds of
+    Just (_, k, _) -> Just $ ADeclaration k
+    _ -> case focusBy (\ (ObjVar y desc) -> desc <$ guard (x == y)) ovs of
+      Just (xz, desc, xs) ->
+        -- no need to weaken desc as it's already living in ctx
+        Just $ AnObjVar desc (DB $ length xs)
+      Nothing -> case focusBy (\ (y, k) -> k <$ guard (x == y)) mcs of
+        Just (_, t, _) -> Just $ AMacro t
+        Nothing -> Nothing
 
 ------------------------------------------------------------------------------
 -- Subject usage logging

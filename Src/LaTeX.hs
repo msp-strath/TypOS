@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module LaTeX where
 
@@ -13,7 +14,8 @@ import Hide
 import Syntax
 import Scope
 
-import Unelaboration
+import Unelaboration.Monad
+import Unelaboration ()
 
 newtype LaTeXM a = LaTeXM { runLaTeXM :: Reader SyntaxTable a }
   deriving (Functor, Applicative, Monad, MonadReader SyntaxTable)
@@ -63,7 +65,7 @@ instance LaTeX x => LaTeX (Hide x) where
 instance LaTeX a => LaTeX (Binder a) where
   type Format (Binder a) = Format a
   toLaTeX d = \case
-    Unused -> pure "\\_"
+    Unused _ -> pure "\\_"
     Used x -> toLaTeX d x
 
 instance LaTeX Variable where
@@ -84,7 +86,7 @@ asList p = [p]
 latexspace :: Doc ()
 latexspace = "\\ "
 
-toLaTeXCdr :: SyntaxDesc -> Raw -> LaTeXM (Doc ())
+toLaTeXCdr :: ASyntaxDesc -> Raw -> LaTeXM (Doc ())
 toLaTeXCdr _ (At _ "") = pure $ call False "typosListEnd" []
 toLaTeXCdr d (Cons _ p q) = do
   (dp, dq) <- ask >>= \ table -> pure $ case expand table d of

@@ -30,14 +30,14 @@ instance Pretty Failure where
   pretty DontKnow = "Don't Know" -- <+> pretty meta
   pretty Mismatch = "Mismatch"
 
-data Problem = Problem
+data Problem m = Problem
   { localBinders :: Bwd String -- binders we have gone under
   , problemPat :: Pat          -- pattern to match
-  , problemTerm :: Term        -- candidate term
+  , problemTerm :: Term' m     -- candidate term
   }
 
 -- Only use this to debug clauses
-mismatch :: Pat -> Term -> Failure
+mismatch :: Pat -> Term' m -> Failure
 mismatch _ _ = Mismatch
 --mismatch p t = trace (unsafeDisplayClosed unsafeOptions p ++ " ∌ " ++ unsafeDisplayClosed unsafeOptions t) Mismatch
 
@@ -47,11 +47,12 @@ stuck (_ :-: _) = True
 stuck (GX _ _)  = True
 stuck _         = False
 
-type Matching = ([(ActorMeta, ([String], Term))], [(String, Hide String)])
+type Matching' m = ([(ActorMeta, EnvImg' m)], [(String, Hide String)])
+type Matching = Matching' Meta
 
-matchingToEnv :: Matching -> Env -> Env
+matchingToEnv :: Matching' m -> Env' m -> Env' m
 matchingToEnv (actors, alphas) env =
-  foldr(uncurry newActorVar) (foldr declareAlpha env alphas) actors
+  foldr (uncurry newActorVar) (foldr declareAlpha env alphas) actors
 
 matchingCase :: Matching -> (Root, Env) -> (Root, Env)
 matchingCase (actors, alphas) (r, env) = foldr f (r, foldr declareAlpha env alphas) actors
@@ -62,21 +63,22 @@ matchingCase (actors, alphas) (r, env) = foldr f (r, foldr declareAlpha env alph
       ASubject -> case splitRoot r avar of
        (g, r) -> (r, guardSubject avar defn g env)
 
-initMatching :: Matching
+initMatching :: Matching' m
 initMatching = mempty
 
-match :: (Term -> Term) -- head normal former
-      -> Matching
-      -> Problem
-      -> ( Term -- reduced version of the terms in the input problems
-         , Either Failure Matching)
+
+match :: (Term' m -> Term' m) -- head normal former
+      -> Matching' m
+      -> Problem m
+      -> ( Term' m -- reduced version of the terms in the input problems
+         , Either Failure (Matching' m))
 match hnf mat p = first hd $ matchN hnf mat (p :* V0)
 
-matchN :: (Term -> Term) -- head normal former
-       -> Matching
-       -> Vector n Problem
-       -> ( Vector n Term -- reduced version of the terms in the input problems
-          , Either Failure Matching)
+matchN :: (Term' m -> Term' m) -- head normal former
+       -> Matching' m
+       -> Vector n (Problem m)
+       -> ( Vector n (Term' m) -- reduced version of the terms in the input problems
+          , Either Failure (Matching' m))
 matchN hnf mat V0 = (V0, pure mat)
 matchN hnf mat (Problem zx (AT x p) tm :* xs)
   = let mat' =  first ((x, (zx <>> [], tm)) :) mat in
@@ -111,8 +113,8 @@ matchN hnf mat (Problem zx pat tm :* xs) = let tmnf = hnf tm in case (pat, expan
   _ -> (tmnf :* fmap problemTerm xs, Left (mismatch pat tmnf))
 
 
-instThicken :: (Term -> Term) -> Th -> Term
-            -> (Term, Either Failure Term)
+instThicken :: (Term' m -> Term' m) -> Th -> Term' m
+            -> (Term' m, Either Failure (Term' m))
 instThicken hnf ph t = let tmnf = hnf t in case tmnf of
   v@(CdB V _) -> case thickenCdB ph v of
     Just v -> (tmnf, pure v)

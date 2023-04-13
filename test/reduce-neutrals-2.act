@@ -1,8 +1,8 @@
 operator
-  { 'Wildcard - ['fst ['Enum ['True]]] ~> 'Wildcard
-  ; 'Wildcard - ['snd ['Enum ['True]]] ~> 'Wildcard
+  { (x : A) - ['fst (b : ['Enum ['True]])] : A
+  ; (x : B) - ['snd (b : ['Enum ['True]])] : B
   }
 
-x - ['fst b1] - ['snd b2] ~> x - ['fst b1 - ['snd b2]]
+operator { x : X - ['fst b1] : _ - ['snd b2] ~> x - ['fst b1 - ['snd b2]] }
 
-exec ('Wildcard?b1 b2. 'at - ['fst b1] - ['snd b2] ~ 'at - ['fst b1 - ['snd b2]])
+exec (['Enum ['True]]?b1 b2. let a : 'Atom = 'at . a - ['fst b1] - ['snd b2] ~ a - ['fst b1 - ['snd b2]])

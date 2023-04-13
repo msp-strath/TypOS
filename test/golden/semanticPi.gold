@@ -1,0 +1,12 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  1 | 
+out >  2 | exec ['Pi 'Wildcard \_. 'Wildcard]?t. case t
+out >  3 |   { \ x. b -> PRINTF "%i" b.
+out >          ^^^^^^
+out > semanticPi.act:3:4-10
+out > Cannot match pattern \x. b at semantic Pi ['Pi 'Wildcard \_. 'Wildcard]
+out > when elaborating a case branch handling the pattern \x. b
+out > when elaborating an exec statement
+out >

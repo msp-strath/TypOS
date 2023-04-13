@@ -515,7 +515,7 @@ t - ['when b]
 ```
 for "applications" and "guarded" expressions, respectively. Operators
 are declared with the keyword `operator`, followed by a braces-enclosed,
-semicolon-separated list of declarations of the form *sd0* `-` `[`*'op* *sds* `]` `~>` *sd1*, where
+semicolon-separated list of declarations of the form *sd0* `-` `[`*'op* *sds* `]` `:` *sd1*, where
 
 * *'op* is the atom for the name of the operator;
 * *sd0* is the syntax description of the object being operated on;
@@ -526,15 +526,15 @@ Since `'app` and `'when` are builtin operators, they do not need to be declared,
 this is how we would declare our own copies of them:
 ```
 operator
-  { 'Wildcard - ['myApp 'Wildcard] ~> 'Wildcard
-  ; 'Wildcard - ['myWhen ['Enum ['True 'False]]] ~> 'Wildcard
+  { (f : 'Wildcard) - ['myApp (t : 'Wildcard)] : 'Wildcard
+  ; (a : A) - ['myWhen (b : ['Enum ['True 'False]])] : A
   }
 ```
 In the future, we might check more interesting semantic notions, but for now,
 we restrict ourselves to syntactic checks only.
 
 The point of operators is that they may *compute*. Their reduction behaviour is
-specified by reduction rules of the form
+specified in an `operator` block by reduction rules of the form
 ```typos-ignore
 p ~> rhs
 ```
@@ -548,9 +548,10 @@ with pattern variables appropriately instantiated. For example, to
 match the builtin behaviour of `'app` and `'when`, we can declare the
 following reduction rules:
 ```
-(\ x. t) - ['myApp s] ~> {x=s}t
-
-t - ['myWhen 'True] ~> t
+operator
+  { (\ x. t) : 'Wildcard - ['myApp s] ~> {x=s}t
+  ; t : A - ['myWhen 'True] ~> t
+  }
 ```
 Multiple rules may be given for the same operator. We do not currently
 check if overlapping rules are confluent, so it is up to the rule

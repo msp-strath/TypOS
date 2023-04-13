@@ -14,7 +14,7 @@ out >  , synth |-@p {}
 out >  , ([] Done ) | <>
 out >  , ([([] Done ) | <>
 out >     , \z_0. 
-out >     , ctxt |- z_0 -> {z_0*} ?[("check",[1])("S",[1])] . 
+out >     , ctxt |- z_0 -> ?[("check",[1])("S",[1])] . 
 out >     , ([([([([<> | ([([] Done ) | <>, ([([([] Done ) @ p | q [] @ <>] Done ) | <>
 out >                                        , ([] Done ) @ p | q [] @ <>]
 out >                                        Done
@@ -23,7 +23,7 @@ out >                                        @ p | q [] @ <>]
 out >                     Done
 out >                     )
 out >              , ([<> | ([\w_1. 
-out >                        , ctxt |- w_1 -> {w_1*} ?[("check",[1,4])("synth",[1])("",[4])("synth",[0])("",[2])("check",[0])("S",[1])] . 
+out >                        , ctxt |- w_1 -> ?[("check",[1,4])("synth",[1])("",[4])("synth",[0])("",[2])("check",[0])("S",[1])] . 
 out >                        , ([([] Done ) @ p | q [] @ <>] Done ) @ p | q [w] @ <>]
 out >                        Done
 out >                        )]

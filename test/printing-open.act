@@ -1,0 +1,7 @@
+operator
+  { (x : a) - 'id : a }
+
+operator
+  { x : a - 'id ~>  x
+  ; x : a - 'id ~> 'hello
+  }

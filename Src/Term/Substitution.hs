@@ -21,16 +21,16 @@ euclid x y = let d = x - y in case d < 0 of
   True  -> LtBy (negate d)
   False -> GeBy d
 
-(//^) :: Show m => CdB (Tm m) -> CdB (Sbst m) -> CdB (Tm m)
+(//^) :: CdB (Tm m) -> CdB (Sbst m) -> CdB (Tm m)
 tth@(CdB t th) //^ sgph@(CdB sg ph) =
-   track "\n" $
-   track ("Term: " ++ show tth) $
-   track ("Subst: " ++ show sgph) $
+--   track "\n" $
+--   track ("Term: " ++ show tth) $
+--   track ("Subst: " ++ show sgph) $
    case sbstSel th sg of
      CdB sg ps ->
        let res = CdB (t // sg) (ps <^> ph) in
-       track ("Result: " ++ show res) $
-       track "\n" $
+--       track ("Result: " ++ show res) $
+--       track "\n" $
        res
 
 (//) :: Tm m -> Sbst m -> Tm m

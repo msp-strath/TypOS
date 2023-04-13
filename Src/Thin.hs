@@ -26,7 +26,7 @@ class Thable t where
   (*^) :: HasCallStack => t -> Th -> t
 
 class Selable t where
-  (^?) :: Th -> t -> t
+  (^?) :: HasCallStack => Th -> t -> t
 
 instance Thable (CdB a) where
   CdB a th *^ ph = CdB a (th *^ ph)
@@ -111,12 +111,12 @@ inx :: ( DB  -- var is non-negative and strictly less than
 inx (DB i, j) {- | 0 <= i && i < j -} = Th (bit i) j
 
 -- th must not be 0
-lsb :: Th -> DB
+lsb :: HasCallStack => Th -> DB
 lsb th = case thun th of
   (_, True) -> DB 0
   (th, False) -> scc (lsb th)
 
-thickx :: Th -> DB -> Maybe DB
+thickx :: HasCallStack => Th -> DB -> Maybe DB
 thickx (Th th i) v | i <= 0 = error $ "thickx with i = " ++ show i
 thickx th v = case thun th of
   (th, False) -> guard (v > DB 0) >> thickx th (prd v)
@@ -139,7 +139,7 @@ thChop :: Th -> Int -> (Th, Th)
 thChop (Th th i) j = (Th (shiftR th j) (i-j), Th (th .&. full j) j)
 
 -- "take" from the wee end
-chopTh :: Int -> Th -> (Th, Th)
+chopTh :: HasCallStack => Int -> Th -> (Th, Th)
 chopTh 0 th = (th, ones 0)
 chopTh w th = case thun th of
   (th, True)  -> chopTh (w-1) th <> (ones 0, ones 1)
@@ -156,6 +156,7 @@ weak (CdB t th) = CdB t (th -? False)
 weaks :: Int -> CdB a -> CdB a
 weaks i (CdB t th) = CdB t (th <> none i)
 
+-- TODO: refactor via derive Functor
 ($^) :: (a -> b) -> CdB a -> CdB b
 f $^ CdB a th = CdB (f a) th
   -- f better be support-preserving
@@ -168,7 +169,7 @@ support (CdB _ th) = weeEnd th
 
 -- Invariant: bigEnd th = bigEnd ph
 -- The big ends of the outputs coincide at the union.
-cop :: Th -> Th -> CdB (Th, Th)
+cop :: HasCallStack => Th -> Th -> CdB (Th, Th)
 cop th ph
   | bigEnd th == 0 = CdB (none 0, none 0) (none 0)
   | otherwise = case (thun th, thun ph) of
@@ -205,7 +206,7 @@ instance Selable (Bwd x) where
 -- (iz, th) and (jz, ph) are images for some of a scope
 -- compute a merge of iz and jz which are images for
 -- the union of th and ph
-riffle :: (Bwd a, Th) -> (Bwd a, Th) -> Bwd a
+riffle :: HasCallStack => (Bwd a, Th) -> (Bwd a, Th) -> Bwd a
 riffle (B0, _) (jz, _) = jz
 riffle (iz :< i, th) (jz, ph) = case thun th of
   (th, True) -> case (jz, thun ph) of
@@ -225,7 +226,7 @@ riffle (iz :< i, th) (jz, ph) = case thun th of
 --   |         vv
 --   o---ph---->o
 -- Note: invariant that bigEnd th == bigEnd ph
-pullback :: Th -> Th -> (Th, Th, Th)
+pullback :: HasCallStack => Th -> Th -> (Th, Th, Th)
 pullback th ph
   | bigEnd th == 0 = (none 0, none 0, none 0)
   | otherwise = case (thun th, thun ph) of

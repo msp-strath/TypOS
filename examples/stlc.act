@@ -49,7 +49,7 @@ check@p = p?ty. p?tm. case $tm
   { ['Lam \x. body] ->
       'Type?S T.
       ( ty ~ ['Arr S T]
-      | \x.
+      | 'Synth\x.
         myCtxt |- x -> S.
         check@q. q!T. q!body.)
   ; ['Emb e] -> synth@q. q!e. q?S. S ~ ty

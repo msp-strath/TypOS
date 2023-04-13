@@ -1,14 +1,14 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Concrete.Base where
 
+import Data.Function (on)
+
 import Bwd
 import Format
 import Scope
+import Hide
 import Location
-import Data.Function (on)
-
-data Operator = Operator { getOperator :: String }
-  deriving (Show, Eq)
+import Data.Bifunctor (Bifunctor (..))
 
 data Variable = Variable
   { variableLoc :: Range
@@ -16,6 +16,7 @@ data Variable = Variable
   }
 instance Show Variable where show = show . getVariable
 instance Eq Variable where (==) = (==) `on` getVariable
+instance Ord Variable where compare = compare `on` getVariable
 
 instance HasSetRange Variable where
   setRange r (Variable _ v) = Variable r v
@@ -32,21 +33,42 @@ type Guard = Root
 
 data Binder x
   = Used x
-  | Unused
+  | Unused Range
   deriving (Show, Functor, Foldable, Traversable)
 
+instance Eq x => Eq (Binder x) where
+  Used x == Used x' = x == x'
+  Unused _ == Unused _ = True
+  _ == _ = False
+
+instance HasSetRange x => HasSetRange (Binder x) where
+  setRange r (Used x) = Used (setRange r x)
+  setRange r (Unused _) = Unused r
+
+instance HasGetRange x => HasGetRange (Binder x) where
+  getRange (Used x) = getRange x
+  getRange (Unused r) = r
+
 mkBinder :: Variable -> Binder Variable
-mkBinder (Variable r "_") = Unused
+mkBinder (Variable r "_") = Unused r
 mkBinder v = Used v
+
+{-
+getBinder :: Binder Variable -> Variable
+getBinder (Used v) = v
+getBinder Unused = Variable unknown "_"
+-}
 
 data Raw
   = Var Range Variable
   | At Range Atom
   | Cons Range Raw Raw
   | Lam Range (Scope (Binder Variable) Raw)
-  | Sbst Range (Bwd SbstC) Raw
+  | Sbst Range (Bwd Assign) Raw
   | Op Range Raw Raw
+  | Rad Range Raw Raw
   | Guarded Guard Raw
+  | Thicken Range (Bwd Variable, ThDirective) Raw
   deriving (Show)
 
 instance HasSetRange Raw where
@@ -57,14 +79,20 @@ instance HasSetRange Raw where
     Lam _ sc -> Lam r sc
     Sbst _ sg t -> Sbst r sg t
     Op _ s t -> Op r s t
+    Rad _ s t -> Rad r s t
+    t@Guarded{} -> t
+    Thicken _ th t -> Thicken r th t
 
 instance Eq Raw where
   Var _ v == Var _ w = v == w
   At _ a == At _ b = a == b
   Cons _ p q == Cons _ s t = p == s && q == t
-  Lam _ sc == Lam _ bd = sc == bd
+  Lam _ (Scope (Hide x) p) == Lam _ (Scope (Hide x') p') = (x, p) == (x', p')
   Sbst _ cs t == Sbst _ ds u = cs == ds && t == u
   Op _ s t == Op _ a b = s == a && t == b
+  Rad _ s t == Rad _ a b = s == a && t == b
+  Guarded g t == Guarded h u = (g, t) == (h, u)
+  Thicken _ th t == Thicken _ ph u = (th, t) == (ph, u)
   _ == _ = False
 
 instance HasGetRange Raw where
@@ -75,30 +103,24 @@ instance HasGetRange Raw where
     Lam r _ -> r
     Sbst r _ _ -> r
     Op r _ _ -> r
+    Rad r _ _ -> r
+    Guarded _ t -> getRange t
+    Thicken r _ _ -> r
 
-data SbstC
-  = Keep Range Variable
-  | Drop Range Variable
-  | Assign Range Variable Raw
-  deriving (Show)
+data Assign = Assign
+  { assignRange :: Range
+  , assignVariable :: Variable
+  , assignTerm :: Raw
+  } deriving (Show)
 
-instance Eq SbstC where
-  Keep _ v == Keep _ w = v == w
-  Drop _ v == Drop _ w = v == w
+instance Eq Assign where
   Assign _ v t == Assign _ w u = v == w && t == u
-  _ == _ = False
 
-instance HasSetRange SbstC where
-  setRange r = \case
-    Keep _ v -> Keep r v
-    Drop _ v -> Drop r v
-    Assign _ v t -> Assign r v t
+instance HasSetRange Assign where
+  setRange r (Assign _ v t) = Assign r v t
 
-instance HasGetRange SbstC where
-  getRange = \case
-    Keep r v -> r
-    Drop r v -> r
-    Assign r v t -> r
+instance HasGetRange Assign where
+  getRange = assignRange
 
 data RawP
   = AsP Range Variable RawP
@@ -108,7 +130,20 @@ data RawP
   | LamP Range (Scope (Binder Variable) RawP)
   | ThP Range (Bwd Variable, ThDirective) RawP
   | UnderscoreP Range
+  | Irrefutable Range RawP
   deriving (Show)
+
+instance Eq RawP where
+  AsP _ v p == AsP _ v' p' = (v, p) == (v', p')
+  VarP _ v == VarP _ v' = v == v'
+  AtP _ a == AtP _ a' = a == a'
+  ConsP _ p q == ConsP _ p' q' = (p, q) == (p', q')
+  LamP _ (Scope (Hide x) p) == LamP _ (Scope (Hide x') p') = (x, p) == (x', p')
+  ThP _ th t == ThP _ th' t' = (th, t) == (th', t')
+  UnderscoreP _ == UnderscoreP _ = True
+  Irrefutable _ p == Irrefutable _ p' = p == p'
+  _ == _ = False
+
 
 instance HasSetRange RawP where
   setRange r = \case
@@ -119,6 +154,7 @@ instance HasSetRange RawP where
     LamP _ sc -> LamP r sc
     ThP _ sg t -> ThP r sg t
     UnderscoreP _ -> UnderscoreP r
+    Irrefutable _ p -> Irrefutable r p
 
 instance HasGetRange RawP where
   getRange = \case
@@ -129,19 +165,48 @@ instance HasGetRange RawP where
     LamP r sc -> r
     ThP r sg t -> r
     UnderscoreP r -> r
+    Irrefutable r p -> r
 
 data ThDirective = ThKeep | ThDrop
-  deriving (Show)
-
-data Mode = Input | Subject | Output
   deriving (Show, Eq)
 
-type Protocol t = [(Mode, t)]
+data Mode a = Input | Subject a | Output
+  deriving (Show, Eq, Functor, Foldable, Traversable)
 
-data ContextStack t = ContextStack
-  { keyDesc :: t
-  , valueDesc :: t
-  } deriving (Show, Functor, Foldable, Traversable)
+isSubjectMode :: Mode a -> Bool
+isSubjectMode (Subject _) = True
+isSubjectMode _           = False
+
+type family SYNTAXCAT (ph :: Phase) :: *
+
+type family SYNTAXDESC (ph :: Phase) :: *
+type instance SYNTAXDESC Concrete = Raw
+type CSyntaxDesc = SYNTAXDESC Concrete
+type ASyntaxDesc = SYNTAXDESC Abstract
+
+type family SEMANTICSDESC (ph :: Phase)
+type instance SEMANTICSDESC Concrete = Raw
+
+type CSemanticsDesc = SEMANTICSDESC Concrete
+type ASemanticsDesc = SEMANTICSDESC Abstract
+
+type PROTOCOLENTRY (ph :: Phase) = (Mode (SYNTAXDESC ph), SEMANTICSDESC ph)
+type CProtocolEntry = PROTOCOLENTRY Concrete
+type AProtocolEntry = PROTOCOLENTRY Abstract
+
+newtype PROTOCOL (ph :: Phase) = Protocol {getProtocol :: [PROTOCOLENTRY ph]}
+
+deriving instance
+  ( Show (SYNTAXDESC ph)
+  , Show (SEMANTICSDESC ph)) => Show (PROTOCOL ph)
+
+data ContextStack k v = ContextStack
+  { keyDesc :: k {- syntax desc -}
+  , valueDesc :: v {- closed semantics desc -}
+  } deriving (Show)
+
+instance Bifunctor ContextStack where
+  bimap f g (ContextStack k v) = ContextStack (f k) (g v)
 
 data CConnect = CConnect Variable Variable
   deriving (Show)
@@ -172,11 +237,10 @@ instance Show Keyword where
 
 data Phase = Concrete | Elaboration | Abstract
 
-type family JUDGEMENTFORM (ph :: Phase) :: *
+type family JUDGEMENTNAME (ph :: Phase) :: *
 type family CHANNEL (ph :: Phase) :: *
 type family BINDER (ph :: Phase) :: *
 type family ACTORVAR (ph :: Phase) :: *
-type family SYNTAXDESC (ph :: Phase) :: *
 type family TERMVAR (ph :: Phase) :: *
 type family TERM (ph :: Phase) :: *
 type family PATTERN (ph :: Phase) :: *
@@ -188,11 +252,10 @@ type family SCRUTINEETERM (ph :: Phase) :: *
 type family LOOKEDUP (ph :: Phase) :: *
 type family GUARD (ph :: Phase) :: *
 
-type instance JUDGEMENTFORM Concrete = Variable
+type instance JUDGEMENTNAME Concrete = Variable
 type instance CHANNEL Concrete = Variable
 type instance BINDER Concrete = RawP
 type instance ACTORVAR Concrete = Variable
-type instance SYNTAXDESC Concrete = Raw
 type instance TERMVAR Concrete = Variable
 type instance TERM Concrete = Raw
 type instance PATTERN Concrete = RawP
@@ -231,14 +294,14 @@ instance HasGetRange (SCRUTINEE ph) where
 
 data ACTOR (ph :: Phase)
  = Branch Range (ACTOR ph) (ACTOR ph)
- | Spawn Range ExtractMode (JUDGEMENTFORM ph) (CHANNEL ph) (ACTOR ph)
+ | Spawn Range ExtractMode (JUDGEMENTNAME ph) (CHANNEL ph) (ACTOR ph)
  | Send Range (CHANNEL ph) (GUARD ph) (TERM ph) (ACTOR ph)
  | Recv Range (CHANNEL ph) (BINDER ph, ACTOR ph)
  | Connect Range (CONNECT ph)
  | Note Range (ACTOR ph)
- | FreshMeta Range (SYNTAXDESC ph) (ACTORVAR ph, ACTOR ph)
- | Let Range (ACTORVAR ph) (SYNTAXDESC ph) (TERM ph) (ACTOR ph)
- | Under Range (Scope Variable (ACTOR ph))
+ | FreshMeta Range (SEMANTICSDESC ph) (ACTORVAR ph, ACTOR ph)
+ | Let Range (ACTORVAR ph) (SEMANTICSDESC ph) (TERM ph) (ACTOR ph)
+ | Under Range (Maybe (SEMANTICSDESC ph)) (Scope Variable (ACTOR ph))
  | Match Range (SCRUTINEE ph) [(PATTERN ph, ACTOR ph)]
  -- This is going to bite us when it comes to dependent types
  | Constrain Range (TERM ph) (TERM ph)
@@ -257,13 +320,13 @@ deriving instance
   Show (SCRUTINEE ph)
 
 deriving instance
-  ( Show (JUDGEMENTFORM ph)
+  ( Show (JUDGEMENTNAME ph)
   , Show (CHANNEL ph)
   , Show (BINDER ph)
   , Show (ACTORVAR ph)
   , Show (SCRUTINEEVAR ph)
   , Show (SCRUTINEETERM ph)
-  , Show (SYNTAXDESC ph)
+  , Show (SEMANTICSDESC ph)
   , Show (TERMVAR ph)
   , Show (TERM ph)
   , Show (PATTERN ph)
@@ -284,7 +347,7 @@ instance HasSetRange (ACTOR ph) where
     Note _ ac -> Note r ac
     FreshMeta _ syn x0 -> FreshMeta r syn x0
     Let _ x d t a -> Let r x d t a
-    Under _ sc -> Under r sc
+    Under _ mty sc -> Under r mty sc
     Match _ tm x0 -> Match r tm x0
     Constrain _ tm tm' -> Constrain r tm tm'
     Push _ jd x0 ac -> Push r jd x0 ac
@@ -303,7 +366,7 @@ instance HasGetRange (ACTOR ph) where
     Note r ac -> r
     FreshMeta r syn x0 -> r
     Let r _ _ _ _ -> r
-    Under r sc -> r
+    Under r mty sc -> r
     Match r tm x0 -> r
     Constrain r tm tm' -> r
     Push r jd x0 ac -> r
@@ -316,7 +379,7 @@ isWin :: ACTOR ph -> Bool
 isWin (Win _) = True
 isWin _ = False
 
-type CProtocol = Protocol Raw
-type CContextStack = ContextStack Raw
+type CProtocol = PROTOCOL Concrete
+type CContextStack = ContextStack Raw Raw
 type CActor = ACTOR Concrete
 type CScrutinee = SCRUTINEE Concrete

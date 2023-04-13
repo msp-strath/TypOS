@@ -91,6 +91,10 @@ class HasSetRange t where
 class HasGetRange t where
   getRange :: t -> Range
 
+-- 'Range' has a getter
+instance HasGetRange Range where
+  getRange = id
+
 -- 'WithRange' has a setter
 instance HasSetRange (WithRange t) where
   setRange r (WithRange _ t) = WithRange r t
@@ -105,7 +109,7 @@ type HasRange t = (HasSetRange t, HasGetRange t)
 -- Warning: fragile. Take two 'Location', assume that the second one
 -- is for the same file. Hard error if this is not correct.
 fromLocations :: Location -> Location -> Range
-fromLocations s e = 
+fromLocations s e =
   if not (file s == file e) then error "Trying to make a Range from locations in different files"
   else if not (isProperLocPair ss ee) then error "Trying to make a Range from inverted locations"
   else Range (file s) ss ee
@@ -114,7 +118,7 @@ fromLocations s e =
     ee = (row e, col e)
 
 -- Set the range of an attributed value from one created from 2 locations (fragile)
-addRange :: HasRange t => Location -> Location -> t -> t
+addRange :: HasSetRange t => Location -> Location -> t -> t
 addRange s e = setRange (fromLocations s e)
 
 -- An 'unknown' (invalid) range in a non-existent file. This is mainly used for the Monoid

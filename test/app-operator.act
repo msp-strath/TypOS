@@ -1,4 +1,5 @@
-withOp : ?'Wildcard. ?'Wildcard.
+withOp : ?['Pi 'Wildcard \_. ['Pi 'Wildcard \_.'Wildcard]].
+         ?'Wildcard.
 withOp@p = p?fun. p?res.
   fun - ['app 'arg1] - ['app 'arg2]
   ~ res
@@ -8,6 +9,6 @@ exec
   | withOp@p. p!\x y.y. p!'arg2.
   | withOp@p. p!\x y.x. p!'arg1.
   | withOp@p. p!\x y.x. p!'arg2.
-  | withOp@p. p!'stuck. p!'arg1.
-  | withOp@p. p!'stuck. p!'arg2.
+--  | withOp@p. p!'stuck. p!'arg1.
+--  | withOp@p. p!'stuck. p!'arg2.
   )

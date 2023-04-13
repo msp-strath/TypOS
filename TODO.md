@@ -15,6 +15,7 @@
 * [x] irrefutable patterns in binders
 * [x] literate markdown
 * [ ] literate LaTeX
+* [ ] protect against "redefining" syntax keywords such as 'Atom etc
 
 ### Features
 
@@ -29,7 +30,9 @@
    + [ ] Unique names for subactors
    + [ ] block terms on names
    + [ ] Blocking wrapper evaporates when named thing is `Done`
-+ [x] PRINTF argument for model-based normalisation
+* [x] PRINTF argument for model-based normalisation
+* [ ] PRINTF argument for type of
+
 
 ### VM
 
@@ -87,6 +90,12 @@
 * [ ] Define `ElaborationMonad m =>` & cleanup sclause
 * [ ] Drop run-length encoding subst in favour of relevant subst
 * [ ] Match monad for Matching (Env in a state)
+* [ ] `keyword` pretty printing should use the data type of keywords
+* [ ] `class Declarable a where { declare :: a -> Context -> Context }`
+      instead of declareObjVar, declareChannel, declareXXX
+* [x] Add `throwComplaint :: Range -> Complaint -> Elab ()` and
+      refactor `Complaint` to be range-free with the range carried
+      by a `WithRange` wrapper.
 
 ### Pretty
 
