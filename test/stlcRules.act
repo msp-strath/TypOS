@@ -50,7 +50,8 @@ judgementform
 judgementform
   {type T}
   check T (t : 'Check => T - 'Value)
-  {t - 'Bla : 'Semantics}
+  { (t : _) -['Bla (T : _)]: 'Semantics
+  ; (t : _) -['eq (_ : T -'Value)] : 'Bool}
 
 judgementform
   {}

@@ -7,6 +7,7 @@
                         "break" "unify" "send" "recv" "move"
                         "case" "let"
                         "Atom" "AtomBar" "Wildcard" "EnumOrTag" "Enum" "Tag" "Cons" "Nil" "NilOrCons" "Fix" "Bind"
+                        "Syntax" "Semantics"
                         "BREAK" "PRINT" "PRINTF"))
 (setq typos-operators '("@" "!" "$" "?" "~" "#"))
 (setq typos-symbols   '("|-" "|" "<->" "->" "~>" ";" "=>" "=" "{" "}"))

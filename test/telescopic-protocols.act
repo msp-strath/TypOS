@@ -9,7 +9,7 @@ operator
   ; ['Arr A B] : 'Type -'Meaning ~> ['Pi (A -'Meaning) \ _. (B -'Meaning)]
   }
 
-inhab : ? A : 'Type. ! A -'Meaning.
+inhab : ?A : 'Type. ! A -'Meaning.
 inhab@p = p?A. case A
   { 'Base -> p!'True.
   ; ['Arr S T] -> inhab@q. q!T. q?t. p!\_.t.
