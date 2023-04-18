@@ -1,0 +1,11 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  22 |   {}
+out >  23 |   check T (t : 'Check => T - 'Value)
+out >  24 |   {type T ; type T}
+out >               ^
+out > duplicatedoutput.act:24:8-9
+out > T is a duplicated output
+out > when elaborating the judgement form check
+out >

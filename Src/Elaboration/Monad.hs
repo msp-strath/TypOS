@@ -21,6 +21,7 @@ import Thin
 import Term.Base
 import Utils
 import Operator
+import Rules
 import Info
 import Pattern
 import Hide
@@ -309,10 +310,19 @@ declareObjVar :: ( {- x :: -} String
               -> Context {- gamma, x :: S -}
 declareObjVar (x, sem) ctx =
     -- We store semantics descs ready to be deployed at use sites
-    let scp = getObjVars (objVars ctx) :< ObjVar x sem in
+    let scp = getObjVars (objVars ctx) :< ObjVar x sem
+        dat = headUpData ctx
+    in
     ctx { objVars = ObjVars (fmap weak <$> scp)
         , binderHints = fmap weak <$> binderHints ctx
+        , headUpData = dat { huEnv = weakenEnvWith x (huEnv dat) }
         }
+  where
+    -- we extend the global scope so that mangleActors will bring the
+    -- operator types into local scope during instantiation
+    weakenEnvWith :: String -> Env' m -> Env' m
+    weakenEnvWith x env = env { globalScope = globalScope env :< x}
+
 
 -- Careful! The new ovs better be a valid scope
 -- i.e. all the objvars mentioned in the SemanticsDesc of
@@ -505,6 +515,17 @@ data Complaint
   | ProtocolsNotDual AProtocol AProtocol
   | IncompatibleModes AProtocolEntry AProtocolEntry
   | WrongDirection AProtocolEntry Ordering AProtocolEntry
+  -- judgementforms
+  | JudgementWrongArity JudgementName AProtocol [CFormula]
+  | UnexpectedNonSubject CFormula
+  | DuplicatedPlace Variable
+  | DuplicatedInput Variable
+  | DuplicatedOutput Variable
+  | BothInputOutput Variable
+  | ProtocolCitizenSubjectMismatch Variable (Mode ())
+  | MalformedPostOperator String [Variable]
+  | MismatchedObjectPattern String RawP RawP
+  | InvalidSubjectSyntaxCat SyntaxCat [SyntaxCat]
   -- syntaxes
   | AlreadyDeclaredSyntaxCat SyntaxCat
   -- syntaxdesc validation

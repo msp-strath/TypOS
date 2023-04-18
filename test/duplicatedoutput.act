@@ -1,0 +1,24 @@
+------------------------------------------------------------------------------
+-- Datatypes
+
+syntax
+  { 'Type = ['EnumOrTag  ['Nat]
+                         [['Arr 'Type 'Type]]
+            ]
+  }
+
+syntax
+  { 'Check = ['Tag [ ['Lam ['Bind 'Synth 'Check]]
+                     ['Emb 'Synth]
+             ]]
+  ; 'Synth = ['Tag [ ['Ann 'Check 'Type]
+                     ['App 'Synth 'Check]
+             ]]
+  }
+
+type : $'Type.
+
+judgementform
+  {}
+  check T (t : 'Check => T - 'Value)
+  {type T ; type T}

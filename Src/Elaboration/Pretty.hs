@@ -6,7 +6,7 @@ import Data.Foldable
 
 import ANSI hiding (withANSI)
 import Actor (ActorMeta'(..), ActorMeta, Channel(..), Stack(..), AProtocol)
-import Concrete.Base (Binder (..), PROTOCOL(Protocol))
+import Concrete.Base (Binder (..), PROTOCOL(Protocol), Mode (..))
 import Concrete.Pretty()
 import Elaboration.Monad
 import Location
@@ -156,6 +156,32 @@ instance Pretty (WithRange Complaint) where
     WrongDirection m1 dir m2 -> hsep ["Wrong direction", pretty (show dir)
                                      , "between", pretty (WithVarNames B0 <$> m1)
                                      , "and", pretty (WithVarNames B0 <$> m2)]
+    -- judgementforms
+    JudgementWrongArity name (Protocol protocol) fms ->
+        let applied = (if length protocol > length fms then "under" else "over") <> "-applied" in
+        hsep ["Judgement", pretty name, applied]
+    UnexpectedNonSubject fm -> hsep ["Unexpected non-subject", pretty fm]
+    DuplicatedPlace v -> hsep [pretty v, "is a duplicated place" ]
+    DuplicatedInput v -> hsep [pretty v, "is a duplicated input"]
+    DuplicatedOutput v -> hsep [pretty v, "is a duplicated output"]
+    BothInputOutput v -> hsep [pretty v, "is both an input and an output"]
+    ProtocolCitizenSubjectMismatch v m ->
+      let (seen, unseen) = case m of
+            Input -> ("an input", "not as a subject")
+            Subject{} -> ("a subject", "neither as an input nor an output")
+            Output -> ("an output", "not as a subject")
+      in hsep ["Found", pretty v, "as", seen, "but", unseen ]
+    MalformedPostOperator op cands ->
+      let message = case cands of [x] -> "the subject"
+                                  _   -> "a subject among" in
+      hsep $ ["Malformed operator", pretty op <> "; expected it to act on", message] ++ punctuate ", " (map pretty cands)
+    MismatchedObjectPattern op got expected ->
+      vcat [ hsep ["Mismatched object type pattern in operator declaration of ", pretty op <> "."]
+           , hsep ["Expected", pretty expected, "but got", pretty got]
+           ]
+    InvalidSubjectSyntaxCat got known -> vcat [hsep ["Invalid subject syntax category", pretty got]
+                                              , hsep ("Expected one among" : punctuate ", " (map pretty known))
+                                              ]
     -- syntaxes
     AlreadyDeclaredSyntaxCat x -> hsep ["The syntactic category", pretty x, "is already defined"]
 
@@ -166,7 +192,8 @@ instance Pretty (WithRange Complaint) where
       hsep [ "Incompatible semantics descriptions, expected"
            , prettyPrec 1 desc
            , "but got"
-           , prettyPrec 1 desc']
+           , prettyPrec 1 desc'
+           ]
     IncompatibleSyntaxInfos info1 info2 ->
       hsep ["Syntax infos" , pretty (WithVarNames B0 <$> info1)
            , "and", pretty (WithVarNames B0 <$> info2)

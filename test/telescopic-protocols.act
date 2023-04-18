@@ -1,0 +1,20 @@
+syntax
+  { 'Bool = ['Enum ['True 'False]]
+  ; 'Type = ['EnumOrTag ['Base] [['Arr 'Type 'Type]]]
+  }
+
+operator
+  { (T : 'Type) - 'Meaning : 'Semantics
+  ; 'Base : 'Type -'Meaning ~> 'Bool
+  ; ['Arr A B] : 'Type -'Meaning ~> ['Pi (A -'Meaning) \ _. (B -'Meaning)]
+  }
+
+inhab : ?A : 'Type. ! A -'Meaning.
+inhab@p = p?A. case A
+  { 'Base -> p!'True.
+  ; ['Arr S T] -> inhab@q. q!T. q?t. p!\_.t.
+  }
+
+exec inhab@p. p!['Arr 'Base ['Arr 'Base 'Base]].
+              p?t.
+              PRINTF "My favourite inhabitant is %i" t.

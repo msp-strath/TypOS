@@ -32,7 +32,7 @@ data HeadUpData' m = forall i d. HeadUpData
   , metaStore :: StoreF i d
   , huOptions :: Options
   , huEnv :: Env' m
-  , whatIs :: m -> Maybe (Term' m)
+  , whatIs :: m -> Maybe (Term' m) -- how to look up meta variables
   }
 
 instance Show (HeadUpData' m) where

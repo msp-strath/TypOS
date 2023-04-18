@@ -38,9 +38,10 @@ import Control.Applicative ((<|>))
 import Operator
 import Operator.Eval
 import Semantics
--- import Debug.Trace (traceShow, traceShowId, trace)
 import Data.Bifunctor (bimap)
 import GHC.Stack.Types (HasCallStack)
+
+-- import Debug.Trace (traceShow, traceShowId, trace)
 
 type CPattern = PATTERN Concrete
 type APattern = PATTERN Abstract
@@ -518,7 +519,7 @@ itms :: Range -> String -> Usage
         --
      -> Elab (ASemanticsDesc -- Instantiated return type
              , [ACTm])       -- Elaborated parameters
-itms r op usage [] [] rdesc = (, []) <$> instantiateDesc r rdesc
+itms r op usage [] [] rdesc = (, []) <$> (instantiateDesc r rdesc)
 itms r op usage ((binder, sot):bs) (rp:rps) rdesc = do
   (ovs :=> desc) <- instantiateSOT (getRange rp) sot
   (p, dat) <- sparam usage binder B0 (discharge ovs desc) rp

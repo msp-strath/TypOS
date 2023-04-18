@@ -1,0 +1,11 @@
+ret > ExitFailure 1
+out > Error
+out >
+out >  20 | 
+out >  21 | judgementform
+out >  22 |   {type T}
+out >               ^
+out > bothinputoutput.act:22:8-9
+out > T is both an input and an output
+out > when elaborating the judgement form check
+out >
