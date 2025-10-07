@@ -2,16 +2,16 @@
 
 module Command where
 
+import Control.Monad (when, forM_, guard)
 import Control.Applicative
-import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Bifunctor (bimap, first)
+import Data.Kind (Type)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
-import Data.Foldable (asum)
 
 import Actor
 import Actor.Display ()
@@ -45,7 +45,7 @@ import Operator.Eval (HeadUpData' (..))
 import Hide (Hide(..))
 import Scope (Scope(..))
 
-type family DEFNPROTOCOL (ph :: Phase) :: *
+type family DEFNPROTOCOL (ph :: Phase) :: Type
 type instance DEFNPROTOCOL Concrete = ()
 type instance DEFNPROTOCOL Abstract = AProtocol
 

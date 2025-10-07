@@ -2,7 +2,9 @@ module Term.Mangler where
 
 import Control.Monad.Writer
 import Control.Applicative
+
 import qualified Data.Map as Map
+import Data.Monoid (Any(..))
 
 import Thin
 import Hide

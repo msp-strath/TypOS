@@ -4,6 +4,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.These (These(..))
 
+import Control.Monad (when, unless, liftM2)
 import Control.Monad.State
 
 isAllJustBy :: [a] -> (a -> Maybe b) -> Either a [b]

@@ -2,6 +2,7 @@
 
 module Unelaboration where
 
+import Control.Monad (when)
 import Control.Monad.Except
 import Control.Monad.Reader
 

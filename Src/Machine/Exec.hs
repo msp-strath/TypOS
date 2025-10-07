@@ -6,6 +6,7 @@ import qualified Data.Set as Set
 import Data.Maybe (fromJust)
 import Unelaboration.Monad (nameSel)
 
+import Control.Monad (when)
 import Control.Monad.Reader
 
 import Alarm

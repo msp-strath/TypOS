@@ -2,7 +2,7 @@
 
 module Actor.Display where
 
-import Control.Monad.Except
+import Control.Monad (forM)
 
 import qualified Data.Map as Map
 

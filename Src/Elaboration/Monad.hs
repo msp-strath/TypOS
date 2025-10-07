@@ -2,6 +2,7 @@
 {-# OPTIONS_GHC -Wincomplete-patterns #-}
 module Elaboration.Monad where
 
+import Control.Monad (when, guard)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -11,6 +12,7 @@ import Data.List.NonEmpty (NonEmpty)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
+import Data.Monoid (All)
 
 import Actor
 import Bwd

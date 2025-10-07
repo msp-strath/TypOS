@@ -205,6 +205,9 @@ data ContextStack k v = ContextStack
   , valueDesc :: v {- closed semantics desc -}
   } deriving (Show)
 
+instance Functor (ContextStack a) where
+  fmap f (ContextStack k v) = ContextStack k (f v)
+
 instance Bifunctor ContextStack where
   bimap f g (ContextStack k v) = ContextStack (f k) (g v)
 

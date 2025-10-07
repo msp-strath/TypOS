@@ -10,6 +10,7 @@ import Data.Bitraversable
 
 import Data.List (intersperse, elemIndex, groupBy, sortBy)
 import Data.Function (on)
+import Data.Kind (Type)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
@@ -53,7 +54,7 @@ instance (Show e, Show (i ann)) => Show (Trace e i ann) where
     go indt (Node _ i ts) = (indt ++ show i) : concatMap (go (' ':indt)) ts
     go indt (Error _ e)   = [indt ++ show e]
 
-type family ITERM (ph :: Phase) :: *
+type family ITERM (ph :: Phase) :: Type
 type instance ITERM Abstract = Term
 type instance ITERM Concrete = Raw
 
@@ -156,6 +157,9 @@ newtype Series t ann = Series { runSeries :: [(t, ann)] }
 
 mkSeries :: t -> ann -> Series t ann
 mkSeries t a = Series [(t, a)]
+
+instance Functor (Simple t) where
+  fmap f (Simple t a) = Simple t (f a)
 
 instance Bifunctor Simple where
   bimap f g (Simple t a) = Simple (f t) (g a)

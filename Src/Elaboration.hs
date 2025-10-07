@@ -1,17 +1,18 @@
 module Elaboration where
 
-import Control.Monad.Except
+import Control.Monad (when, unless, guard, forM)
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
 
+import Data.Bitraversable
 import Data.Function
 import Data.List (isPrefixOf)
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import Data.Maybe
-import Data.Bitraversable
+import Data.Monoid (All(..))
+import qualified Data.Set as Set
 
 import Actor
 import Bwd

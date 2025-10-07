@@ -26,6 +26,7 @@ common haskell
                        StandaloneDeriving,
                        TupleSections,
                        TypeFamilies,
+                       TypeOperators,
                        TypeSynonymInstances
 
 library

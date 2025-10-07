@@ -3,6 +3,7 @@ module Operator where
 
 import Control.Applicative
 import Data.Foldable
+import Data.Kind (Type)
 
 import Concrete.Base
 import Concrete.Parse
@@ -73,7 +74,7 @@ scopeSize = length . getObjVars
 -- e.g. ['Pi S \x.T]
 --    - S has a SOT, binding nothing
 --    - T has a SOT, binding x with type S[]
-type family SOT (ph :: Phase) :: *
+type family SOT (ph :: Phase) :: Type
 type instance SOT Concrete = CSOT
 type instance SOT Abstract = ASOT
 
@@ -130,7 +131,7 @@ type AAnOperator = ANOPERATOR Abstract
 newtype Operator = Operator { getOperator :: String }
   deriving (Show, Eq)
 
-type family OPERATOR (ph :: Phase) :: *
+type family OPERATOR (ph :: Phase) :: Type
 type instance OPERATOR Concrete = WithRange String
 type instance OPERATOR Abstract = Operator
 
@@ -144,13 +145,13 @@ type AClause m = (Show m, UnelabMeta m)
 newtype Clause = Clause { runClause :: forall m . AClause m }
 
 instance Semigroup Clause where
-  (<>) = mappend
+  cl1 <> cl2 = Clause $ \ opts hd env ops -> case runClause cl2 opts hd env ops of
+    Left ops -> runClause cl1 opts hd env ops
+    Right t -> Right t
 
 instance Monoid Clause where
   mempty = Clause $ \ _ _ _ -> Left
-  mappend cl1 cl2 = Clause $ \ opts hd env ops -> case runClause cl2 opts hd env ops of
-    Left ops -> runClause cl1 opts hd env ops
-    Right t -> Right t
+  mappend = (<>)
 
 instance Show Clause where
   show _ = "<fun>"
@@ -159,7 +160,7 @@ type OPPATTERN ph = (PATTERN ph     -- type acted on
                     , OPERATOR ph   -- operator
                     , [PATTERN ph]) -- parameters
 
-type family DEFNOP (ph :: Phase) :: *
+type family DEFNOP (ph :: Phase) :: Type
 type instance DEFNOP Concrete = (PATTERN Concrete       -- object
                                 , [OPPATTERN Concrete]  -- spine (must be non-empty)
                                 , TERM Concrete)        -- right hand side
