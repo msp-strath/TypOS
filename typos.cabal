@@ -26,10 +26,24 @@ common haskell
                        StandaloneDeriving,
                        TupleSections,
                        TypeFamilies,
+                       TypeOperators,
                        TypeSynonymInstances
 
+common warnings
+    -- Silence some flags
+    ghc-options:  -Wall
+                  -Wno-name-shadowing
+                  -Wno-noncanonical-monad-instances
+                  -Wno-noncanonical-monoid-instances
+                  -Wno-unused-do-bind
+                  -Wno-unused-local-binds
+                  -Wno-unused-matches
+                  -Wno-unused-top-binds
+                  -Wno-orphans
+                  -Werror=incomplete-patterns
+
 library
-  import:              haskell
+  import:              haskell, warnings
   exposed-modules:     Actor,
                        Actor.Display,
                        Alarm,
@@ -91,10 +105,10 @@ library
   hs-source-dirs:      Src
   default-language:    Haskell2010
   ghc-options:         -Wunused-imports
---                       -fwarn-incomplete-patterns
+                       -fwarn-incomplete-patterns
 
 executable typos
-  import:              haskell
+  import:              haskell, warnings
   main-is:             Src/Main.hs
   build-depends:       base <5
                      , mtl

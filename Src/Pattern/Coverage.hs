@@ -24,7 +24,7 @@ import Thin (is1s, scope)
 import Hide (Hide(Hide))
 import Semantics
 import Operator.Eval (HeadUpData')
-import Actor (ActorMeta(..))
+import Actor (ActorMeta)
 import Syntax (SyntaxTable, SyntaxCat, WithSyntaxCat(..))
 
 ------------------------------------------------------------------------------
@@ -282,7 +282,7 @@ missing dat table desc = fmap (`evalState` names) (start desc) where
   -- "a", "b", ..., "z", "a1", "b1", ...
   names :: [String]
   names = concat
-        $ zipWith (map . flip (++)) ("" : map show [1..])
+        $ zipWith (map . flip (++)) ("" : map show [(1 :: Integer)..])
         $ repeat (map pure "abcdefghijklmnopqrstuvwxyz")
 
   freshName :: State [String] String
@@ -312,7 +312,6 @@ missing dat table desc = fmap (`evalState` names) (start desc) where
     in fromList (concatMap toList (enums ++ tagged))
   go (VWildcard _)= (pure $ UnderscoreP unknown) :| []
   go (VSyntaxCat _ _) = (VarP unknown . Variable unknown <$> freshName) :| []
-{- TODO: fill in, neutral case might be impossible
-  go (VNeutral _) = _
+  go (VNeutral _) = undefined -- TODO
   go (VUniverse _) = (pure $ AtP unknown "Semantics") :| []
-  go (VPi _ _) = _ -}
+  go (VPi _ _) = undefined -- TODO

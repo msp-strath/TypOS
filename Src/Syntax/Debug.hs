@@ -8,6 +8,7 @@ import Machine.Display()
 import Unelaboration.Monad (initNaming)
 import Text.PrettyPrint.Compact (render)
 
+printIt :: IO ()
 printIt = putStrLn $ unlines
   [ show validateIt
   , "==="

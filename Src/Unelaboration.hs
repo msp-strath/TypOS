@@ -2,6 +2,7 @@
 
 module Unelaboration where
 
+import Control.Monad (when)
 import Control.Monad.Except
 import Control.Monad.Reader
 
@@ -107,6 +108,7 @@ instance Unelab Pat where
       pure (LamP unknown (Scope (mkBinder . Variable unknown <$> x) p))
     MP m th -> {- TODO: insert ThP -} VarP unknown <$> subunelab m
     HP -> pure (UnderscoreP unknown)
+    GP -> pure (UnderscoreP unknown)
 
 instance Unelab (Pat, AActor) where
   type UnelabEnv (Pat, AActor) = DAEnv
@@ -200,12 +202,14 @@ instance Unelab AScrutinee where
       case v of
         -- Sbst _ _ (Var r m) -> pure (ActorVar r m)
         Var r m -> pure (SubjectVar r m)
+        _ -> error "Broken invariant"
     Pair r s t -> Pair r <$> unelab s <*> unelab t
     Lookup r stk t -> do
       stk <- subunelab stk
       t <- unelab t >>= \case
         -- Sbst _ _ (Var r m) -> pure m
         Var r m -> pure m
+        _ -> error "Broken invariant"
       pure $ Lookup r stk t
     Compare r s t -> Compare r <$> unelab s <*> unelab t
     Term r t -> Term r <$> unelab t

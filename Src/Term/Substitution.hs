@@ -7,7 +7,10 @@ import Hide
 import Thin
 import Term.Base hiding (expand)
 
+import GHC.Stack (HasCallStack)
+
 -- import Debug.Trace
+track :: a -> b -> b
 track = const id
 -- track = trace
 
@@ -33,7 +36,7 @@ tth@(CdB t th) //^ sgph@(CdB sg ph) =
 --       track "\n" $
        res
 
-(//) :: Tm m -> Sbst m -> Tm m
+(//) :: HasCallStack => Tm m -> Sbst m -> Tm m
 t // (S0 :^^ _) = t
 V // (ST (_ :<>: CdB (_ := t) _) :^^ 0) = t
 P p (CdB tl thl :<>: CdB tr thr) // sg =
@@ -43,6 +46,7 @@ P p (CdB tl thl :<>: CdB tr thr) // sg =
 ((x := b) :. t) // (sg :^^ w) = (x := b) :. (t // (sg :^^ if b then w+1 else w))
 (m :$ rh) // sg = m :$ (rh /// sg)
 (G g t) // sg = G g (t // sg)
+_ // _ = error "Broken invariant"
 
 (///) :: Sbst m -> Sbst m -> Sbst m
 (S0 :^^ _) /// sg = sg

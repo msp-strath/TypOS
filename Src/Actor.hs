@@ -138,6 +138,7 @@ mangleActors opts rho tm = go tm where
   go tm = case expand tm of
     VX i de -> pure (var i (ga + de))
     AX a de -> pure (atom a (ga + de))
+    GX g a -> (G g $^) <$> go a
     a :%: b -> (%) <$> go a <*> go b
     t :-: o -> Term.contract <$> ((:-:) <$> go t <*> go o)
     t ::: o -> Term.contract <$> ((:::) <$> go t <*> go o)

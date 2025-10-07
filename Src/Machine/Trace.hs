@@ -10,6 +10,7 @@ import Data.Bitraversable
 
 import Data.List (intersperse, elemIndex, groupBy, sortBy)
 import Data.Function (on)
+import Data.Kind (Type)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (fromMaybe)
@@ -53,7 +54,7 @@ instance (Show e, Show (i ann)) => Show (Trace e i ann) where
     go indt (Node _ i ts) = (indt ++ show i) : concatMap (go (' ':indt)) ts
     go indt (Error _ e)   = [indt ++ show e]
 
-type family ITERM (ph :: Phase) :: *
+type family ITERM (ph :: Phase) :: Type
 type instance ITERM Abstract = Term
 type instance ITERM Concrete = Raw
 
@@ -157,6 +158,9 @@ newtype Series t ann = Series { runSeries :: [(t, ann)] }
 mkSeries :: t -> ann -> Series t ann
 mkSeries t a = Series [(t, a)]
 
+instance Functor (Simple t) where
+  fmap f (Simple t a) = Simple t (f a)
+
 instance Bifunctor Simple where
   bimap f g (Simple t a) = Simple (f t) (g a)
 
@@ -182,6 +186,7 @@ instance LaTeX (Series () (Int, Bool)) where
   toLaTeX d (Series ibs)
     = do let ibss = groupBy ((==) `on` fst) $ sortBy (compare `on` snd) $ map snd ibs
          (ibss, ibs) <- case B0 <>< ibss of
+                          B0 -> error "Broken invariant"
                           ibz :< ibs -> pure (ibz <>> [], ibs)
                           -- Famous last words: trust me that's the only case
          let doc = display1 ibs
@@ -218,6 +223,7 @@ instance (Eq t, LaTeX t) => LaTeX (Series t Int) where
   toLaTeX d (Series tanns)
     = do let tnss = groupBy ((==) `on` fst) $ sortBy (compare `on` snd) tanns
          (tnss, tns) <- case B0 <>< tnss of
+                          B0 -> error "Broken invariant"
                           tnz :< tns -> pure (tnz <>> [], tns)
                           -- Famous last words: trust me that's the only case
          doc <- display1 tns
@@ -228,6 +234,7 @@ instance (Eq t, LaTeX t) => LaTeX (Series t Int) where
 
       where
         display1 :: [(t, Int)] -> LaTeXM (Doc ())
+        display1 [] = error "Broken invariant"
         display1 tns@((t, _) : _) = do
           let ns = map snd tns
           let start = minimum ns

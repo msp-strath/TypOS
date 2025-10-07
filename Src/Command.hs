@@ -2,16 +2,16 @@
 
 module Command where
 
+import Control.Monad (when, forM_, guard)
 import Control.Applicative
-import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 
 import Data.Bifunctor (bimap, first)
+import Data.Kind (Type)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Traversable (for)
-import Data.Foldable (asum)
 
 import Actor
 import Actor.Display ()
@@ -45,7 +45,7 @@ import Operator.Eval (HeadUpData' (..))
 import Hide (Hide(..))
 import Scope (Scope(..))
 
-type family DEFNPROTOCOL (ph :: Phase) :: *
+type family DEFNPROTOCOL (ph :: Phase) :: Type
 type instance DEFNPROTOCOL Concrete = ()
 type instance DEFNPROTOCOL Abstract = AProtocol
 
@@ -141,6 +141,7 @@ instance Pretty CCommand where
     Go a -> keyword "exec" <+> pretty a
     Trace ts -> keyword "trace" <+> collapse (BracesList $ map pretty ts)
     Typecheck t ty -> keyword "typecheck" <+> pretty t <+> ":" <+> pretty ty
+    OpBlock _ -> undefined -- TODO
 
 instance Unelab ACommand where
   type UnelabEnv ACommand = Naming
@@ -159,6 +160,7 @@ instance Unelab ACommand where
     Go a -> Go <$> withEnv initDAEnv (unelab a)
     Trace ts -> pure $ Trace ts
     Typecheck t ty -> Typecheck <$> unelab t <*> unelab ty
+    OpBlock t -> error "Unhandled input"
 
 instance Unelab AStatement where
   type UnelabEnv AStatement = ()
@@ -333,12 +335,13 @@ scommand = \case
 
 sopBlock :: [OPENTRY Concrete] -> Elab ([OPENTRY Abstract], Globals)
 sopBlock [] = ([],) <$> asks globals
+sopBlock (DefnOp (_, [], _) : _) = error "Broken invariant"
 sopBlock (DefnOp (rp, opelims@((rpty,_,_):_), rhs) : rest) = do
   -- p : pty0 -[ opelim0 ] : pty1 -[ opelim1 ] ... : ptyn -[ opelimn ] ~> rhs
   (p, opelimz, decls, lhsTy) <- sopelims0 (getRange rp <> getRange rpty) rp opelims
   rhs <- local (setDecls decls) $ stm DontLog lhsTy rhs
   -- this is the outer op being extended
-  let op = case opelimz of (_ :< (_, op, _)) -> op
+  let op = case opelimz of { (_ :< (_, op, _)) -> op; B0 -> error "Broken invariant" }
   let cl = toClause p opelimz rhs
   (bl , gl) <- sopBlock rest
   pure (DefnOp (op, cl) : bl, gl)
@@ -358,6 +361,7 @@ sopelims :: Range
          -> Either RawP (Pat, (ASemanticsDesc, ACTm))
          -> [(RawP, OPERATOR Concrete, [RawP])]
          -> Elab (Pat, Bwd (Pat, OPERATOR Abstract, [Pat]), Decls, ASemanticsDesc)
+sopelims _ _ (Left _) [] = error "Unhandled input"
 sopelims r opelimz (Right (p, (inty, t))) [] = (p,opelimz,,inty) <$> asks declarations
 sopelims r opelimz acc ((rpty, op, args):opelims) = do
   -- We need to worry about freshening up names in operator
@@ -406,6 +410,7 @@ sopelims r opelimz acc ((rpty, op, args):opelims) = do
       (Tele desc (Scope (Hide name) tele))
       (LamP r (Scope (Hide x) rp)) =
       elabUnder (x, desc) $ sparamSemantics binder (namez :< name) tele rp
+    sparamSemantics _ _ _ _ = error "Unhandled input"
 
     -- cf. itms
     spats :: Range

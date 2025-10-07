@@ -3,10 +3,14 @@ Description: snoc lists
 -}
 module Bwd where
 
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
+import Control.Monad (guard)
 import Control.Monad.State
+
+import Data.Map (Map)
+import Data.Maybe (fromMaybe)
+import qualified Data.Map as Map
+
+import GHC.Stack (HasCallStack)
 
 data Bwd x = B0 | Bwd x :< x
   deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
@@ -20,9 +24,10 @@ instance Monoid (Bwd x) where
   mempty = B0
 
 -- | lookup with a more convenient name
-(<!) :: Bwd x -> Int -> x
+(<!) :: HasCallStack => Bwd x -> Int -> x
 (_  :< x) <! 0 = x
 (xs :< _) <! n = xs <! (n - 1)
+_ <! _ = error "Looking up from an empty Bwd"
 
 infixl 4 <><
 
@@ -50,26 +55,30 @@ mapzs f xz = mapzss f xz []
 
 -- | Treat a snoc list as a stack and returns the top.
 -- Warning: incomplete pattern match.
-top :: Bwd x -> x
+top :: HasCallStack => Bwd x -> x
 top (_ :< x) = x
+top _ = error "Taking the top of an empty Bwd"
 
 -- | 'takez' is 'take' but renamed so 'take' can still be used
-takez :: Bwd x -> Int -> Bwd x
+takez :: HasCallStack => Bwd x -> Int -> Bwd x
 takez _ 0 = B0
 takez (xz :< x) w = takez xz (w-1) :< x
+takez _ _ = error "Taking from an empty Bwd"
 
 -- | 'dropz' is 'drop' but renamed so 'drop' can still be used
-dropz :: Bwd x -> Int -> Bwd x
+dropz :: HasCallStack => Bwd x -> Int -> Bwd x
 dropz xz 0 = xz
 dropz (xz :< x) w = dropz xz (w-1)
+dropz _ _ = error "Dropping from an empty Bwd"
 
 -- | singleton snoc list
 singleton :: x -> Bwd x
 singleton x = B0 :< x
 
 -- | matches 'only' singleton, and will fail in not-nice ways otherwise
-only :: Bwd x -> x
+only :: HasCallStack => Bwd x -> x
 only (B0 :< x) = x
+only _ = error "Not a singleton Bwd"
 
 -- | 'focusBy' takes a predicate p and a snoc list, and returns
 -- a pointed cursor into that snoc for the first item that satisfies p
@@ -87,9 +96,10 @@ focus :: Eq x => x -> Bwd x -> Maybe (Bwd x, x, [x])
 focus x = focusBy (\ y -> y <$ guard (x == y))
 
 -- | "curl up" n items from the snoc part onto the list part
-curl :: Int -> (Bwd x, [x]) -> (Bwd x, [x])
+curl :: HasCallStack => Int -> (Bwd x, [x]) -> (Bwd x, [x])
 curl 0 xzs = xzs
 curl n (xz :< x, xs) = curl (n-1) (xz, x : xs)
+curl _ _ = error "Curling from an empty Bwd"
 
 -- | A 'Cursor' is a location in a list (or a snoc list)
 -- Note that it can point to the head or tail, it does not
