@@ -7,6 +7,7 @@ import Control.Applicative
 import Data.Void
 -- import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 
 -- import Hide
 import Bwd
@@ -155,7 +156,8 @@ typecheck :: SyntaxTable
           -> Bool
 typecheck table env dat = check where
   check :: Bwd ASemanticsDesc -> ASemanticsDesc -> ACTm -> Bool
-  check ctx ty t = let (Just vty) = expand table dat ty in case Term.expand t of
+  check ctx ty t = let vty = fromMaybe (error "Broken invariant") (expand table dat ty) in
+   case Term.expand t of
     _ | VWildcard _ <- vty -> True
     VX v sc -> ty == var ctx sc v -- should maybe be up to unfolding (which might be undecidable)
     AX a sc -> case vty of
@@ -185,6 +187,7 @@ typecheck table env dat = check where
       VBind cat ty0 -> check (ctx :< atom cat (scope t)) ty0 t0
       VPi ty0 (_, ty1) -> check (ctx :< ty0) ty1 t0
       _ -> False
+    m ::: n -> undefined -- TODO REVERT
     m :$: t0 -> undefined -- TODO REVERT
     GX _ t0 -> check ctx ty t0
 

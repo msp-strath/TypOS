@@ -3,10 +3,11 @@
 
 module LaTeX where
 
-import Data.Char (isDigit)
-
-import qualified Data.Map as Map
 import Control.Monad.Reader
+
+import Data.Char (isDigit)
+import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 
 import Concrete.Base
 import Text.PrettyPrint.Compact
@@ -112,8 +113,8 @@ instance LaTeX Raw where
       _ -> call False "typosAtom" [text a] -- as atom
     Cons _ p q -> ask >>= \ table -> case expand table d of
       Just (VEnumOrTag _ ts) -> do
-        let At _ a = p
-        let Just ds = lookup a ts
+        let a = case p of { At _ a -> a; _ -> error "Broken invariant" }
+        let ds = fromMaybe (error "Broken invariant") $ lookup a ts
         let qs = asList q
         call False (text (aTag a (length ds))) <$> traverse (uncurry toLaTeX) (zip ds qs) -- as tags
       Just (VCons dp dq) -> do
@@ -136,7 +137,9 @@ instance LaTeX Raw where
       bd <- toLaTeX () x
       pure $ call False "typosScope" [bd, sc]
     Sbst _ bwd raw -> pure ""
+    _ -> undefined -- TODO
 
+test :: IO ()
 test =
   putStrLn $
   let syntaxT = syntaxDesc ["Syntax"] in

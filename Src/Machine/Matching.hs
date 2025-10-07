@@ -131,3 +131,15 @@ instThicken hnf ph t = let tmnf = hnf t in case tmnf of
         (t, rest) -> (s % t, (%) <$> ress <*> rest)
     (x :.: t) -> case instThicken hnf (ph -? True) t of
       (b, resb) -> (x \\ b, (x \\) <$> resb)
+    VX{} -> error "Already handled"
+    _ :$: _ -> error "Already handled"
+    f :-: t -> case instThicken hnf ph f of
+      (f, Left Mismatch) -> (P Oper $^ (f <&> t), Left Mismatch)
+      (f, resf) -> case instThicken hnf ph t of
+        (t, rest) -> (P Oper $^ (f <&> t), (P Oper $^) <$> ((<&>) <$> resf <*> rest))
+    s ::: t -> case instThicken hnf ph s of
+      (s, Left Mismatch) -> (rad s t, Left Mismatch)
+      (s, ress) -> case instThicken hnf ph t of
+        (t, rest) -> (rad s t, rad <$> ress <*> rest)
+    GX g s -> case instThicken hnf ph s of
+      (s, res) -> (G g $^ s, (G g $^) <$> res)

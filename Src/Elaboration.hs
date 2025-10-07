@@ -46,6 +46,7 @@ import GHC.Stack.Types (HasCallStack)
 type CPattern = PATTERN Concrete
 type APattern = PATTERN Abstract
 
+dmesg :: a -> b -> b
 dmesg = const id
 
 isSubject :: EScrutinee -> IsSubject' ()
@@ -198,6 +199,7 @@ smacro xz (Op r obj opps) = do
   smacro xz obj
   smacro xz opps
 smacro xz (Guarded r t) = smacro xz t
+smacro _ _ = error "Unsupported arguments"
 
 smacros :: Bwd String -> [Assign] -> Elab (Bwd String)
 smacros xz [] = pure xz
@@ -653,6 +655,7 @@ stm usage desc rt = do
         (tdesc, t) <- itm usage rt
         compatibleInfos (getRange rt) (Known desc) (Known tdesc)
         pure t
+      _ -> error "stm: unsupported argument"
 
 senumortag :: Range -> String -> Raw -> Raw -> Elab ACTm
 senumortag r a es tds = do
@@ -850,6 +853,7 @@ spatBase isSub desc rest rp = do
         elabUnder (x, s) $
 --          local (addHint (getVariable <$> x) (Known s)) $
             spatBase isSub desc (extend rest (getVariable <$> x)) p
+      _ -> error "spatBase: unsupported argument"
 
 isObjVar :: Variable -> Elab (ASemanticsDesc, DB)
 isObjVar p = resolve p >>= \case
@@ -894,8 +898,9 @@ isContextStack stk = resolve stk >>= \case
 channelScope :: Channel -> Elab ObjVars
 channelScope (Channel ch) = do
   ds <- asks declarations
-  case fromJust (focusBy (\ (y, k) -> k <$ guard (ch == y)) ds) of
-    (_, AChannel sc, _) -> pure sc
+  case focusBy (\ (y, k) -> k <$ guard (ch == y)) ds of
+    Just (_, AChannel sc, _) -> pure sc
+    _ -> error "Broken invariant"
 
 steppingChannel :: Range -> Channel
                 -> (Direction -> [AProtocolEntry] -> Elab (a, [AProtocolEntry]))
@@ -922,6 +927,7 @@ close b r ch = do
       _ -> when b $
             -- if we cannot win, we don't care
             throwComplaint r (UnfinishedProtocol ch (Protocol ps))
+    _ -> error "Broken invariant"
   modify (channelDelete ch)
 
 withChannel :: Range -> Direction -> Channel -> AProtocol -> Elab a -> Elab a
@@ -1040,6 +1046,7 @@ sact = \case
         Subject _ -> ((SentAsSubject r ,) <$>) $ asks elabMode >>= \case
           Execution  -> pure Nothing
           Definition -> checkSendableSubject tm
+        Input -> error "Broken invariant"
 
     -- Send
     tm <- during (SendTermElaboration ch tm) $ do

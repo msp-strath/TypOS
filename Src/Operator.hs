@@ -131,6 +131,9 @@ type AAnOperator = ANOPERATOR Abstract
 newtype Operator = Operator { getOperator :: String }
   deriving (Show, Eq)
 
+instance Pretty Operator where
+  pretty = pretty . getOperator
+
 type family OPERATOR (ph :: Phase) :: Type
 type instance OPERATOR Concrete = WithRange String
 type instance OPERATOR Abstract = Operator

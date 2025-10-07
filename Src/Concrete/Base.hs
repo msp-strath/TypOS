@@ -1,14 +1,16 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Concrete.Base where
 
+import Data.Bifunctor (Bifunctor (..))
 import Data.Function (on)
+import Data.Kind (Type)
 
 import Bwd
 import Format
 import Scope
 import Hide
 import Location
-import Data.Bifunctor (Bifunctor (..))
+
 
 data Variable = Variable
   { variableLoc :: Range
@@ -177,9 +179,9 @@ isSubjectMode :: Mode a -> Bool
 isSubjectMode (Subject _) = True
 isSubjectMode _           = False
 
-type family SYNTAXCAT (ph :: Phase) :: *
+type family SYNTAXCAT (ph :: Phase) :: Type
 
-type family SYNTAXDESC (ph :: Phase) :: *
+type family SYNTAXDESC (ph :: Phase) :: Type
 type instance SYNTAXDESC Concrete = Raw
 type CSyntaxDesc = SYNTAXDESC Concrete
 type ASyntaxDesc = SYNTAXDESC Abstract
@@ -240,20 +242,20 @@ instance Show Keyword where
 
 data Phase = Concrete | Elaboration | Abstract
 
-type family JUDGEMENTNAME (ph :: Phase) :: *
-type family CHANNEL (ph :: Phase) :: *
-type family BINDER (ph :: Phase) :: *
-type family ACTORVAR (ph :: Phase) :: *
-type family TERMVAR (ph :: Phase) :: *
-type family TERM (ph :: Phase) :: *
-type family PATTERN (ph :: Phase) :: *
-type family CONNECT (ph :: Phase) :: *
-type family STACK (ph :: Phase) :: *
-type family STACKDESC (ph :: Phase) :: *
-type family SCRUTINEEVAR (ph :: Phase) :: *
-type family SCRUTINEETERM (ph :: Phase) :: *
-type family LOOKEDUP (ph :: Phase) :: *
-type family GUARD (ph :: Phase) :: *
+type family JUDGEMENTNAME (ph :: Phase) :: Type
+type family CHANNEL (ph :: Phase) :: Type
+type family BINDER (ph :: Phase) :: Type
+type family ACTORVAR (ph :: Phase) :: Type
+type family TERMVAR (ph :: Phase) :: Type
+type family TERM (ph :: Phase) :: Type
+type family PATTERN (ph :: Phase) :: Type
+type family CONNECT (ph :: Phase) :: Type
+type family STACK (ph :: Phase) :: Type
+type family STACKDESC (ph :: Phase) :: Type
+type family SCRUTINEEVAR (ph :: Phase) :: Type
+type family SCRUTINEETERM (ph :: Phase) :: Type
+type family LOOKEDUP (ph :: Phase) :: Type
+type family GUARD (ph :: Phase) :: Type
 
 type instance JUDGEMENTNAME Concrete = Variable
 type instance CHANNEL Concrete = Variable

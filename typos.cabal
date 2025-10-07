@@ -38,6 +38,8 @@ common warnings
                   -Wno-unused-do-bind
                   -Wno-unused-local-binds
                   -Wno-unused-matches
+                  -Wno-unused-top-binds
+                  -Wno-orphans
                   -Werror=incomplete-patterns
 
 library

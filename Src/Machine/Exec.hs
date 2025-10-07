@@ -37,6 +37,7 @@ import System.IO.Unsafe
 import Debug.Trace
 import Operator.Eval
 
+dmesg :: String -> b -> b
 dmesg = trace
 
 lookupRules :: JudgementName -> Bwd Frame -> Maybe (AProtocol, (Channel, AActor))
@@ -244,7 +245,7 @@ unify :: HeadUpData -> Process Shots Store Cursor -> Process Shots Store []
 --unify (Process zf'@(zf :<+>: up@(UnificationProblem s t) : fs) _ _ store a)
 --  | dmesg ("\nunify\n  " ++ show t ++ "\n  " ++ show store ++ "\n  " ++ show a) False = undefined
 unify dat p | debug MachineUnify "" p = undefined
-unify dat p@Process { stack = zf :<+>: UnificationProblem date s t : fs, ..} =
+unify dat p@Process { stack = zf :<+>: UnificationProblem date s t : fs } =
   case (expand (headUp dat s), expand (headUp dat t)) of
     (s, t) | s == t      -> unify dat (p { stack = zf :<+>: fs })
     (a :%: b, a' :%: b') -> unify dat (p { stack = zf :<+>: UnificationProblem date a a' : UnificationProblem date b b' : fs })
@@ -283,6 +284,9 @@ deepCheck dat th tm p =
                   let p' = p { root = root' }
                   let store'' = updateStore m (xm $: sbstI (weeEnd th') *^ th') store'
                   pure ((xm :$) $^ sg', p' { store = store'' })
+    G g rt -> do
+      (t, p) <- deepCheck dat th (CdB rt ph) p
+      pure (G g $^ t, p)
 
 strengthenSbst :: HeadUpData
                -> Th        -- D0 <= D
@@ -314,6 +318,7 @@ solveMeta m (CdB (S0 :^^ _) th) tm p@Process{..} = do
   let dat = mkHeadUpData (p{ stack = let (fs :<+>: _) = stack in fs})
   (tm, p) <- deepCheck dat th tm p
   return (p { store = updateStore m tm store })
+solveMeta _ _ _ _ = error "Broken invariant"
 
 
 connect :: AConnect
@@ -327,10 +332,11 @@ connect ac@(AConnect ch1 th ch2 n) p@Process { stack = zf :< Sent q gd tm :<+>: 
                (p { stack = zf <>< fs :<+>: []
                   , actor = aconnect unknown ch1 th ch2 (n-1)})
   where th' = ones (length (globalScope env)) <> th
-connect ac p@Process { stack = zf'@(zf :< Spawnee intf) :<+>: fs, ..}
+connect ac p@Process { stack = zf'@(zf :< Spawnee intf) :<+>: fs }
   = move (p { stack = zf' <>< fs :<+>: []})
 connect ac p@Process { stack = zf :< f :<+>: fs}
   = connect ac (p { stack = zf :<+>: (f:fs) })
+connect _ _ = error "Unhandled input"
 
 send :: Channel -> Maybe Guard -> Term
      -> Process Shots Store Cursor
@@ -341,7 +347,7 @@ send :: Channel -> Maybe Guard -> Term
 --   | debug MachineSend (unwords [ch, show term]) p
 --   = undefined
 
-send ch gd term p@Process { stack = B0 :<+>: fs, ..}
+send ch gd term p@Process { stack = B0 :<+>: fs }
   -- TODO: use the range of the send?
   = let a = Fail unknown [StringPart ("Couldn't find channel " ++ rawChannel ch)]
     in exec (p { stack = B0 <>< fs, actor = a })
@@ -356,7 +362,7 @@ send ch gd term
   in debug MachineSend (pretty ch) p' `seq` exec p'
 send ch gd term
   p@Process { stack = zf'@(zf :< Spawnee (Interface (Hole, q) (rxs@(r, xs), parentP) jd jdp em tr)) :<+>: fs
-            , ..}
+            }
   | ch == q =
   let parentP' = parentP { stack = Sent r gd (xs, term) : stack parentP, store = New }
       stack'   = zf :< Spawnee (Interface (Hole, q) (rxs, parentP') jd jdp em (tr :< term)) <>< fs

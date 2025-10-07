@@ -186,6 +186,7 @@ instance LaTeX (Series () (Int, Bool)) where
   toLaTeX d (Series ibs)
     = do let ibss = groupBy ((==) `on` fst) $ sortBy (compare `on` snd) $ map snd ibs
          (ibss, ibs) <- case B0 <>< ibss of
+                          B0 -> error "Broken invariant"
                           ibz :< ibs -> pure (ibz <>> [], ibs)
                           -- Famous last words: trust me that's the only case
          let doc = display1 ibs
@@ -222,6 +223,7 @@ instance (Eq t, LaTeX t) => LaTeX (Series t Int) where
   toLaTeX d (Series tanns)
     = do let tnss = groupBy ((==) `on` fst) $ sortBy (compare `on` snd) tanns
          (tnss, tns) <- case B0 <>< tnss of
+                          B0 -> error "Broken invariant"
                           tnz :< tns -> pure (tnz <>> [], tns)
                           -- Famous last words: trust me that's the only case
          doc <- display1 tns
@@ -232,6 +234,7 @@ instance (Eq t, LaTeX t) => LaTeX (Series t Int) where
 
       where
         display1 :: [(t, Int)] -> LaTeXM (Doc ())
+        display1 [] = error "Broken invariant"
         display1 tns@((t, _) : _) = do
           let ns = map snd tns
           let start = minimum ns

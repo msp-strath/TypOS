@@ -212,10 +212,11 @@ riffle (iz :< i, th) (jz, ph) = case thun th of
   (th, True) -> case (jz, thun ph) of
     (jz :< _, (ph, True)) -> riffle (iz, th) (jz, ph) :< i
     (jz, (ph, False))     -> riffle (iz, th) (jz, ph) :< i
+    _ -> error "Broken invariant"
   (th, False) -> case (jz, thun ph) of
     (jz :< j, (ph, True)) -> riffle (iz, th) (jz, ph) :< j
     (jz, (ph, False))     -> riffle (iz, th) (jz, ph)
-
+    _ -> error "Broken invariant"
 
 -- pullback th ph = (th*ph, ps, ph*th)
 --   o--th*ph-->o

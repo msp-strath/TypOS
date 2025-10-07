@@ -114,6 +114,7 @@ validate table = go where
   go :: Show m => Bwd SyntaxCat -> ASyntaxDesc -> CdB (Tm m) -> Bool
   go env s t@(CdB V th) = reportError s t $ ($ s) $ asRec $ \ a -> a == env <! (dbIndex $ lsb th)
   go env s t = reportError s t $ ($ t) $ flip (maybe bust) (Syntax.expand table s) $ \case
+    VSyntaxCat c -> absurd c
     VAtom -> asAtom $ \ (a,_) -> not (null a)
     VAtomBar as -> asAtom $ \ (a,_) -> not (a `elem` as)
     VNil  -> asAtom $ \ (a,_) -> null a
@@ -185,4 +186,5 @@ validateDesc syns =
              , ("Semantics", wildcard)] -- TODO : change
 
 
+validateIt :: Bool
 validateIt = validateDesc ["Syntax"] (syntaxDesc ["Syntax"])

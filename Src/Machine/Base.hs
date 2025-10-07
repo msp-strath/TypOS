@@ -4,11 +4,13 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Machine.Base where
 
+import Control.Monad.State
+
+import Data.Kind (Type)
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Maybe (fromMaybe)
-import Control.Monad.State
 
 import Actor
 import Actor.Display()
@@ -93,6 +95,7 @@ compareUp dat s t = case (expand (headUp dat s), expand (headUp dat t)) of
   (_, AX{}) -> pure GT
   ((:%:){}, _) -> pure LT
   (_, (:%:){}) -> pure GT
+  _ -> undefined -- TODO
 
 comparesUp :: HeadUpData -> Subst -> Subst -> Maybe Ordering
 comparesUp dat sg sg' = compareUp dat (toTerm sg) (toTerm sg') where
@@ -105,7 +108,7 @@ class Instantiable t where
   normalise :: HeadUpData -> t -> Instantiated t
 
 class Instantiable1 t where
-  type Instantiated1 t :: * -> *
+  type Instantiated1 t :: Type -> Type
   instantiate1 :: StoreF i d -> t a -> Instantiated1 t a
   normalise1 :: HeadUpData -> t a -> Instantiated1 t a
 
@@ -188,6 +191,7 @@ toClause :: Pat -- (obj, ty), eg `['Pair p q] : ['Sigma A \x.B]`
          -> Bwd (Pat, Operator, [Pat]) -- parameter patterns
          -> ACTm -- RHS
          -> Clause
+toClause pobj B0 rhs = error "Broken invariant"
 toClause pobj (ops :< op@(_, opname, _)) rhs = Clause $ toClause' where
  toClause' :: forall m. AClause m
  toClause' opts hnf env targs@((t, ty), args) =
@@ -309,6 +313,7 @@ status fs a d = minimum (actorStatus a : map frameStatus fs)
   frameStatus Binding{} = Done
   frameStatus UnificationProblem{} = StuckOn d
   frameStatus Noted = Done
+  frameStatus (Extended _ _) = Done
 
 data Process l s t
   = Process

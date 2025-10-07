@@ -109,6 +109,7 @@ instance Display Frame where
       pure $ withANSI [SetColour Background Red]
            $ s <+> "~?" <> brackets date <+> t
     Noted -> pure "Noted"
+    Extended op cl -> pure $ pretty op <+> "+= <fun>"
 
 instance (Show (t Frame), Traversable t, Collapse t, Display0 s)
   => Display (Process log s t) where

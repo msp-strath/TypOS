@@ -97,6 +97,11 @@ label col lbl opts str =
   ANSI.withANSI (SetColour Background Yellow <$ guard (colours opts)) (lbl ++ ":")
   ++ str
 
+warning :: Options -> String -> String
 warning = label Yellow "Warning"
+
+success :: Options -> String -> String
 success = label Green "Success"
+
+anerror :: Options -> String -> String
 anerror = label Red "Error"

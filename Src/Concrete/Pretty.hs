@@ -73,6 +73,7 @@ instance Pretty RawP where
     LamP _ (Scope x p) -> multiBindP (B0 :< x) p
     ThP _ (thxz, thd) p -> braces (hsep (pretty <$> thxz <>> []) <> pretty thd) <+> pretty p
     UnderscoreP _ -> "_"
+    Irrefutable _ p -> "~" <+> pretty p
 
 prettyCdrP :: RawP -> [Doc Annotations]
 prettyCdrP = \case
